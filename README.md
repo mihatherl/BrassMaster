@@ -79,10 +79,24 @@ npm run dev -- --host  # also serve on the LAN, for testing on a phone
 ```
 
 ```bash
-npm test               # 333 tests
+npm test               # 1,080 tests, as the paid build
 npm run build          # typecheck, bundle, generate the service worker
 npm run preview        # serve the production build
 ```
+
+**Two products come out of this one codebase**, and which one you get is
+`VITE_TARGET`:
+
+```bash
+npm run build:web      # the free web app — no My Music (the default)
+npm run build:app      # the paid app — everything
+npm run check:web      # proves a web build holds no paid-only code
+```
+
+`web` is the default on purpose: forgetting the variable ships the smaller
+product. The flag reaches the code as `__HAS_MY_MUSIC__`, injected by
+`vite.config.ts`, so the free bundle does not *contain* what it does not
+offer — see `docs/v3-library-plan.md`.
 
 Deploy by copying `dist/` to any static host. The only runtime requests are for
 the instrument samples, and those are precached along with everything else, so

@@ -34,6 +34,17 @@ that cannot host it — is work nobody wants.
 
 ## Do not take My Music out of the web app yet
 
+> **Overtaken by events on 2026-08-18/19, and the argument below no longer
+> applies.** It rested entirely on there being current users who would lose a
+> working feature. There are none: rather than move the deployed app to the
+> new domain — which would have stranded every install anyway, since a PWA's
+> origin is its identity — the old app was left exactly where it is, frozen,
+> still called Brass Fingering Trainer, still holding My Music, for the band
+> members using it. Brass Master started fresh at brassmaster.net with no
+> users and no libraries, so removing My Music from the web build took nothing
+> from anyone, and it shipped in v2.25.0 rather than waiting for release day.
+> See `v3-library-plan.md`.
+
 **The decision is the product's; the timing is not the same question.** My
 Music works today, is deployed, and has nothing to replace it until the paid
 app exists. Removing it now would take a working feature away from every
@@ -241,14 +252,17 @@ possible.
 
 ## The order I would take it
 
-1. **The name and the domain**, with the two availability checks first. They
-   are the cheapest things on the list and everything else is stamped with
-   them.
-2. **The build target** — `VITE_TARGET=web|app`, both built by CI, the web one
-   still including My Music for now. This is the mechanism the whole split
-   rests on, and every later step is easier once it exists.
-3. **Decide the runtime tier's fate** (retire, or redefine `FREE_TIER` to
-   withhold nothing). Blocked on the player.
+1. ~~**The name and the domain**~~ **Done 2026-08-18.** Brass Master, live at
+   brassmaster.net over HTTPS from the `BrassMaster` repository; the legacy
+   app frozen at its old address under its old name.
+2. ~~**The build target**~~ **Done 2026-08-19, v2.25.0.** `VITE_TARGET=web|app`
+   injected as `__HAS_MY_MUSIC__`, both built by CI. The web build does *not*
+   still include My Music — the fork of the repositories removed the reason to
+   wait, since the legacy app keeps the old one forever and this origin began
+   with no users. Verified absent from the deployed bundle, and CI re-checks
+   it every deploy (`npm run check:web`).
+3. ~~**Decide the runtime tier's fate**~~ **Retired 2026-08-19.** The whole of
+   `licensing/` is gone.
 4. **The container spike** — the microphone inside the real wrapper, playing
    the reference tone *while* listening, measuring latency and what the audio
    session does to the tone's route. Before the detector, because it can change
