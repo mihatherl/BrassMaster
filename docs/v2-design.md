@@ -2647,14 +2647,38 @@ Any feature reasoning about physical slides must exclude notes where
 
 ## Selling it, one day
 
-**Superseded in part on 2026-08-18 — read `app-store-plan.md` first.** The
-player settled the shape: everything built to date stays free on the web under
-the name *Brass Master*, My Music moves to a paid iPhone app along with the
-microphone and a tuner, and the line between the two is drawn at *build* time
-rather than by the runtime entitlements described below. What stands unchanged
-is the licence verdict, the asset clearances, and the lesson that a second
-build path must be built by CI or it rots. What is in question is the runtime
-tier itself.
+**The runtime entitlement tier was retired on 2026-08-19, and the paragraphs
+below describing it are history rather than instruction.** `entitlements.ts`,
+`licence.ts`, `constrainToEntitlements`, `FREE_TIER`, `VITE_GATED` and the
+`.is-locked` styling are all gone, along with their tests. Nothing in the app
+now knows that money exists.
+
+**The rule that replaced it: the paid line is drawn at build time, and only
+there.** Two products from one codebase — a free web app at brassmaster.net
+and a paid App Store app — differing by whole features rather than by a flag,
+so the free build does not *contain* what it does not offer and there is
+nothing to forge. `app-store-plan.md` argues it; `v3-library-plan.md` records
+the ruling.
+
+**Why a runtime flag was the wrong tool.** `isUnlocked` read a `localStorage`
+key anyone could set. Harmless while the flag only chose between C major and
+all keys; not harmless once flipping it would hand out the microphone. And
+shipping the microphone and the whole of `import/` in the free bundle in order
+to withhold them at runtime meant shipping some 2,500 lines nobody in that
+build could reach.
+
+**What was lost with it, deliberately:** the honest screen. The retired tier
+had one genuinely good property — it *disabled* withheld controls and stated
+what the copy was limited to, rather than accepting a choice and substituting
+later. That fault (asking for Expert in D major and silently getting Easy in C)
+cannot recur, because there is no longer any substitution to hide: every build
+plays exactly what its screen says. Should anything ever be withheld at runtime
+again, the ruling to carry is that **silently ignoring a choice is worse than
+refusing it** — a player concludes the app is broken rather than limited.
+
+**What stands unchanged** from the reasoning below: the licence verdict, the
+asset clearances, and the lesson that a second build path must be built by CI
+or it rots — which applies unchanged to `VITE_TARGET`.
 
 The app is free and ungated as it stands, and the intention is that it keeps
 being so on GitHub while a paid build stays possible. Most of what that needs

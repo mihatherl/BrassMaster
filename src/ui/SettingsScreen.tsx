@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
 import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
 import { metreFor } from '../domain/metre';
-import { FREE_TIER, isLimited, type Entitlements } from '../licensing/entitlements';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
 import { DIFFICULTIES } from '../exercise/difficulty';
@@ -19,7 +18,6 @@ import {
   DEFAULT_SETTINGS,
   FINGERING_MODES,
   MAX_KEYS_IN_PLAY,
-  constrainToEntitlements,
   sanitise,
   switchMaterial,
   SCROLL_SPEED_RANGE,
@@ -110,15 +108,6 @@ function describeSpan(semitones: number): string {
 
 interface SettingsScreenProps {
   settings: Settings;
-  /**
-   * What this copy is allowed to do, so the screen can say what it cannot
-   * rather than accepting the choice and quietly substituting later.
-   *
-   * Read during render rather than captured, because entitlements can change
-   * while the screen is open — `App` subscribes to them, so a purchase
-   * mid-session re-renders this.
-   */
-  entitlements: Entitlements;
   onChange: (settings: Settings) => void;
   onStart: () => void;
   /** Opens My Music, where a part is read out of a file rather than generated. */
@@ -129,32 +118,15 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({
   settings,
-  entitlements,
   onChange,
   onStart,
   onImport,
   onOutputs,
 }: SettingsScreenProps) {
-  /*
-   * What will actually be played, as against what is stored.
-   *
-   * Every *value* on this screen is read from `shown`, and every write goes to
-   * `settings`. That split is the whole point: disabling the withheld controls
-   * stops a locked choice being made, but it does nothing about one already
-   * held — a fresh install defaults to E flat, so a free copy sat there saying
-   * "E flat major" while the generator built the exercise in C. The screen has
-   * to state what will happen, not what was once asked for.
-   *
-   * The stored choice survives untouched underneath, which is the reason not to
-   * simply overwrite it: a licence returning should bring back the key the
-   * player had picked, not the substitute they were given meanwhile.
-   */
-  const shown = constrainToEntitlements(settings, entitlements);
-
   const instrument = instrumentById(settings.instrumentId);
   const clefs = availableClefs(instrument);
   const [low, high] = writtenRange(instrument, settings.clef);
-  const difficulty = DIFFICULTIES.find((d) => d.id === shown.difficultyId)!;
+  const difficulty = DIFFICULTIES.find((d) => d.id === settings.difficultyId)!;
 
   // What the tempo number counts, among other things: the beat is the pulse,
   // which is not the crotchet in compound time.
@@ -162,9 +134,9 @@ export function SettingsScreen({
 
   // Scales and arpeggios are described by their reach rather than by a level
   // name, and that reach depends on whether the drill's root leaves room for it.
-  const patternKind = isPattern(shown.kind);
-  const drill = drillById(shown.drillId);
-  const actualSpan = patternSpanFor(instrument, settings.clef, shown.fifths, difficulty, drill);
+  const patternKind = isPattern(settings.kind);
+  const drill = drillById(settings.drillId);
+  const actualSpan = patternSpanFor(instrument, settings.clef, settings.fifths, difficulty, drill);
 
   /*
    * How a key is named to the player, which follows the drill.
@@ -189,7 +161,7 @@ export function SettingsScreen({
    * keys where it applies, since a player who knows the scale will notice.
    */
   const naturalForDoubleSharp =
-    minorKeys && drill.up.length === 7 && shown.fifths >= 5;
+    minorKeys && drill.up.length === 7 && settings.fifths >= 5;
   const shortenedSpan =
     patternKind && actualSpan < difficulty.patterns.spanSemitones ? describeSpan(actualSpan) : null;
 
@@ -197,35 +169,11 @@ export function SettingsScreen({
     onChange({ ...settings, [key]: value });
   };
 
-  /*
-   * What this copy withholds, asked in the form each control needs.
-   *
-   * Derived here rather than stored, so a purchase mid-session simply
-   * re-renders into an unlocked screen. Every one of these mirrors a clause of
-   * `constrainToEntitlements`, which stays exactly as it is: that is the
-   * backstop for settings which outlive the screen — saved before a licence
-   * lapsed, or edited in storage — and this is the screen being honest in
-   * front of it, not a replacement for it.
-   *
-   * The free tier's limits are *values*, not merely flags, so a withheld
-   * control can be shown in its place rather than hidden. Hiding would make the
-   * app look smaller than it is and give nobody a reason to buy; disabling
-   * shows the shape of what is on offer.
-   */
-  const locked = {
-    key: (fifths: number) => !entitlements.allKeys && fifths !== FREE_TIER.fifths,
-    kind: (id: string) =>
-      !entitlements.allMaterial && !FREE_TIER.kinds.includes(id as ExerciseKind),
-    difficulty: (id: string) =>
-      !entitlements.allDifficulties && !FREE_TIER.difficultyIds.includes(id),
-    reading: (id: string) => !entitlements.pagedReading && id !== FREE_TIER.readingMode,
-  };
-
   // Enough of each section to see at a glance what is set, without reproducing
   // the whole screen in miniature — the long sections show only what matters.
-  const keySignature = MAJOR_KEYS.find((k) => k.fifths === shown.fifths);
-  const material = EXERCISE_KINDS.find((k) => k.id === shown.kind);
-  const reading = READING_MODES.find((m) => m.id === shown.readingMode);
+  const keySignature = MAJOR_KEYS.find((k) => k.fifths === settings.fifths);
+  const material = EXERCISE_KINDS.find((k) => k.id === settings.kind);
+  const reading = READING_MODES.find((m) => m.id === settings.readingMode);
   const sound = PLAYBACK_MODES.find((m) => m.id === settings.playbackMode);
   const output = settings.audioOutputs.find((o) => o.id === settings.audioOutputId);
 
@@ -234,12 +182,12 @@ export function SettingsScreen({
     exercise: summarise(
       // Every key in play, opening one first, since a summary that named only
       // the first would hide the whole of a modulating exercise.
-      shown.keySet.length > 1
-        ? orderByCloseness(shown.fifths, shown.keySet)
+      settings.keySet.length > 1
+        ? orderByCloseness(settings.fifths, settings.keySet)
             .map((f) => keyName(f, true))
             .filter(Boolean)
             .join(' → ')
-        : keySignature && keyName(shown.fifths),
+        : keySignature && keyName(settings.fifths),
       // The drill's name says more than the box's: "Dominant 7th" is what will
       // be practised, where "Drills" only says where to look for it.
       patternKind ? drill.name : material?.name,
@@ -247,8 +195,8 @@ export function SettingsScreen({
       // Only when it has been asked for. Left to the difficulty it is not a
       // choice the player made, and a summary should not recite the defaults.
       !patternKind && settings.kind !== 'themes' && settings.range
-        ? `${formatPitch(spellInKey(settings.range.low, shown.fifths))}–${formatPitch(
-            spellInKey(settings.range.high, shown.fifths),
+        ? `${formatPitch(spellInKey(settings.range.low, settings.fifths))}–${formatPitch(
+            spellInKey(settings.range.high, settings.fifths),
           )}`
         : undefined,
     ),
@@ -270,7 +218,7 @@ export function SettingsScreen({
       settings.scrollSpeed !== DEFAULT_SETTINGS.scrollSpeed ? 'scroll speed' : undefined,
       settings.conductorStyle !== DEFAULT_SETTINGS.conductorStyle ? 'conductor style' : undefined,
       settings.cushionLevel !== DEFAULT_SETTINGS.cushionLevel ? 'cushion' : undefined,
-      shown.weakNoteDrilling !== DEFAULT_SETTINGS.weakNoteDrilling ? 'weak notes' : undefined,
+      settings.weakNoteDrilling !== DEFAULT_SETTINGS.weakNoteDrilling ? 'weak notes' : undefined,
       // The phone's own speaker is the default and says nothing; a headset in
       // use is worth a word, since it changes when every sound is sent.
       output ? output.name : undefined,
@@ -331,7 +279,7 @@ export function SettingsScreen({
    */
   const keysWindow = useRef<HTMLDivElement>(null);
   const exerciseOpen = isOpen('exercise');
-  const startingKey = shown.keySet[0];
+  const startingKey = settings.keySet[0];
 
   useEffect(() => {
     const window_ = keysWindow.current;
@@ -380,7 +328,7 @@ export function SettingsScreen({
    *
    * Values rather than components, so they close over `settings`, `shown`,
    * `locked` and `update` exactly as they did when they were written inline —
-   * and so that each is plainly the same one control wherever it is shown.
+   * and so that each is plainly the same one control wherever it is settings.
    */
   const keysField = (
     <div className="field">
@@ -402,10 +350,10 @@ export function SettingsScreen({
         {KEY_ROWS.map((row) => (
           <div className="keys__row" key={row[0].fifths}>
             {row.map((key) => {
-              const chosen = shown.keySet.includes(key.fifths);
-              const start = shown.keySet[0] === key.fifths;
-              const full = shown.keySet.length >= MAX_KEYS_IN_PLAY;
-              const only = chosen && shown.keySet.length === 1;
+              const chosen = settings.keySet.includes(key.fifths);
+              const start = settings.keySet[0] === key.fifths;
+              const full = settings.keySet.length >= MAX_KEYS_IN_PLAY;
+              const only = chosen && settings.keySet.length === 1;
               return (
                 <button
                   key={key.fifths}
@@ -413,17 +361,16 @@ export function SettingsScreen({
                   /*
                    * Beyond the cap only what is already chosen can be undone,
                    * and the last one standing cannot be — an exercise has to be
-                   * in some key. Neither is a *withheld* control, which is why
-                   * the locked marker is separate from the disabled attribute.
+                   * in some key.
                    */
-                  disabled={only || (!chosen && full) || locked.key(key.fifths)}
+                  disabled={only || (!chosen && full)}
                   aria-pressed={chosen}
                   // The accidentals are shown as "3♭" beside the name, which a
                   // screen reader would spell out as a number and a symbol.
                   aria-label={`${keyName(key.fifths)}, ${describeFifths(key.fifths)}`}
                   className={`segmented__option key ${chosen ? 'is-selected' : ''} ${
                     start ? 'is-start' : ''
-                  } ${locked.key(key.fifths) ? 'is-locked' : ''}`}
+                  }`}
                   onClick={() => {
                     const next = chosen
                       ? settings.keySet.filter((f) => f !== key.fifths)
@@ -440,14 +387,14 @@ export function SettingsScreen({
           </div>
         ))}
       </div>
-      {shown.keySet.length > 1 && (
+      {settings.keySet.length > 1 && (
         <p className="field__note muted">
-          Starts in {keyName(shown.keySet[0], true)}, and changes key as it goes.
+          Starts in {keyName(settings.keySet[0], true)}, and changes key as it goes.
         </p>
       )}
       {naturalForDoubleSharp && (
         <p className="field__note muted">
-          A book writes the raised seventh of {keyName(shown.fifths)} as a double sharp. This app
+          A book writes the raised seventh of {keyName(settings.fifths)} as a double sharp. This app
           never prints one, so it is written as the natural above.
         </p>
       )}
@@ -462,8 +409,8 @@ export function SettingsScreen({
           <button
             key={option.id}
             type="button"
-            aria-pressed={shown.drillId === option.id}
-            className={`segmented__option drill ${shown.drillId === option.id ? 'is-selected' : ''}`}
+            aria-pressed={settings.drillId === option.id}
+            className={`segmented__option drill ${settings.drillId === option.id ? 'is-selected' : ''}`}
             onClick={() => update('drillId', option.id)}
           >
             {option.name}
@@ -481,10 +428,9 @@ export function SettingsScreen({
               <button
                 key={option.id}
                 type="button"
-                disabled={locked.difficulty(option.id)}
                 className={`segmented__option ${
-                  shown.difficultyId === option.id ? 'is-selected' : ''
-                } ${locked.difficulty(option.id) ? 'is-locked' : ''}`}
+                  settings.difficultyId === option.id ? 'is-selected' : ''
+                }`}
                 onClick={() => update('difficultyId', option.id)}
               >
                 {/* For scales and arpeggios the useful thing to know is how far
@@ -498,7 +444,7 @@ export function SettingsScreen({
           </p>
           {patternKind && shortenedSpan && (
             <p className="field__note muted">
-              {instrument.name} in {keyName(shown.fifths)} has only room for {shortenedSpan}, so
+              {instrument.name} in {keyName(settings.fifths)} has only room for {shortenedSpan}, so
               that is what you will get — the drill&apos;s starting note sits too high for
               anything further.
             </p>
@@ -529,7 +475,7 @@ export function SettingsScreen({
     <RangePicker
       instrument={instrument}
       clef={settings.clef}
-      fifths={shown.fifths}
+      fifths={settings.fifths}
       range={settings.range}
       onChange={(range) => update('range', range)}
     />
@@ -571,43 +517,6 @@ export function SettingsScreen({
         <span className="entry__title">My Music</span>
         <span className="entry__detail">Open a part you have imported, or add one</span>
       </button>
-
-      {/*
-        Said once, near the top, rather than six times beside six controls.
-
-        It names what this copy *has* rather than listing what it lacks, and
-        says nothing about buying anything — there is nothing to buy yet, and a
-        screen that nags before there is even a price is the wrong first
-        impression for a practice tool. Assembled from `FREE_TIER` so it cannot
-        drift away from what is actually enforced.
-      */}
-      {isLimited(entitlements) && (
-        <p className="notice">
-          This copy is limited to{' '}
-          {[
-            !entitlements.allKeys &&
-              `${MAJOR_KEYS.find((k) => k.fifths === FREE_TIER.fifths)?.name} major`,
-            // Named as what it takes away rather than as a number, because
-            // that is what it now is: every tier is given the same exercise,
-            // and only a paid one may carry on past the end of it.
-            !entitlements.playOn && 'one exercise at a time',
-            // Only where it actually withholds something. `FREE_TIER.kinds`
-            // currently names every kind there is, and a notice announcing the
-            // whole list as a limitation reads as a much smaller app than it is.
-            !entitlements.allMaterial &&
-              FREE_TIER.kinds.length < EXERCISE_KINDS.length &&
-              FREE_TIER.kinds
-                .map((id) => EXERCISE_KINDS.find((k) => k.id === id)?.name?.toLowerCase())
-                .filter(Boolean)
-                .join(' and '),
-            !entitlements.allDifficulties &&
-              `${DIFFICULTIES.find((d) => d.id === FREE_TIER.difficultyIds.at(-1))?.name} and below`,
-          ]
-            .filter(Boolean)
-            .join(', ')}
-          . The rest is shown but cannot be chosen.
-        </p>
-      )}
 
       <Panel id="instrument" title="Instrument" values={panelValues.instrument} open={isOpen('instrument')} onToggle={setOpen}>
 
@@ -681,19 +590,16 @@ export function SettingsScreen({
         */}
         <div className="modes">
           {EXERCISE_KINDS.map((kind) => {
-            const chosen = shown.kind === kind.id;
+            const chosen = settings.kind === kind.id;
             const bodyId = `mode-${kind.id}`;
             return (
               <div
                 key={kind.id}
-                className={`mode ${chosen ? 'is-open' : ''} ${
-                  locked.kind(kind.id) ? 'is-locked' : ''
-                }`}
+                className={`mode ${chosen ? 'is-open' : ''}`}
               >
                 <button
                   type="button"
                   className="mode__summary"
-                  disabled={locked.kind(kind.id)}
                   aria-pressed={chosen}
                   aria-expanded={chosen}
                   aria-controls={bodyId}
@@ -735,10 +641,7 @@ export function SettingsScreen({
               <button
                 key={mode.id}
                 type="button"
-                disabled={locked.reading(mode.id)}
-                className={`card ${shown.readingMode === mode.id ? 'is-selected' : ''} ${
-                  locked.reading(mode.id) ? 'is-locked' : ''
-                }`}
+                className={`card ${settings.readingMode === mode.id ? 'is-selected' : ''}`}
                 onClick={() => update('readingMode', mode.id)}
               >
                 <strong>{mode.name}</strong>
@@ -937,8 +840,7 @@ export function SettingsScreen({
         <label className="field field--inline">
           <input
             type="checkbox"
-            checked={shown.weakNoteDrilling}
-            disabled={!entitlements.weakNoteDrilling}
+            checked={settings.weakNoteDrilling}
             onChange={(event) => update('weakNoteDrilling', event.target.checked)}
           />
           <span>Favour notes I get wrong</span>

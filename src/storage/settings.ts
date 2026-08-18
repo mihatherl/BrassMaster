@@ -10,7 +10,6 @@
 import { INSTRUMENTS, availableClefs, writtenRange, type Clef, type Instrument } from '../domain/instruments';
 import type { ReadingMode } from '../render/surface';
 import type { PlaybackMode } from '../engine/session';
-import { FREE_TIER, type Entitlements } from '../licensing/entitlements';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { EXERCISE_KINDS } from '../exercise/types';
 import { MAJOR_KEYS } from '../domain/keys';
@@ -81,8 +80,8 @@ export interface Settings {
    * player's call in v2.14.0: every material now opens on a default worth one
    * sitting, and a player who wants more simply plays on into the grey. See
    * `DEFAULT_LENGTHS` in `exercise/generate.ts` for the figures and the
-   * reasoning, and `Entitlements.playOn` for what it is now that it is not a
-   * setting.
+   * reasoning. Playing on into the grey is now simply what every build does,
+   * rather than something a tier bought.
    */
   /**
    * Which end of the instrument scales and arpeggios are practised in, where
@@ -629,45 +628,6 @@ function sanitiseOutputs(settings: Settings): Pick<Settings, 'audioOutputs' | 'a
     ? settings.audioOutputId
     : null;
   return { audioOutputs, audioOutputId };
-}
-
-/**
- * Forces settings back inside what this copy is entitled to.
- *
- * Applied when an exercise is built, not only when the settings screen is drawn.
- * The screen disables what is locked, but settings outlive it — saved before a
- * purchase lapsed, or edited in storage — and the generator should not be the
- * thing that has to notice.
- */
-export function constrainToEntitlements(
-  settings: Settings,
-  entitlements: Entitlements,
-): Settings {
-  const limited = { ...settings };
-
-  if (!entitlements.allKeys) {
-    // Key changes ride on the same entitlement as key choice, which needs no
-    // gate of its own: a copy allowed only one key has nothing to change to.
-    limited.fifths = FREE_TIER.fifths;
-    limited.keySet = [FREE_TIER.fifths];
-  }
-  /*
-   * Nothing to clamp for `playOn`.
-   *
-   * It is not a setting and cannot be over-asked for: the horizon is simply not
-   * generated without it, so the paper ends where the run does and the offer is
-   * never made. See `App.build`.
-   */
-  if (!entitlements.allDifficulties && !FREE_TIER.difficultyIds.includes(limited.difficultyId)) {
-    limited.difficultyId = FREE_TIER.difficultyIds[0];
-  }
-  if (!entitlements.allMaterial && !FREE_TIER.kinds.includes(limited.kind)) {
-    limited.kind = FREE_TIER.kinds[0];
-  }
-  if (!entitlements.pagedReading) limited.readingMode = FREE_TIER.readingMode;
-  if (!entitlements.weakNoteDrilling) limited.weakNoteDrilling = false;
-
-  return limited;
 }
 
 /**

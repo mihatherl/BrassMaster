@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { instrumentById } from '../domain/instruments';
 import { difficultyById } from '../exercise/difficulty';
 import { metreFor } from '../domain/metre';
@@ -7,18 +7,7 @@ import { canRekeyKind } from '../exercise/rekey';
 import { randomSeed } from '../exercise/rng';
 import type { Exercise } from '../exercise/types';
 import type { SessionSummary } from '../engine/judge';
-import {
-  constrainToEntitlements,
-  loadSettings,
-  saveSettings,
-  type Settings,
-} from '../storage/settings';
-import {
-  currentEntitlements,
-  refreshEntitlements,
-  watchEntitlements,
-} from '../licensing/licence';
-import { horizonBarsFor } from '../licensing/entitlements';
+import { loadSettings, saveSettings, type Settings } from '../storage/settings';
 import { loadStats, noteWeights, recordSession, type NoteStats } from '../storage/stats';
 import { ImportScreen } from './ImportScreen';
 import { OutputScreen } from './OutputScreen';
@@ -39,23 +28,6 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('settings');
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [finished, setFinished] = useState<Finished | null>(null);
-
-  /*
-   * Applied when the exercise is built, not merely when the settings screen is
-   * drawn: settings outlive the screen, and the generator should not be the
-   * thing that has to notice a lapsed purchase.
-   *
-   * Subscribed rather than read once, because the answer can arrive late — a
-   * purchase recorded mid-session, or eventually a receipt checked over the
-   * network. `currentEntitlements` holds its result, so this is a stable
-   * reference until the verdict genuinely changes; see `licence.ts`.
-   */
-  const entitlements = useSyncExternalStore(watchEntitlements, currentEntitlements);
-
-  // Where a slow check would be kicked off. Costs nothing today.
-  useEffect(() => {
-    void refreshEntitlements();
-  }, []);
 
   /**
    * The exercise the settings describe, from a seed — and optionally in a key
@@ -78,9 +50,7 @@ export function App() {
        * key ends the tour, because a tour is a sequence and re-entering one
        * partway into a key nobody chose would be the app arguing with the dial.
        */
-      const chosenSettings =
-        fifths === undefined ? chosen : { ...chosen, fifths, keySet: [fifths] };
-      const settings = constrainToEntitlements(chosenSettings, entitlements);
+      const settings = fifths === undefined ? chosen : { ...chosen, fifths, keySet: [fifths] };
       const instrument = instrumentById(settings.instrumentId);
       // Weak-note weighting reads the same stats the results screen shows, so
       // what the app says needs work is exactly what it then serves up.
@@ -107,20 +77,16 @@ export function App() {
         tempo: settings.tempo,
         variableTempo: settings.variableTempo,
         /*
-         * The paper past the committed end — and the whole of what the paid
-         * tier now buys.
-         *
-         * Without it the exercise is exactly the length it was asked for, so
-         * `Session.canContinue` is false, the offer is never made and the run
-         * ends where the music does. Refusing by not generating rather than by
-         * declining: there is no moment where the app has to say no, and no
-         * green button that turns out to be a shop.
+         * The paper past the committed end, which is what lets a run carry on
+         * rather than stopping where the music does. Generated always: it was
+         * the paid tier's one lever when the split was a runtime flag, and the
+         * split is now between two builds, both of which offer it.
          */
-        horizonBars: horizonBarsFor(entitlements, HORIZON_BARS),
+        horizonBars: HORIZON_BARS,
         noteWeights: weights,
       });
     },
-    [chosen, entitlements],
+    [chosen],
   );
 
   const startNew = useCallback(() => {
@@ -164,7 +130,7 @@ export function App() {
     if (screen === 'play' && exercise) {
       return (
         <PlayScreen
-          settings={constrainToEntitlements(chosen, entitlements)}
+          settings={chosen}
           exercise={exercise}
           onFinish={onFinish}
           onExit={() => setScreen('settings')}
@@ -174,23 +140,20 @@ export function App() {
           /*
            * The key dial, where the music can be rewritten to answer it.
            *
-           * Three conditions, and each of them is a hard one rather than a
-           * preference. `canRekeyKind` is about the material: a scale's length
-           * falls out of how many cycles fit and a stitched theme's out of which
-           * tunes were chosen, so in those a change of key is a change of the
-           * length of the paper. Imported music has no generator behind it at
-           * all — `build` makes an exercise from the settings and a seed, which
-           * is the whole story for generated material and none of it for a part
-           * that came out of a file. And keys are an entitlement.
+           * `canRekeyKind` is about the material: a scale's length falls out of
+           * how many cycles fit and a stitched theme's out of which tunes were
+           * chosen, so in those a change of key is a change of the length of
+           * the paper. Imported music has no generator behind it at all —
+           * `build` makes an exercise from the settings and a seed, which is
+           * the whole story for generated material and none of it for a part
+           * that came out of a file.
            *
            * A fresh seed each time, deliberately: a new key played to the same
            * random walk would be the same exercise transposed, which is not
            * what a player turning to a new key is asking to practise.
            */
           inKey={
-            entitlements.allKeys && canRekeyKind(exercise.kind)
-              ? (fifths) => build(randomSeed(), fifths)
-              : undefined
+            canRekeyKind(exercise.kind) ? (fifths) => build(randomSeed(), fifths) : undefined
           }
           /*
            * And the key they settled in, the same way — as the set, not just the
@@ -236,27 +199,16 @@ export function App() {
       );
     }
 
-    /*
-     * The player's *own* settings, not the constrained copy.
-     *
-     * Deliberately: a choice made before unlocking should survive it, so that a
-     * purchase restores what was picked rather than leaving the substitute in
-     * place. The screen is given the entitlements instead, and shows what this
-     * copy cannot use — where before it silently accepted the choice and let
-     * `constrainToEntitlements` swap it out at build time, which is how asking
-     * for Expert in D major produced Easy in C with nothing on screen saying so.
-     */
     return (
       <SettingsScreen
         settings={chosen}
-        entitlements={entitlements}
         onChange={updateSettings}
         onStart={startNew}
         onImport={() => setScreen('import')}
         onOutputs={() => setScreen('outputs')}
       />
     );
-  }, [screen, exercise, finished, chosen, entitlements, onFinish, repeat, startNew, updateSettings, playImported, build]);
+  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build]);
 
   return <div className="app">{content}</div>;
 }
