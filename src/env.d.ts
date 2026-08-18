@@ -23,6 +23,28 @@ declare global {
    * surely as the imported constant did.
    */
   const __HAS_MY_MUSIC__: boolean;
+  /**
+   * Whether this build can hear the player: the microphone as a `PlayerInput`
+   * in place of the on-screen valves, and the tuner built on the same
+   * detector. True in the paid App Store build only.
+   *
+   * **Nothing reads this yet** — the feature is not built. It exists ahead of
+   * the code so that microphone work lands on the right side of the line from
+   * its first commit rather than being moved there afterwards, and because the
+   * guard that matters is already live without it:
+   * `tools/check-web-bundle.mjs` fails the build if `getUserMedia` or
+   * `mediaDevices` appear in the free bundle at all. That check is not a
+   * name-matching heuristic — a browser cannot reach a microphone by any other
+   * route — so the tripwire is complete before there is anything to trip it.
+   *
+   * Everything in `__HAS_MY_MUSIC__`'s note about *how* to test it applies
+   * here unchanged, and for the same reason: read it directly, never through
+   * an imported or local constant.
+   *
+   * Deliberately its own flag rather than a shared "is paid" one; see
+   * `vite.config.ts` for why.
+   */
+  const __HAS_MICROPHONE__: boolean;
 }
 
 // `moduleDetection: force` means the declaration above only reaches the rest of

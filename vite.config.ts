@@ -69,7 +69,20 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
     __APP_VERSION__: JSON.stringify(version),
+    /*
+     * One flag per paid feature, rather than one flag meaning "paid".
+     *
+     * They are the same expression today and will be for a while, which is
+     * exactly when it is cheap to keep them apart: they guard unrelated code,
+     * they will be finished at different times, and either could move across
+     * the line on its own — the microphone in particular is as good an
+     * argument for the free app as it is a reason to buy the paid one, and
+     * that decision should be an edit to one line here rather than an
+     * untangling. A single `__IS_PAID__` would have to be unpicked at every
+     * use site the day the first feature moves.
+     */
     __HAS_MY_MUSIC__: JSON.stringify(target === 'app'),
+    __HAS_MICROPHONE__: JSON.stringify(target === 'app'),
   },
   server: { allowedHosts: [TAILNET] },
   preview: { allowedHosts: [TAILNET] },

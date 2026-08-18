@@ -2662,6 +2662,26 @@ the ruling. Built in v2.25.0 as `__HAS_MY_MUSIC__`, injected by
 `vite.config.ts` from `VITE_TARGET`, with `web` as the default because
 forgetting the variable should ship the *smaller* product.
 
+**One flag per paid feature, not one flag meaning "paid."** `__HAS_MY_MUSIC__`
+and `__HAS_MICROPHONE__` are the same expression today and deliberately
+separate anyway: they guard unrelated code, they will be finished at different
+times, and either could cross the line on its own. The microphone especially —
+it is as strong an argument for the free app as it is a reason to buy the paid
+one, and moving it should be an edit to one line in `vite.config.ts` rather
+than an untangling at every use site.
+
+**The microphone's guard was built before the microphone.** Nothing reads
+`__HAS_MICROPHONE__` yet. It exists so that the first commit of that work lands
+on the right side of the line instead of being moved there afterwards — and
+because the check that matters is already live without it: a page cannot reach
+a microphone by any route except `navigator.mediaDevices.getUserMedia`, and
+property names survive minification, so `check-web-bundle.mjs` catches the
+feature however it is eventually written or named. That is a chokepoint rather
+than a heuristic, which is what makes a tripwire trustworthy before there is
+anything to trip it. Both directions were mutation-tested when it was added:
+unguarded microphone code fails the free build, and the same code behind the
+literal disappears from it.
+
 **Three things about that flag were learned the hard way, and the last is the
 one to carry.** It must be tested directly, as `__HAS_MY_MUSIC__ ? … : …`, at
 the site that matters: a *static* import keeps the code whatever the flag
