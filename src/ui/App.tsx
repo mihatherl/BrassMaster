@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { instrumentById } from '../domain/instruments';
 import { difficultyById } from '../exercise/difficulty';
 import { metreFor } from '../domain/metre';
@@ -9,11 +9,31 @@ import type { Exercise } from '../exercise/types';
 import type { SessionSummary } from '../engine/judge';
 import { loadSettings, saveSettings, type Settings } from '../storage/settings';
 import { loadStats, noteWeights, recordSession, type NoteStats } from '../storage/stats';
-import { ImportScreen } from './ImportScreen';
 import { OutputScreen } from './OutputScreen';
 import { PlayScreen } from './PlayScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { SettingsScreen } from './SettingsScreen';
+
+/**
+ * My Music, in the build that has it.
+ *
+ * The dynamic import is what makes the paid feature genuinely absent rather
+ * than merely unreachable: `__HAS_MY_MUSIC__` is a literal by the time Rollup
+ * sees it, so in the web build this whole expression is `false ? … : null`,
+ * the `import()` inside it is dead, and `ImportScreen` is dropped along with
+ * everything only it reaches — `import/`'s parser and `storage/pieces.ts`.
+ *
+ * Both halves of that are load-bearing and both have been got wrong once. A
+ * *static* import would keep the code whatever the flag said; and reading the
+ * flag through an imported constant rather than the injected literal left the
+ * chunk in the build, because the substitution happens per use site and does
+ * not cross a module boundary. Neither showed on screen — the app behaved
+ * correctly and shipped the code anyway. Check the bundle, do not assume:
+ * `npm run check:web` is what proves it, and CI runs it every deploy.
+ */
+const ImportScreen = __HAS_MY_MUSIC__
+  ? lazy(() => import('./ImportScreen').then((m) => ({ default: m.ImportScreen })))
+  : null;
 
 type Screen = 'settings' | 'play' | 'results' | 'import' | 'outputs';
 
@@ -176,13 +196,17 @@ export function App() {
       );
     }
 
-    if (screen === 'import') {
+    if (screen === 'import' && ImportScreen) {
       return (
-        <ImportScreen
-          settings={chosen}
-          onPlay={playImported}
-          onBack={() => setScreen('settings')}
-        />
+        /* A local chunk the service worker has already precached, so the
+           fallback is a frame at most — but React requires one. */
+        <Suspense fallback={<div className="screen" />}>
+          <ImportScreen
+            settings={chosen}
+            onPlay={playImported}
+            onBack={() => setScreen('settings')}
+          />
+        </Suspense>
       );
     }
 
@@ -204,7 +228,9 @@ export function App() {
         settings={chosen}
         onChange={updateSettings}
         onStart={startNew}
-        onImport={() => setScreen('import')}
+        /* Absent rather than disabled in the free build: a door to a screen
+           that build has not got is not a door. */
+        onImport={__HAS_MY_MUSIC__ ? () => setScreen('import') : undefined}
         onOutputs={() => setScreen('outputs')}
       />
     );

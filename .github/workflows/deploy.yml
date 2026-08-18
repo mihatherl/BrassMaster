@@ -44,7 +44,22 @@ jobs:
       # nothing to keep the two gates saying the same thing.
       - run: npm run lint
 
-      - run: VITE_BASE=/ npm run build
+      # The paid build is the one nothing else ever builds, and an unbuilt path
+      # rots — tools/ already has once, and VITE_GATED taught the same lesson
+      # before it. Built only to prove it still compiles; its dist is thrown
+      # away by the web build that follows.
+      #
+      # Deliberately before the real build: both write to dist/, and the last
+      # one to run is the one that gets published. Reversing the order would
+      # quietly deploy the paid app to the free site.
+      - run: npm run build:app
+
+      - run: VITE_BASE=/ npm run build:web
+
+      # The free build must not *contain* the paid features, which is the whole
+      # point of drawing the line at build time. Nothing on screen would show
+      # it if this broke, and it has broken twice already — see the script.
+      - run: npm run check:web
 
       # Creates the Pages site on first run, so a fresh repository needs no
       # manual "enable Pages" step — only the custom domain is set by hand.

@@ -1,15 +1,18 @@
 {
   "name": "brass-master",
   "private": true,
-  "version": "2.24.0",
+  "version": "2.25.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:web": "VITE_TARGET=web npm run build",
+    "build:app": "VITE_TARGET=app npm run build",
+    "check:web": "node tools/check-web-bundle.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "VITE_TARGET=app vitest run",
+    "test:watch": "VITE_TARGET=app vitest",
     "svg": "tsx tools/stave-to-svg.mts",
     "shots": "tsx tools/shots.mts",
     "tunes": "tsx tools/tune-sheet.mts"

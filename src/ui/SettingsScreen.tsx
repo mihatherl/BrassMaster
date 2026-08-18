@@ -110,8 +110,16 @@ interface SettingsScreenProps {
   settings: Settings;
   onChange: (settings: Settings) => void;
   onStart: () => void;
-  /** Opens My Music, where a part is read out of a file rather than generated. */
-  onImport: () => void;
+  /**
+   * Opens My Music, where a part is read out of a file rather than generated.
+   *
+   * Optional because the free web build has no importer to open: the line
+   * between the two products is `__HAS_MY_MUSIC__`, and `App` passes this only
+   * in the build that has it. The screen takes the absence as the whole
+   * instruction and leaves the door out rather than drawing a dead one — which
+   * also makes both sides testable in one run; see `target.test.tsx`.
+   */
+  onImport?: () => void;
   /** Opens the headphones screen, where an output is chosen and measured. */
   onOutputs: () => void;
 }
@@ -513,10 +521,12 @@ export function SettingsScreen({
         setting for the exercise about to be generated; it is the other door out
         of this screen, and it belongs where a door goes.
       */}
-      <button type="button" className="entry" onClick={onImport}>
-        <span className="entry__title">My Music</span>
-        <span className="entry__detail">Open a part you have imported, or add one</span>
-      </button>
+      {onImport && (
+        <button type="button" className="entry" onClick={onImport}>
+          <span className="entry__title">My Music</span>
+          <span className="entry__detail">Open a part you have imported, or add one</span>
+        </button>
+      )}
 
       <Panel id="instrument" title="Instrument" values={panelValues.instrument} open={isOpen('instrument')} onToggle={setOpen}>
 

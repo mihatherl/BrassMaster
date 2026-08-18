@@ -2658,7 +2658,20 @@ there.** Two products from one codebase — a free web app at brassmaster.net
 and a paid App Store app — differing by whole features rather than by a flag,
 so the free build does not *contain* what it does not offer and there is
 nothing to forge. `app-store-plan.md` argues it; `v3-library-plan.md` records
-the ruling.
+the ruling. Built in v2.25.0 as `__HAS_MY_MUSIC__`, injected by
+`vite.config.ts` from `VITE_TARGET`, with `web` as the default because
+forgetting the variable should ship the *smaller* product.
+
+**Three things about that flag were learned the hard way, and the last is the
+one to carry.** It must be tested directly, as `__HAS_MY_MUSIC__ ? … : …`, at
+the site that matters: a *static* import keeps the code whatever the flag
+says, and reading the flag through an imported constant — the first attempt —
+left the paid chunk in the free bundle, because Vite substitutes per use site
+and the value does not survive a module boundary. **Neither mistake showed on
+screen.** The app behaved perfectly in both cases and shipped the code anyway,
+which is why `tools/check-web-bundle.mjs` greps the built output and CI runs
+it on every deploy. A build-time rule needs a build-time check; no assertion
+in the suite can see this one.
 
 **Why a runtime flag was the wrong tool.** `isUnlocked` read a `localStorage`
 key anyone could set. Harmless while the flag only chose between C major and

@@ -27,6 +27,31 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 };
 
 /**
+ * Which of the two products this build is.
+ *
+ * One codebase, two things sold through two channels: a free web app at
+ * brassmaster.net, and a paid App Store app adding the microphone, the tuner
+ * and My Music. The line between them is drawn here, at build time, and
+ * nowhere else — see `docs/app-store-plan.md`.
+ *
+ * A build flag rather than a runtime one, and the difference is the point. The
+ * runtime tier this replaced decided the same question by reading a
+ * `localStorage` key anyone could set, which meant the free bundle had to
+ * *contain* everything it withheld. A paid feature shipped to the build that
+ * must not offer it is one developer-tools flag away from being free. Declared
+ * through `define` so every use site sees a literal `true` or `false` before
+ * Rollup runs: the dead branch, and everything only it reached, is dropped
+ * from the bundle rather than merely made unreachable in it.
+ *
+ * **`web` is the default, and deliberately the safe one.** Forgetting the
+ * variable ships the *smaller* product — a free app missing a paid feature is
+ * a bug found in a minute, where a paid feature leaking into the free build
+ * could go a release unnoticed. `npm run build:app` asks for the other one;
+ * `npm test` sets it too, so the suite exercises the whole product.
+ */
+const target = process.env.VITE_TARGET === 'app' ? 'app' : 'web';
+
+/**
  * Where the app will be served from.
  *
  * `VITE_BASE` states it outright and wins when set — the domain cutover to
@@ -44,6 +69,7 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(buildTime),
     __APP_VERSION__: JSON.stringify(version),
+    __HAS_MY_MUSIC__: JSON.stringify(target === 'app'),
   },
   server: { allowedHosts: [TAILNET] },
   preview: { allowedHosts: [TAILNET] },
