@@ -203,14 +203,22 @@ Master" in the relevant classes. Neither is legal advice; both are cheap.
 > player. The bundle identifier is `net.brassmaster.app` — write exactly this
 > into App Store Connect, because it can never change.** The in-code rename
 > shipped as v2.24.0 (manifest, titles, README, package name; storage keys
-> deliberately untouched — renaming them would orphan every player's data).
-> `VITE_BASE` now overrides the inferred base path. **The domain cutover is
-> deliberately not done yet** — it needs DNS at the registrar (A records to
-> GitHub Pages, `www` CNAME), the custom domain set on the repo, HTTPS
-> provisioned, *and a decision about existing users first*: a PWA's origin is
-> its identity, so installs and IndexedDB libraries at the github.io address
-> do not follow the app to the new domain. Cut over with eyes open, ideally
-> with an export path or a notice in the old app.
+> deliberately untouched). `VITE_BASE` overrides the inferred base path and
+> the deploy workflow sets it to `/`, since a custom domain serves from the
+> root.
+>
+> **The cutover became a fork, decided the same evening.** Because a PWA's
+> origin is its identity, moving the site would have stranded installs at the
+> old address — so instead the old app is left exactly where it is: the
+> `BrassFingeringTrainer` repository carries a final commit reverting the
+> rename and is frozen, still serving Brass Fingering Trainer at
+> `mihatherl.github.io/BrassFingeringTrainer` for the handful of players in
+> the band using it. **Brass Master continues in the `BrassMaster`
+> repository, deployed to brassmaster.net, and starts with no users** — which
+> also dissolves the timing argument in *Do not take My Music out of the web
+> app yet*: the new web build may drop My Music as soon as `VITE_TARGET`
+> exists, since nobody at the new origin has a library to lose and the legacy
+> app keeps the old My Music forever.
 
 **Reserve the name in App Store Connect early.** Creating the app record
 reserves the name before there is anything to upload.

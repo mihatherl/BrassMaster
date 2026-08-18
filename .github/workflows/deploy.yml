@@ -1,7 +1,7 @@
-# Builds the app and publishes it to GitHub Pages.
+# Builds the app and publishes it to GitHub Pages at brassmaster.net.
 #
-# The base path comes from GITHUB_REPOSITORY at build time (see vite.config.ts),
-# so renaming the repository needs no change here or anywhere else.
+# VITE_BASE=/ because a custom domain serves from the root (see vite.config.ts).
+# The domain itself is public/CNAME plus the Pages custom-domain setting.
 name: Deploy
 
 on:
@@ -53,7 +53,13 @@ jobs:
       # quietly deploy the gated app to a site that is meant to be free.
       - run: VITE_GATED=true npm run build
 
-      - run: npm run build
+      - run: VITE_BASE=/ npm run build
+
+      # Creates the Pages site on first run, so a fresh repository needs no
+      # manual "enable Pages" step — only the custom domain is set by hand.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v5
         with:
