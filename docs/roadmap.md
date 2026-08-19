@@ -105,7 +105,9 @@ returning to and paying for, and it is where the product is thinnest today.
 the free bundle does not contain it. That is what makes the free-to-paid move
 painless: see § 3.
 
-**1.1 Model skill, not just pitch.** `storage/stats.ts` records
+**1.1 Model skill, not just pitch.** ~~To build~~ — **built 2026-08-19**: `exercise/attributes.ts` labels each note and `storage/skills.ts` tallies the verdicts against those labels, recorded from every run. Nothing reads it yet; 1.2 onwards do. The ruling is in `v2-design.md` § *What made it hard, not which note it was*. What follows is why it was needed.
+
+`storage/stats.ts` records
 `{ attempts, correct }` against a MIDI note, per instrument and clef, decayed
 so recent work dominates. That is the app's whole memory, and it collapses
 every dimension of difficulty onto one. It can say you miss C♯5; it cannot say

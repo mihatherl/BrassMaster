@@ -9,6 +9,8 @@ import type { Exercise } from '../exercise/types';
 import type { SessionSummary } from '../engine/judge';
 import { loadSettings, saveSettings, type Settings } from '../storage/settings';
 import { loadStats, noteWeights, recordSession, type NoteStats } from '../storage/stats';
+import { attributesFor } from '../exercise/attributes';
+import { recordSkills, tallySession } from '../storage/skills';
 import { OutputScreen } from './OutputScreen';
 import { PlayScreen } from './PlayScreen';
 import { ResultsScreen } from './ResultsScreen';
@@ -140,10 +142,25 @@ export function App() {
     (summary: SessionSummary) => {
       if (!exercise) return;
       const stats = recordSession(exercise.instrumentId, exercise.clef, summary.byNote);
+      /*
+       * The same verdicts, tallied a second way: against what made each note
+       * hard rather than against which note it was. Nothing reads this yet —
+       * teacher mode will — but it is recorded from now so that a player who
+       * reaches that feature arrives with a history rather than starting blank.
+       *
+       * Recorded in every build, not only the paid one. It is a store, not the
+       * feature: what is sold is the coach that reads it, and keeping one code
+       * path here is worth more than withholding a few kilobytes of tally.
+       */
+      recordSkills(
+        exercise.instrumentId,
+        exercise.clef,
+        tallySession(attributesFor(exercise, chosen.tempo), summary.judgements),
+      );
       setFinished({ summary, exercise, stats });
       setScreen('results');
     },
-    [exercise],
+    [exercise, chosen.tempo],
   );
 
   const content = useMemo(() => {

@@ -300,6 +300,61 @@ same format and nothing in the app changes.
 **MusicXML rather than MIDI.** MIDI discards spelling and key, which are the
 two things this app cares most about.
 
+## What made it hard, not which note it was — the skill model
+
+The first piece of teacher mode (`docs/roadmap.md` § 1.1), and the input every
+later piece of it needs. `storage/skills.ts` tallies each judged note against
+`exercise/attributes.ts`'s labels for it — rhythm, interval, accidental, on or
+off the pulse, key, tempo band — beside the per-note tally that already fed
+weak-note drilling.
+
+**The taxonomy is the generator's own, read back.** `difficulty.ts` had always
+parameterised an exercise by interval, accidentals, rests, ties and rhythm, and
+the settings added key and metre, so every exercise was already a point in a
+skill space. Nothing here is a new opinion about what makes reading hard; the
+only thing missing was recording where each note fell. That is why the
+dimensions are not a list somebody chose — inventing one would have been a
+second opinion to keep in step with the first.
+
+**The test for adding a dimension** is whether *"your worst dimension is X"*
+would be a sentence a player could act on. "Your dotted rhythms" passes. A
+statistic nobody could practise does not.
+
+**Labels come from the music, never from how it went.** The same passage
+attracts the same labels whoever plays it, which is what lets two players — or
+one player a month apart — be compared at all.
+
+**The tally is driven by the judgements, not by the notes.** A note outside the
+instrument's range, and the far side of a tie, are never judged, so they never
+reach the tally and cannot count against a skill. It is the same ruling as
+*Nothing claims what it does not deliver*, applied to a second store: a note
+that asked nothing of the player is not evidence about them. For the same
+reason the far side of a tie gets no *interval* label — there is no new attack
+to find, and calling it a unison would fill the `same` band with notes nobody
+had to read.
+
+**Never attempted and always wrong are opposite facts**, so `accuracyOf`
+returns null rather than zero below `MIN_ATTEMPTS_TO_JUDGE`. A coach that
+confused them would drill the thing the player has never met instead of the
+thing they keep failing — the wrong lesson, delivered confidently.
+
+**Weakness is ranked within one dimension, never across them.** `key:-4`
+against `rhythm:eighth.` is not a comparison; what a report wants to say is
+"of your keys, these are the weak ones".
+
+**Decay and cap are held at the note stats' values deliberately** — 0.98 and
+60. Two histories that disagreed about what counts as recent would make any
+report drawn from both quietly incoherent.
+
+**Recorded in every build, including the free one.** It is a store, not the
+feature: what is sold is the coach that reads it. Keeping one code path is
+worth more than withholding a few kilobytes of tally, and the data never
+crosses the origin anyway.
+
+**Known limitation:** a tempo moved with the dial part-way through a run is
+attributed to the tempo the run started at. Fixing it needs the session record
+of roadmap § 1.5.
+
 ## When the app has no sound — v2.23.4
 
 **Ask about the phone's silent switch first.** Reported on 2026-08-18 as no
