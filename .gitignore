@@ -41,9 +41,13 @@ input/
 # committed engraving check is the SVG one in src/render/__snapshots__.
 shots/
 
-# Review page from `npm run themes`, regenerated on demand.
+# Review pages from `npm run themes`, `npm run tunes` and `npm run cells`,
+# regenerated on demand.
 #
-# Anchored to the root on purpose. Unanchored, this matches at any depth and
-# silently swallowed `public/spike/themes.html`, which is published and must be
-# committed — `git add -A` skipped it without a word and CI found it instead.
+# Anchored to the root on purpose. Unanchored, the themes rule matched at any
+# depth and silently swallowed `public/spike/themes.html`, which is published
+# and must be committed — `git add -A` skipped it without a word and CI found
+# it instead.
 /themes.html
+/tunes.html
+/cells.html

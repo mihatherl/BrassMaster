@@ -50,6 +50,15 @@ export interface CellEvent {
 }
 
 export interface Cell {
+  /**
+   * Identifies the *music*, not the slot.
+   *
+   * **Change the notes, change the id.** Ids reach outside this file: a review
+   * sheet prints them so a cell can be named, and a player's corpus overlay
+   * will one day record which ones they have discarded. An id kept across an
+   * edit would silently hand someone a figure they never judged — and would
+   * make a past review of it stale without saying so.
+   */
   id: string;
   metre: readonly [number, number];
   role: CellRole;
@@ -301,4 +310,36 @@ export function cellsFor(
       CELL_LEVELS.indexOf(cell.level) <= ceiling &&
       (role === undefined || cell.role === role),
   );
+}
+
+/**
+ * A cell's events as a `Theme` would write them, anchored on a degree.
+ *
+ * For looking at one cell on its own — the review sheet of `tools/cell-sheet.mts`
+ * — rather than for composing, which places whole phrases and chooses its
+ * anchors so that joins step and closes land where they should (`compose.ts`).
+ *
+ * **What a reviewer is judging here is anchor-independent:** a figure that
+ * climbs a third climbs a third wherever it starts, and its rhythm is its
+ * rhythm. So this deliberately does not try to reproduce the composer's choice
+ * of anchor, and the sheet is not a claim about where a cell will actually be
+ * placed.
+ */
+export function cellAsTheme(cell: Cell, anchor = 0): {
+  events: Array<{ degree: number; octave?: number; beats: number; tied?: true } | { rest: true; beats: number }>;
+} {
+  return {
+    events: cell.events.map((event) => {
+      if (event.rest) return { rest: true as const, beats: event.beats };
+      const step = anchor + (event.step ?? 0);
+      const degree = (((step % 7) + 7) % 7) + 1;
+      const octave = Math.floor(step / 7);
+      return {
+        degree,
+        beats: event.beats,
+        ...(octave !== 0 ? { octave } : {}),
+        ...(event.tied ? { tied: true as const } : {}),
+      };
+    }),
+  };
 }

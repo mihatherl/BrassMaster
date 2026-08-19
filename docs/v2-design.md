@@ -449,6 +449,38 @@ it arrives there. Armed before the screens exist, and mutation-tested by wiring
 the store into `App` unguarded and watching the free build fail — which is the
 exact mistake it is there to catch.
 
+## Looking at the cells, and what an id is for
+
+`npm run cells` engraves every cell in the corpus — all 157 — grouped by metre
+then by role, each printed with its id. `npm run tunes` already showed the
+composer's *output*; this shows its *input*, and the two together are how the
+corpus is judged.
+
+**Because a cell cannot be reviewed as text.** `0q 2e -1h` is a compact
+notation written for the composer, and nobody can tell a good opening figure
+from an ugly one by reading it. Until now a bad cell was invisible until it
+turned up inside a tune, by which point it was hard to say which bar was at
+fault. This is the same argument as *Look at the picture* in the handover,
+applied one level further down.
+
+**The ids are the point.** Printed beside each cell, they turn a review from
+impressions into instructions: *cut `68-close-4`, the leap at the end is ugly*.
+
+**So an id identifies the music, not the slot: change the notes, change the
+id.** Recorded on `Cell.id` itself, where anyone editing one will meet it. Ids
+now reach outside `cells.ts` — onto a review sheet, and one day into a player's
+corpus overlay recording which cells they have discarded — and an id kept
+across an edit would hand someone a figure they never judged while making a
+past review of it stale without saying so. Cheap to adopt now and impossible to
+retrofit later.
+
+**The sheet is anchor-independent, and says so on the page.** `cellAsTheme`
+places a cell on a degree of its own choosing rather than reproducing the
+composer's, which chooses anchors so that joins step and closes land where they
+should. What a reviewer is judging — the shape and the rhythm — is the same
+wherever the figure starts, so the sheet is not a claim about where a cell will
+actually be placed and should not be read as one.
+
 ## A sitting, and a report on it — v2.27.0
 
 `docs/roadmap.md` §§ 1.5 and 1.6, built together because a sitting is the unit
