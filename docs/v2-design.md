@@ -367,6 +367,29 @@ little rather than dropping someone into music they cannot read.
 animation for a rung that did not change would be the app congratulating
 someone for nothing.
 
+**A course chooses the settings; free play is untouched.** The two front doors
+differ in exactly one way — who picks the difficulty, tempo, key and material.
+A rung *is* that set of choices. The ladder has no authority outside teacher
+mode: it constrains nothing on the settings screen, hides no control, and a
+player who never opens a course is unaffected by any of it.
+
+**And a course must never write its choices back over the player's own.** A
+step supplies settings *for its run*; the settings screen keeps saying what the
+player chose. Otherwise one step of a scales course at 60 would silently reset
+a tempo they had settled on, and free play would come back rearranged. This is
+the retired entitlement tier's fault in mirror image — that substituted
+settings while the screen still showed what had been asked for, which is how
+"Expert in D major" became "Easy in C" with nothing admitting it.
+
+**They touch in one place, deliberately:** `loadProgress` seeds a first session
+from the player's current settings, so a course opens where they already
+practise rather than at the bottom. After that the two are independent.
+
+**History is shared, and keyed as it always was** — per instrument and clef,
+not per door. Accuracy on a written note is the same fact however the run was
+set up, so practice inside a course improves free play's weak-note drilling and
+the other way about.
+
 **Ladders are data, not the two hard-coded axes they began as.** A ladder is an
 ordered list of named levels, each pointing at a generator difficulty and
 carrying **its own tempo band**. That last part matters on its own — a beginner
