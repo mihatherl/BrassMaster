@@ -341,6 +341,39 @@ different problem and does not arise until there is something to give them. Do
 it with TestFlight from Phase 4, not by publishing a web build; Cloudflare
 Access on a subdomain is the fallback if web testers are ever needed sooner.
 
+### One codebase, and never a fork
+
+**A change to the free app is not a special kind of change.** It is an ordinary
+commit to shared code, and it reaches both builds because nothing hides it. A
+paid feature goes behind its flag and reaches one. The only decision per change
+is *free, paid, or both*, and it is expressed by whether a flag goes round it —
+nothing is cherry-picked and nothing is merged between lines.
+
+**Forking the free and paid apps would be a mistake**, and this project already
+holds the cautionary example: `BrassFingeringTrainer` is a fork, and it is
+frozen, because a fork you maintain is a codebase you pay for twice. Two live
+ones would mean every bug fixed twice with one eventually forgotten, tests
+passing on one side while rotting on the other, versions drifting apart, and
+merges becoming archaeology. It is the same argument that retired the runtime
+tier. A fork is right only when one side is being abandoned, which is exactly
+what that one was for. Feature branches are a different thing and are fine: a
+branch converges, a fork diverges.
+
+**Where the builds must behave differently, use a conditional at the
+composition root, not a divergent component.** The established pattern is
+`SettingsScreen`'s optional `onImport`: `App` passes it only in the build that
+has My Music, and the screen itself knows nothing about any flag — the absence
+of the callback is the whole instruction. That keeps components testable from
+both sides in one run, which is how `target.test.tsx` covers both without two
+builds. The same applies to the larger divergences coming: the paid app opening
+on a choice between *Practice* and *Free play* while the free app goes straight
+to the settings screen is one conditional, not two apps.
+
+**A known, accepted oddity:** every push to `main` deploys the free app, so
+paid-only work redeploys brassmaster.net with nothing a free user can see, and
+`autoUpdate` gives them a quiet reload for it. Cheaper to live with than to
+engineer around.
+
 ### Where the iPhone app is built from
 
 **Recommendation, not yet ratified:** the native shell lives in **this
