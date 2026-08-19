@@ -272,6 +272,24 @@ export function verdictOn(recent: readonly number[], mastery: Mastery): Movement
 export interface Progress {
   rung: Rung;
   /**
+   * What the player is aiming at: a rung on the same ladder.
+   *
+   * A marker, not a ceiling. Reaching it is worth saying so; it does not stop
+   * the ladder, and a player who carries on past their goal is doing exactly
+   * what a goal is for.
+   *
+   * Kept in this document rather than a store of its own — where the player is
+   * and where they are going are one fact about one instrument, and § 1.7 of
+   * the roadmap asks for one versioned document rather than scattered keys.
+   */
+  goal?: Rung;
+  /**
+   * The rung the goal was set from, which is what a progress bar measures out
+   * of. Without it, a goal two rungs above a strong player would read as nearly
+   * done before they had played anything.
+   */
+  goalSetAt?: Rung;
+  /**
    * Accuracies at the current rung, oldest first.
    *
    * Cleared whenever the rung moves, because evidence is about a rung and
@@ -306,7 +324,86 @@ export function afterRun(
   // At either end of the ladder there is nowhere to go, so the evidence stays
   // and the player keeps practising where they are — reported as `stay`,
   // because nothing moved and saying otherwise would be a lie to the screen.
-  if (!moved) return { progress: { rung: progress.rung, recent }, movement: 'stay' };
+  if (!moved) return { progress: { ...progress, recent }, movement: 'stay' };
 
-  return { progress: { rung: moved, recent: [] }, movement };
+  return { progress: { ...progress, rung: moved, recent: [] }, movement };
+}
+
+/**
+ * How many rungs a level holds, counting both ends.
+ *
+ * The ceiling sits on the step grid (there is a test), so this divides
+ * exactly — a band from 60 to 96 in sixes is seven rungs, not six.
+ */
+export function rungsInLevel(level: Level): number {
+  const { floor, ceiling, step } = level.tempo;
+  return Math.round((ceiling - floor) / step) + 1;
+}
+
+/** Every rung of a ladder, end to end. */
+export function ladderLength(ladder: Ladder): number {
+  return ladder.levels.reduce((total, level) => total + rungsInLevel(level), 0);
+}
+
+/**
+ * A rung's position in the whole ladder, counting from 0 at the bottom.
+ *
+ * Flattening the ladder is what makes a goal answerable. Two rungs differing on
+ * two axes — a level apart and a tempo apart — cannot be subtracted, but their
+ * positions in the one sequence the player actually climbs can be, and that
+ * sequence is exactly what `nextRung` walks.
+ */
+export function rungOrdinal(rung: Rung): number {
+  const ladder = ladderById(rung.ladderId);
+  const index = levelIndex(ladder, rung.levelId);
+  const level = ladder.levels[index];
+  const below = ladder.levels
+    .slice(0, index)
+    .reduce((total, earlier) => total + rungsInLevel(earlier), 0);
+  return below + Math.round((snap(rung.tempo, level.tempo) - level.tempo.floor) / level.tempo.step);
+}
+
+export interface Distance {
+  /** Rungs from here to there: positive while the goal is still above. */
+  rungs: number;
+  /** Level changes in between, signed the same way. */
+  levels: number;
+  /** Whether the goal is met — reached *or passed*. */
+  reached: boolean;
+}
+
+/**
+ * How far it is from one rung to another, or null when they are not comparable.
+ *
+ * Null for two different ladders, deliberately: a rung on a scales course and a
+ * rung on a reading course are not a distance apart in any sense a player would
+ * recognise, and inventing a number would be worse than admitting it. A screen
+ * given null should say the goal belongs to another course rather than draw an
+ * empty bar.
+ */
+export function distanceTo(from: Rung, to: Rung): Distance | null {
+  if (from.ladderId !== to.ladderId) return null;
+  const ladder = ladderById(from.ladderId);
+  const rungs = rungOrdinal(to) - rungOrdinal(from);
+  return {
+    rungs,
+    levels: levelIndex(ladder, to.levelId) - levelIndex(ladder, from.levelId),
+    reached: rungs <= 0,
+  };
+}
+
+/**
+ * How far along the way to a goal, from 0 to 1 — or null when the two rungs
+ * are not comparable.
+ *
+ * Measured from where the player *started aiming* rather than from the bottom
+ * of the ladder, which would show a strong player as nearly finished the moment
+ * they set a goal two rungs above themselves.
+ */
+export function progressToward(from: Rung, at: Rung, goal: Rung): number | null {
+  const whole = distanceTo(from, goal);
+  const left = distanceTo(at, goal);
+  if (!whole || !left) return null;
+  if (whole.rungs <= 0) return 1;
+  return Math.min(1, Math.max(0, (whole.rungs - left.rungs) / whole.rungs));
 }

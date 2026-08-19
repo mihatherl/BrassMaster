@@ -18,10 +18,20 @@
  */
 
 import type { Clef } from '../domain/instruments';
-import { DEFAULT_LADDER_ID, rungFrom, type Progress } from '../exercise/ladder';
+import { DEFAULT_LADDER_ID, rungFrom, type Progress, type Rung } from '../exercise/ladder';
 
 /** Unique to teacher mode, and the bundle check's fingerprint for it. */
 const STORAGE_PREFIX = 'brass-trainer:ladder:';
+
+/** A rung from storage, snapped onto the grid, or undefined if it is not one. */
+function readRung(value: unknown): Rung | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { ladderId, levelId, tempo } = value as Partial<Rung>;
+  if (typeof ladderId !== 'string' || typeof levelId !== 'string' || typeof tempo !== 'number') {
+    return undefined;
+  }
+  return rungFrom(ladderId, levelId, tempo);
+}
 
 function keyFor(instrumentId: string, clef: Clef): string {
   return `${STORAGE_PREFIX}${instrumentId}:${clef}`;
@@ -61,12 +71,16 @@ export function loadProgress(
     ) {
       return fresh();
     }
+    const { goal, goalSetAt } = parsed as Partial<Progress>;
     return {
       // Re-snapped on the way in rather than trusted: a store written by an
       // older version, or edited by hand, must not put the player on a rung the
-      // ladder cannot step off.
+      // ladder cannot step off. The goal gets the same treatment — it is a rung
+      // like any other and a screen will measure against it.
       rung: rungFrom(rung.ladderId, rung.levelId, rung.tempo),
       recent: Array.isArray(recent) ? recent.filter((n) => typeof n === 'number') : [],
+      ...(readRung(goal) ? { goal: readRung(goal)! } : {}),
+      ...(readRung(goalSetAt) ? { goalSetAt: readRung(goalSetAt)! } : {}),
     };
   } catch {
     return fresh();

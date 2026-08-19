@@ -8,6 +8,7 @@ const LADDER = ladderById(DEFAULT_LADDER_ID);
 const FIRST = LADDER.levels[0];
 const SECOND = LADDER.levels[1];
 const START = SECOND.tempo.floor + SECOND.tempo.step;
+const LAST = LADDER.levels[LADDER.levels.length - 1];
 
 const settings = { difficultyId: SECOND.id, tempo: START };
 
@@ -95,5 +96,32 @@ describe('remembering where the player got to', () => {
       }),
     );
     expect(loadProgress('cornet', 'treble', settings).recent).toEqual([0.9]);
+  });
+
+  it('keeps a goal across sittings, snapped like any other rung', () => {
+    saveProgress('cornet', 'treble', {
+      rung: rungFrom(DEFAULT_LADDER_ID, SECOND.id, START),
+      recent: [],
+      goal: { ladderId: DEFAULT_LADDER_ID, levelId: LAST.id, tempo: LAST.tempo.ceiling + 1 },
+    });
+    const { goal } = loadProgress('cornet', 'treble', settings);
+    expect(goal!.levelId).toBe(LAST.id);
+    expect(goal!.tempo).toBe(LAST.tempo.ceiling);
+  });
+
+  it('drops a goal that is not a rung rather than storing rubbish', () => {
+    localStorage.setItem(
+      'brass-trainer:ladder:cornet:treble',
+      JSON.stringify({
+        rung: { ladderId: DEFAULT_LADDER_ID, levelId: SECOND.id, tempo: START },
+        recent: [],
+        goal: { levelId: LAST.id },
+      }),
+    );
+    expect(loadProgress('cornet', 'treble', settings).goal).toBeUndefined();
+  });
+
+  it('has no goal until one is set', () => {
+    expect(loadProgress('cornet', 'treble', settings).goal).toBeUndefined();
   });
 });

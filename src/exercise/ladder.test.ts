@@ -5,6 +5,11 @@ import {
   DEFAULT_MASTERY,
   LADDERS,
   ladderById,
+  ladderLength,
+  distanceTo,
+  progressToward,
+  rungOrdinal,
+  rungsInLevel,
   levelOf,
   nextRung,
   previousRung,
@@ -305,5 +310,89 @@ describe('folding a run into where the player is', () => {
     expect(steps).toBeLessThan(500);
     expect(progress.rung.levelId).toBe(FIRST.id);
     expect(progress.rung.tempo).toBe(FIRST.tempo.floor);
+  });
+});
+
+describe('how far it is to a goal', () => {
+  it('counts both ends of a level’s band', () => {
+    // 60 to 96 in sixes is seven rungs, not six.
+    expect(rungsInLevel(FIRST)).toBe((FIRST.tempo.ceiling - FIRST.tempo.floor) / FIRST.tempo.step + 1);
+  });
+
+  it('puts the bottom of the ladder at zero and counts up without a gap', () => {
+    expect(rungOrdinal(at(FIRST.id, FIRST.tempo.floor))).toBe(0);
+    expect(rungOrdinal(at(FIRST.id, FIRST.tempo.floor + FIRST.tempo.step))).toBe(1);
+    expect(rungOrdinal(at(SECOND.id, SECOND.tempo.floor))).toBe(rungsInLevel(FIRST));
+  });
+
+  /*
+   * The property the whole idea rests on: the flattened ordinal has to agree
+   * with the sequence `nextRung` actually walks, or a goal would be a distance
+   * from somewhere the player never goes.
+   */
+  it('agrees with the path the ladder actually climbs, rung for rung', () => {
+    let rung = at(FIRST.id, FIRST.tempo.floor);
+    let expected = 0;
+    while (true) {
+      expect(rungOrdinal(rung)).toBe(expected);
+      const up = nextRung(rung);
+      if (!up) break;
+      rung = up;
+      expected++;
+    }
+    expect(expected).toBe(ladderLength(LADDER) - 1);
+  });
+
+  it('measures a goal above as a positive distance, in rungs and levels', () => {
+    const here = at(FIRST.id, FIRST.tempo.floor);
+    const goal = at(SECOND.id, SECOND.tempo.floor);
+    const distance = distanceTo(here, goal)!;
+    expect(distance.rungs).toBe(rungsInLevel(FIRST));
+    expect(distance.levels).toBe(1);
+    expect(distance.reached).toBe(false);
+  });
+
+  it('counts a goal already passed as reached, and says so plainly', () => {
+    const here = at(SECOND.id, SECOND.tempo.ceiling);
+    const goal = at(FIRST.id, FIRST.tempo.floor);
+    const distance = distanceTo(here, goal)!;
+    expect(distance.rungs).toBeLessThan(0);
+    expect(distance.reached).toBe(true);
+  });
+
+  it('treats standing on the goal as reached', () => {
+    const here = at(SECOND.id, SECOND.tempo.floor);
+    expect(distanceTo(here, here)!.reached).toBe(true);
+  });
+
+  /*
+   * A rung on a scales course and a rung on a reading course are not a distance
+   * apart in any sense a player would recognise. Null is the honest answer, and
+   * a screen can say so instead of drawing a meaningless bar.
+   */
+  it('refuses to measure between two different courses', () => {
+    const here = at(FIRST.id, FIRST.tempo.floor);
+    expect(distanceTo(here, { ...here, ladderId: 'another-course' })).toBeNull();
+  });
+
+  it('measures the way along from where the goal was set, not from the bottom', () => {
+    const from = at(SECOND.id, SECOND.tempo.floor);
+    const goal = nextRung(nextRung(from)!)!;
+    expect(progressToward(from, from, goal)).toBe(0);
+    expect(progressToward(from, nextRung(from)!, goal)).toBeCloseTo(0.5);
+    expect(progressToward(from, goal, goal)).toBe(1);
+  });
+
+  it('never reports more than finished, however far past the goal they go', () => {
+    const from = at(FIRST.id, FIRST.tempo.floor);
+    const goal = nextRung(from)!;
+    expect(progressToward(from, at(LAST.id, LAST.tempo.ceiling), goal)).toBe(1);
+  });
+
+  it('carries the goal across a promotion rather than dropping it', () => {
+    const goal = at(LAST.id, LAST.tempo.ceiling);
+    const start = { rung: at(FIRST.id, FIRST.tempo.floor), recent: [1], goal };
+    const { progress } = afterRun(start, 1);
+    expect(progress.goal).toEqual(goal);
   });
 });

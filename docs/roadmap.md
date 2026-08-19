@@ -145,7 +145,9 @@ Still to settle: **the mastery criterion.** Something of the form "accuracy at
 or above X% across N runs at these parameters", chosen so a bad day does not
 demote anyone and a lucky run does not promote them.
 
-**1.3 Goals as a standard to reach.** A goal is a target point in the same
+**1.3 Goals as a standard to reach.** ~~To build~~ — **built 2026-08-19**: a goal is a `Rung` on the progress document, with `distanceTo`, `progressToward` and the ordinal arithmetic behind them in `exercise/ladder.ts`. No screen sets one yet; 1.4 does. Ruling in `v2-design.md` § *Hold the challenge, vary the music*. What follows is why.
+
+A goal is a target point in the same
 space: *play this standard, at this tempo, cleanly*. The coach plots the
 distance from current ability and shows what remains.
 

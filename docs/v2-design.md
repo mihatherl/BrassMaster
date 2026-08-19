@@ -416,6 +416,32 @@ after a real board is also a trademark question, not just a factual one; the
 facts about what a grade requires are not copyrightable, but implying
 affiliation is a different matter.
 
+**A goal is a rung, and distance is ordinal arithmetic.** The insight that
+makes goals answerable at all: a ladder looks two-dimensional — levels and
+tempos — and two rungs differing on both axes cannot be subtracted. But the
+player climbs *one sequence*, the one `nextRung` walks, so flattening the
+ladder into ordinals turns "how far to my goal" into a subtraction. There is a
+test walking the whole ladder with `nextRung` and asserting the ordinal agrees
+at every step; without that agreement a goal would be a distance from somewhere
+nobody goes.
+
+**The goal is a marker, not a ceiling.** Reaching it is worth saying so and
+changes nothing else: the ladder keeps climbing, and `reached` is true when the
+goal is met *or passed*. Kept in the progress document rather than a store of
+its own — where the player is and where they are going are one fact about one
+instrument.
+
+**Distance across two ladders is null, not a number.** A rung on a scales
+course and a rung on a reading course are not a distance apart in any sense a
+player would recognise, and inventing one would be worse than admitting it. A
+screen given null should say the goal belongs to another course rather than
+draw an empty bar.
+
+**A progress bar measures from where the goal was set, not from the bottom of
+the ladder** — hence `goalSetAt`. Measured from the bottom, a strong player
+setting a goal two rungs above themselves would open at ninety-odd per cent
+before playing a note, which is flattery rather than information.
+
 **This is the first paid feature with a bundle fingerprint of its own.** The
 storage key `brass-trainer:ladder:` is unique to teacher mode and survives
 minification, so `check-web-bundle.mjs` fails the free build the moment any of
