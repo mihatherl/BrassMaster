@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { App } from './App';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { renderApp } from './render-app';
 
 /**
  * An end-to-end check that the app mounts and the screens wire together.
@@ -20,13 +20,13 @@ afterEach(() => {
 
 describe('the app', () => {
   it('opens on the settings screen', () => {
-    render(<App />);
+    renderApp();
     expect(screen.getByRole('heading', { name: /brass master/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
   });
 
   it('starts an exercise and shows the valve pad', () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
 
     // The audio gate comes first, since browsers will not start sound without
@@ -35,7 +35,7 @@ describe('the app', () => {
   });
 
   it('offers bass clef only for the instruments that read it', () => {
-    render(<App />);
+    renderApp();
     const instrument = screen.getByLabelText<HTMLSelectElement>('Instrument');
 
     fireEvent.change(instrument, { target: { value: 'cornet' } });
@@ -49,7 +49,7 @@ describe('the app', () => {
   });
 
   it('shows a written range that follows the instrument and clef', () => {
-    render(<App />);
+    renderApp();
     const instrument = screen.getByLabelText<HTMLSelectElement>('Instrument');
 
     fireEvent.change(instrument, { target: { value: 'cornet' } });
@@ -68,14 +68,14 @@ describe('the app', () => {
   });
 
   it('remembers settings across a reload', () => {
-    const first = render(<App />);
+    const first = renderApp();
     fireEvent.change(screen.getByLabelText<HTMLSelectElement>('Instrument'), {
       target: { value: 'cornet' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Hard' }));
     first.unmount();
 
-    render(<App />);
+    renderApp();
     expect(screen.getByLabelText<HTMLSelectElement>('Instrument').value).toBe('cornet');
     expect(screen.getByRole('button', { name: 'Hard' }).className).toContain('is-selected');
   });
@@ -87,7 +87,7 @@ describe('the app', () => {
      * loses nothing — and coming back from a run no longer means arriving at
      * whatever happened to be open when you left, which was usually all of it.
      */
-    render(<App />);
+    renderApp();
     const panels = [...document.querySelectorAll<HTMLDetailsElement>('details.panel')];
 
     expect(panels.length).toBeGreaterThan(3);
@@ -95,7 +95,7 @@ describe('the app', () => {
   });
 
   it('says what is selected in each collapsed section', () => {
-    render(<App />);
+    renderApp();
     const valuesOf = (title: string) =>
       [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
         .find((panel) => panel.querySelector('.panel__title')?.textContent === title)
@@ -116,7 +116,7 @@ describe('the app', () => {
      * slower is most of what practice is — and it used to be two taps down
      * inside a collapsed section, beneath things chosen once and left alone.
      */
-    render(<App />);
+    renderApp();
     const tempo = screen.getByLabelText(/^Tempo/);
     expect(tempo.closest('details.panel')).toBeNull();
     expect(tempo.closest('.actions--sticky')).not.toBeNull();
@@ -125,7 +125,7 @@ describe('the app', () => {
   it('hides the scroll speed in the mode where it does nothing', () => {
     // Paged reading engraves the music standing still; `layout` returns before
     // the speed is read. A slider that moves nothing is worse than no slider.
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByText('Advanced'));
     expect(screen.getByLabelText(/^Scroll speed/)).toBeTruthy();
 
@@ -135,7 +135,7 @@ describe('the app', () => {
   });
 
   it('offers the cushion in Advanced, and says so when it is moved', () => {
-    render(<App />);
+    renderApp();
     const valuesOf = () =>
       [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
         .find((panel) => panel.querySelector('.panel__title')?.textContent === 'Advanced')
@@ -151,7 +151,7 @@ describe('the app', () => {
   });
 
   it('keeps the summary in step with what is chosen', () => {
-    render(<App />);
+    renderApp();
     const exerciseValues = () =>
       [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
         .find((panel) => panel.querySelector('.panel__title')?.textContent === 'Exercise')
@@ -198,7 +198,7 @@ describe('the app', () => {
       [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
         .find((panel) => panel.querySelector('.panel__title')?.textContent === 'Exercise')
         ?.querySelector('.panel__values')?.textContent;
-    const first = render(<App />);
+    const first = renderApp();
     fireEvent.click(screen.getByText('Exercise'));
 
     fireEvent.click(screen.getByRole('button', { name: /Drills/ }));
@@ -223,7 +223,7 @@ describe('the app', () => {
 
     // And it survives a reload.
     first.unmount();
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByText('Exercise'));
     expect(exerciseValues()).toBe('Bb major · Themes · Beginner');
     fireEvent.click(screen.getByRole('button', { name: /Drills/ }));
@@ -233,7 +233,7 @@ describe('the app', () => {
   it('keeps collapsed sections reachable to assistive technology and search', () => {
     // `<details>` keeps its contents in the document, which is why the controls
     // below are still found even while their section is shut.
-    render(<App />);
+    renderApp();
     expect(screen.getByLabelText('Instrument')).toBeTruthy();
     expect(screen.getByText(/Timing tolerance/)).toBeTruthy();
   });
@@ -264,7 +264,7 @@ describe('the app', () => {
     };
 
     it('offers the fingering modes two up, with Every note on its own row', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Playing'));
 
       // The two a player lives in share a row; the one chosen deliberately for
@@ -275,7 +275,7 @@ describe('the app', () => {
     });
 
     it('puts the two time-keepers on one line', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Playing'));
 
       const row = document.querySelector('#panel-playing .field-row');
@@ -296,7 +296,7 @@ describe('the app', () => {
     const choose = (name: RegExp) => fireEvent.click(screen.getByRole('button', { name }));
 
     it('opens exactly one box, and it is the material chosen', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
 
       expect(openBox(), 'the stored default').toBe('Sight-reading');
@@ -308,7 +308,7 @@ describe('the app', () => {
     });
 
     it('will not close the open box, since an exercise has to be made of something', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
 
       choose(/Drills/);
@@ -319,7 +319,7 @@ describe('the app', () => {
     });
 
     it('shows a material only the settings that apply to it', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
 
       // A drill is a shape played against a click, so it has no metre to choose
@@ -342,7 +342,7 @@ describe('the app', () => {
     });
 
     it('says which box is open to anyone not looking at it', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
       choose(/Themes/);
 
@@ -379,7 +379,7 @@ describe('the app', () => {
      * row length and that stops being true silently.
      */
     it('lays the keys out five to a row, with the common five in the middle', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
 
       const rows = [...document.querySelectorAll('.keys__row')].map((row) =>
@@ -394,7 +394,7 @@ describe('the app', () => {
     });
 
     it('starts in the first key chosen, and says the whole route', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
 
       // Eb is the default and the only one selected, so it is the start.
@@ -411,7 +411,7 @@ describe('the app', () => {
       // An exercise has to be in some key. With one chosen there is nothing to
       // deselect, which is the whole of the rule — no separate starting key to
       // protect, as there was when two controls had to be kept agreeing.
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
       expect(key('Eb')).toHaveProperty('disabled', true);
 
@@ -420,7 +420,7 @@ describe('the app', () => {
     });
 
     it('hands the start to the next key when the first is dropped', () => {
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
 
       fireEvent.click(key('Bb'));
@@ -431,7 +431,7 @@ describe('the app', () => {
     it('stops at four keys, and lets them be swapped', () => {
       // The cap is real: the scrolling header is sized for the widest key in
       // the set and holds that width for the whole exercise.
-      render(<App />);
+      renderApp();
       fireEvent.click(screen.getByText('Exercise'));
 
       for (const name of ['Bb', 'F', 'Ab']) fireEvent.click(key(name));
@@ -446,14 +446,14 @@ describe('the app', () => {
   });
 
   it('lets the player back out of an exercise', () => {
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     fireEvent.click(screen.getByRole('button', { name: /back to settings/i }));
     expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
   });
 
   it('generates an exercise for every instrument and clef it offers', () => {
-    render(<App />);
+    renderApp();
     const instrument = screen.getByLabelText<HTMLSelectElement>('Instrument');
     const ids = [...instrument.options].map((option) => option.value);
     expect(ids.length).toBeGreaterThan(4);
@@ -502,7 +502,7 @@ describe('headphones and speakers', () => {
     // note early and nothing else says why — so it is said next to Start,
     // and one tap puts the speaker back in charge.
     stored([{ id: 'z', name: 'Zen Air', leadMs: 231 }], 'z');
-    render(<App />);
+    renderApp();
     expect(screen.getByText(/Sound brought forward 231 ms for Zen Air/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Using the phone speaker' }));
     expect(screen.queryByText(/Sound brought forward/)).toBeNull();
@@ -512,13 +512,13 @@ describe('headphones and speakers', () => {
   });
 
   it('says nothing beside Start for the phone speaker', () => {
-    render(<App />);
+    renderApp();
     expect(screen.queryByText(/Sound brought forward/)).toBeNull();
   });
 
   it('is a door in Advanced, saying what is in use', () => {
     stored([{ id: 'b', name: 'Bose', leadMs: 180 }], 'b');
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByText('Advanced'));
     const door = screen.getByRole('button', { name: /Headphones & speakers/ });
     expect(door.textContent).toContain('Bose');
@@ -536,7 +536,7 @@ describe('headphones and speakers', () => {
       ],
       null,
     );
-    render(<App />);
+    renderApp();
     fireEvent.click(screen.getByText('Advanced'));
     fireEvent.click(screen.getByRole('button', { name: /Headphones & speakers/ }));
 

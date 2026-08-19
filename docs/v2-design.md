@@ -449,6 +449,66 @@ it arrives there. Armed before the screens exist, and mutation-tested by wiring
 the store into `App` unguarded and watching the free build fail — which is the
 exact mistake it is there to catch.
 
+## Two doors, and a screen that shows its working — v2.26.0
+
+Teacher mode's first screens (`docs/roadmap.md` § 1.4). The paid app opens on a
+choice: *Practice* leads to the course, *Free play* leads to the settings screen
+**exactly as it was**. The free app opens on the settings screen as it always
+did and has no second door at all.
+
+**Neither door is the poor relation.** A guided path that quietly became the
+only route to a control would take the app away from the player who wants their
+own key at their own tempo, which is most of what it has ever been for.
+
+**The screen shows its working.** It names the level and the tempo, then draws
+one slot per run the bar asks for — filled with a percentage, or empty — so the
+player can see how many are still owed rather than only how many were cleared.
+A coach that moves people up and down without saying why is indistinguishable
+from an app with a bug in it.
+
+**`App` may not know what a rung is**, and this is the load-bearing part.
+Everything about the ladder is paid and `App` is in *both* builds, so it imports
+none of it — not the store, which carries the bundle check's fingerprint, and
+not the rules either, which would leak just as surely while being invisible to
+the check. `PracticeScreen` owns the course: it loads and saves the progress,
+applies a finished run, and hands `App` only plain data — a difficulty and a
+tempo to build from, and afterwards an accuracy. Nothing crossing that seam
+names a rung.
+
+**Static imports behind the injected literal, not `lazy`.** The first version
+lazily imported both screens, as My Music does. Rollup drops a static import
+whose only reference sits in a branch the literal has already made dead, so the
+free bundle is equally clean — *checked, not assumed* — and the app keeps a
+synchronous first paint with no `Suspense` fallback. My Music stays lazy because
+it is genuinely large and rarely opened; two small screens on the way in are
+not.
+
+**The front door changed, so thirty tests had to walk through it.**
+`render-app.tsx` renders and clicks past the chooser when there is one, which
+works unchanged in both builds and keeps those tests about what they were
+testing. `audio-gate.test.tsx` cannot use it — that file imports `App`
+dynamically so its mocks land first, and a helper that imports `App` at module
+load would beat them to it.
+
+### Three things this cost, and what caught them
+
+**The settings-preservation ruling had no test.** *A course chooses the
+settings* was written into this document and never asserted; a mutation making
+the course write its tempo back over the player's own passed the whole suite.
+It has one now.
+
+**A test that could not tell two values apart.** The seam test asserted the
+tempo handed to `App`, with the progress sitting at its band's floor — so the
+rung's tempo and the level's floor were the same number and sending the wrong
+one passed. Fixed by putting the rung two steps up.
+
+**The build was broken for four commits' worth of work.** Rewriting
+`render(<App />)` to `renderApp()` left an unused `render` import, which `tsc`
+rejects and `vitest` does not care about — and only `npm test` had been run in
+between. A mutation test surfaced it by accident. **The gate is three commands
+because they do not catch the same things**; running one of them is not running
+the gate.
+
 ## What made it hard, not which note it was — the skill model
 
 The first piece of teacher mode (`docs/roadmap.md` § 1.1), and the input every

@@ -41,6 +41,14 @@ afterEach(() => {
 
 async function tapThroughToPlay(): Promise<void> {
   render(<App />);
+  /*
+   * Past the two doors, where the paid build opens. Not `renderApp` from
+   * `render-app.tsx`: that imports `App` at module load, which would beat the
+   * mocks above to it — this file's whole arrangement depends on `App` being
+   * loaded after them.
+   */
+  const freePlay = screen.queryByRole('button', { name: /free play/i });
+  if (freePlay) fireEvent.click(freePlay);
   fireEvent.click(screen.getByRole('button', { name: 'Start' }));
   fireEvent.click(await screen.findByRole('button', { name: /tap to start/i }));
 }

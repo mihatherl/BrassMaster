@@ -15,6 +15,8 @@ import { OutputScreen } from './OutputScreen';
 import { PlayScreen } from './PlayScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { SettingsScreen } from './SettingsScreen';
+import { HomeScreen } from './HomeScreen';
+import { PracticeScreen } from './PracticeScreen';
 
 /**
  * My Music, in the build that has it.
@@ -37,7 +39,8 @@ const ImportScreen = __HAS_MY_MUSIC__
   ? lazy(() => import('./ImportScreen').then((m) => ({ default: m.ImportScreen })))
   : null;
 
-type Screen = 'settings' | 'play' | 'results' | 'import' | 'outputs';
+
+type Screen = 'home' | 'practice' | 'settings' | 'play' | 'results' | 'import' | 'outputs';
 
 interface Finished {
   summary: SessionSummary;
@@ -47,9 +50,18 @@ interface Finished {
 
 export function App() {
   const [chosen, setChosen] = useState<Settings>(loadSettings);
-  const [screen, setScreen] = useState<Screen>('settings');
+  const [screen, setScreen] = useState<Screen>(__HAS_TEACHER__ ? 'home' : 'settings');
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [finished, setFinished] = useState<Finished | null>(null);
+  /*
+   * Whether the run in hand came from the course, and how it went.
+   *
+   * Plain booleans and a number rather than a rung: everything about the ladder
+   * is paid, and `App` is in both builds — see the note at the top of
+   * `PracticeScreen`, which owns the course and decides what a result means.
+   */
+  const [fromCourse, setFromCourse] = useState(false);
+  const [courseAccuracy, setCourseAccuracy] = useState<number | null>(null);
 
   /**
    * The exercise the settings describe, from a seed — and optionally in a key
@@ -61,8 +73,8 @@ export function App() {
    * generator wants is the settings, which this owns and the play screen only
    * has a copy of.
    */
-  const build = useCallback(
-    (seed: number, fifths?: number): Exercise => {
+  const buildFrom = useCallback(
+    (chosenSettings: Settings, seed: number, fifths?: number): Exercise => {
       /*
        * The set as well as the key, and this is where a key tour ends.
        *
@@ -72,7 +84,8 @@ export function App() {
        * key ends the tour, because a tour is a sequence and re-entering one
        * partway into a key nobody chose would be the app arguing with the dial.
        */
-      const settings = fifths === undefined ? chosen : { ...chosen, fifths, keySet: [fifths] };
+      const settings =
+        fifths === undefined ? chosenSettings : { ...chosenSettings, fifths, keySet: [fifths] };
       const instrument = instrumentById(settings.instrumentId);
       // Weak-note weighting reads the same stats the results screen shows, so
       // what the app says needs work is exactly what it then serves up.
@@ -108,13 +121,36 @@ export function App() {
         noteWeights: weights,
       });
     },
-    [chosen],
+    [],
+  );
+
+  /** The player's own settings, which is what free play plays. */
+  const build = useCallback(
+    (seed: number, fifths?: number): Exercise => buildFrom(chosen, seed, fifths),
+    [buildFrom, chosen],
   );
 
   const startNew = useCallback(() => {
+    setFromCourse(false);
     setExercise(build(randomSeed()));
     setScreen('play');
   }, [build]);
+
+  /*
+   * A course's run, built from the rung rather than from the settings screen.
+   *
+   * The override is applied to this exercise and **never saved**: a step of a
+   * scales course at 60 must not quietly reset a tempo the player settled on
+   * for themselves. See *A course chooses the settings* in `v2-design.md`.
+   */
+  const startCourse = useCallback(
+    (from: { difficultyId: string; tempo: number }) => {
+      setFromCourse(true);
+      setExercise(buildFrom({ ...chosen, ...from }, randomSeed()));
+      setScreen('play');
+    },
+    [buildFrom, chosen],
+  );
 
   const repeat = useCallback(() => {
     /*
@@ -157,10 +193,11 @@ export function App() {
         exercise.clef,
         tallySession(attributesFor(exercise, chosen.tempo), summary.judgements),
       );
+      if (fromCourse) setCourseAccuracy(summary.accuracy);
       setFinished({ summary, exercise, stats });
       setScreen('results');
     },
-    [exercise, chosen.tempo],
+    [exercise, chosen.tempo, fromCourse],
   );
 
   const content = useMemo(() => {
@@ -227,6 +264,36 @@ export function App() {
       );
     }
 
+    if (__HAS_TEACHER__ && screen === 'home') {
+      return (
+        <>
+          <HomeScreen
+            practising="Follow a course, at the level it has you on"
+            onPractice={() => setScreen('practice')}
+            onFreePlay={() => setScreen('settings')}
+          />
+        </>
+      );
+    }
+
+    if (__HAS_TEACHER__ && screen === 'practice') {
+      return (
+        <>
+          <PracticeScreen
+            instrumentId={chosen.instrumentId}
+            clef={chosen.clef}
+            /* Where a first session opens: what the player already practises,
+               rather than the bottom of the ladder. */
+            fallback={{ difficultyId: chosen.difficultyId, tempo: chosen.tempo }}
+            pendingAccuracy={courseAccuracy}
+            onAccuracyApplied={() => setCourseAccuracy(null)}
+            onStart={startCourse}
+            onBack={() => setScreen('home')}
+          />
+        </>
+      );
+    }
+
     if (screen === 'results' && finished) {
       return (
         <ResultsScreen
@@ -235,7 +302,7 @@ export function App() {
           stats={finished.stats}
           onRepeat={repeat}
           onNext={startNew}
-          onSettings={() => setScreen('settings')}
+          onSettings={() => setScreen(fromCourse ? 'practice' : 'settings')}
         />
       );
     }
@@ -248,10 +315,11 @@ export function App() {
         /* Absent rather than disabled in the free build: a door to a screen
            that build has not got is not a door. */
         onImport={__HAS_MY_MUSIC__ ? () => setScreen('import') : undefined}
+        onBack={__HAS_TEACHER__ ? () => setScreen('home') : undefined}
         onOutputs={() => setScreen('outputs')}
       />
     );
-  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build]);
+  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, startCourse, courseAccuracy, fromCourse]);
 
   return <div className="app">{content}</div>;
 }

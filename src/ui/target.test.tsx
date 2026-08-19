@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { renderApp } from './render-app';
 import { App } from './App';
 import { SettingsScreen } from './SettingsScreen';
-import { DEFAULT_SETTINGS } from '../storage/settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../storage/settings';
 
 /**
  * The free/paid line, at the one place a test can see it.
@@ -46,6 +47,50 @@ describe('the build without My Music', () => {
   });
 });
 
+describe('the two front doors', () => {
+  /*
+   * The paid build opens on a choice; the free build opens on the settings
+   * screen as it always did. `renderApp` papers over the difference for every
+   * other test, so this is the one place the difference itself is asserted.
+   */
+  it('opens on a choice of doors in the build that has two', () => {
+    render(<App />);
+    expect(screen.getByRole('button', { name: /practice/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /free play/i })).toBeTruthy();
+  });
+
+  it('leads to the settings screen, unchanged, through free play', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /free play/i }));
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+    expect(screen.getByLabelText('Instrument')).toBeTruthy();
+  });
+
+  /*
+   * The ruling in `v2-design.md` § *A course chooses the settings*: a step
+   * supplies settings for its run and must never write them back, or one step
+   * of a slow course would silently reset a tempo the player had settled on.
+   * It had no test until a mutation went unnoticed.
+   */
+  it('never writes a course’s settings back over the player’s own', () => {
+    saveSettings({ ...DEFAULT_SETTINGS, tempo: 132 });
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /practice/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(loadSettings().tempo).toBe(132);
+  });
+
+  it('leads to the course through practice, and back again', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /practice/i }));
+    // Asserted on the screen's own furniture rather than a level name, which
+    // follows whatever difficulty the settings happen to default to.
+    expect(screen.getByRole('heading', { name: /to move on/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('button', { name: /free play/i })).toBeTruthy();
+  });
+});
+
 describe('the build with My Music', () => {
   it('draws the door', () => {
     render(<SettingsScreen {...props} onImport={() => {}} />);
@@ -60,7 +105,7 @@ describe('the build with My Music', () => {
    * variable rather than leaving it to the default.
    */
   it('is what the suite itself runs as', () => {
-    render(<App />);
+    renderApp();
     expect(screen.getByRole('button', { name: /my music/i })).toBeTruthy();
   });
 });

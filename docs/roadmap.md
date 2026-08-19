@@ -160,7 +160,9 @@ building the app's own ladder first** — it is needed either way, it makes no
 claim it cannot support, and grades can be calibrated onto it later once there
 is something to calibrate.
 
-**1.4 Two front doors.** A guided path and the current free-driving app, given
+**1.4 Two front doors.** ~~To build~~ — **built 2026-08-19, v2.26.0**: `HomeScreen` and `PracticeScreen`, behind `__HAS_TEACHER__`. The course now actually drives a run and records the result. Ruling in `v2-design.md` § *Two doors, and a screen that shows its working*.
+
+A guided path and the current free-driving app, given
 equal billing on the way in.
 
 **Keep the phone's course UI light.** See the course, see the step, capture a

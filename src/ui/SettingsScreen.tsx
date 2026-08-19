@@ -122,6 +122,14 @@ interface SettingsScreenProps {
   onImport?: () => void;
   /** Opens the headphones screen, where an output is chosen and measured. */
   onOutputs: () => void;
+  /**
+   * Back to the two doors, in the build that has them.
+   *
+   * Absent in the free app, which opens here and has nowhere above it — the
+   * same arrangement as `onImport`, and for the same reason: the screen is told
+   * what exists rather than which build it is in.
+   */
+  onBack?: () => void;
 }
 
 export function SettingsScreen({
@@ -130,6 +138,7 @@ export function SettingsScreen({
   onStart,
   onImport,
   onOutputs,
+  onBack,
 }: SettingsScreenProps) {
   const instrument = instrumentById(settings.instrumentId);
   const clefs = availableClefs(instrument);
@@ -510,6 +519,11 @@ export function SettingsScreen({
   return (
     <div className="screen screen--settings">
       <header className="masthead">
+        {onBack && (
+          <button type="button" className="button button--quiet" onClick={onBack}>
+            Back
+          </button>
+        )}
         <h1>Brass Master</h1>
       </header>
 
