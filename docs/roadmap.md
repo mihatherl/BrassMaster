@@ -54,11 +54,12 @@ again** when they do. Each clause is a design instruction:
 reader? A feature that makes practice more accurate but less like reading has
 failed the test, however good it is.
 
-**What this immediately exposes:** the app cannot currently say whether anyone
-is improving. It tracks accuracy per note and per run; it has no measure of
-reading fluency over time. For a product whose promise is fluency, that measure
-*is* the product — it is what a player renews for and what a screenshot sells.
-It is the largest gap on this roadmap and the least obvious.
+**What this immediately exposes** is bigger than a missing chart. The app has
+no memory of a session, proposes nothing, and cannot say whether anyone is
+improving. Its entire pedagogy is printing fingerings and biasing generation
+toward notes you got wrong. There is no guided repetition, no progression, no
+continuity between sittings and nowhere to say what you are aiming at. **That
+gap is Phase 1, and it is the largest thing on this roadmap.**
 
 ## 3. What is free and what is paid
 
@@ -86,31 +87,107 @@ for why a runtime flag was retired.
 Each is useful on its own and roughly in dependency order. Versions are
 indicative, not promises.
 
-### Phase 1 — Make reading measurable, and feed it (no Mac needed)
+### Phase 1 — The coach (no Mac needed)
 
-The free app is complete but cannot show improvement, and sight-reading needs
-material the player has not seen.
+**Knowing what the player can do, deciding what comes next, and remembering
+between sittings.** This is what turns a practice tool into something worth
+returning to and paying for, and it is where the product is thinnest today.
 
-1. **A reading-fluency measure.** What it is, is an open question worth real
-   thought — accuracy held at rising tempo is the obvious candidate, and the
-   stats store already records per-note accuracy per instrument. It must
-   survive a bad day and reward a harder attempt over an easy one.
-2. **The theme corpus, stages 2 and 3.** Parked pending "the player's ear on
-   the shape first"; that parking is now on the critical path, because
-   unfamiliar material is the raw material of the whole product.
-3. **The v2 fixes that touch reading**: the key-change collision on the
-   scrolling line, the settings screen overflowing on a 360×740 phone, leaps
-   per instrument rather than per difficulty.
+**1.1 Model skill, not just pitch.** `storage/stats.ts` records
+`{ attempts, correct }` against a MIDI note, per instrument and clef, decayed
+so recent work dominates. That is the app's whole memory, and it collapses
+every dimension of difficulty onto one. It can say you miss C♯5; it cannot say
+that dotted rhythms cost you a fifth of your accuracy, that you hold together
+until a leap passes a fifth, or that flat keys are where you come apart.
+
+The taxonomy needed to fix this **already exists and nobody has to invent it**:
+`exercise/difficulty.ts` parameterises every exercise by range, maximum
+interval, accidental chance, rest chance, tie chance and a weighted rhythm
+pool, and the settings add key, key set, metre, tempo, register and material.
+Every exercise is already a point in a skill space. What is missing is the
+join: the exercise knows what it asked for and the judge knows what happened,
+so attribute each judged note to the properties that produced it — its
+duration, its interval from the note before, whether it was accidental, where
+it sat in the bar — and the run's context alongside. That single change turns
+the stats store into a skill model, which is the input everything below needs.
+
+**1.2 The ladder: repeat the challenge, not the music.** Guided repetition
+looks as though it contradicts § 2 — sight-reading means *unfamiliar* material,
+and replaying a passage until it is clean is technical practice, not reading.
+It does not contradict it, because of something only a generator can do:
+**hold the parameters and vary the material.** The player never sees the same
+music twice, so it is genuinely sight-reading, while the difficulty stays put
+until it is mastered. Then **exactly one parameter moves.**
+
+One at a time is not merely gentler; it is what makes the measurement mean
+anything. If one thing changed and accuracy dropped, the cause is known. Change
+three and the result is uninterpretable. Literal repetition stays available for
+consolidation — exercises rebuild from their seed, and *Repeat* already does
+it — but it is the exception, not the ladder.
+
+Still to settle: **the mastery criterion.** Something of the form "accuracy at
+or above X% across N runs at these parameters", chosen so a bad day does not
+demote anyone and a lucky run does not promote them.
+
+**1.3 Goals as a standard to reach.** A goal is a target point in the same
+space: *play this standard, at this tempo, cleanly*. The coach plots the
+distance from current ability and shows what remains.
+
+The open question, and it is a real one: **whose standard?** Recognised grades
+— AMEB here, ABRSM or Trinity elsewhere — mean something to a learner and to
+their teacher, and "practise Grade 4 sight-reading" is a marketing line the
+app's own ladder can never match. But it is a claim you have to back against a
+syllabus: key range, metres, rhythms, length and tempo per grade. **Recommend
+building the app's own ladder first** — it is needed either way, it makes no
+claim it cannot support, and grades can be calibrated onto it later once there
+is something to calibrate.
+
+**1.4 Two front doors.** A guided path and the current free-driving app, given
+equal billing on the way in. The app opens on a settings screen today; it
+should open on a choice. *Practice* leads to a planned session; *Free play*
+leads to the settings screen exactly as it is now. Neither is the poor
+relation, and the guided path must never become the only way to reach a
+control.
+
+**1.5 A session, with continuity.** There is no session concept at present —
+each run is independent and nothing survives it but note stats. A session needs
+a plan (warm-up, the thing that went badly last time, new reading), the runs
+within it, a summary at the end, and a next session that knows what this one
+did. *"Focusing a bit on what you achieved last time"* is the requirement, and
+it is what makes the app worth opening on a Tuesday.
+
+**1.6 Reporting.** Falls out of 1.1 almost for free once outcomes are attributed:
+what improved, what did not, where the player sits against the goal, and the
+trend over weeks. It is the visible half of the coach and the half that sells.
+
+**1.7 Progress travels.** Practice history lives in `localStorage`, tied to one
+origin — so a player who practises on the free web app and then buys the App
+Store app **arrives with nothing**: empty history, weak-note drilling from
+scratch, the worst possible first five minutes for the one person who paid.
+`v2-design.md` § *Selling it, one day* flagged this as a deliberate not-done;
+the coach promotes it to blocking. **Export and import a progress file** — no
+backend, no accounts, consistent with every existing ruling, and insurance
+against a cleared browser as well. Build it before launch, not after.
+
+**1.8 Material to feed it.** The theme composer's stages 2 and 3, parked
+pending "the player's ear on the shape first". Unfamiliar material is the raw
+material of the entire product, so that parking is now on the critical path.
+
+**1.9 The v2 fixes that touch reading**: the key-change collision on the
+scrolling line, the settings screen overflowing on a 360×740 phone, leaps per
+instrument rather than per difficulty.
 
 ### Phase 2 — The microphone (no Mac needed to build it)
 
 The honest version of the exercise: the player plays, the app listens.
 
-4. **The cents measurement** on a real instrument — how stable is a held note,
-   and how long a window does a trustworthy reading need. Decides what the
-   tuner can promise.
-5. **The detector in TypeScript**, behind `PlayerInput`, against `spikefiles/`.
-6. **Microphone as an input mode**, in every material.
+**2.1 The cents measurement** on a real instrument — how stable is a held note,
+and how long a window does a trustworthy reading need. Decides what the
+tuner can promise.
+
+**2.2 The detector in TypeScript**, behind `PlayerInput`, against `spikefiles/`.
+
+**2.3 Microphone as an input mode**, in every material.
 
 **This whole phase is buildable without a Mac**, which matters given the
 hardware is deferred. The seam (`PlayerInput`) is cut, the detector is
@@ -122,43 +199,47 @@ risk the container spike was meant to retire is already mostly retired.
 
 ### Phase 3 — The tuner
 
-7. **Per-instrument slide data** in `domain/instruments.ts` — as data, not
-   prose.
-8. **The tuner**, which must refuse to draw a conclusion from any note where
-   `Fingering.usesFourth` is true. See `app-store-plan.md`; this is the trap
-   most likely to ship quietly wrong.
+**3.1 Per-instrument slide data** in `domain/instruments.ts` — as data, not
+prose.
+
+**3.2 The tuner**, which must refuse to draw a conclusion from any note where
+`Fingering.usesFourth` is true. See `app-store-plan.md`; this is the trap
+most likely to ship quietly wrong.
 
 ### Phase 4 — Ship it (Mac and enrolment needed here, and not before)
 
-9. **The container spike** — the wrapper, the microphone inside it, and an
-   embedded HTTP server proving it can serve a page and take an upload.
-10. **The native shell**, `VITE_TARGET=app`, App Store submission.
-11. **v3.0 ships with** everything free, plus the microphone, the tuner, and My
-    Music as it stands today.
+**4.1 The container spike** — the wrapper, the microphone inside it, and an
+embedded HTTP server proving it can serve a page and take an upload.
+
+**4.2 The native shell**, `VITE_TARGET=app`, App Store submission.
+
+**4.3 v3.0 ships with** everything free, plus the microphone, the tuner, and My
+Music as it stands today.
 
 ### Phase 5 — My Music becomes the reason to buy
 
-12. **The phone-hosted library.** The phone runs an HTTP server; a laptop
-    browses to it and manages MusicXML files in folders; the same folder
-    structure appears in the app. This is the VLC model and it is a selling
-    point, not plumbing. Note that `folder` returns to `PieceRecord` — what
-    `v3-library-plan.md` deprecated was mirroring a *desktop* library, and its
-    core ruling (the phone owns the library) is exactly what this is.
-13. **Multi-part import**, which the importer does not do today and which
-    everything below needs.
+**5.1 The phone-hosted library.** The phone runs an HTTP server; a laptop
+browses to it and manages MusicXML files in folders; the same folder
+structure appears in the app. This is the VLC model and it is a selling
+point, not plumbing. Note that `folder` returns to `PieceRecord` — what
+`v3-library-plan.md` deprecated was mirroring a *desktop* library, and its
+core ruling (the phone owns the library) is exactly what this is.
+
+**5.2 Multi-part import**, which the importer does not do today and which
+everything below needs.
 
 ### Phase 6 — Orchestration, and the band around you
 
-14. **Play along with the rest of the score.** Import a full score, choose your
-    part, and the app plays the others while you read yours. The player's own
-    idea and probably the most compelling thing on this roadmap: it turns
-    reading practice into playing music, which is the difference between a
-    drill and a rehearsal.
+**6.1 Play along with the rest of the score.** Import a full score, choose your
+part, and the app plays the others while you read yours. The player's own
+idea and probably the most compelling thing on this roadmap: it turns
+reading practice into playing music, which is the difference between a
+drill and a rehearsal.
 
-    Most of it exists already — the sampler covers four brass voices, the clock
-    and tempo map are built, the importer parses MusicXML. The genuine work is
-    multi-part parsing, mixing, and deciding what happens when the player's
-    part and the accompaniment disagree about where they are.
+Most of it exists already — the sampler covers four brass voices, the clock
+and tempo map are built, the importer parses MusicXML. The genuine work is
+multi-part parsing, mixing, and deciding what happens when the player's
+part and the accompaniment disagree about where they are.
 
 ## 5. Not on the roadmap, and why
 
@@ -195,7 +276,18 @@ that engages with the reason recorded here.
 
 ## 6. Open questions, named so they are not forgotten
 
-- **What the fluency measure actually is.** The largest unknown in Phase 1.
+- **The mastery criterion.** How much evidence promotes a player, and how much
+  demotes them. Gets the whole ladder wrong if it is wrong: too strict and it
+  never advances, too loose and it advances past them. Wants measuring against
+  real practice rather than choosing from an armchair.
+- **Whose standard a goal names** — the app's own ladder, or recognised grades
+  (AMEB, ABRSM, Trinity). Recommendation in Phase 1.3: build the ladder, calibrate
+  to grades later. But grades are the more saleable promise, so this is a
+  marketing decision as much as a design one.
+- **Whether the coach becomes the app's centre of gravity.** Two front doors is
+  the ruling, but a coach that plans your practice is arguably a different
+  product from a reading trainer, and the App Store listing has to pick one
+  sentence.
 - **Whether the microphone should be free after all.** For a product whose job
   is reading, playing your instrument *is* the exercise, and buttons are the
   proxy. There is a real argument that the microphone is what makes people
