@@ -159,7 +159,13 @@ claim it cannot support, and grades can be calibrated onto it later once there
 is something to calibrate.
 
 **1.4 Two front doors.** A guided path and the current free-driving app, given
-equal billing on the way in. The app opens on a settings screen today; it
+equal billing on the way in.
+
+**Keep the phone's course UI light.** See the course, see the step, capture a
+new step from the settings screen — the full editor (rearranging, renaming,
+setting bands and thresholds across a long course) is a desktop-shaped job and
+belongs on the served page of § 5.2. Building it twice, and building the hard
+half on a handset first, is the thing to avoid. The app opens on a settings screen today; it
 should open on a choice. *Practice* leads to a planned session; *Free play*
 leads to the settings screen exactly as it is now. Neither is the poor
 relation, and the guided path must never become the only way to reach a
@@ -248,7 +254,33 @@ point, not plumbing. Note that `folder` returns to `PieceRecord` — what
 `v3-library-plan.md` deprecated was mirroring a *desktop* library, and its
 core ruling (the phone owns the library) is exactly what this is.
 
-**5.2 Multi-part import**, which the importer does not do today and which
+**5.2 The served page is the app's big-screen companion, not a file browser.**
+Realised on 2026-08-19 and worth planning for from the start: once the phone
+serves a page to a laptop, *anything fiddly on a phone can live there* —
+authoring and rearranging courses, reviewing progress over weeks, editing
+settings that are cramped on a handset. Authoring is a desktop-shaped job
+(keyboard, whole course visible at once); practising is a phone-shaped one.
+
+Nothing about the architecture changes: the page is served by the phone over
+plain HTTP on the LAN, the data stays on the phone, and there is still no
+server of ours, no account and no mixed-content problem. The laptop is a view,
+not a copy.
+
+**The division that falls out**, and it should shape how much phone UI gets
+built:
+
+| On the phone | On the laptop |
+|---|---|
+| Capture a step from the settings screen — you have to *hear* it to know it is right | Arrange, rename, reorder, set tempo bands and thresholds |
+| Practise | Review progress; import and export a course file |
+| See the course, and where you are in it | Build a long course comfortably |
+
+So the phone's course UI can stay light — see the course, see the step, capture
+a new one — and the full editor waits for 5.2 rather than being squeezed onto
+a handset first. Mockups of both, drawn against the real tokens, exist from
+2026-08-19.
+
+**5.3 Multi-part import**, which the importer does not do today and which
 everything below needs.
 
 ### Phase 6 — Orchestration, and the band around you (paid)
