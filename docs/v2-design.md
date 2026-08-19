@@ -449,6 +449,56 @@ it arrives there. Armed before the screens exist, and mutation-tested by wiring
 the store into `App` unguarded and watching the free build fail — which is the
 exact mistake it is there to catch.
 
+## A sitting, and a report on it — v2.27.0
+
+`docs/roadmap.md` §§ 1.5 and 1.6, built together because a sitting is the unit
+a report reports on.
+
+**A sitting is inferred from the clock, not declared.** No start or end button
+and no lifecycle to get wrong: a run joins the sitting before it when it is
+within two hours of the last one, and begins a new one otherwise. Anything with
+a real beginning and end would have to survive the app being closed mid-session,
+a phone call and an instrument put down for twenty minutes — and a gap is what
+all three look like from here. The gap is measured from the **last run**, not
+from when the sitting began, or four runs an hour apart would be four evenings.
+
+**Every run is filed, free play included.** The store is paid and part of
+teacher mode, but a report that quietly omitted half of someone's practice
+would be worse than no report. `App` writes it behind the literal, so the whole
+store still leaves the free build.
+
+**The report reports; it does not coach.** Nothing on it changes a rung, sets a
+goal or picks material. A screen that both measured and prescribed would make
+it impossible to tell a fact from an instruction.
+
+**"Not enough yet" is a real answer.** A weakness drawn from three notes is
+noise with a percentage on it, and a player told to work on their dotted
+quavers because of one bad bar would rightly stop believing the next thing the
+app said. An empty report is the correct output for a player who has just
+arrived.
+
+**Skill keys are translated in exactly one place.** `describeSkill` turns
+`rhythm:eighth.` into "dotted quavers" and `key:-4` into a key name, and falls
+back to the raw bucket rather than failing on something a later version wrote.
+Without one such place a new bucket eventually reaches a screen wearing its
+storage spelling.
+
+### The bug a mutation test found
+
+Both the sitting's record and the skill model were being told **the settings'
+tempo rather than the one actually played**. For free play they are the same
+number, which is why it survived; for a course run at its rung's tempo they are
+not, and a whole evening's practice was being filed in the wrong tempo band of
+every report drawn from it — including the one dimension the core job names
+explicitly. Found by mutating the session record and noticing the same mistake
+sitting in the line above it.
+
+**Not covered by a test, and said plainly rather than left to be assumed:**
+asserting the recorded tempo needs a *completed* run, which needs a real
+`AudioContext` the suite has not got. The fix is by inspection. It is the same
+boundary `README.md` already draws around audio, and the same reason
+`audio-gate.test.tsx` is the only test that goes past "Tap to start".
+
 ## Two doors, and a screen that shows its working — v2.26.0
 
 Teacher mode's first screens (`docs/roadmap.md` § 1.4). The paid app opens on a

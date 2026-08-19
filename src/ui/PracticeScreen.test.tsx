@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PracticeScreen } from './PracticeScreen';
 import { DEFAULT_LADDER_ID, ladderById, DEFAULT_MASTERY } from '../exercise/ladder';
 import { loadProgress, saveProgress } from '../storage/ladder';
+import { saveSessions } from '../storage/sessions';
 
 const LADDER = ladderById(DEFAULT_LADDER_ID);
 const FIRST = LADDER.levels[0];
@@ -21,6 +22,7 @@ function show(overrides: Partial<Parameters<typeof PracticeScreen>[0]> = {}) {
     pendingAccuracy: null,
     onAccuracyApplied: vi.fn(),
     onStart: vi.fn(),
+    onProgress: vi.fn(),
     onBack: vi.fn(),
     ...overrides,
   };
@@ -56,7 +58,11 @@ describe('the practice screen', () => {
     });
     const { onStart } = show();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    expect(onStart).toHaveBeenCalledWith({ difficultyId: FIRST.difficultyId, tempo });
+    expect(onStart).toHaveBeenCalledWith({
+      difficultyId: FIRST.difficultyId,
+      tempo,
+      levelId: FIRST.id,
+    });
   });
 
   it('shows a slot for every run the bar asks for, filled or not', () => {
@@ -127,5 +133,27 @@ describe('the practice screen', () => {
     const { onBack } = show();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(onBack).toHaveBeenCalled();
+  });
+
+  /*
+   * § 1.5's whole requirement, in one line: "focusing a bit on what you
+   * achieved last time". Without it every sitting starts as though the app has
+   * never met the player before.
+   */
+  it('opens by saying what happened last time', () => {
+    const yesterday = Date.now() - 24 * 60 * 60 * 1000;
+    saveSessions('cornet', 'treble', [
+      { startedAt: yesterday, runs: [
+        { at: yesterday, accuracy: 0.9, tempo: 84 },
+        { at: yesterday + 60_000, accuracy: 1, tempo: 84 },
+      ] },
+    ]);
+    show();
+    expect(screen.getByText(/yesterday: 2 runs, averaging 95%/i)).toBeTruthy();
+  });
+
+  it('says nothing about last time when there was no last time', () => {
+    show();
+    expect(screen.queryByText(/runs, averaging/i)).toBeNull();
   });
 });

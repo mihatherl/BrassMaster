@@ -46,7 +46,7 @@ const root = process.argv[2] ?? 'dist';
 const PAID_ONLY = {
   'My Music': ['score-partwise', 'unfoldRepeats', 'importPart', 'ImportScreen'],
   'the microphone': ['getUserMedia', 'mediaDevices'],
-  'teacher mode': ['brass-trainer:ladder:'],
+  'teacher mode': ['brass-trainer:ladder:', 'brass-trainer:sessions:'],
 };
 
 /**

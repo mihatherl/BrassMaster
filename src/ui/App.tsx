@@ -16,7 +16,9 @@ import { PlayScreen } from './PlayScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { HomeScreen } from './HomeScreen';
+import { recordRun } from '../storage/sessions';
 import { PracticeScreen } from './PracticeScreen';
+import { ProgressScreen } from './ProgressScreen';
 
 /**
  * My Music, in the build that has it.
@@ -40,7 +42,7 @@ const ImportScreen = __HAS_MY_MUSIC__
   : null;
 
 
-type Screen = 'home' | 'practice' | 'settings' | 'play' | 'results' | 'import' | 'outputs';
+type Screen = 'home' | 'practice' | 'progress' | 'settings' | 'play' | 'results' | 'import' | 'outputs';
 
 interface Finished {
   summary: SessionSummary;
@@ -61,6 +63,16 @@ export function App() {
    * `PracticeScreen`, which owns the course and decides what a result means.
    */
   const [fromCourse, setFromCourse] = useState(false);
+  /*
+   * What the run in hand was actually played at.
+   *
+   * Not `chosen.tempo`: a course's run is built at its rung's tempo, and
+   * filing it under the settings' tempo would put a whole evening's practice in
+   * the wrong band of every report drawn from it.
+   */
+  const [runAt, setRunAt] = useState<{ tempo: number; levelId?: string }>({
+    tempo: chosen.tempo,
+  });
   const [courseAccuracy, setCourseAccuracy] = useState<number | null>(null);
 
   /**
@@ -132,9 +144,10 @@ export function App() {
 
   const startNew = useCallback(() => {
     setFromCourse(false);
+    setRunAt({ tempo: chosen.tempo });
     setExercise(build(randomSeed()));
     setScreen('play');
-  }, [build]);
+  }, [build, chosen.tempo]);
 
   /*
    * A course's run, built from the rung rather than from the settings screen.
@@ -144,8 +157,9 @@ export function App() {
    * for themselves. See *A course chooses the settings* in `v2-design.md`.
    */
   const startCourse = useCallback(
-    (from: { difficultyId: string; tempo: number }) => {
+    (from: { difficultyId: string; tempo: number; levelId: string }) => {
       setFromCourse(true);
+      setRunAt({ tempo: from.tempo, levelId: from.levelId });
       setExercise(buildFrom({ ...chosen, ...from }, randomSeed()));
       setScreen('play');
     },
@@ -191,13 +205,28 @@ export function App() {
       recordSkills(
         exercise.instrumentId,
         exercise.clef,
-        tallySession(attributesFor(exercise, chosen.tempo), summary.judgements),
+        tallySession(attributesFor(exercise, runAt.tempo), summary.judgements),
       );
       if (fromCourse) setCourseAccuracy(summary.accuracy);
+      /*
+       * The sitting's record, and the one place free play and the course meet.
+       *
+       * Every run is filed, not only a course's: a report that quietly omitted
+       * half of someone's practice would be worse than no report. Guarded by
+       * the literal so the whole store leaves the free build, which has nothing
+       * to read it with — checked by `npm run check:web`, not assumed.
+       */
+      if (__HAS_TEACHER__) {
+        recordRun(exercise.instrumentId, exercise.clef, {
+          at: Date.now(),
+          accuracy: summary.accuracy,
+          ...runAt,
+        });
+      }
       setFinished({ summary, exercise, stats });
       setScreen('results');
     },
-    [exercise, chosen.tempo, fromCourse],
+    [exercise, fromCourse, runAt],
   );
 
   const content = useMemo(() => {
@@ -288,9 +317,20 @@ export function App() {
             pendingAccuracy={courseAccuracy}
             onAccuracyApplied={() => setCourseAccuracy(null)}
             onStart={startCourse}
+            onProgress={() => setScreen('progress')}
             onBack={() => setScreen('home')}
           />
         </>
+      );
+    }
+
+    if (__HAS_TEACHER__ && screen === 'progress') {
+      return (
+        <ProgressScreen
+          instrumentId={chosen.instrumentId}
+          clef={chosen.clef}
+          onBack={() => setScreen('practice')}
+        />
       );
     }
 

@@ -175,14 +175,16 @@ leads to the settings screen exactly as it is now. Neither is the poor
 relation, and the guided path must never become the only way to reach a
 control.
 
-**1.5 A session, with continuity.** There is no session concept at present —
+**1.5 A session, with continuity.** ~~To build~~ — **built 2026-08-20, v2.27.0**: `storage/sessions.ts`, with the practice screen opening on what happened last time. A *planned* multi-part session (warm-up, then the weak thing, then new reading) still waits on levels carrying varied material. What follows is why.
+
+There is no session concept at present —
 each run is independent and nothing survives it but note stats. A session needs
 a plan (warm-up, the thing that went badly last time, new reading), the runs
 within it, a summary at the end, and a next session that knows what this one
 did. *"Focusing a bit on what you achieved last time"* is the requirement, and
 it is what makes the app worth opening on a Tuesday.
 
-**1.6 Reporting.** Falls out of 1.1 almost for free once outcomes are attributed:
+**1.6 Reporting.** ~~To build~~ — **built 2026-08-20, v2.27.0**: `ProgressScreen`, reached from Practice. Falls out of 1.1 almost for free once outcomes are attributed:
 what improved, what did not, where the player sits against the goal, and the
 trend over weeks. It is the visible half of the coach and the half that sells.
 

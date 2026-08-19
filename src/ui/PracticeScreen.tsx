@@ -37,7 +37,24 @@ import {
   type Rung,
 } from '../exercise/ladder';
 import { loadProgress, saveProgress } from '../storage/ladder';
+import { loadSessions, meanAccuracy } from '../storage/sessions';
 import type { Clef } from '../domain/instruments';
+
+/**
+ * When a sitting was, in the words a player would use.
+ *
+ * Days rather than dates for the recent past: "yesterday" is what someone
+ * would say, and a date makes them work out how long ago that was. Beyond a
+ * week the day of the week stops meaning anything, so it becomes a count.
+ */
+function describeWhen(at: number, now = Date.now()): string {
+  const days = Math.floor((now - at) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return 'Earlier today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return 'Last week';
+  return `${Math.floor(days / 7)} weeks ago`;
+}
 
 interface PracticeScreenProps {
   instrumentId: string;
@@ -53,7 +70,8 @@ interface PracticeScreenProps {
   pendingAccuracy: number | null;
   onAccuracyApplied: () => void;
   /** Plain data on purpose — see the note above about the seam. */
-  onStart: (from: { difficultyId: string; tempo: number }) => void;
+  onStart: (from: { difficultyId: string; tempo: number; levelId: string }) => void;
+  onProgress: () => void;
   onBack: () => void;
 }
 
@@ -64,6 +82,7 @@ export function PracticeScreen({
   pendingAccuracy,
   onAccuracyApplied,
   onStart,
+  onProgress,
   onBack,
 }: PracticeScreenProps) {
   const [progress, setProgress] = useState(() => loadProgress(instrumentId, clef, fallback));
@@ -80,6 +99,17 @@ export function PracticeScreen({
     });
     onAccuracyApplied();
   }, [pendingAccuracy, instrumentId, clef, onAccuracyApplied]);
+
+  /*
+   * What happened last time, which is the whole of § 1.5's requirement:
+   * "focusing a bit on what you achieved last time". Read once — a sitting
+   * already under way is the one being added to, so the interesting one is
+   * always the sitting before this session's first run.
+   */
+  const [previous] = useState(() => {
+    const sessions = loadSessions(instrumentId, clef);
+    return sessions[sessions.length - 1];
+  });
 
   const ladder = ladderById(progress.rung.ladderId);
   const level = levelOf(progress.rung);
@@ -126,6 +156,14 @@ export function PracticeScreen({
         <p className="practice__course">{ladder.name}</p>
         <h1>{level.name}</h1>
       </header>
+
+      {previous && (
+        <p className="practice__last">
+          {describeWhen(previous.startedAt)}: {previous.runs.length}{' '}
+          {previous.runs.length === 1 ? 'run' : 'runs'}, averaging{' '}
+          {Math.round((meanAccuracy(previous) ?? 0) * 100)}%.
+        </p>
+      )}
 
       <section className="panel">
         <h2>Today</h2>
@@ -220,10 +258,19 @@ export function PracticeScreen({
       <button
         type="button"
         className="button button--primary button--large"
-        onClick={() => onStart({ difficultyId: level.difficultyId, tempo: progress.rung.tempo })}
+        onClick={() => onStart({
+            difficultyId: level.difficultyId,
+            tempo: progress.rung.tempo,
+            levelId: level.id,
+          })}
       >
         Start
       </button>
+      <button type="button" className="entry practice__door" onClick={onProgress}>
+        <span className="entry__title">Progress</span>
+        <span className="entry__detail">What has improved, and what to work on</span>
+      </button>
+
       <button type="button" className="button button--quiet" onClick={onBack}>
         Back
       </button>

@@ -1258,6 +1258,23 @@ input[type='checkbox'] {
 
 /* --- Teacher mode ------------------------------------------------------- */
 
+/*
+ * What happened last time, above everything else on the screen.
+ *
+ * A whole line to itself rather than a corner of a panel: it is the sentence
+ * that makes the app worth opening on a Wednesday, and it should be read before
+ * the player decides what to do rather than found afterwards.
+ */
+.practice__last {
+  margin: 0 0 1rem;
+  padding: 0.625rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-raised);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
 /* The course a level belongs to, above its name in the masthead. */
 .practice__course {
   margin: 0 0 0.15rem;
@@ -1339,6 +1356,59 @@ input[type='checkbox'] {
   height: 100%;
   border-radius: 3px;
   background: var(--accent);
+}
+
+/* A row of the report: a name, how it is going, and the number. */
+.report__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report__row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.report__name {
+  flex: 0 0 8.5rem;
+  font-size: 0.875rem;
+}
+
+/*
+ * The bar is decoration for the number beside it, not a second reading of it —
+ * hence `aria-hidden` on the element and the figure left visible.
+ */
+.report__bar {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.report__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.report__value {
+  flex: 0 0 2.75rem;
+  text-align: right;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* The door to the report, below the course's own panels. */
+.practice__door {
+  margin-top: 0.25rem;
 }
 
 /* --- Buttons ------------------------------------------------------------ */

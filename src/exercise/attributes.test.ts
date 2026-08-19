@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attributesFor, type SkillKey } from './attributes';
+import { attributesFor, describeSkill, type SkillKey } from './attributes';
 import { metreFor } from '../domain/metre';
 import type { Exercise, NoteEvent } from './types';
 import type { Duration } from '../domain/rhythm';
@@ -169,5 +169,64 @@ describe('what a note asked of the reader', () => {
     const all = attributesFor(exercise, 90);
     expect(all).toHaveLength(2);
     for (const keys of all) expect(keys.length).toBeGreaterThan(0);
+  });
+});
+
+describe('a skill in the words a player would use', () => {
+  it('names note values, dots and triplets as a musician says them', () => {
+    expect(describeSkill('rhythm:quarter')).toBe('crotchets');
+    expect(describeSkill('rhythm:eighth.')).toBe('dotted quavers');
+    expect(describeSkill('rhythm:eighth-triplet')).toBe('triplet quavers');
+    expect(describeSkill('rhythm:half')).toBe('minims');
+  });
+
+  it('names the interval bands', () => {
+    expect(describeSkill('interval:leap')).toBe('leaps');
+    expect(describeSkill('interval:fourth-fifth')).toBe('fourths and fifths');
+  });
+
+  it('names a key rather than a number on the circle of fifths', () => {
+    expect(describeSkill('key:0')).toBe('C major');
+    expect(describeSkill('key:-4')).toMatch(/major/);
+  });
+
+  it('says what the two-sided dimensions mean, both ways round', () => {
+    expect(describeSkill('accidental:yes')).toBe('accidentals');
+    expect(describeSkill('beat:off')).toBe('off the beat');
+    expect(describeSkill('beat:on')).toBe('on the beat');
+  });
+
+  it('reads a tempo band as a range', () => {
+    expect(describeSkill('tempo:80-99')).toBe('80 to 99 bpm');
+    expect(describeSkill('tempo:under-60')).toBe('under 60 bpm');
+    expect(describeSkill('tempo:140-plus')).toBe('140 bpm and up');
+  });
+
+  /*
+   * A store written by a later version may hold buckets this one has never
+   * seen. Showing something it cannot quite name beats refusing to draw the
+   * report at all.
+   */
+  it('falls back to the bucket rather than failing on something it does not know', () => {
+    expect(describeSkill('rhythm:hemidemisemiquaver' as SkillKey)).toBe('hemidemisemiquaver');
+    expect(describeSkill('newthing:whatever' as SkillKey)).toBe('whatever');
+  });
+
+  it('names every bucket the app can actually produce', () => {
+    const exercise = attributesFor(
+      exerciseOf([
+        note({ writtenMidi: 60, startBeat: 0 }),
+        note({ writtenMidi: 72, startBeat: 0.5, showAccidental: true }),
+      ]),
+      90,
+    );
+    for (const keys of exercise) {
+      for (const key of keys) {
+        const said = describeSkill(key);
+        expect(said).not.toBe('');
+        // Nothing should reach a screen still wearing its raw bucket.
+        expect(said).not.toMatch(/^(eighth|quarter|fourth-fifth)$/);
+      }
+    }
   });
 });

@@ -23,7 +23,7 @@
  * labels whoever plays it.
  */
 
-import { keyAt } from '../domain/keys';
+import { keyAt, MAJOR_KEYS } from '../domain/keys';
 import { barAt, beatOfBar, metreAt } from '../domain/metre';
 import type { Exercise } from './types';
 
@@ -154,4 +154,75 @@ export function attributesFor(exercise: Exercise, tempoBpm: number): SkillKey[][
 
     return keys;
   });
+}
+
+/**
+ * A skill key in the words a player would use.
+ *
+ * The keys are built for a tally and read like it — `rhythm:eighth.`,
+ * `interval:fourth-fifth`, `key:-4`. A report has to say "dotted quavers" and
+ * "four flats" instead, and this is the one place that translation lives so a
+ * new bucket cannot appear on a screen in its raw form.
+ *
+ * Unknown keys come back as the bucket rather than as an error: a report drawn
+ * from a store written by a later version should show something it cannot
+ * quite name rather than refuse to draw.
+ */
+const RHYTHM_NAMES: Record<string, string> = {
+  whole: 'semibreves',
+  half: 'minims',
+  quarter: 'crotchets',
+  eighth: 'quavers',
+  sixteenth: 'semiquavers',
+  thirtySecond: 'demisemiquavers',
+};
+
+const INTERVAL_NAMES: Record<string, string> = {
+  same: 'repeated notes',
+  step: 'steps',
+  third: 'thirds',
+  'fourth-fifth': 'fourths and fifths',
+  leap: 'leaps',
+};
+
+function describeRhythm(bucket: string): string {
+  const triplet = bucket.endsWith('-triplet');
+  const withoutTriplet = triplet ? bucket.slice(0, -'-triplet'.length) : bucket;
+  const dotted = withoutTriplet.endsWith('.');
+  const value = dotted ? withoutTriplet.slice(0, -1) : withoutTriplet;
+  const name = RHYTHM_NAMES[value] ?? value;
+  if (triplet) return `triplet ${name}`;
+  return dotted ? `dotted ${name}` : name;
+}
+
+function describeKey(bucket: string): string {
+  const fifths = Number(bucket);
+  if (!Number.isFinite(fifths)) return bucket;
+  const key = MAJOR_KEYS.find((candidate) => candidate.fifths === fifths);
+  return key ? `${key.name} major` : bucket;
+}
+
+export function describeSkill(key: SkillKey): string {
+  const divider = key.indexOf(':');
+  const dimension = key.slice(0, divider);
+  const bucket = key.slice(divider + 1);
+
+  switch (dimension) {
+    case 'rhythm':
+      return describeRhythm(bucket);
+    case 'interval':
+      return INTERVAL_NAMES[bucket] ?? bucket;
+    case 'accidental':
+      return bucket === 'yes' ? 'accidentals' : 'notes in the key';
+    case 'beat':
+      return bucket === 'on' ? 'on the beat' : 'off the beat';
+    case 'key':
+      return describeKey(bucket);
+    case 'tempo':
+      if (bucket.startsWith('under-')) return `under ${bucket.slice('under-'.length)} bpm`;
+      if (bucket.endsWith('-plus')) return `${bucket.slice(0, -'-plus'.length)} bpm and up`;
+      return `${bucket.replace('-', " to ")} bpm`;
+    default:
+      return bucket;
+  }
 }
