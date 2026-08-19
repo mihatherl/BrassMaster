@@ -325,10 +325,24 @@ the floor and climbs again. It is the order a teacher works in, and it is what
 rises*, not accuracy alone.
 
 **A band in the middle, not a threshold.** Promotion needs every one of the
-last two runs at or above 0.85; demotion needs every one below 0.6; anything
-between leaves the player where they are. One lucky run cannot promote and one
-bad evening cannot demote, and the wide middle is where practice actually
-happens rather than a strip between promotions.
+recent runs at or above `promoteAbove`; demotion needs every one below
+`demoteBelow`; anything between leaves the player where they are. One lucky run
+cannot promote and one bad evening cannot demote, and the wide middle is where
+practice actually happens rather than a strip between promotions.
+
+**The bar belongs to the course, not to the module.** It was three constants
+until it was pointed out that the right bar depends on what is being practised:
+0.85 across two runs is a strong result on music the player has never seen, and
+no result at all on a scale they are supposed to have learned. A level may set
+its own, else its ladder's, else the default — resolved rather than stored, so
+changing a course's bar moves every level that had not overridden it.
+
+`masteryOf(level, ladder)` is the rule and `masteryFor(rung)` the lookup, kept
+apart deliberately: the first version was tested by re-implementing the
+fallback chain in the test, which asserted the test's own expression and caught
+nothing. Mutation testing found it — the resolution was broken and every test
+still passed. Split out, the rule can be exercised against ladders that are not
+in the registry, and both directions of the fallback are now caught.
 
 **The three numbers are provisional and want measuring, not arguing about.**
 The *shape* is what matters and is unlikely to change. Getting the values wrong

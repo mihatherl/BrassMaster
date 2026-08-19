@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   afterRun,
   DEFAULT_LADDER_ID,
-  DEMOTE_BELOW,
+  DEFAULT_MASTERY,
   LADDERS,
   ladderById,
   levelOf,
   nextRung,
   previousRung,
-  PROMOTE_ABOVE,
+  masteryFor,
+  masteryOf,
   rungFrom,
-  RUNS_TO_JUDGE,
   sameRung,
   verdictOn,
   type Progress,
@@ -23,8 +23,9 @@ const FIRST = LADDER.levels[0];
 const SECOND = LADDER.levels[1];
 const LAST = LADDER.levels[LADDER.levels.length - 1];
 
-const clean = Array<number>(RUNS_TO_JUDGE).fill(PROMOTE_ABOVE);
-const dreadful = Array<number>(RUNS_TO_JUDGE).fill(DEMOTE_BELOW - 0.1);
+const MASTERY = DEFAULT_MASTERY;
+const clean = Array<number>(MASTERY.runsToJudge).fill(MASTERY.promoteAbove);
+const dreadful = Array<number>(MASTERY.runsToJudge).fill(MASTERY.demoteBelow - 0.1);
 
 const at = (levelId: string, tempo: number): Rung => rungFrom(DEFAULT_LADDER_ID, levelId, tempo);
 
@@ -159,19 +160,62 @@ describe('which single thing moves', () => {
   });
 });
 
+describe('the bar for moving, which the course sets', () => {
+  const strict = { promoteAbove: 0.95, demoteBelow: 0.8, runsToJudge: 3 };
+
+  it('falls back to the default when nothing overrides it', () => {
+    expect(masteryFor(at(FIRST.id, FIRST.tempo.floor))).toEqual(DEFAULT_MASTERY);
+  });
+
+  /*
+   * The reason this is data rather than a constant: 0.85 across two runs is a
+   * strong result on music the player has never seen, and no result at all on
+   * a scale they are supposed to have learned. A course of drills has to be
+   * able to ask for more.
+   */
+  it('lets a level ask for a stricter bar than sight-reading needs', () => {
+    const level = { ...FIRST, mastery: strict };
+    expect(masteryOf(level, LADDER)).toEqual(strict);
+    // Two clean runs promote at the default bar and decide nothing at this one,
+    // which is the whole difference.
+    expect(verdictOn([1, 1], DEFAULT_MASTERY)).toBe('up');
+    expect(verdictOn([1, 1], strict)).toBe('stay');
+  });
+
+  it('lets a whole course set a bar its levels inherit', () => {
+    const ladder = { ...LADDER, mastery: strict };
+    expect(masteryOf(FIRST, ladder)).toEqual(strict);
+  });
+
+  it('prefers the level’s bar over the course’s, so one step can differ', () => {
+    const ladder = { ...LADDER, mastery: strict };
+    const lenient = { promoteAbove: 0.7, demoteBelow: 0.4, runsToJudge: 2 };
+    expect(masteryOf({ ...FIRST, mastery: lenient }, ladder)).toEqual(lenient);
+  });
+
+  it('reads more runs when the course asks for more', () => {
+    expect(verdictOn([1, 1, 1], strict)).toBe('up');
+  });
+
+  it('holds a player who is close but not clean enough for a strict course', () => {
+    expect(verdictOn([0.9, 0.9, 0.9], DEFAULT_MASTERY)).toBe('up');
+    expect(verdictOn([0.9, 0.9, 0.9], strict)).toBe('stay');
+  });
+});
+
 describe('when anything moves at all', () => {
   it('says nothing until there is more than one run to go on', () => {
-    expect(verdictOn([1])).toBe('stay');
+    expect(verdictOn([1], MASTERY)).toBe('stay');
   });
 
   it('promotes only when every recent run cleared the bar', () => {
-    expect(verdictOn(clean)).toBe('up');
-    expect(verdictOn([PROMOTE_ABOVE, PROMOTE_ABOVE - 0.01])).toBe('stay');
+    expect(verdictOn(clean, MASTERY)).toBe('up');
+    expect(verdictOn([MASTERY.promoteAbove, MASTERY.promoteAbove - 0.01], MASTERY)).toBe('stay');
   });
 
   it('demotes only when every recent run fell short', () => {
-    expect(verdictOn(dreadful)).toBe('down');
-    expect(verdictOn([DEMOTE_BELOW - 0.1, DEMOTE_BELOW])).toBe('stay');
+    expect(verdictOn(dreadful, MASTERY)).toBe('down');
+    expect(verdictOn([MASTERY.demoteBelow - 0.1, MASTERY.demoteBelow], MASTERY)).toBe('stay');
   });
 
   /*
@@ -179,12 +223,12 @@ describe('when anything moves at all', () => {
    * and it should be the common case rather than a strip between promotions.
    */
   it('leaves a player alone in the middle, which is most of the time', () => {
-    const between = (DEMOTE_BELOW + PROMOTE_ABOVE) / 2;
-    expect(verdictOn(Array<number>(RUNS_TO_JUDGE).fill(between))).toBe('stay');
+    const between = (MASTERY.demoteBelow + MASTERY.promoteAbove) / 2;
+    expect(verdictOn(Array<number>(MASTERY.runsToJudge).fill(between), MASTERY)).toBe('stay');
   });
 
   it('reads only the most recent runs, so an old evening cannot hold anyone back', () => {
-    expect(verdictOn([0, 0, ...clean])).toBe('up');
+    expect(verdictOn([0, 0, ...clean], MASTERY)).toBe('up');
   });
 });
 
@@ -201,10 +245,10 @@ describe('folding a run into where the player is', () => {
   });
 
   it('keeps the evidence while the player stays put', () => {
-    const middle = (DEMOTE_BELOW + PROMOTE_ABOVE) / 2;
+    const middle = (MASTERY.demoteBelow + MASTERY.promoteAbove) / 2;
     const { progress, movement } = afterRun(progressAt(FIRST.id, FIRST.tempo.floor, [middle]), middle);
     expect(movement).toBe('stay');
-    expect(progress.recent).toHaveLength(RUNS_TO_JUDGE);
+    expect(progress.recent).toHaveLength(MASTERY.runsToJudge);
   });
 
   it('does not mutate what it was given', () => {
@@ -224,7 +268,7 @@ describe('folding a run into where the player is', () => {
     const { progress, movement } = afterRun(progressAt(LAST.id, LAST.tempo.ceiling, [1]), 1);
     expect(movement).toBe('stay');
     expect(sameRung(progress.rung, at(LAST.id, LAST.tempo.ceiling))).toBe(true);
-    expect(progress.recent).toHaveLength(RUNS_TO_JUDGE);
+    expect(progress.recent).toHaveLength(MASTERY.runsToJudge);
   });
 
   it('reports no movement at the bottom of the ladder', () => {
@@ -241,7 +285,7 @@ describe('folding a run into where the player is', () => {
     while (steps < 500) {
       const result = afterRun(progress, 1);
       progress = result.progress;
-      if (result.movement === 'stay' && progress.recent.length >= RUNS_TO_JUDGE) break;
+      if (result.movement === 'stay' && progress.recent.length >= MASTERY.runsToJudge) break;
       steps++;
     }
     expect(steps).toBeLessThan(500);
@@ -255,7 +299,7 @@ describe('folding a run into where the player is', () => {
     while (steps < 500) {
       const result = afterRun(progress, 0);
       progress = result.progress;
-      if (result.movement === 'stay' && progress.recent.length >= RUNS_TO_JUDGE) break;
+      if (result.movement === 'stay' && progress.recent.length >= MASTERY.runsToJudge) break;
       steps++;
     }
     expect(steps).toBeLessThan(500);

@@ -66,6 +66,8 @@ export interface Level {
   /** Which of the generator's difficulties writes the music. */
   difficultyId: string;
   tempo: TempoBand;
+  /** Overrides the ladder's bar for this step alone. */
+  mastery?: Mastery;
 }
 
 export interface Ladder {
@@ -74,6 +76,8 @@ export interface Ladder {
   blurb: string;
   /** Easiest first. The order *is* the progression. */
   levels: readonly Level[];
+  /** The bar for every level that does not set its own. */
+  mastery?: Mastery;
 }
 
 /**
@@ -154,21 +158,37 @@ function snap(tempo: number, band: TempoBand): number {
 /**
  * How well, and for how long, before anything moves.
  *
- * **These three numbers are provisional and should be measured, not argued
- * about.** The shape is what matters and is unlikely to change: a *band* in the
- * middle where the player stays put, so that one lucky run cannot promote and
- * one bad evening cannot demote. Getting them wrong is the main way this
- * feature fails — too strict and nobody ever advances, too loose and everyone
- * is pushed past what they can read.
+ * **Part of the ladder rather than a constant, because the right bar depends on
+ * what is being practised.** 0.85 across two runs is a strong result on music
+ * the player has never seen — but a scale is a known quantity, and someone
+ * playing C major at 85% has not learned it. A course of drills wants a
+ * stricter bar than a sight-reading ladder, and the only place that can be
+ * expressed is beside the levels themselves.
  *
- * `RUNS_TO_JUDGE` of 2 is the least that can distinguish a run from a habit.
- * The gap between 0.6 and 0.85 is deliberately wide: it is where practice
- * actually happens, and it should be the common case rather than a narrow strip
- * between promotions.
+ * The *shape* is what matters and is unlikely to change: a band in the middle
+ * where the player stays put, so one lucky run cannot promote and one bad
+ * evening cannot demote. `runsToJudge` of 2 is the least that can distinguish a
+ * run from a habit.
+ *
+ * **The default values below are provisional and should be measured, not
+ * argued about.** Getting them wrong is the main way this feature fails — too
+ * strict and nobody ever advances, too loose and everyone is pushed past what
+ * they can read.
  */
-export const PROMOTE_ABOVE = 0.85;
-export const DEMOTE_BELOW = 0.6;
-export const RUNS_TO_JUDGE = 2;
+export interface Mastery {
+  /** Every one of the recent runs at or above this promotes. */
+  promoteAbove: number;
+  /** Every one of them below this demotes. */
+  demoteBelow: number;
+  /** How many recent runs are read. Fewer than this decides nothing. */
+  runsToJudge: number;
+}
+
+export const DEFAULT_MASTERY: Mastery = {
+  promoteAbove: 0.85,
+  demoteBelow: 0.6,
+  runsToJudge: 2,
+};
 
 /**
  * The rung nearest to what the player already chose.
@@ -216,19 +236,36 @@ export function previousRung(rung: Rung): Rung | null {
   return below ? { ladderId: ladder.id, levelId: below.id, tempo: below.tempo.ceiling } : null;
 }
 
+/**
+ * The bar in force at a rung: the level's own, else its ladder's, else the
+ * default. Resolved rather than stored, so changing a ladder's bar moves every
+ * level that had not overridden it.
+ */
+export function masteryOf(level: Level, ladder: Ladder): Mastery {
+  return level.mastery ?? ladder.mastery ?? DEFAULT_MASTERY;
+}
+
+/**
+ * The same, for a rung — the lookup half kept separate from the rule so the
+ * rule can be tested against ladders that are not in the registry.
+ */
+export function masteryFor(rung: Rung): Mastery {
+  return masteryOf(levelOf(rung), ladderById(rung.ladderId));
+}
+
 export type Movement = 'up' | 'down' | 'stay';
 
 /**
  * What the last few runs at one rung say should happen next.
  *
- * Reads only the most recent `RUNS_TO_JUDGE`, and answers `stay` until there
+ * Reads only the most recent `runsToJudge`, and answers `stay` until there
  * are that many — a verdict on one run is a verdict on an evening's mood.
  */
-export function verdictOn(recent: readonly number[]): Movement {
-  if (recent.length < RUNS_TO_JUDGE) return 'stay';
-  const judged = recent.slice(-RUNS_TO_JUDGE);
-  if (judged.every((accuracy) => accuracy >= PROMOTE_ABOVE)) return 'up';
-  if (judged.every((accuracy) => accuracy < DEMOTE_BELOW)) return 'down';
+export function verdictOn(recent: readonly number[], mastery: Mastery): Movement {
+  if (recent.length < mastery.runsToJudge) return 'stay';
+  const judged = recent.slice(-mastery.runsToJudge);
+  if (judged.every((accuracy) => accuracy >= mastery.promoteAbove)) return 'up';
+  if (judged.every((accuracy) => accuracy < mastery.demoteBelow)) return 'down';
   return 'stay';
 }
 
@@ -255,8 +292,9 @@ export function afterRun(
   progress: Progress,
   accuracy: number,
 ): { progress: Progress; movement: Movement } {
-  const recent = [...progress.recent, accuracy].slice(-RUNS_TO_JUDGE);
-  const movement = verdictOn(recent);
+  const mastery = masteryFor(progress.rung);
+  const recent = [...progress.recent, accuracy].slice(-mastery.runsToJudge);
+  const movement = verdictOn(recent, mastery);
 
   const moved =
     movement === 'up'
