@@ -175,7 +175,7 @@ what improved, what did not, where the player sits against the goal, and the
 trend over weeks. It is the visible half of the coach and the half that sells.
 
 **1.7 History lives on the phone, and nowhere else.** No server, no accounts —
-see § 5 for the full reasoning, which is now written down so it need not be had
+see § 6 for the full reasoning, which is now written down so it need not be had
 again. Teacher mode being paid means there is no web-to-app migration to
 build: the free app never kept a coaching history, so none is lost.
 
@@ -188,7 +188,7 @@ a copy — all of it Apple's problem rather than yours.
 Whatever the store, **write it as one versioned, mergeable document** rather
 than scattered keys. That costs nothing now, makes export and import a few
 lines if ever wanted, and is the only thing that would keep a server possible
-without a rewrite should the ruling in § 5 ever be revisited.
+without a rewrite should the ruling in § 6 ever be revisited.
 
 **1.8 Material to feed it.** The theme composer's stages 2 and 3, parked
 pending "the player's ear on the shape first". Unfamiliar material is the raw
@@ -198,7 +198,7 @@ material of the entire product, so that parking is now on the critical path.
 scrolling line, the settings screen overflowing on a 360×740 phone, leaps per
 instrument rather than per difficulty.
 
-### Phase 2 — The microphone (no Mac needed to build it)
+### Phase 2 — The microphone (paid; no Mac needed to build it)
 
 The honest version of the exercise: the player plays, the app listens.
 
@@ -218,7 +218,7 @@ tested on a real phone today over Tailscale with
 correctly in installed-PWA mode on iOS, confirmed 2026-08-19, so the largest
 risk the container spike was meant to retire is already mostly retired.
 
-### Phase 3 — The tuner
+### Phase 3 — The tuner (paid)
 
 **3.1 Per-instrument slide data** in `domain/instruments.ts` — as data, not
 prose.
@@ -237,7 +237,7 @@ embedded HTTP server proving it can serve a page and take an upload.
 **4.3 v3.0 ships with** everything free, plus the microphone, the tuner, and My
 Music as it stands today.
 
-### Phase 5 — My Music becomes the reason to buy
+### Phase 5 — My Music becomes the reason to buy (paid)
 
 **5.1 The phone-hosted library.** The phone runs an HTTP server; a laptop
 browses to it and manages MusicXML files in folders; the same folder
@@ -249,7 +249,7 @@ core ruling (the phone owns the library) is exactly what this is.
 **5.2 Multi-part import**, which the importer does not do today and which
 everything below needs.
 
-### Phase 6 — Orchestration, and the band around you
+### Phase 6 — Orchestration, and the band around you (paid)
 
 **6.1 Play along with the rest of the score.** Import a full score, choose your
 part, and the app plays the others while you read yours. The player's own
@@ -262,7 +262,99 @@ and tempo map are built, the importer parses MusicXML. The genuine work is
 multi-part parsing, mixing, and deciding what happens when the player's
 part and the accompaniment disagree about where they are.
 
-## 5. Not on the roadmap, and why
+## 5. Releases, and where things run
+
+### What the free app actually gets
+
+Worth stating plainly, because the phase list hides it: **almost everything on
+this roadmap is paid.** Of Phase 1, only the material (1.8) and the reading
+fixes (1.9) reach the free app at all; 1.1 is recorded there but shows nothing.
+Phases 2 to 6 are entirely paid.
+
+| Roadmap item | Free web app | Paid app |
+|---|---|---|
+| 1.1 skill model | recorded, invisible | recorded, and read by everything below |
+| 1.2–1.7 teacher mode | — | ✓ |
+| 1.8 theme corpus | ✓ | ✓ |
+| 1.9 reading fixes | ✓ | ✓ |
+| 2 microphone | — | ✓ |
+| 3 tuner | — | ✓ |
+| 5 phone library | — | ✓ |
+| 6 orchestration | — | ✓ |
+
+That is a deliberate consequence of the free/paid line in § 3, but it means the
+free app stands still for a long time while the paid one grows. It is the same
+risk named in § 7 — *whether the free app has any reason to come back
+tomorrow* — seen from the other end, and it is the argument for eventually
+letting something across the line. **Anything built for the free app should be
+recorded here as it is decided**, or the answer to "what did the free app gain
+this year" will be "nothing" without anyone having chosen that.
+
+### Versions
+
+**One codebase, one version number, both builds carrying it.** The version
+identifies the code, not the feature set, so the free app's version rises when
+a paid feature lands and nothing it shows has changed. That is correct and
+should not be "fixed".
+
+| | |
+|---|---|
+| **v2.x** | now until the App Store. Paid features land here as **minors** — the codebase gained a feature even though only one build exposes it. Free-app work lands here too. |
+| **v3.0.0** | **the App Store launch.** A major, on the repository's own rule that majors mark a change of category: one product becomes two, and one of them is sold. |
+| **v3.x** | after launch — the phone-hosted library (Phase 5), then orchestration (Phase 6). |
+
+Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
+
+### Where each build runs
+
+| Build | Where | Who can reach it |
+|---|---|---|
+| `web` | **brassmaster.net**, GitHub Pages, deployed by CI on every push to `main` | everyone |
+| `app` — development | **the tailnet**, served from the desktop | your own devices |
+| `app` — beta | **TestFlight**, from Phase 4 | testers you invite |
+| `app` — release | **the App Store**, from Phase 4 | customers |
+
+**brassmaster.net must never serve the `app` build.** It is not a policy but a
+mechanism: the deploy workflow builds `web` and `npm run check:web` fails it if
+paid code is present. Nothing needs remembering.
+
+### Testing the paid build, today
+
+The tailnet already does this and needs nothing built. HTTPS is required — a
+PWA will not install or run a service worker without it — and Tailscale issues
+a real certificate for the machine's own name, so an install from it behaves
+exactly as one from brassmaster.net would.
+
+    npm run build:app && npm run preview        # serves on 4173
+    tailscale serve --bg --https=8445 http://localhost:4173
+
+Then open `https://<machine>.<tailnet>.ts.net:8445` on the phone and add it to
+the home screen. It is reachable only by devices signed into the tailnet, which
+is the gating — no login screen, nothing published, nothing to leak. Ports 443
+and 8444 are already in use on the desktop, hence 8445.
+
+**This is also the only honest way to test the microphone work**, which needs a
+real handset and a real instrument rather than a simulator.
+
+A gated *public* beta — band members who are not on the tailnet — is a
+different problem and does not arise until there is something to give them. Do
+it with TestFlight from Phase 4, not by publishing a web build; Cloudflare
+Access on a subdomain is the fallback if web testers are ever needed sooner.
+
+### Where the iPhone app is built from
+
+**Recommendation, not yet ratified:** the native shell lives in **this
+repository**, in an `ios/` directory, sharing the version, the gate and the
+history. A separate repository would let the shell and the web build it wraps
+drift apart, and they are one product with one version number.
+
+Two consequences to plan for: **signing certificates and provisioning profiles
+must never be committed** — this repository is public, so they belong in GitHub
+Secrets; and macOS runners are free for public repositories, so the release
+build and upload can be automated without owning a Mac, even though developing
+the shell cannot.
+
+## 6. Not on the roadmap, and why
 
 **This section is the point of the document.** Each of these is a reasonable
 idea that has been considered and declined; re-proposing one needs a reason
@@ -336,7 +428,7 @@ that engages with the reason recorded here.
   recorded 2026-08-19: Google closes dormant accounts, Play does not reserve
   names, and the free web app is already installable there.
 
-## 6. Open questions, named so they are not forgotten
+## 7. Open questions, named so they are not forgotten
 
 - **The mastery criterion.** How much evidence promotes a player, and how much
   demotes them. Gets the whole ladder wrong if it is wrong: too strict and it
@@ -360,7 +452,7 @@ that engages with the reason recorded here.
   progression and the planned session stay behind the paywall. Show the value,
   withhold the depth. Not decided.
 - **What "teacher mode" is called.** The name is evocative and sells itself,
-  but this roadmap also rules out a teaching *platform* (§ 5), and a name
+  but this roadmap also rules out a teaching *platform* (§ 6), and a name
   implying a human teacher's dashboard may set the wrong expectation. *Coach*,
   *Practice plan* and *Guided* are the alternatives.
 - **Whether the microphone should be free after all.** For a product whose job
@@ -377,9 +469,9 @@ that engages with the reason recorded here.
 - **Whether the App Store seller name being a personal name matters**, given
   enrolment is as an individual.
 
-## 7. How to use this
+## 8. How to use this
 
-- **Before proposing a feature**, check §2's test and §5's list.
+- **Before proposing a feature**, check § 2's test and § 6's list.
 - **When a feature is built**, tick it here and write the ruling into
   `v2-design.md` in the same release.
 - **When something here turns out to be wrong**, change it here and say why —
