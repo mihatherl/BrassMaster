@@ -469,7 +469,15 @@ that engages with the reason recorded here.
   demotes them. Gets the whole ladder wrong if it is wrong: too strict and it
   never advances, too loose and it advances past them. Wants measuring against
   real practice rather than choosing from an armchair.
-- **Whose standard a goal names** — the app's own ladder, or recognised grades
+- **Whose standard a goal names** — *the mechanism is settled, the content is
+  not.* Ladders became data on 2026-08-19, so a graded ladder is an entry
+  beside the app's own rather than a rewrite. Two things still stand in the
+  way, and neither is data entry: the generator cannot yet take per-level key,
+  metre and length constraints, which a grade is largely made of; and naming a
+  ladder after a real board implies an affiliation you do not have — the facts
+  about what a grade requires are not copyrightable, the board's name is
+  another matter. Generic framing ("Grade 1–8") avoids the second entirely.
+- **Whose standard a goal names — the original note** — the app's own ladder, or recognised grades
   (AMEB, ABRSM, Trinity). Recommendation in Phase 1.3: build the ladder, calibrate
   to grades later. But grades are the more saleable promise, so this is a
   marketing decision as much as a design one.

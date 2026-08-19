@@ -18,7 +18,7 @@
  */
 
 import type { Clef } from '../domain/instruments';
-import { rungFrom, type Progress } from '../exercise/ladder';
+import { DEFAULT_LADDER_ID, rungFrom, type Progress } from '../exercise/ladder';
 
 /** Unique to teacher mode, and the bundle check's fingerprint for it. */
 const STORAGE_PREFIX = 'brass-trainer:ladder:';
@@ -39,7 +39,11 @@ export function loadProgress(
   fallback: { difficultyId: string; tempo: number },
 ): Progress {
   const fresh = (): Progress => ({
-    rung: rungFrom(fallback.difficultyId, fallback.tempo),
+    // The app's own ladder shares its level ids with the difficulties, so the
+    // player's chosen difficulty names a level directly. A ladder that does not
+    // — a graded syllabus — is only ever entered deliberately, so it has no
+    // business being inferred from settings.
+    rung: rungFrom(DEFAULT_LADDER_ID, fallback.difficultyId, fallback.tempo),
     recent: [],
   });
 
@@ -49,14 +53,19 @@ export function loadProgress(
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return fresh();
     const { rung, recent } = parsed as Partial<Progress>;
-    if (!rung || typeof rung.difficultyId !== 'string' || typeof rung.tempo !== 'number') {
+    if (
+      !rung ||
+      typeof rung.ladderId !== 'string' ||
+      typeof rung.levelId !== 'string' ||
+      typeof rung.tempo !== 'number'
+    ) {
       return fresh();
     }
     return {
       // Re-snapped on the way in rather than trusted: a store written by an
       // older version, or edited by hand, must not put the player on a rung the
       // ladder cannot step off.
-      rung: rungFrom(rung.difficultyId, rung.tempo),
+      rung: rungFrom(rung.ladderId, rung.levelId, rung.tempo),
       recent: Array.isArray(recent) ? recent.filter((n) => typeof n === 'number') : [],
     };
   } catch {

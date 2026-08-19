@@ -353,6 +353,32 @@ little rather than dropping someone into music they cannot read.
 animation for a rung that did not change would be the app congratulating
 someone for nothing.
 
+**Ladders are data, not the two hard-coded axes they began as.** A ladder is an
+ordered list of named levels, each pointing at a generator difficulty and
+carrying **its own tempo band**. That last part matters on its own — a beginner
+level has no business climbing to 144, and a hard level starting at 60 would
+hold a strong reader below where they already are — but the reason for the
+shape is that there is more than one sensible way to grade a brass player. A
+graded syllabus is the same shape with different rungs, so a second ladder is
+an entry in a table rather than a rewrite, and a player-defined one becomes a
+question about a screen.
+
+Levels are derived from `DIFFICULTIES` rather than written out, so a renamed
+difficulty cannot leave a level pointing at nothing, and there is a test
+asserting every level names a difficulty the generator knows. Each band's
+ceiling must sit on its own step grid, also tested: a ceiling off the grid
+would leave a final short step and make the top rung a special case every later
+calculation has to remember.
+
+**What a syllabus ladder additionally needs, and does not have.** Grades
+constrain keys, metres and length, and the generator takes only a `Difficulty`
+from a level. Those fields are deliberately *not* declared until it can honour
+them — a field the app quietly ignores is worse than an absent one — so a
+graded ladder is a further piece of work rather than data entry. Naming one
+after a real board is also a trademark question, not just a factual one; the
+facts about what a grade requires are not copyrightable, but implying
+affiliation is a different matter.
+
 **This is the first paid feature with a bundle fingerprint of its own.** The
 storage key `brass-trainer:ladder:` is unique to teacher mode and survives
 minification, so `check-web-bundle.mjs` fails the free build the moment any of

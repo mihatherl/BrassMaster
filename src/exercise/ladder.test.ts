@@ -1,113 +1,159 @@
 import { describe, expect, it } from 'vitest';
 import {
   afterRun,
+  DEFAULT_LADDER_ID,
   DEMOTE_BELOW,
+  LADDERS,
+  ladderById,
+  levelOf,
   nextRung,
   previousRung,
   PROMOTE_ABOVE,
   rungFrom,
   RUNS_TO_JUDGE,
   sameRung,
-  TEMPO_CEILING,
-  TEMPO_FLOOR,
-  TEMPO_STEP,
   verdictOn,
   type Progress,
+  type Rung,
 } from './ladder';
 import { DIFFICULTIES } from './difficulty';
 
-const EASIEST = DIFFICULTIES[0].id;
-const HARDEST = DIFFICULTIES[DIFFICULTIES.length - 1].id;
-const SECOND = DIFFICULTIES[1].id;
+const LADDER = ladderById(DEFAULT_LADDER_ID);
+const FIRST = LADDER.levels[0];
+const SECOND = LADDER.levels[1];
+const LAST = LADDER.levels[LADDER.levels.length - 1];
 
-/** Two runs at the same accuracy — the least that can move anything. */
 const clean = Array<number>(RUNS_TO_JUDGE).fill(PROMOTE_ABOVE);
 const dreadful = Array<number>(RUNS_TO_JUDGE).fill(DEMOTE_BELOW - 0.1);
 
-function progressAt(difficultyId: string, tempo: number, recent: number[] = []): Progress {
-  return { rung: rungFrom(difficultyId, tempo), recent };
+const at = (levelId: string, tempo: number): Rung => rungFrom(DEFAULT_LADDER_ID, levelId, tempo);
+
+function progressAt(levelId: string, tempo: number, recent: number[] = []): Progress {
+  return { rung: at(levelId, tempo), recent };
 }
 
-describe('where a player starts', () => {
-  it('opens where they already practise, not at the bottom', () => {
-    const rung = rungFrom(SECOND, 96);
-    expect(rung.difficultyId).toBe(SECOND);
-    expect(rung.tempo).toBe(96);
-  });
-
-  it('snaps a tempo onto the grid, so every rung is reachable from every other', () => {
-    expect(rungFrom(EASIEST, 95).tempo % TEMPO_STEP).toBe(TEMPO_FLOOR % TEMPO_STEP);
-  });
-
-  it('clamps a tempo outside the ladder to its ends', () => {
-    expect(rungFrom(EASIEST, 20).tempo).toBe(TEMPO_FLOOR);
-    expect(rungFrom(EASIEST, 220).tempo).toBe(TEMPO_CEILING);
+describe('a ladder as data', () => {
+  it('offers at least the app’s own, easiest first', () => {
+    expect(LADDERS.length).toBeGreaterThan(0);
+    expect(LADDER.levels.length).toBeGreaterThan(1);
   });
 
   /*
-   * A store from a future version, or one edited by hand. Treating an unknown
-   * difficulty as the easiest asks too little rather than dropping a player
-   * into music they cannot read — the safe direction to be wrong in.
+   * Every rung has to be reachable from its neighbours, which needs the ceiling
+   * to sit on the grid the step walks. A ceiling off the grid would leave a
+   * final short step — harmless in itself, but it would make the top rung a
+   * special case every later calculation has to remember.
    */
-  it('falls back to the easiest difficulty rather than trusting an unknown one', () => {
-    expect(rungFrom('no-such-difficulty', 90).difficultyId).toBe(EASIEST);
+  it('puts every level’s ceiling on its own step grid', () => {
+    for (const ladder of LADDERS) {
+      for (const level of ladder.levels) {
+        const { floor, ceiling, step } = level.tempo;
+        expect(ceiling).toBeGreaterThan(floor);
+        expect((ceiling - floor) % step).toBe(0);
+      }
+    }
+  });
+
+  it('gives each level its own band, rising as the music gets harder', () => {
+    expect(SECOND.tempo.floor).toBeGreaterThan(FIRST.tempo.floor);
+    expect(SECOND.tempo.ceiling).toBeGreaterThan(FIRST.tempo.ceiling);
+  });
+
+  it('points every level at a difficulty the generator knows', () => {
+    const known = new Set(DIFFICULTIES.map((difficulty) => difficulty.id));
+    for (const ladder of LADDERS) {
+      for (const level of ladder.levels) expect(known.has(level.difficultyId)).toBe(true);
+    }
+  });
+
+  /*
+   * A ladder removed between versions, or one a future version wrote, must
+   * leave the player somewhere they can practise rather than on a screen that
+   * cannot render.
+   */
+  it('falls back to the default rather than failing on an unknown ladder', () => {
+    expect(ladderById('no-such-ladder').id).toBe(DEFAULT_LADDER_ID);
+  });
+
+  it('falls back to the easiest level rather than failing on an unknown one', () => {
+    expect(levelOf({ ladderId: DEFAULT_LADDER_ID, levelId: 'no-such-level', tempo: 90 }).id).toBe(
+      FIRST.id,
+    );
+  });
+});
+
+describe('where a player starts', () => {
+  it('opens where they already practise, not at the bottom', () => {
+    const tempo = SECOND.tempo.floor + SECOND.tempo.step;
+    const rung = at(SECOND.id, tempo);
+    expect(rung.levelId).toBe(SECOND.id);
+    expect(rung.tempo).toBe(tempo);
+  });
+
+  it('snaps a tempo onto the level’s grid', () => {
+    expect(at(FIRST.id, FIRST.tempo.floor + 1).tempo).toBe(FIRST.tempo.floor);
+  });
+
+  it('clamps a tempo outside the level’s band to its ends', () => {
+    expect(at(FIRST.id, 20).tempo).toBe(FIRST.tempo.floor);
+    expect(at(FIRST.id, 400).tempo).toBe(FIRST.tempo.ceiling);
   });
 });
 
 describe('which single thing moves', () => {
-  it('raises the tempo before it touches the difficulty', () => {
-    const up = nextRung(rungFrom(EASIEST, 90))!;
-    expect(up.difficultyId).toBe(EASIEST);
-    expect(up.tempo).toBe(96);
+  it('raises the tempo before it touches the level', () => {
+    const up = nextRung(at(FIRST.id, FIRST.tempo.floor))!;
+    expect(up.levelId).toBe(FIRST.id);
+    expect(up.tempo).toBe(FIRST.tempo.floor + FIRST.tempo.step);
   });
 
-  it('moves up a difficulty only at the tempo ceiling, and drops the tempo back', () => {
-    const up = nextRung(rungFrom(EASIEST, TEMPO_CEILING))!;
-    expect(up.difficultyId).toBe(SECOND);
-    expect(up.tempo).toBe(TEMPO_FLOOR);
+  it('moves up a level only at that level’s ceiling, and starts at the next one’s floor', () => {
+    const up = nextRung(at(FIRST.id, FIRST.tempo.ceiling))!;
+    expect(up.levelId).toBe(SECOND.id);
+    expect(up.tempo).toBe(SECOND.tempo.floor);
   });
 
-  it('lowers the tempo before it eases the difficulty', () => {
-    const down = previousRung(rungFrom(SECOND, 90))!;
-    expect(down.difficultyId).toBe(SECOND);
-    expect(down.tempo).toBe(84);
+  it('lowers the tempo before it eases the level', () => {
+    const down = previousRung(at(SECOND.id, SECOND.tempo.ceiling))!;
+    expect(down.levelId).toBe(SECOND.id);
+    expect(down.tempo).toBe(SECOND.tempo.ceiling - SECOND.tempo.step);
   });
 
-  it('moves down a difficulty only at the tempo floor, and returns the tempo to the ceiling', () => {
-    const down = previousRung(rungFrom(SECOND, TEMPO_FLOOR))!;
-    expect(down.difficultyId).toBe(EASIEST);
-    expect(down.tempo).toBe(TEMPO_CEILING);
+  it('moves down a level only at the floor, and returns to the one below’s ceiling', () => {
+    const down = previousRung(at(SECOND.id, SECOND.tempo.floor))!;
+    expect(down.levelId).toBe(FIRST.id);
+    expect(down.tempo).toBe(FIRST.tempo.ceiling);
   });
 
-  it('has nowhere above the hardest music at the fastest tempo', () => {
-    expect(nextRung(rungFrom(HARDEST, TEMPO_CEILING))).toBeNull();
+  it('has nowhere above the hardest level at its ceiling', () => {
+    expect(nextRung(at(LAST.id, LAST.tempo.ceiling))).toBeNull();
   });
 
-  it('has nowhere below the easiest music at the slowest tempo', () => {
-    expect(previousRung(rungFrom(EASIEST, TEMPO_FLOOR))).toBeNull();
+  it('has nowhere below the easiest level at its floor', () => {
+    expect(previousRung(at(FIRST.id, FIRST.tempo.floor))).toBeNull();
   });
 
   /*
    * The rule the whole design rests on: if one thing changed and accuracy
-   * moved, the cause is known. Two things changing at once would make the
-   * history useless for saying *why* a player is stuck.
+   * moved, the cause is known.
+   *
+   * A level change must reset the tempo — there is no other tempo to be at in a
+   * new band — so the rule is stated as its two halves: a tempo step never
+   * changes the level, and a level step always lands on an end of the new band
+   * rather than somewhere in the middle of it.
    */
-  it('never changes difficulty and tempo in the same step', () => {
-    const rungs = [
-      rungFrom(EASIEST, TEMPO_FLOOR),
-      rungFrom(EASIEST, 96),
-      rungFrom(SECOND, TEMPO_CEILING),
-      rungFrom(HARDEST, TEMPO_FLOOR),
-    ];
-    for (const rung of rungs) {
-      for (const moved of [nextRung(rung), previousRung(rung)]) {
-        if (!moved) continue;
-        const changedDifficulty = moved.difficultyId !== rung.difficultyId;
-        const changedTempo = moved.tempo !== rung.tempo;
-        // A difficulty change resets the tempo to the far end by design, so the
-        // rule is about *intent*: one of the two is the step being taken.
-        expect(changedDifficulty !== changedTempo || changedDifficulty).toBe(true);
-        expect(changedDifficulty && moved.tempo !== TEMPO_FLOOR && moved.tempo !== TEMPO_CEILING).toBe(false);
+  it('never treats a tempo step as a level change, or lands a level change mid-band', () => {
+    for (const level of LADDER.levels) {
+      for (const tempo of [level.tempo.floor, level.tempo.floor + level.tempo.step, level.tempo.ceiling]) {
+        for (const moved of [nextRung(at(level.id, tempo)), previousRung(at(level.id, tempo))]) {
+          if (!moved) continue;
+          if (moved.levelId === level.id) {
+            expect(Math.abs(moved.tempo - tempo)).toBe(level.tempo.step);
+            continue;
+          }
+          const band = levelOf(moved).tempo;
+          expect([band.floor, band.ceiling]).toContain(moved.tempo);
+        }
       }
     }
   });
@@ -144,52 +190,51 @@ describe('when anything moves at all', () => {
 
 describe('folding a run into where the player is', () => {
   it('moves up once, and only once, however good the runs were', () => {
-    const start = progressAt(EASIEST, 90, [1]);
-    const { progress, movement } = afterRun(start, 1);
+    const { progress, movement } = afterRun(progressAt(FIRST.id, FIRST.tempo.floor, [1]), 1);
     expect(movement).toBe('up');
-    expect(progress.rung.tempo).toBe(96);
+    expect(progress.rung.tempo).toBe(FIRST.tempo.floor + FIRST.tempo.step);
   });
 
   it('clears the evidence when the rung changes, so new music is judged fresh', () => {
-    const { progress } = afterRun(progressAt(EASIEST, 90, [1]), 1);
+    const { progress } = afterRun(progressAt(FIRST.id, FIRST.tempo.floor, [1]), 1);
     expect(progress.recent).toEqual([]);
   });
 
   it('keeps the evidence while the player stays put', () => {
     const middle = (DEMOTE_BELOW + PROMOTE_ABOVE) / 2;
-    const { progress, movement } = afterRun(progressAt(EASIEST, 90, [middle]), middle);
+    const { progress, movement } = afterRun(progressAt(FIRST.id, FIRST.tempo.floor, [middle]), middle);
     expect(movement).toBe('stay');
     expect(progress.recent).toHaveLength(RUNS_TO_JUDGE);
   });
 
   it('does not mutate what it was given', () => {
-    const start = progressAt(EASIEST, 90, [1]);
+    const start = progressAt(FIRST.id, FIRST.tempo.floor, [1]);
     const before = [...start.recent];
     afterRun(start, 1);
     expect(start.recent).toEqual(before);
-    expect(start.rung.tempo).toBe(90);
+    expect(start.rung.tempo).toBe(FIRST.tempo.floor);
   });
 
   /*
    * At the top there is nowhere to go, and the screen must not be told
-   * otherwise — a promotion animation for a rung that did not change would be
-   * the app congratulating someone for nothing.
+   * otherwise — a promotion for a rung that did not change would be the app
+   * congratulating someone for nothing.
    */
   it('reports no movement at the top of the ladder, and keeps the evidence', () => {
-    const { progress, movement } = afterRun(progressAt(HARDEST, TEMPO_CEILING, [1]), 1);
+    const { progress, movement } = afterRun(progressAt(LAST.id, LAST.tempo.ceiling, [1]), 1);
     expect(movement).toBe('stay');
-    expect(sameRung(progress.rung, rungFrom(HARDEST, TEMPO_CEILING))).toBe(true);
+    expect(sameRung(progress.rung, at(LAST.id, LAST.tempo.ceiling))).toBe(true);
     expect(progress.recent).toHaveLength(RUNS_TO_JUDGE);
   });
 
   it('reports no movement at the bottom of the ladder', () => {
-    const { progress, movement } = afterRun(progressAt(EASIEST, TEMPO_FLOOR, [0]), 0);
+    const { progress, movement } = afterRun(progressAt(FIRST.id, FIRST.tempo.floor, [0]), 0);
     expect(movement).toBe('stay');
-    expect(sameRung(progress.rung, rungFrom(EASIEST, TEMPO_FLOOR))).toBe(true);
+    expect(sameRung(progress.rung, at(FIRST.id, FIRST.tempo.floor))).toBe(true);
   });
 
   it('climbs the whole ladder without ever getting stuck', () => {
-    let progress = progressAt(EASIEST, TEMPO_FLOOR);
+    let progress = progressAt(FIRST.id, FIRST.tempo.floor);
     let steps = 0;
     // Generous bound: if the ladder ever fails to terminate this catches it
     // rather than hanging the suite.
@@ -200,7 +245,21 @@ describe('folding a run into where the player is', () => {
       steps++;
     }
     expect(steps).toBeLessThan(500);
-    expect(progress.rung.difficultyId).toBe(HARDEST);
-    expect(progress.rung.tempo).toBe(TEMPO_CEILING);
+    expect(progress.rung.levelId).toBe(LAST.id);
+    expect(progress.rung.tempo).toBe(LAST.tempo.ceiling);
+  });
+
+  it('falls the whole way back down without getting stuck', () => {
+    let progress = progressAt(LAST.id, LAST.tempo.ceiling);
+    let steps = 0;
+    while (steps < 500) {
+      const result = afterRun(progress, 0);
+      progress = result.progress;
+      if (result.movement === 'stay' && progress.recent.length >= RUNS_TO_JUDGE) break;
+      steps++;
+    }
+    expect(steps).toBeLessThan(500);
+    expect(progress.rung.levelId).toBe(FIRST.id);
+    expect(progress.rung.tempo).toBe(FIRST.tempo.floor);
   });
 });
