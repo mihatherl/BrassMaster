@@ -67,31 +67,43 @@ gap is Phase 1, and it is the largest thing on this roadmap.**
 |---|---|---|
 | Generated material | everything: all keys, difficulties, materials, endless play, paged and scrolling reading, weak-note drilling | the same |
 | The band around you | metronome, conductor, tempo dial, key dial, reference tone | the same |
+| Teaching you | — | **Teacher mode**: goals, guided sessions, a progression that remembers between sittings, and reporting |
 | Input | the on-screen valves | **the microphone** — you play, it listens |
 | Intonation | — | **the tuner**, which knows which slide to move |
 | Your own music | — | **My Music**: MusicXML import at all, and everything built on it |
 
-**The line, stated once:** the free app is a complete practice tool that trains
-reading with buttons. The paid app is the one that **hears you play** and
-**reads your own music**. Both halves need the phone's hardware or the store,
-which is what makes the line honest rather than artificial.
+**The line, stated once:** the free app hands you music to read and judges it
+honestly. The paid app **teaches you, hears you, tunes you, and plays your own
+music.**
 
-**Drawn at build time, never at runtime.** `__HAS_MICROPHONE__` and
-`__HAS_MY_MUSIC__`, one flag per feature so either can cross the line with a
-one-line edit. The free build does not *contain* the paid code, and
-`npm run check:web` fails the deploy if it ever does. See `v3-library-plan.md`
-for why a runtime flag was retired.
+**Teacher mode being paid also dissolves a problem rather than solving it.**
+The worry was that someone who practised on the free web app and then bought
+the App Store app would arrive with an empty history — the worst first five
+minutes for the only person who pays. But the difficulty was never the missing
+data; it was the broken promise. History that the app was visibly keeping and
+then loses feels like a fault. A history that never existed, because the
+coaching is what you just bought, is simply the deal. Nothing has to migrate.
+
+**Drawn at build time, never at runtime.** `__HAS_MICROPHONE__`,
+`__HAS_MY_MUSIC__` and a flag for teacher mode — one per feature so any of them
+can cross the line with a one-line edit. The free build does not *contain* the
+paid code, and `npm run check:web` fails the deploy if it ever does. See
+`v3-library-plan.md` for why a runtime flag was retired.
 
 ## 4. The phases
 
 Each is useful on its own and roughly in dependency order. Versions are
 indicative, not promises.
 
-### Phase 1 — The coach (no Mac needed)
+### Phase 1 — Teacher mode, the coach (paid; no Mac needed to build it)
 
 **Knowing what the player can do, deciding what comes next, and remembering
 between sittings.** This is what turns a practice tool into something worth
 returning to and paying for, and it is where the product is thinnest today.
+
+**Paid, and behind its own build flag** like the microphone and My Music, so
+the free bundle does not contain it. That is what makes the free-to-paid move
+painless: see § 3.
 
 **1.1 Model skill, not just pitch.** `storage/stats.ts` records
 `{ attempts, correct }` against a MIDI note, per instrument and clef, decayed
@@ -160,14 +172,21 @@ it is what makes the app worth opening on a Tuesday.
 what improved, what did not, where the player sits against the goal, and the
 trend over weeks. It is the visible half of the coach and the half that sells.
 
-**1.7 Progress travels.** Practice history lives in `localStorage`, tied to one
-origin — so a player who practises on the free web app and then buys the App
-Store app **arrives with nothing**: empty history, weak-note drilling from
-scratch, the worst possible first five minutes for the one person who paid.
-`v2-design.md` § *Selling it, one day* flagged this as a deliberate not-done;
-the coach promotes it to blocking. **Export and import a progress file** — no
-backend, no accounts, consistent with every existing ruling, and insurance
-against a cleared browser as well. Build it before launch, not after.
+**1.7 History lives on the phone, and nowhere else.** No server, no accounts —
+see § 5 for the full reasoning, which is now written down so it need not be had
+again. Teacher mode being paid means there is no web-to-app migration to
+build: the free app never kept a coaching history, so none is lost.
+
+What remains is making the history durable on the device that holds it. In the
+native app, keep it as **a file in the app's Documents directory** rather than
+in `localStorage`: it then rides along with the phone's own backup, survives a
+reinstall and a new handset, and appears in the Files app for anyone who wants
+a copy — all of it Apple's problem rather than yours.
+
+Whatever the store, **write it as one versioned, mergeable document** rather
+than scattered keys. That costs nothing now, makes export and import a few
+lines if ever wanted, and is the only thing that would keep a server possible
+without a rewrite should the ruling in § 5 ever be revisited.
 
 **1.8 Material to feed it.** The theme composer's stages 2 and 3, parked
 pending "the player's ear on the shape first". Unfamiliar material is the raw
@@ -261,10 +280,51 @@ that engages with the reason recorded here.
   deleted, not being improved.
 - **The desktop library and sync.** Superseded by the phone-hosted library in
   Phase 5. See `v3-library-plan.md`.
-- **Accounts, backends, network at runtime.** The app is offline, private and
-  sold once. This is a commercial asset as much as a technical one — no hosting
-  to fund, nothing to keep running, no privacy policy — and a subscription for
-  content would cost all of it.
+- **Accounts, backends, network at runtime.** Proposed properly on 2026-08-19
+  — a server behind both apps, sign in with Google or Facebook, history kept
+  server-side — and declined the same day after costing it out. The reasoning,
+  so nobody has to rediscover it:
+
+  - **The hard part is not auth or a database, it is staying offline.** The app
+    works with no network today, and it has to: practice rooms and band halls
+    have bad signal, and a reading app that stalls waiting for a server is
+    broken. Adding a server to an offline app means queued local writes, merge
+    and conflict resolution — the same "synchronised pair is a much larger
+    project" that killed the desktop-mirror design a day earlier, but against
+    every device rather than two in a room.
+  - **A server is a permanent obligation.** Once a player's history lives on
+    it, it can never be taken down without destroying their data. Hosting is
+    cheap; the commitment is not, and it cannot be handed back.
+  - **Social login drags in more than it looks.** App Store Review Guideline
+    4.8: using Google or Facebook to create a primary account obliges you to
+    offer an equivalent privacy-preserving option too. The exemption is for
+    apps using only their own account system.
+  - **Children.** "Any brass learner" includes school beginners under 13.
+    Accounts for them engage COPPA and its equivalents, and the mitigation —
+    an age gate refusing under-13 signups — is a compliance posture you own
+    forever.
+  - **It would cost the privacy label.** *Data Not Collected* is true today and
+    is a genuine differentiator, alongside a mandatory privacy policy and GDPR
+    duties for any European user.
+  - **And the decisive one: accounts on the free app are all obligation and no
+    revenue.** A server earns its keep when it enables income — subscriptions,
+    teacher dashboards, a paid web tier. The chosen model is paid up front on
+    the App Store, which is precisely the model that does not need one.
+
+  **What would reopen it:** an ambition to run a business rather than sell an
+  app. If recurring revenue, teachers managing students, or a paid web tier
+  ever become the goal, the server is the foundation and retrofitting it is
+  worse than building it. That is a different product from the one this
+  document describes. Ruled out 2026-08-19: *"I don't think my ambition is a
+  business."*
+
+  **Kept cheap in the meantime:** the progress document is versioned and
+  mergeable (§ 1.7), so this stays an addition rather than a rewrite. And if
+  the want is really *analytics* rather than accounts — knowing whether people
+  return and where they give up — anonymous aggregate telemetry gives most of
+  that for a fraction of the burden, with no identity, no login and no
+  children's-data problem. Not currently planned, but it is the cheaper answer
+  to that question and should be considered before a server ever is.
 - **A teaching platform.** No assignments, no multiple players per install, no
   progress shared with a tutor. A different product.
 - **A score reader or navigator.** Import unfolds repeats into a straight read;
@@ -288,6 +348,19 @@ that engages with the reason recorded here.
   the ruling, but a coach that plans your practice is arguably a different
   product from a reading trainer, and the App Store listing has to pick one
   sentence.
+- **Whether the free app now has any reason to come back tomorrow.** This is
+  the cost of teacher mode being paid, and it is worth watching. With no goal,
+  no streak and no sense of progress, the free app is a good tool with nothing
+  that says *return*. A player who never feels themselves improving may simply
+  drift off and never buy anything. A possible answer that keeps the line
+  intact: let the free app show a *little* — this week's accuracy, say — enough
+  to build the habit and to prove that tracking exists, while the goals, the
+  progression and the planned session stay behind the paywall. Show the value,
+  withhold the depth. Not decided.
+- **What "teacher mode" is called.** The name is evocative and sells itself,
+  but this roadmap also rules out a teaching *platform* (§ 5), and a name
+  implying a human teacher's dashboard may set the wrong expectation. *Coach*,
+  *Practice plan* and *Guided* are the alternatives.
 - **Whether the microphone should be free after all.** For a product whose job
   is reading, playing your instrument *is* the exercise, and buttons are the
   proxy. There is a real argument that the microphone is what makes people
