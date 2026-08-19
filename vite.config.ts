@@ -83,6 +83,7 @@ export default defineConfig({
      */
     __HAS_MY_MUSIC__: JSON.stringify(target === 'app'),
     __HAS_MICROPHONE__: JSON.stringify(target === 'app'),
+    __HAS_TEACHER__: JSON.stringify(target === 'app'),
   },
   server: { allowedHosts: [TAILNET] },
   preview: { allowedHosts: [TAILNET] },

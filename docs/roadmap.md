@@ -125,7 +125,9 @@ duration, its interval from the note before, whether it was accidental, where
 it sat in the bar — and the run's context alongside. That single change turns
 the stats store into a skill model, which is the input everything below needs.
 
-**1.2 The ladder: repeat the challenge, not the music.** Guided repetition
+**1.2 The ladder: repeat the challenge, not the music.** ~~To build~~ — **built 2026-08-19**: `exercise/ladder.ts` (rules) and `storage/ladder.ts` (position), behind `__HAS_TEACHER__`, with the mastery thresholds as named constants awaiting real practice data. No screen reads it yet; 1.4 wires it up. Ruling in `v2-design.md` § *Hold the challenge, vary the music*. What follows is why.
+
+Guided repetition
 looks as though it contradicts § 2 — sight-reading means *unfamiliar* material,
 and replaying a passage until it is clean is technical practice, not reading.
 It does not contradict it, because of something only a generator can do:

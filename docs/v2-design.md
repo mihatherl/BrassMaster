@@ -300,6 +300,66 @@ same format and nothing in the app changes.
 **MusicXML rather than MIDI.** MIDI discards spelling and key, which are the
 two things this app cares most about.
 
+## Hold the challenge, vary the music — the ladder
+
+Teacher mode's spine (`docs/roadmap.md` § 1.2). `exercise/ladder.ts` holds the
+rules, `storage/ladder.ts` the position. A **rung** is a difficulty and a tempo
+— a standing instruction to the generator, not a piece of music.
+
+**Guided repetition and sight-reading only look incompatible.** Reading means
+unfamiliar music; replaying a passage until it is clean is technical practice.
+The way out is something only a generator has: **hold the parameters and vary
+the material.** Every run at a rung is music the player has never seen, so it
+is genuinely sight-reading, while the difficulty stays put until mastered. A
+fixed-repertoire app cannot offer this at all, and it is the strongest argument
+for the app generating its own material.
+
+**Exactly one axis moves, and that is not merely kindness.** If one thing
+changed and accuracy moved, the cause is known; change two and the history
+cannot say *why* anyone is stuck, which would waste the skill model as well.
+There is a test asserting no step ever moves both.
+
+**Tempo first, difficulty only at the ceiling** — then the tempo drops back to
+the floor and climbs again. It is the order a teacher works in, and it is what
+§ 2 of the roadmap asks for: *progress means holding accuracy as the tempo
+rises*, not accuracy alone.
+
+**A band in the middle, not a threshold.** Promotion needs every one of the
+last two runs at or above 0.85; demotion needs every one below 0.6; anything
+between leaves the player where they are. One lucky run cannot promote and one
+bad evening cannot demote, and the wide middle is where practice actually
+happens rather than a strip between promotions.
+
+**The three numbers are provisional and want measuring, not arguing about.**
+The *shape* is what matters and is unlikely to change. Getting the values wrong
+is the main way this feature fails — too strict and nobody advances, too loose
+and everyone is pushed past what they can read — and there is no player data
+yet to set them against. `PROMOTE_ABOVE`, `DEMOTE_BELOW` and `RUNS_TO_JUDGE`
+are named constants for exactly that reason.
+
+**Teacher mode opens where the player already is**, not at the bottom.
+Starting an experienced reader on beginner material at 72 would be the app
+saying it has not been paying attention, and the ladder corrects an
+over-confident start within a couple of runs — the cheaper mistake by far.
+
+**Nothing is trusted on the way in.** A stored rung is re-snapped onto the grid
+and an unknown difficulty falls back to the easiest, because a store from a
+future version or edited by hand must not leave a player somewhere the ladder
+cannot step off. Falling back to *easiest* is the safe direction: it asks too
+little rather than dropping someone into music they cannot read.
+
+**At either end, nothing moves and the screen is told so.** `afterRun` reports
+`stay` at the top of the ladder however good the run was — a promotion
+animation for a rung that did not change would be the app congratulating
+someone for nothing.
+
+**This is the first paid feature with a bundle fingerprint of its own.** The
+storage key `brass-trainer:ladder:` is unique to teacher mode and survives
+minification, so `check-web-bundle.mjs` fails the free build the moment any of
+it arrives there. Armed before the screens exist, and mutation-tested by wiring
+the store into `App` unguarded and watching the free build fail — which is the
+exact mistake it is there to catch.
+
 ## What made it hard, not which note it was — the skill model
 
 The first piece of teacher mode (`docs/roadmap.md` § 1.1), and the input every

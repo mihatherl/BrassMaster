@@ -45,6 +45,20 @@ declare global {
    * `vite.config.ts` for why.
    */
   const __HAS_MICROPHONE__: boolean;
+  /**
+   * Whether this build has teacher mode: goals, a guided session, the ladder
+   * that decides what comes next, and the reporting on it. Paid.
+   *
+   * Like `__HAS_MICROPHONE__`, declared ahead of the screens that will read it
+   * so the work lands on the right side of the line from its first commit —
+   * and, more usefully, so the tripwire is armed first. The ladder's storage
+   * key is unique to the feature and `tools/check-web-bundle.mjs` fails the
+   * free build if it appears there, which is what catches the day someone
+   * wires a screen up and forgets this flag.
+   *
+   * Read it directly, never through a constant; see `__HAS_MY_MUSIC__`.
+   */
+  const __HAS_TEACHER__: boolean;
 }
 
 // `moduleDetection: force` means the declaration above only reaches the rest of

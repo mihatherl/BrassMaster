@@ -1,8 +1,8 @@
 /**
  * Proves the free web build does not contain the paid features.
  *
- * The free/paid line is drawn by `__HAS_MY_MUSIC__` and `__HAS_MICROPHONE__`
- * at build time, and the whole value of drawing it there rather than at
+ * The free/paid line is drawn by `__HAS_MY_MUSIC__`, `__HAS_MICROPHONE__` and
+ * `__HAS_TEACHER__` at build time, and the whole value of drawing it there rather than at
  * runtime is that the free bundle does not *hold* what it does not offer —
  * there is nothing to unlock with a developer-tools flag and nothing to
  * download. That property lives in the output of a build, not in any source
@@ -46,6 +46,7 @@ const root = process.argv[2] ?? 'dist';
 const PAID_ONLY = {
   'My Music': ['score-partwise', 'unfoldRepeats', 'importPart', 'ImportScreen'],
   'the microphone': ['getUserMedia', 'mediaDevices'],
+  'teacher mode': ['brass-trainer:ladder:'],
 };
 
 /**
@@ -113,7 +114,8 @@ if (found.length > 0) {
   console.error(
     '\nThe free build must not hold what it does not offer. Check that the' +
       '\nimport is dynamic and that it is guarded by the injected literal' +
-      '\n(`__HAS_MY_MUSIC__`, `__HAS_MICROPHONE__`) directly — not by a' +
+      '\n(`__HAS_MY_MUSIC__`, `__HAS_MICROPHONE__`, `__HAS_TEACHER__`) directly' +
+      '\n— not by a' +
       '\nconstant imported from anywhere, or assigned to a local first,' +
       '\nneither of which survives the journey to Rollup.',
   );
