@@ -207,6 +207,11 @@ start from a chosen bar.
 
 ## The direction
 
+> **Subordinate to `roadmap.md` since 2026-08-19.** This is a backlog — an
+> ordered list of features, most now built. The roadmap is the layer above it:
+> who the product is for, the job it must be best at, and what is deliberately
+> excluded. Where the two disagree, the roadmap is current.
+
 In order. Each step is useful on its own, so this need not be delivered as one
 release.
 

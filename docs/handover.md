@@ -16,6 +16,7 @@ room left to think.
 | | Lines | When |
 |---|---|---|
 | `handover.md` — this file | ~250 | Now, all of it |
+| **`roadmap.md`** | 200 | **Now, and before proposing any feature.** What the product is, and what is deliberately not on it |
 | `../CLAUDE.md` | ~60 | Now. The seam, and which remote is which |
 | `v3-library-plan.md` | 130 | **Before any capture, library or v3 work.** The ruling the last session turned on |
 | `app-store-plan.md` | 260 | Before version 3. What is free, what is paid, what the split costs |
