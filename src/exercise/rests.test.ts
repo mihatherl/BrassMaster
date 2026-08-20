@@ -46,6 +46,7 @@ function withRest(bars: number, beatsPerBar = 4): Exercise {
     keys: [{ fromBeat: 0, fifths: 0 }],
     metres: [{ fromBeat: 0, metre: metreFor(beatsPerBar, 4) }],
     tempo: [],
+    labels: [],
     totalBeats: after + 8,
     chosenBeats: after + 8,
     seed: 1,

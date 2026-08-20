@@ -10,7 +10,7 @@
 import { INSTRUMENTS, availableClefs, writtenRange, type Clef, type Instrument } from '../domain/instruments';
 import type { ReadingMode } from '../render/surface';
 import type { PlaybackMode } from '../engine/session';
-import { COMPOSED, isMaterialSource } from '../exercise/collections';
+import { COMPOSED, collectionById, isMaterialSource } from '../exercise/collections';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { EXERCISE_KINDS } from '../exercise/types';
 import { MAJOR_KEYS } from '../domain/keys';
@@ -85,6 +85,15 @@ export interface Settings {
    * A named collection plays that collection's tunes instead.
    */
   collectionId: string;
+  /**
+   * Particular tunes of that collection — the player's own medley, by id.
+   *
+   * Empty means the default: the whole collection at the chosen level. With
+   * picks, the level stops filtering — naming the tunes has already answered
+   * the question the level exists to answer. Meaningless without a collection,
+   * and `sanitise` empties it when the collection goes.
+   */
+  themeIds: string[];
   /*
    * How long a run is, is no longer here.
    *
@@ -352,6 +361,7 @@ export const DEFAULT_SETTINGS: Settings = {
   kind: 'phrases',
   drillId: 'major-scale',
   collectionId: COMPOSED,
+  themeIds: [],
   register: 'middle',
   // Left to the difficulty, which is what the app has always done.
   range: null,
@@ -528,6 +538,19 @@ export function sanitise(settings: Settings): Settings {
   const collectionId = isMaterialSource(settings.collectionId) ? settings.collectionId : COMPOSED;
 
   /*
+   * Picks live and die with their collection. Each id must name a tune the
+   * chosen collection actually holds — a pick left over from another
+   * collection, or from a tune since retired, names nothing and is dropped
+   * rather than kept to misfire later. No collection, no picks.
+   */
+  const holder = collectionById(collectionId);
+  const themeIds = holder
+    ? (Array.isArray(settings.themeIds) ? settings.themeIds : []).filter((id) =>
+        holder.themes.some((theme) => theme.id === id),
+      )
+    : [];
+
+  /*
    * The set decides, and the starting key follows it.
    *
    * The other way round while there were two controls: the screen named a
@@ -573,6 +596,7 @@ export function sanitise(settings: Settings): Settings {
     variableTempo: settings.variableTempo === true,
     ...drillsOf(settings),
     collectionId,
+    themeIds,
     materials: sanitiseMaterials(settings, keySet, difficulty),
     register: REGISTERS.some((r) => r.id === settings.register)
       ? settings.register

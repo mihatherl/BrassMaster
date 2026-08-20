@@ -93,6 +93,7 @@ function tiedExercise(): Exercise {
     keys: [{ fromBeat: 0, fifths: 0 }],
     metres: [{ fromBeat: 0, metre: metreFor(2, 4) }],
     tempo: [],
+    labels: [],
     totalBeats: 4,
     chosenBeats: 4,
     seed: 1,

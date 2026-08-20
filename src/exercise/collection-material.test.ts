@@ -18,9 +18,15 @@ import { COMPOSED } from './collections';
 import { difficultyById } from './difficulty';
 import { TUNE_BARS } from './compose';
 import { instrumentById } from '../domain/instruments';
-import { metreFor } from '../domain/metre';
+import { changesMetre, metreFor } from '../domain/metre';
 
-function run(collectionId: string, difficultyId: string, metre: readonly [number, number], seed = 42) {
+function run(
+  collectionId: string,
+  difficultyId: string,
+  metre: readonly [number, number],
+  seed = 42,
+  themeIds: string[] = [],
+) {
   const m = metreFor(metre[0], metre[1]);
   const exercise = generateExercise({
     instrument: instrumentById('cornet'),
@@ -39,6 +45,7 @@ function run(collectionId: string, difficultyId: string, metre: readonly [number
     tempo: 96,
     variableTempo: false,
     collectionId,
+    themeIds,
   });
   return { exercise, bars: exercise.totalBeats / m.barBeats };
 }
@@ -59,18 +66,70 @@ describe('choosing where the tunes come from', () => {
     expect(bars % TUNE_BARS).not.toBe(0);
   });
 
-  it('plays a different collection differently', () => {
-    // The invention is six bars, in three-four, and is the only hard Bach.
-    expect(run('bach', 'hard', [3, 4]).bars % 6).toBe(0);
+  /*
+   * **The metre follows the material.** A collection plays each tune in its
+   * own time signature, whatever the settings hold — asking for the Bach in
+   * six-eight brings the whole Bach, not silence, because the control set for
+   * composed material has nothing to say about written tunes. The subjects
+   * are in four-four and the run opens in it, in five-bar multiples that
+   * nothing composed produces.
+   */
+  it('ignores the chosen time signature and plays each tune in its own', () => {
+    const { exercise } = run('bach', 'easy', [6, 8]);
+    expect(exercise.metres[0].metre.beatsPerBar).toBe(4);
+    expect((exercise.totalBeats / 4) % 5).toBe(0);
   });
 
   /*
-   * The fallback, which is the same one a metre no cell is written in gets.
-   * No Bach is written in six-eight, and asking for it must still produce
+   * The hard Bach spans three-four and four-four, so a medley of it must
+   * change signature mid-exercise — and only at a join, because a signature
+   * changing inside a tune would be laid over somebody else's phrase, the
+   * same trespass a key change there would be.
+   */
+  it('changes metre between tunes, and only where a tune begins', () => {
+    const { exercise } = run('bach', 'hard', [4, 4], 3);
+    expect(changesMetre(exercise.metres)).toBe(true);
+    const starts = new Set(exercise.labels.map((label) => label.atBeat));
+    for (const change of exercise.metres) {
+      if (change.fromBeat > 0) expect(starts.has(change.fromBeat)).toBe(true);
+    }
+  });
+
+  /*
+   * A medley says which tune is which. Every label sits where a tune begins,
+   * carries its printed name rather than its id, and the first is at the top.
+   */
+  it('labels each tune with its name at its first bar', () => {
+    const { exercise } = run('bach', 'hard', [4, 4], 3);
+    expect(exercise.labels.length).toBeGreaterThan(1);
+    expect(exercise.labels[0].atBeat).toBe(0);
+    for (const label of exercise.labels) {
+      expect(label.text).toMatch(/Invention|Fugue|Offering|Jesu/);
+    }
+  });
+
+  it('leaves composed tunes unlabelled, since they have ids rather than names', () => {
+    expect(run(COMPOSED, 'easy', [4, 4]).exercise.labels).toEqual([]);
+  });
+
+  /*
+   * Naming tunes overrides the level: Jesu Joy is medium, and a player who
+   * picked it under an easy setting has said which tunes they want more
+   * plainly than any level could. The pick also carries its own nine-eight.
+   */
+  it('plays picked tunes whatever the level says', () => {
+    const { exercise } = run('bach', 'easy', [4, 4], 3, ['jesu-joy']);
+    expect(exercise.labels.every((label) => label.text.startsWith('Jesu'))).toBe(true);
+    expect(exercise.metres[0].metre.beatsPerBar).toBe(9);
+  });
+
+  /*
+   * The fallback that remains: a collection with nothing at the chosen level.
+   * No Bach is written at beginner, and asking for it must still produce
    * music rather than an empty screen or a throw.
    */
-  it('falls back to composed tunes where the collection has nothing that fits', () => {
-    const { exercise, bars } = run('bach', 'easy', [6, 8]);
+  it('falls back to composed tunes where the collection has nothing at the level', () => {
+    const { exercise, bars } = run('bach', 'beginner', [4, 4]);
     expect(exercise.notes.length).toBeGreaterThan(0);
     expect(bars % TUNE_BARS).toBe(0);
   });

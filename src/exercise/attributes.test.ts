@@ -37,6 +37,7 @@ function exerciseOf(notes: NoteEvent[], fifths = 0, metre = metreFor(4, 4)): Exe
     keys: [{ fromBeat: 0, fifths }],
     metres: [{ fromBeat: 0, metre }],
     tempo: [],
+    labels: [],
     totalBeats: notes.length,
     committedBeats: notes.length,
   } as unknown as Exercise;

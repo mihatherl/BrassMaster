@@ -442,3 +442,28 @@ describe('a chosen collection that is no longer there', () => {
     expect(DEFAULT_SETTINGS.collectionId).toBe(COMPOSED);
   });
 });
+
+/*
+ * Picks live and die with their collection: an id from another collection or a
+ * retired tune names nothing and must be dropped rather than kept to misfire,
+ * and picks without a collection are meaningless.
+ */
+describe('picked tunes', () => {
+  it('keeps only ids the chosen collection holds', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      collectionId: 'bach',
+      themeIds: ['jesu-joy', 'trad-twinkle', 'retired-tune'],
+    });
+    expect(settings.themeIds).toEqual(['jesu-joy']);
+  });
+
+  it('drops every pick when the collection goes', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      collectionId: 'composed',
+      themeIds: ['jesu-joy'],
+    });
+    expect(settings.themeIds).toEqual([]);
+  });
+});

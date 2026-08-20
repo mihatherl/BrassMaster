@@ -18,7 +18,7 @@ import { barAt, beatOfBar, metreAt, type MetreChange } from '../domain/metre';
 import { midiOf, type Letter, type SpelledPitch } from '../domain/pitch';
 import type { TempoEvent } from '../domain/tempo';
 import { isTieContinuation } from './ties';
-import type { Exercise, ExerciseKind, NoteEvent, RestEvent } from './types';
+import type { Exercise, ExerciseKind, LabelEvent, NoteEvent, RestEvent } from './types';
 
 /** One position in the rhythm, before it knows what pitch it holds. */
 export interface Slot {
@@ -56,6 +56,8 @@ export interface AssembleOptions {
   kind: ExerciseKind;
   /** Where the tempo moves. Absent means it does not, which is a list of none. */
   tempo?: TempoEvent[];
+  /** Names printed over the music. Absent means nothing to name: a list of none. */
+  labels?: LabelEvent[];
   /** Where the chosen length ends. Absent means at `totalBeats`: no horizon. */
   chosenBeats?: number;
 }
@@ -141,6 +143,7 @@ export function assembleExercise(
     clef,
     keys,
     metres,
+    labels: options.labels ?? [],
     tempo: options.tempo ?? [],
     totalBeats: snapBeat(options.totalBeats),
     chosenBeats: snapBeat(options.chosenBeats ?? options.totalBeats),

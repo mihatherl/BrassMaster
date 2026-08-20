@@ -111,6 +111,7 @@ function exerciseOf(firstBar = 0): Exercise {
     keys: [{ fromBeat: 0, fifths: -3 }],
     metres: [{ fromBeat: 0, metre: metreFor(4, 4) }],
     tempo: [],
+    labels: [],
     totalBeats: from + 4,
     chosenBeats: from + 4,
     seed: 1,
@@ -358,5 +359,47 @@ describe('what a bar is called', () => {
 
     drawBarNumber(mockContext(calls), metrics, 40, '17', '#000');
     expect(calls.filter((c) => c.method === 'fillText')[0].args[0]).toBe('17');
+  });
+});
+
+/*
+ * Tune names over the music, which is what makes a medley legible: without
+ * them a player mid-run cannot say which piece they are in, and a selection
+ * that keeps that secret has failed at being a selection.
+ */
+describe('drawSystem tune labels', () => {
+  const drawWithLabel = (atBeat: number, firstBar = 0): RecordedCall[] => {
+    const calls: RecordedCall[] = [];
+    const exercise = { ...exerciseOf(firstBar), labels: [{ atBeat, text: 'Invention 8' }] };
+    drawSystem(mockContext(calls), {
+      exercise,
+      metrics: staveMetrics(exercise.clef, 200, 20),
+      xForBeat: (beat) => 300 + (beat - firstBar * 4) * 40,
+      firstBar,
+      lastBar: firstBar + 1,
+      theme: LIGHT_THEME,
+      colourFor: () => LIGHT_THEME.note,
+      final: true,
+      clef: true,
+    });
+    return calls;
+  };
+  const labelCall = (calls: RecordedCall[]) =>
+    calls.find((c) => c.method === 'fillText' && c.args[0] === 'Invention 8');
+
+  it('prints the name where its tune begins', () => {
+    expect(labelCall(drawWithLabel(0))).toBeDefined();
+  });
+
+  it('sits above the metronome mark band, clear of everything anchored lower', () => {
+    const call = labelCall(drawWithLabel(0));
+    const metrics = staveMetrics('treble', 200, 20);
+    // The mark band starts 2.5 spaces up; the name lives above it, because the
+    // two share beat 0 whenever a medley opens and must never be overprinted.
+    expect((call?.args[2] as number) ?? 0).toBeLessThan(metrics.topLineY - 20 * 2.5);
+  });
+
+  it('leaves out a label whose tune falls on another system', () => {
+    expect(labelCall(drawWithLabel(12))).toBeUndefined();
   });
 });

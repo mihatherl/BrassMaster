@@ -6,6 +6,18 @@ import type { Duration } from '../domain/rhythm';
 import type { TempoEvent } from '../domain/tempo';
 
 /**
+ * A name printed over the music at a beat — which tune a medley has reached.
+ *
+ * A text and a place, nothing more: the renderers decide how it looks, and the
+ * engine never reads it. `atBeat` lands on a bar line by construction, because
+ * the label names what begins there.
+ */
+export interface LabelEvent {
+  atBeat: number;
+  text: string;
+}
+
+/**
  * One note in a generated exercise.
  *
  * Both pitches are stored: the written one drives notation and is what the
@@ -141,6 +153,16 @@ export interface Exercise {
    * nothing printed would be the page lying about the music.
    */
   tempo: TempoEvent[];
+  /**
+   * Names printed over the music, in beat order — a medley says which tune is
+   * beginning at the bar where it begins, the way a printed selection does.
+   *
+   * The same shape of addition as `tempo`: settled at generation time, drawn
+   * by the renderers, read by nothing else. Empty for material with nothing to
+   * name — a composed tune has no name, and labelling `tune-3` would be the
+   * page dressing up machinery as repertoire.
+   */
+  labels: LabelEvent[];
   /** Length of the exercise in crotchets. */
   totalBeats: number;
   /**

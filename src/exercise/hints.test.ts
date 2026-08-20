@@ -71,6 +71,7 @@ function exerciseOf(bars: Array<Array<[number, Duration['value']]>>): Exercise {
     keys: [{ fromBeat: 0, fifths: -3 }],
     metres: [{ fromBeat: 0, metre: metreFor(4, 4) }],
     tempo: [],
+    labels: [],
     totalBeats: bars.length * 4,
     chosenBeats: bars.length * 4,
     seed: 1,

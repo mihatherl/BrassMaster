@@ -443,6 +443,41 @@ export function drawTempoEvent(
   ctx.restore();
 }
 
+/**
+ * How high above the top line a tune's name sits, in stave spaces.
+ *
+ * Above the metronome mark's band, because the two share a beat whenever a
+ * medley opens — every exercise prints its tempo at beat 0, and a medley
+ * prints its first tune's name there too. Printed selections stack them the
+ * same way: title over tempo over the music.
+ */
+const LABEL_RISE = MARK_RISE + 2;
+
+/**
+ * A tune's name over the bar where it begins, as a printed medley sets one.
+ *
+ * Bold italic, which is how printed parts set a cue title — distinct at a
+ * glance from a tempo mark, which is upright, and from a fingering hint,
+ * which lives in a capsule. Exported for the scrolling surface, exactly as
+ * `drawTempoEvent` is and for the same reason.
+ */
+export function drawLabelEvent(
+  ctx: CanvasRenderingContext2D,
+  metrics: StaveMetrics,
+  x: number,
+  text: string,
+  colour: string,
+): void {
+  const { staveSpace } = metrics;
+  ctx.save();
+  ctx.fillStyle = colour;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `italic 700 ${Math.round(staveSpace * 1.3)}px system-ui, sans-serif`;
+  ctx.fillText(text, x, metrics.topLineY - staveSpace * LABEL_RISE);
+  ctx.restore();
+}
+
 export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions): void {
   const { exercise, metrics, xForBeat, theme, firstBar, lastBar } = options;
   const { staveSpace } = metrics;
@@ -553,6 +588,19 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
       event,
       theme.note,
       metreAt(exercise.metres, beat).isCompound,
+    );
+  }
+
+  // Tune names falling on this system, by the same rule as the tempo marks:
+  // a name landing where the page turned must still be seen.
+  for (const label of exercise.labels) {
+    if (label.atBeat < firstBeat || label.atBeat >= lastBeat) continue;
+    drawLabelEvent(
+      ctx,
+      metrics,
+      xForBeat(label.atBeat) - BAR_LINE_SETBACK * staveSpace,
+      label.text,
+      theme.note,
     );
   }
 

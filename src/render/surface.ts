@@ -55,6 +55,7 @@ import {
   drawBarNumber,
   drawSignatureChange,
   drawSystem,
+  drawLabelEvent,
   drawTempoEvent,
   justifiedX,
   signatureChangeRoom,
@@ -1131,6 +1132,21 @@ export class StaveRenderer {
         event,
         theme.note,
         metreAt(exercise.metres, beat).isCompound,
+      );
+    }
+
+    // Tune names travel with the music too, culled the same way. A generous
+    // right-hand allowance, because a name is wider than a metronome mark and
+    // should finish scrolling off rather than vanish while half-read.
+    for (const label of exercise.labels) {
+      const x = xForBeat(label.atBeat);
+      if (x < this.headerWidth - 60 || x > this.width + 400) continue;
+      drawLabelEvent(
+        ctx,
+        this.metrics,
+        x - BAR_LINE_SETBACK * this.metrics.staveSpace,
+        label.text,
+        theme.note,
       );
     }
 

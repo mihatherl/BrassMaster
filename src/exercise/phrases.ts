@@ -21,7 +21,7 @@
 
 import type { Clef, Instrument } from '../domain/instruments';
 import { tourKey, type KeyChange } from '../domain/keys';
-import type { Metre } from '../domain/metre';
+import { metreFor, type Metre, type MetreChange } from '../domain/metre';
 import { snapBeat } from '../domain/rhythm';
 import type { Slot, SlotPitch } from './assemble';
 import type { Rng } from './rng';
@@ -41,8 +41,24 @@ export interface StitchOptions {
    * sight-reading gets none of them, which is worse than not offering it.
    */
   keys?: readonly number[];
-  difficulty: string;
-  metre: Metre;
+  /**
+   * The level themes are drawn at. Absent means the pool was chosen by hand —
+   * a player who names the tunes has already answered the question the level
+   * exists to answer, and filtering their picks by it would silently drop the
+   * very things they asked for.
+   */
+  difficulty?: string;
+  /**
+   * The metre every theme must be in — or absent, and **the metre follows the
+   * material**: each theme plays in a metre of its own, and the signature
+   * changes at the join. That is how a printed medley works, and it is why a
+   * collection holding a jig and a march is one collection rather than two
+   * pools a time-signature control keeps apart.
+   *
+   * Composed material always passes one, because its tunes are built *for* a
+   * metre rather than found in one.
+   */
+  metre?: Metre;
   /** Whole themes to play, end to end; where the white ends. */
   count: number;
   /**
@@ -69,6 +85,15 @@ export interface StitchedPhrases {
   /** Which themes were used, in order. For tests and for the results screen. */
   used: string[];
   /**
+   * The time signature in force from the top, and every change of it.
+   *
+   * One metre per theme, entered at the theme's first beat and deduplicated
+   * while consecutive themes agree — the same discipline as `keys`, and for
+   * the same reason: a signature restating what is already true is the page
+   * announcing nothing. A single-metre stitch is a list of one.
+   */
+  metres: MetreChange[];
+  /**
    * The beat each used theme begins at, aligned with `used`; the first is 0.
    *
    * The joins are where the exercise has boundaries, and a boundary is where
@@ -82,15 +107,22 @@ export interface StitchedPhrases {
   chosenBeats: number;
 }
 
+/** The metre a theme plays in when nothing was imposed: the first it names. */
+function ownMetre(theme: Theme): Metre {
+  return metreFor(theme.metres[0][0], theme.metres[0][1]);
+}
+
 /** Themes this instrument, difficulty and metre can actually take. */
 export function themesFor(options: Omit<StitchOptions, 'rng' | 'count' | 'keys'>): Theme[] {
-  const { beatsPerBar, beatUnit } = options.metre;
   return options.corpus.filter((theme) => {
-    if (theme.difficulty !== options.difficulty) return false;
-    if (!theme.metres.some(([n, d]) => n === beatsPerBar && d === beatUnit)) return false;
+    if (options.difficulty !== undefined && theme.difficulty !== options.difficulty) return false;
+    if (options.metre) {
+      const { beatsPerBar, beatUnit } = options.metre;
+      if (!theme.metres.some(([n, d]) => n === beatsPerBar && d === beatUnit)) return false;
+    }
     // Range is asked of the real placement rather than guessed at: a theme is a
     // fixed shape, so a compass that will not hold it means another theme.
-    return realiseTheme(theme, { ...options, metre: options.metre }) !== null;
+    return realiseTheme(theme, { ...options, metre: options.metre ?? ownMetre(theme) }) !== null;
   });
 }
 
@@ -108,6 +140,7 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
   const slots: Slot[] = [];
   const pitches: SlotPitch[] = [];
   const keys: KeyChange[] = [];
+  const metres: MetreChange[] = [];
   const used: string[] = [];
   const starts: number[] = [];
 
@@ -141,12 +174,15 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
     // long as the player keeps playing; see `tourKey`.
     fifths = tourKey(set, played, options.count);
 
+    // In the imposed metre where there is one, or the theme's own where the
+    // metre follows the material — a join is then also where a signature may
+    // change, and only there, exactly as it is the only place a key may.
     const place = (theme: Theme) =>
       realiseTheme(theme, {
         instrument: options.instrument,
         clef: options.clef,
         fifths,
-        metre: options.metre,
+        metre: options.metre ?? ownMetre(theme),
         fromBeat: beat,
       });
 
@@ -173,6 +209,20 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
     slots.push(...realised.slots);
     pitches.push(...realised.pitches);
     /*
+     * Kept only where the signature actually moves, exactly as the keys are
+     * below. Every theme is a whole number of its own bars and begins where
+     * the last one ended, so a change always lands on the bar line it draws.
+     */
+    const playedIn = options.metre ?? ownMetre(theme);
+    const inForce = metres[metres.length - 1]?.metre;
+    if (
+      !inForce ||
+      inForce.beatsPerBar !== playedIn.beatsPerBar ||
+      inForce.beatUnit !== playedIn.beatUnit
+    ) {
+      metres.push({ fromBeat: beat, metre: playedIn });
+    }
+    /*
      * Kept only where the key actually moves. A theme states the key it opens
      * in, which is usually the one the previous theme left off in — and a
      * change to the key already in force draws a double bar and a signature
@@ -192,5 +242,14 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
   }
 
   if (slots.length === 0) return null;
-  return { slots, pitches, keys, totalBeats: beat, used, starts, chosenBeats: chosenBeats ?? beat };
+  return {
+    slots,
+    pitches,
+    keys,
+    metres,
+    totalBeats: beat,
+    used,
+    starts,
+    chosenBeats: chosenBeats ?? beat,
+  };
 }

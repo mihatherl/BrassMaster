@@ -192,20 +192,32 @@ export function SettingsScreen({
     onChange({ ...settings, [key]: value });
   };
 
-  /* The chosen collection, where one is chosen, and how much of it currently
-     fits — so the note under the control can name it. */
+  /*
+   * The chosen collection, where one is chosen, and how much of it currently
+   * fits — so the note under the control can name it.
+   *
+   * No metre in the question, because a collection plays each tune in its own
+   * time signature: what can fit is a fact about the level, the key and the
+   * compass alone. With tunes picked by hand the level stops filtering too —
+   * naming the tunes has already answered that question — so what remains is
+   * only whether the picks fit the instrument at all.
+   */
   const chosenCollection = COLLECTIONS.find((c) => c.id === settings.collectionId);
+  const picks = settings.themeIds;
+  const fitsOf = (corpus: readonly (typeof COLLECTIONS)[number]['themes'][number][], level?: string) =>
+    themesFor({
+      instrument,
+      clef: settings.clef,
+      fifths: settings.fifths,
+      difficulty: level,
+      corpus,
+    }).length;
   const chosenSource = chosenCollection
     ? {
         name: chosenCollection.name,
-        fits: themesFor({
-          instrument,
-          clef: settings.clef,
-          fifths: settings.fifths,
-          difficulty: settings.difficultyId,
-          metre,
-          corpus: chosenCollection.themes,
-        }).length,
+        fits: picks.length
+          ? fitsOf(chosenCollection.themes.filter((theme) => picks.includes(theme.id)))
+          : fitsOf(chosenCollection.themes, settings.difficultyId),
       }
     : null;
 
@@ -231,6 +243,14 @@ export function SettingsScreen({
       // The drill's name says more than the box's: "Dominant 7th" is what will
       // be practised, where "Drills" only says where to look for it.
       patternKind ? drill.name : material?.name,
+      // Which music, when the player has said: the collection, and how much of
+      // it they narrowed to. The same reason the drill's name is worth more
+      // than "Drills" — a summary should recite the choices, not the defaults.
+      settings.kind === 'themes' && chosenCollection
+        ? picks.length
+          ? `${chosenCollection.name} · ${picks.length} picked`
+          : chosenCollection.name
+        : undefined,
       patternKind ? difficulty.patterns.label : difficulty.name,
       // Only when it has been asked for. Left to the difficulty it is not a
       // choice the player made, and a summary should not recite the defaults.
@@ -481,14 +501,7 @@ export function SettingsScreen({
             COLLECTIONS.map((collection) => ({
               id: collection.id,
               name: collection.name,
-              fits: themesFor({
-                instrument,
-                clef: settings.clef,
-                fifths: settings.fifths,
-                difficulty: settings.difficultyId,
-                metre,
-                corpus: collection.themes,
-              }).length,
+              fits: fitsOf(collection.themes, settings.difficultyId),
             })),
           )
           .map((option) => (
@@ -506,13 +519,60 @@ export function SettingsScreen({
       </div>
       {chosenSource !== null && chosenSource.fits === 0 && (
         <p className="field__note muted">
-          Nothing in {chosenSource.name} is written at this level in{' '}
-          {settings.beatsPerBar}/{settings.beatUnit}, so composed tunes will play instead. Try
-          another level or time signature.
+          {picks.length
+            ? `None of the tunes you picked fit this instrument in this key, so composed tunes will play instead.`
+            : `Nothing in ${chosenSource.name} is written at this level, so composed tunes will play instead. Try another level.`}
         </p>
       )}
     </div>
   );
+
+  /*
+   * The tunes of the chosen collection, each its own toggle.
+   *
+   * None pressed is the default and means the medley: the whole collection at
+   * the chosen level, which is why the note under the chips has to say so — an
+   * empty selection that quietly meant "everything" would read as a broken
+   * control. Pressing chips names the medley by hand, and the level stops
+   * filtering, because a player who names the tunes has already answered the
+   * question the level exists to answer.
+   *
+   * Each chip carries the tune's own time signature, since the piece will play
+   * in it: the signature stopped being a setting here and became a fact about
+   * the material, and facts about the material belong on the material.
+   */
+  const toggleTheme = (id: string) =>
+    update(
+      'themeIds',
+      picks.includes(id) ? picks.filter((have) => have !== id) : [...picks, id],
+    );
+  const tunesField = chosenCollection ? (
+    <div className="field">
+      <span className="field__label">Tunes</span>
+      <div className="drills">
+        {chosenCollection.themes.map((tune) => (
+          <button
+            key={tune.id}
+            type="button"
+            aria-pressed={picks.includes(tune.id)}
+            className={`segmented__option drill ${picks.includes(tune.id) ? 'is-selected' : ''}`}
+            onClick={() => toggleTheme(tune.id)}
+          >
+            {tune.name}
+            <span className="muted">
+              {' '}
+              {tune.metres[0][0]}/{tune.metres[0][1]}
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="field__note muted">
+        {picks.length
+          ? 'Your picks play whatever their level, in their own time signatures.'
+          : 'None picked plays the whole collection at the chosen level. Each tune plays in its own time signature.'}
+      </p>
+    </div>
+  ) : null;
 
   const difficultyField = (
         <div className="field">
@@ -723,8 +783,14 @@ export function SettingsScreen({
                     {difficultyField}
                     {/* A scale is a shape played against a click rather than a
                         piece with a metre, so it is always four-four and asks
-                        instead which end of the horn to sit at. */}
-                    {isPattern(kind.id) ? registerField : timeSignatureField}
+                        instead which end of the horn to sit at. A collection
+                        asks nothing: each tune plays in its own signature, and
+                        the control it gets instead is which tunes. */}
+                    {isPattern(kind.id)
+                      ? registerField
+                      : kind.id === 'themes' && chosenCollection
+                        ? tunesField
+                        : timeSignatureField}
                     {/* The pool free material is drawn from. A pattern is placed
                         by its tonic and a theme is written already, so neither
                         has a pool to ask about. */}

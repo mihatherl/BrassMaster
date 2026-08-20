@@ -1449,6 +1449,7 @@ describe('revealTiesByBar', () => {
       keys: [{ fromBeat: 0, fifths: 0 }],
       metres: [{ fromBeat: 0, metre: metreFor(4, 4) }],
       tempo: [],
+      labels: [],
       totalBeats: 17,
       chosenBeats: 17,
       seed: 1,

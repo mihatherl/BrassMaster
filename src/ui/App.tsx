@@ -117,6 +117,7 @@ export function App() {
         bars: length.bars,
         themeCount: length.themeCount,
         collectionId: settings.collectionId,
+        themeIds: settings.themeIds,
         cycles: length.cycles,
         register: settings.register,
         range: settings.range ?? undefined,

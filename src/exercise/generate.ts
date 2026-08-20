@@ -163,6 +163,13 @@ export interface GenerateOptions {
    */
   collectionId?: string;
   /**
+   * Particular tunes of that collection, by id — the player's own medley.
+   *
+   * Empty or absent means the whole collection at the chosen level. Ignored
+   * without a collection, since composed tunes have no ids worth naming.
+   */
+  themeIds?: readonly string[];
+  /**
    * Times a scale or arpeggio is played through, up and back down.
    *
    * A pattern's length is its own rather than a number of bars: how many bars a
@@ -385,19 +392,37 @@ export function generateExercise(options: GenerateOptions): Exercise {
       options.collectionId && options.collectionId !== COMPOSED
         ? collectionById(options.collectionId)
         : undefined;
-    const corpus = chosen
-      ? chosen.themes
-      : Array.from({ length: wanted }, (_, i) =>
-          composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
-        ).filter((tune): tune is Theme => tune !== null);
+    /*
+     * Naming tunes narrows the pool to exactly those tunes, and turns two
+     * filters off — the level, because a player who names the tunes has
+     * already answered that question, and the id check is against the whole
+     * collection so a stale pick simply names nothing rather than misfiring.
+     */
+    const picked =
+      chosen && options.themeIds?.length
+        ? chosen.themes.filter((theme) => options.themeIds!.includes(theme.id))
+        : undefined;
+    const corpus =
+      picked ??
+      chosen?.themes ??
+      Array.from({ length: wanted }, (_, i) =>
+        composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
+      ).filter((tune): tune is Theme => tune !== null);
 
+    /*
+     * **A collection is played in its tunes' own time signatures**, changing
+     * at the joins, which is how a printed medley works — asking for the Bach
+     * should bring the whole Bach, not the slice of it that happens to share
+     * a signature with a control set for something else. Only composed
+     * material takes the chosen metre, because its tunes are built for one.
+     */
     const stitched = stitchThemes({
       instrument: options.instrument,
       clef: options.clef,
       fifths: options.fifths,
-      difficulty: options.difficulty.id,
+      difficulty: picked ? undefined : options.difficulty.id,
       keys: orderByCloseness(options.fifths, options.keySet ?? [options.fifths]),
-      metre,
+      metre: chosen ? undefined : metre,
       count: options.themeCount,
       horizonBeats,
       rng,
@@ -409,27 +434,45 @@ export function generateExercise(options: GenerateOptions): Exercise {
        * the plan draws from the same rng *after* stitching has finished with
        * it — so turning variable tempo on or off cannot change which themes
        * were chosen, only what is written over the joins.
+       *
+       * No plan where the signature changes mid-exercise: the plan measures
+       * its rits in bars of one metre, and stretching that arithmetic across
+       * a change would write marks in the wrong places. A cost worn rather
+       * than hidden — variable tempo simply does not decorate a mixed medley.
        */
       const tempo =
-        options.variableTempo && options.tempo
+        options.variableTempo && options.tempo && stitched.metres.length === 1
           ? planTempo({
               starts: stitched.starts,
               totalBeats: stitched.totalBeats,
-              metre,
+              metre: stitched.metres[0].metre,
               bpm: options.tempo,
               rng,
             })
           : [];
+      /*
+       * Named tunes get their names printed where they begin — a medley that
+       * does not say which tune is which is a page keeping a secret. Composed
+       * tunes stay unlabelled: they have ids, not names, and labelling
+       * `tune-3` would dress machinery up as repertoire.
+       */
+      const labels = chosen
+        ? stitched.used.map((id, at) => ({
+            atBeat: stitched.starts[at],
+            text: chosen.themes.find((theme) => theme.id === id)?.name ?? id,
+          }))
+        : [];
       return assembleExercise(stitched.slots, stitched.pitches, {
         instrument: options.instrument,
         clef: options.clef,
         keys: stitched.keys,
-        metres: [{ fromBeat: 0, metre }],
+        metres: stitched.metres,
         totalBeats: stitched.totalBeats,
         chosenBeats: stitched.chosenBeats,
         seed: options.seed,
         kind: options.kind,
         tempo,
+        labels,
       });
     }
   }
