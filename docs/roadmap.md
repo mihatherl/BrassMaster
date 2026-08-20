@@ -393,10 +393,23 @@ no-repeat rule and the fallback are untouched. Two consequences worth knowing:
   running wherever it has a choice, and with one theme it has none. That is the
   bargain of asking for *this* music rather than for more music.
 - **The count beside each collection is load-bearing.** Falling back to composed
-  material is correct where nothing fits the level and metre, and
-  indistinguishable on screen from being handed Bach — so the control counts
-  what actually fits, against the real placement, and says so in words at zero.
-  A player who asked for particular music must not be quietly given other music.
+  material is correct where nothing fits, and indistinguishable on screen from
+  being handed Bach — so the control counts what actually fits, against the real
+  placement, and says so in words at zero. A player who asked for particular
+  music must not be quietly given other music.
+
+Extended 2026-08-20, on the observation that nobody limits their listening to
+one time signature: **the metre follows the material.** A collection plays each
+tune in its own signature, changing at the joins the way a printed medley does —
+the time-signature control disappears for collections, and only composed
+material still takes one, because its tunes are built *for* a metre rather than
+found in one. Each tune's name is printed over the bar where it begins
+(`LabelEvent`, the same shape of addition as tempo marks). And a medley can be
+picked by hand: naming tunes turns the level filter off, since the player has
+already answered the question the level exists to answer. What made all of this
+cheap is that `metres` has been a list since imported music needed it — the
+renderer could already draw a mid-line signature change, and the feature was
+wiring, not machinery.
 
 Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
 
