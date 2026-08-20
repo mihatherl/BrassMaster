@@ -1089,6 +1089,156 @@ input[type='checkbox'] {
  * tall as it is long. Three rows and a half: the half-row is the scrollbar's
  * job done without a scrollbar.
  */
+/*
+ * A row of chips that wraps: as many to a line as their names allow.
+ *
+ * Not `.drills`, which is a fixed-height scrolling grid built for a long list
+ * of equal-length drill names. A library's name is as long as it is, and four
+ * short ones — Composed, Inbuilt, Nursery, Bach — belong on one line rather
+ * than in a scroller that hides two of them behind a swipe.
+ */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.chip {
+  /* Sized by its content, never stretched: `flex: 1` would pad three chips
+     across a whole row and make a two-word name look like a different control
+     from a one-word one. */
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.chip.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* How many tunes are behind the name. Quiet, and quiet against the accent too:
+   `currentColor` keeps it legible once the chip is filled. */
+.chip__count {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+/*
+ * The two-column picker, over the whole screen.
+ *
+ * Full-screen rather than a floating card because it is a working surface on a
+ * phone: two columns of tunes need every pixel of width, and a dialog inset
+ * from the edges would leave each column too narrow to read a tune's name in.
+ */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.sheet__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.picker__column {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The divider between them, so the two lists read as two places rather than
+   one long one that happens to be in columns. */
+.picker__column + .picker__column {
+  border-left: 1px solid var(--border);
+}
+
+.picker__heading {
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.picker__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.4rem;
+}
+
+/* The library a group of tunes came from. Only drawn when more than one is in
+   play — see `DefinedPicker`. */
+.picker__group {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.picker__tune {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  margin-bottom: 0.3rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker__tune--chosen {
+  border-color: var(--accent);
+}
+
+.picker__name {
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+/* Bars, level and time signature: the three facts that decide whether a tune
+   belongs in the run being built. Small enough to be a footnote to the name. */
+.picker__detail {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
 .drills {
   --drill-h: 2.25rem;
   --drill-gap: 0.375rem;

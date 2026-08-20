@@ -14,14 +14,14 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateExercise } from './generate';
-import { COMPOSED } from './collections';
+
 import { difficultyById } from './difficulty';
 import { TUNE_BARS } from './compose';
 import { instrumentById } from '../domain/instruments';
 import { changesMetre, metreFor } from '../domain/metre';
 
 function run(
-  collectionId: string,
+  collectionIds: string[],
   difficultyId: string,
   metre: readonly [number, number],
   seed = 42,
@@ -44,8 +44,9 @@ function run(
     seed,
     tempo: 96,
     variableTempo: false,
-    collectionId,
+    collectionIds,
     themeIds,
+    selection: themeIds.length > 0 ? ('defined' as const) : ('medley' as const),
   });
   return { exercise, bars: exercise.totalBeats / m.barBeats };
 }
@@ -53,7 +54,7 @@ function run(
 describe('choosing where the tunes come from', () => {
   it('composes from cells by default', () => {
     // Composed tunes are a fixed length, so a whole number of them is the tell.
-    expect(run(COMPOSED, 'easy', [4, 4]).bars % TUNE_BARS).toBe(0);
+    expect(run([], 'easy', [4, 4]).bars % TUNE_BARS).toBe(0);
   });
 
   /*
@@ -61,7 +62,7 @@ describe('choosing where the tunes come from', () => {
    * so a run that divides by five and not by eight came from the collection.
    */
   it('plays a collection when one is named', () => {
-    const { bars } = run('bach', 'easy', [4, 4]);
+    const { bars } = run(['bach'], 'easy', [4, 4]);
     expect(bars % 5).toBe(0);
     expect(bars % TUNE_BARS).not.toBe(0);
   });
@@ -75,7 +76,7 @@ describe('choosing where the tunes come from', () => {
    * nothing composed produces.
    */
   it('ignores the chosen time signature and plays each tune in its own', () => {
-    const { exercise } = run('bach', 'easy', [6, 8]);
+    const { exercise } = run(['bach'], 'easy', [6, 8]);
     expect(exercise.metres[0].metre.beatsPerBar).toBe(4);
     expect((exercise.totalBeats / 4) % 5).toBe(0);
   });
@@ -87,7 +88,7 @@ describe('choosing where the tunes come from', () => {
    * same trespass a key change there would be.
    */
   it('changes metre between tunes, and only where a tune begins', () => {
-    const { exercise } = run('bach', 'hard', [4, 4], 3);
+    const { exercise } = run(['bach'], 'hard', [4, 4], 3);
     expect(changesMetre(exercise.metres)).toBe(true);
     const starts = new Set(exercise.labels.map((label) => label.atBeat));
     for (const change of exercise.metres) {
@@ -100,7 +101,7 @@ describe('choosing where the tunes come from', () => {
    * carries its printed name rather than its id, and the first is at the top.
    */
   it('labels each tune with its name at its first bar', () => {
-    const { exercise } = run('bach', 'hard', [4, 4], 3);
+    const { exercise } = run(['bach'], 'hard', [4, 4], 3);
     expect(exercise.labels.length).toBeGreaterThan(1);
     expect(exercise.labels[0].atBeat).toBe(0);
     for (const label of exercise.labels) {
@@ -109,7 +110,7 @@ describe('choosing where the tunes come from', () => {
   });
 
   it('leaves composed tunes unlabelled, since they have ids rather than names', () => {
-    expect(run(COMPOSED, 'easy', [4, 4]).exercise.labels).toEqual([]);
+    expect(run([], 'easy', [4, 4]).exercise.labels).toEqual([]);
   });
 
   /*
@@ -118,7 +119,7 @@ describe('choosing where the tunes come from', () => {
    * plainly than any level could. The pick also carries its own nine-eight.
    */
   it('plays picked tunes whatever the level says', () => {
-    const { exercise } = run('bach', 'easy', [4, 4], 3, ['jesu-joy']);
+    const { exercise } = run(['bach'], 'easy', [4, 4], 3, ['jesu-joy']);
     expect(exercise.labels.every((label) => label.text.startsWith('Jesu'))).toBe(true);
     expect(exercise.metres[0].metre.beatsPerBar).toBe(9);
   });
@@ -129,13 +130,13 @@ describe('choosing where the tunes come from', () => {
    * music rather than an empty screen or a throw.
    */
   it('falls back to composed tunes where the collection has nothing at the level', () => {
-    const { exercise, bars } = run('bach', 'beginner', [4, 4]);
+    const { exercise, bars } = run(['bach'], 'beginner', [4, 4]);
     expect(exercise.notes.length).toBeGreaterThan(0);
     expect(bars % TUNE_BARS).toBe(0);
   });
 
   it('treats a collection it does not know as composed', () => {
-    expect(run('no-such-collection', 'easy', [4, 4]).bars % TUNE_BARS).toBe(0);
+    expect(run(['no-such-collection'], 'easy', [4, 4]).bars % TUNE_BARS).toBe(0);
   });
 
   /*
@@ -143,14 +144,56 @@ describe('choosing where the tunes come from', () => {
    * exercise's own rng, so a collection must not make a run unrepeatable.
    */
   it('stays deterministic for a seed', () => {
-    const a = run('traditional', 'easy', [4, 4], 7);
-    const b = run('traditional', 'easy', [4, 4], 7);
+    const a = run(['traditional'], 'easy', [4, 4], 7);
+    const b = run(['traditional'], 'easy', [4, 4], 7);
     expect(a.exercise.notes).toEqual(b.exercise.notes);
   });
 
+  /*
+   * More than one library at once, which is what nobody sorting through their
+   * own music thinks of as unusual — Bach and the nursery tunes are not two
+   * mutually exclusive worlds.
+   */
+  it('draws a medley from every chosen collection', () => {
+    const { exercise } = run(['bach', 'traditional'], 'easy', [4, 4], 4);
+    const names = new Set(exercise.labels.map((label) => label.text));
+    expect([...names].some((name) => /Offering|Fugue|Invention|Jesu/.test(name))).toBe(true);
+    expect([...names].some((name) => /Frère|Baa|Hot cross|Twinkle|Mary/.test(name))).toBe(true);
+  });
+
+  /*
+   * A defined run is a playlist, and the two things that makes it are order
+   * and repeats. A filter over the collection would have given corpus order
+   * and one copy of each, quietly overruling both.
+   */
+  it('plays a defined list in the order given', () => {
+    const { exercise } = run(['bach'], 'easy', [4, 4], 4, [
+      'jesu-joy',
+      'bwv779-invention',
+      'jesu-joy',
+    ]);
+    const played = exercise.labels.map((label) => label.text).slice(0, 3);
+    expect(played[0]).toMatch(/^Jesu/);
+    expect(played[1]).toMatch(/^Invention 8/);
+    expect(played[2]).toMatch(/^Jesu/);
+  });
+
+  it('honours a tune asked for twice running', () => {
+    // The no-repeat rule is right when the app is choosing and wrong when
+    // somebody has deliberately asked for the same tune twice.
+    const { exercise } = run(['bach'], 'easy', [4, 4], 4, ['jesu-joy', 'jesu-joy']);
+    expect(exercise.labels.slice(0, 2).every((label) => label.text.startsWith('Jesu'))).toBe(true);
+  });
+
+  it('ignores the level for a defined list, as naming the tunes settles it', () => {
+    // Jesu Joy is medium; asked for under an easy setting it still plays.
+    const { exercise } = run(['bach'], 'easy', [4, 4], 4, ['jesu-joy']);
+    expect(exercise.labels.every((label) => label.text.startsWith('Jesu'))).toBe(true);
+  });
+
   it('gives different music for different seeds', () => {
-    const a = run('traditional', 'easy', [4, 4], 1);
-    const b = run('traditional', 'easy', [4, 4], 2);
+    const a = run(['traditional'], 'easy', [4, 4], 1);
+    const b = run(['traditional'], 'easy', [4, 4], 2);
     expect(a.exercise.notes).not.toEqual(b.exercise.notes);
   });
 });

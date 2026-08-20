@@ -58,7 +58,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 function themesRun(options: {
-  collectionId: string;
+  collectionIds: string[];
   difficultyId: string;
   metre: readonly [number, number];
   themeIds?: string[];
@@ -80,8 +80,9 @@ function themesRun(options: {
     seed: 3,
     tempo: 96,
     variableTempo: options.variableTempo ?? false,
-    collectionId: options.collectionId,
+    collectionIds: options.collectionIds,
     themeIds: options.themeIds,
+    selection: options.themeIds?.length ? ('defined' as const) : ('medley' as const),
   });
 }
 
@@ -158,7 +159,7 @@ describe('sound against the clock', () => {
      * bar walked in 3/4 pulses, or the reverse, is off the grid at once.
      */
     const exercise = themesRun({
-      collectionId: 'bach',
+      collectionIds: ['bach'],
       difficultyId: 'easy',
       metre: [4, 4],
       themeIds: ['jesu-joy', 'bwv779-invention'],
@@ -174,7 +175,7 @@ describe('sound against the clock', () => {
 
   it('holds with a compound opening, where the beat is not the crotchet', () => {
     const exercise = themesRun({
-      collectionId: 'bach',
+      collectionIds: ['bach'],
       difficultyId: 'easy',
       metre: [4, 4],
       themeIds: ['jesu-joy'],
@@ -196,7 +197,7 @@ describe('sound against the clock', () => {
 
   it('holds under a tempo plan, which only themes ever carry', () => {
     const exercise = themesRun({
-      collectionId: 'composed',
+      collectionIds: [],
       difficultyId: 'easy',
       metre: [6, 8],
       variableTempo: true,
@@ -234,7 +235,7 @@ describe('the output latency report', () => {
       createGain: () => ({ gain: { value: 0 }, connect: () => {} }),
       outputLatency,
     } as unknown as AudioContext;
-    const exercise = themesRun({ collectionId: 'composed', difficultyId: 'easy', metre: [4, 4] });
+    const exercise = themesRun({ collectionIds: [], difficultyId: 'easy', metre: [4, 4] });
     const session = new Session({
       context: ctx,
       input: new ValveInput(() => audioTime),

@@ -4,9 +4,10 @@ import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
 import { metreFor } from '../domain/metre';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
-import { COLLECTIONS, COMPOSED } from '../exercise/collections';
+import { COLLECTIONS, themeById, themesOf } from '../exercise/collections';
 import { corpusSummary } from '../exercise/corpus';
 import { themesFor } from '../exercise/phrases';
+import type { Theme } from '../exercise/theme';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
@@ -112,6 +113,119 @@ function describeSpan(semitones: number): string {
   return 'a very short pattern';
 }
 
+/**
+ * Building a defined run: what is available on the left, what will play on the
+ * right.
+ *
+ * Two columns rather than a list of toggles, because a playlist is an ordered
+ * thing with repeats and a toggle list is a set — and the difference is the
+ * whole feature. Tapping a tune on the left appends it to the right; tapping
+ * one on the right takes that copy out. The same tune may be added as often as
+ * the player likes, which is how somebody drills the one that is giving them
+ * trouble.
+ *
+ * The left column is grouped by library only when more than one is in play:
+ * one library needs no heading, and a heading over every list makes the
+ * grouping look like a setting rather than an answer to "where is this from".
+ * Inside a group the order is alphabetical, because a player looking for a
+ * tune by name has no other way in — the corpus order means nothing to them.
+ *
+ * Each entry carries its bars, level and time signature in small type. Those
+ * are the three facts that decide whether a tune belongs in the run being
+ * built, and all three are properties of the music rather than of the app.
+ */
+function DefinedPicker({
+  collectionIds,
+  picks,
+  onChange,
+  onClose,
+}: {
+  collectionIds: readonly string[];
+  picks: readonly string[];
+  onChange: (picks: string[]) => void;
+  onClose: () => void;
+}) {
+  const groups = COLLECTIONS.filter((collection) => collectionIds.includes(collection.id)).map(
+    (collection) => ({
+      collection,
+      themes: [...collection.themes].sort((a, b) => a.name.localeCompare(b.name)),
+    }),
+  );
+  const named = groups.length > 1;
+
+  const detail = (theme: Theme) =>
+    `${theme.bars} bars · ${theme.difficulty} · ${theme.metres.map(([n, d]) => `${n}/${d}`).join(', ')}`;
+
+  return (
+    <div className="sheet" role="dialog" aria-modal="true" aria-label="Choose the tunes to play">
+      <div className="sheet__body picker">
+        <div className="picker__column">
+          <h3 className="picker__heading">Available</h3>
+          <div className="picker__list">
+            {groups.map(({ collection, themes }) => (
+              <div key={collection.id}>
+                {named && <p className="picker__group">{collection.name}</p>}
+                {themes.map((theme) => (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    className="picker__tune"
+                    onClick={() => onChange([...picks, theme.id])}
+                  >
+                    <span className="picker__name">{theme.name}</span>
+                    <span className="picker__detail">{detail(theme)}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="picker__column">
+          <h3 className="picker__heading">
+            Playing {picks.length > 0 && <span className="chip__count">{picks.length}</span>}
+          </h3>
+          <div className="picker__list">
+            {picks.length === 0 && (
+              <p className="field__note muted">
+                Tap a tune on the left to add it. Add one twice to play it twice.
+              </p>
+            )}
+            {picks.map((id, at) => {
+              const theme = themeById(id);
+              if (!theme) return null;
+              return (
+                <button
+                  /* Position, not id: the same tune may be here more than once,
+                     and removing the third copy must not remove the first. */
+                  key={`${id}-${at}`}
+                  type="button"
+                  className="picker__tune picker__tune--chosen"
+                  onClick={() => onChange(picks.filter((_, i) => i !== at))}
+                >
+                  <span className="picker__name">
+                    {at + 1}. {theme.name}
+                  </span>
+                  <span className="picker__detail">{detail(theme)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="sheet__actions">
+        <button type="button" className="button button--quiet" onClick={() => onChange([])}>
+          Clear
+        </button>
+        <button type="button" className="button button--primary" onClick={onClose}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface SettingsScreenProps {
   settings: Settings;
   onChange: (settings: Settings) => void;
@@ -192,6 +306,10 @@ export function SettingsScreen({
     onChange({ ...settings, [key]: value });
   };
 
+  /* Whether the two-column picker is open. Local: it is a way of editing a
+     setting, not a setting of its own. */
+  const [picking, setPicking] = useState(false);
+
   /*
    * The chosen collection, where one is chosen, and how much of it currently
    * fits — so the note under the control can name it.
@@ -202,9 +320,10 @@ export function SettingsScreen({
    * naming the tunes has already answered that question — so what remains is
    * only whether the picks fit the instrument at all.
    */
-  const chosenCollection = COLLECTIONS.find((c) => c.id === settings.collectionId);
+  const chosenIds = settings.collectionIds;
   const picks = settings.themeIds;
-  const fitsOf = (corpus: readonly (typeof COLLECTIONS)[number]['themes'][number][], level?: string) =>
+  const defined = settings.selection === 'defined';
+  const fitsOf = (corpus: readonly Theme[], level?: string) =>
     themesFor({
       instrument,
       clef: settings.clef,
@@ -212,14 +331,11 @@ export function SettingsScreen({
       difficulty: level,
       corpus,
     }).length;
-  const chosenSource = chosenCollection
-    ? {
-        name: chosenCollection.name,
-        fits: picks.length
-          ? fitsOf(chosenCollection.themes.filter((theme) => picks.includes(theme.id)))
-          : fitsOf(chosenCollection.themes, settings.difficultyId),
-      }
-    : null;
+  /* What a run would actually be handed, which is what the note has to report:
+     a playlist ignores the level, a medley does not. */
+  const playable = defined
+    ? fitsOf(picks.map((id) => themeById(id)).filter((t): t is Theme => t !== undefined))
+    : fitsOf(themesOf(chosenIds), settings.difficultyId);
 
   // Enough of each section to see at a glance what is set, without reproducing
   // the whole screen in miniature — the long sections show only what matters.
@@ -246,10 +362,13 @@ export function SettingsScreen({
       // Which music, when the player has said: the collection, and how much of
       // it they narrowed to. The same reason the drill's name is worth more
       // than "Drills" — a summary should recite the choices, not the defaults.
-      settings.kind === 'themes' && chosenCollection
-        ? picks.length
-          ? `${chosenCollection.name} · ${picks.length} picked`
-          : chosenCollection.name
+      settings.kind === 'themes' && chosenIds.length > 0
+        ? summarise(
+            COLLECTIONS.filter((c) => chosenIds.includes(c.id))
+              .map((c) => c.name)
+              .join(' + '),
+            defined ? `${picks.length} chosen` : undefined,
+          )
         : undefined,
       patternKind ? difficulty.patterns.label : difficulty.name,
       // Only when it has been asked for. Left to the difficulty it is not a
@@ -481,95 +600,115 @@ export function SettingsScreen({
   );
 
   /*
-   * Where the Themes material gets its tunes.
+   * Where the Themes material gets its tunes: any number of collections, or
+   * none.
+   *
+   * **None is not an empty choice, it is composed material** — tunes built
+   * from cells for this run, endlessly fresh. "Composed" was briefly an id
+   * alongside the collections and read as a collection with nothing in it,
+   * which is the one question it cannot answer: it has no tunes to count
+   * because it has not written them yet. So it is the state of having chosen
+   * no collection, and the chip that says so is pressed when the list is
+   * empty.
    *
    * The count beside each collection is not decoration. A collection holds
-   * written tunes at fixed levels and metres, so "Bach" at a level it has
-   * nothing for falls back to composed material — correct behaviour, and
-   * indistinguishable on screen from being given Bach, which is the problem.
-   * A player who has *asked* for particular music should be told when it does
-   * not fit what else they have chosen, rather than quietly handed something
-   * else. It is counted against the real placement, so an instrument whose
-   * compass will not hold a tune is counted out here too.
+   * written tunes at fixed levels, so one with nothing at the chosen level
+   * falls back to composed material — correct behaviour, and indistinguishable
+   * on screen from being given Bach, which is the problem. It is counted
+   * against the real placement, so an instrument whose compass will not hold a
+   * tune is counted out here too.
    */
+  const toggleCollection = (id: string) => {
+    const next = chosenIds.includes(id)
+      ? chosenIds.filter((have) => have !== id)
+      : [...chosenIds, id];
+    /* Picks are dropped with the collection that held them; `sanitise` would
+       do it anyway, and doing it here keeps the modal's list honest as it is
+       being edited. */
+    onChange({ ...settings, collectionIds: next, themeIds: [], selection: 'medley' });
+  };
+
   const sourceField = (
     <div className="field">
       <span className="field__label">Tunes from</span>
-      <div className="drills">
-        {[{ id: COMPOSED, name: 'Composed', fits: null as number | null }]
-          .concat(
-            COLLECTIONS.map((collection) => ({
-              id: collection.id,
-              name: collection.name,
-              fits: fitsOf(collection.themes, settings.difficultyId),
-            })),
-          )
-          .map((option) => (
+      <div className="chips">
+        <button
+          type="button"
+          aria-pressed={chosenIds.length === 0}
+          className={`chip ${chosenIds.length === 0 ? 'is-selected' : ''}`}
+          onClick={() =>
+            onChange({ ...settings, collectionIds: [], themeIds: [], selection: 'medley' })
+          }
+        >
+          Composed
+        </button>
+        {COLLECTIONS.map((collection) => {
+          const on = chosenIds.includes(collection.id);
+          return (
             <button
-              key={option.id}
+              key={collection.id}
               type="button"
-              aria-pressed={settings.collectionId === option.id}
-              className={`segmented__option drill ${settings.collectionId === option.id ? 'is-selected' : ''}`}
-              onClick={() => update('collectionId', option.id)}
+              aria-pressed={on}
+              className={`chip ${on ? 'is-selected' : ''}`}
+              onClick={() => toggleCollection(collection.id)}
             >
-              {option.name}
-              {option.fits !== null && <span className="muted"> {option.fits}</span>}
+              {collection.name}
+              <span className="chip__count">{fitsOf(collection.themes, settings.difficultyId)}</span>
             </button>
-          ))}
+          );
+        })}
       </div>
-      {chosenSource !== null && chosenSource.fits === 0 && (
+      {chosenIds.length === 0 ? (
         <p className="field__note muted">
-          {picks.length
-            ? `None of the tunes you picked fit this instrument in this key, so composed tunes will play instead.`
-            : `Nothing in ${chosenSource.name} is written at this level, so composed tunes will play instead. Try another level.`}
+          Fresh tunes written for this run. Choose one or more libraries to play written music
+          instead.
         </p>
+      ) : (
+        playable === 0 && (
+          <p className="field__note muted">
+            {defined
+              ? 'None of the tunes you chose fit this instrument in this key, so composed tunes will play instead.'
+              : 'Nothing here is written at this level, so composed tunes will play instead. Try another level.'}
+          </p>
+        )
       )}
     </div>
   );
 
   /*
-   * The tunes of the chosen collection, each its own toggle.
+   * Medley or playlist, and the door to building one.
    *
-   * None pressed is the default and means the medley: the whole collection at
-   * the chosen level, which is why the note under the chips has to say so — an
-   * empty selection that quietly meant "everything" would read as a broken
-   * control. Pressing chips names the medley by hand, and the level stops
-   * filtering, because a player who names the tunes has already answered the
-   * question the level exists to answer.
-   *
-   * Each chip carries the tune's own time signature, since the piece will play
-   * in it: the signature stopped being a setting here and became a fact about
-   * the material, and facts about the material belong on the material.
+   * Two states rather than an implicit one: an empty list of picks used to
+   * mean "everything", which is a control that looks broken until somebody
+   * explains it. Saying which of the two is in force costs one row and answers
+   * the question before it is asked.
    */
-  const toggleTheme = (id: string) =>
-    update(
-      'themeIds',
-      picks.includes(id) ? picks.filter((have) => have !== id) : [...picks, id],
-    );
-  const tunesField = chosenCollection ? (
+  const selectionField = chosenIds.length > 0 ? (
     <div className="field">
-      <span className="field__label">Tunes</span>
-      <div className="drills">
-        {chosenCollection.themes.map((tune) => (
-          <button
-            key={tune.id}
-            type="button"
-            aria-pressed={picks.includes(tune.id)}
-            className={`segmented__option drill ${picks.includes(tune.id) ? 'is-selected' : ''}`}
-            onClick={() => toggleTheme(tune.id)}
-          >
-            {tune.name}
-            <span className="muted">
-              {' '}
-              {tune.metres[0][0]}/{tune.metres[0][1]}
-            </span>
-          </button>
-        ))}
+      <span className="field__label">Selection</span>
+      <div className="chips">
+        <button
+          type="button"
+          aria-pressed={!defined}
+          className={`chip ${!defined ? 'is-selected' : ''}`}
+          onClick={() => onChange({ ...settings, selection: 'medley' })}
+        >
+          Random medley
+        </button>
+        <button
+          type="button"
+          aria-pressed={defined}
+          className={`chip ${defined ? 'is-selected' : ''}`}
+          onClick={() => setPicking(true)}
+        >
+          Defined
+          {picks.length > 0 && <span className="chip__count">{picks.length}</span>}
+        </button>
       </div>
       <p className="field__note muted">
-        {picks.length
-          ? 'Your picks play whatever their level, in their own time signatures.'
-          : 'None picked plays the whole collection at the chosen level. Each tune plays in its own time signature.'}
+        {defined
+          ? `Playing ${picks.length} ${picks.length === 1 ? 'tune' : 'tunes'} in the order you set them.`
+          : 'Whatever is in the chosen libraries, at the chosen level.'}
       </p>
     </div>
   ) : null;
@@ -655,6 +794,24 @@ export function SettingsScreen({
 
   return (
     <div className="screen screen--settings">
+      {/* Over the screen rather than inside the panel: choosing a run's tunes
+          wants the whole width, and the panel it is launched from is a column
+          on a phone. Closing it settles the mode — a list left empty is a
+          medley, which `sanitise` also enforces. */}
+      {picking && (
+        <DefinedPicker
+          collectionIds={chosenIds}
+          picks={picks}
+          onChange={(next) =>
+            onChange({
+              ...settings,
+              themeIds: next,
+              selection: next.length > 0 ? 'defined' : 'medley',
+            })
+          }
+          onClose={() => setPicking(false)}
+        />
+      )}
       <header className="masthead">
         {onBack && (
           <button type="button" className="button button--quiet" onClick={onBack}>
@@ -788,8 +945,8 @@ export function SettingsScreen({
                         the control it gets instead is which tunes. */}
                     {isPattern(kind.id)
                       ? registerField
-                      : kind.id === 'themes' && chosenCollection
-                        ? tunesField
+                      : kind.id === 'themes' && chosenIds.length > 0
+                        ? selectionField
                         : timeSignatureField}
                     {/* The pool free material is drawn from. A pattern is placed
                         by its tonic and a theme is written already, so neither

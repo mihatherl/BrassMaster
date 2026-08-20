@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { instrumentById, writtenRange } from '../domain/instruments';
-import { COMPOSED } from '../exercise/collections';
+
 import {
   AUDIO_LEAD_RANGE,
   audioLeadFor,
@@ -422,48 +422,61 @@ describe('the cushion', () => {
   });
 });
 
-/*
- * A collection is expected to come and go — retired, or held back from a build
- * that may not carry it — and a stored id naming one that is gone must not
- * leave a player with a source the app cannot resolve.
- */
-describe('a chosen collection that is no longer there', () => {
-  it('falls back to composed tunes rather than to nothing', () => {
-    const settings = sanitise({ ...DEFAULT_SETTINGS, collectionId: 'retired-last-year' });
-    expect(settings.collectionId).toBe(COMPOSED);
-  });
-
-  it('keeps one that does exist', () => {
-    const settings = sanitise({ ...DEFAULT_SETTINGS, collectionId: 'bach' });
-    expect(settings.collectionId).toBe('bach');
-  });
-
-  it('defaults to composed', () => {
-    expect(DEFAULT_SETTINGS.collectionId).toBe(COMPOSED);
-  });
-});
-
-/*
- * Picks live and die with their collection: an id from another collection or a
- * retired tune names nothing and must be dropped rather than kept to misfire,
- * and picks without a collection are meaningless.
- */
 describe('picked tunes', () => {
-  it('keeps only ids the chosen collection holds', () => {
+  it('keeps only ids the chosen collections hold', () => {
     const settings = sanitise({
       ...DEFAULT_SETTINGS,
-      collectionId: 'bach',
+      collectionIds: ['bach'],
+      selection: 'defined',
       themeIds: ['jesu-joy', 'trad-twinkle', 'retired-tune'],
     });
     expect(settings.themeIds).toEqual(['jesu-joy']);
   });
 
-  it('drops every pick when the collection goes', () => {
+  /* A playlist is ordered and may repeat: both are the player's decision, and
+     a sanitiser that tidied either away would be overruling them. */
+  it('keeps order and duplicates', () => {
     const settings = sanitise({
       ...DEFAULT_SETTINGS,
-      collectionId: 'composed',
+      collectionIds: ['bach'],
+      selection: 'defined',
+      themeIds: ['bwv779-invention', 'jesu-joy', 'bwv779-invention'],
+    });
+    expect(settings.themeIds).toEqual(['bwv779-invention', 'jesu-joy', 'bwv779-invention']);
+  });
+
+  it('draws from every chosen collection at once', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      collectionIds: ['bach', 'traditional'],
+      selection: 'defined',
+      themeIds: ['jesu-joy', 'trad-twinkle'],
+    });
+    expect(settings.themeIds).toEqual(['jesu-joy', 'trad-twinkle']);
+  });
+
+  it('drops every pick when the collections go', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      collectionIds: [],
+      selection: 'defined',
       themeIds: ['jesu-joy'],
     });
     expect(settings.themeIds).toEqual([]);
+    // And a defined run with nothing in it is a medley in all but name.
+    expect(settings.selection).toBe('medley');
+  });
+
+  it('forgets a collection that no longer exists', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      collectionIds: ['bach', 'retired-collection'],
+    });
+    expect(settings.collectionIds).toEqual(['bach']);
+  });
+
+  it('composes by default', () => {
+    expect(DEFAULT_SETTINGS.collectionIds).toEqual([]);
+    expect(DEFAULT_SETTINGS.selection).toBe('medley');
   });
 });

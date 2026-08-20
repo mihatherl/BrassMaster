@@ -36,7 +36,7 @@ import { metreFor, type Metre } from '../domain/metre';
 import { createRng, type Rng } from './rng';
 import { assembleExercise, type Slot, type SlotPitch } from './assemble';
 import { tonicWindow } from './theme';
-import { COMPOSED, collectionById } from './collections';
+import { themeById, themesOf } from './collections';
 import { stitchThemes } from './phrases';
 import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
@@ -155,20 +155,23 @@ export interface GenerateOptions {
    */
   themeCount: number;
   /**
-   * Where the themes come from: `COMPOSED` (the default) or a collection id.
+   * Which collections the themes come from; empty or absent composes from cells.
    *
-   * An id rather than the themes themselves, so the caller stays ignorant of
-   * the corpus — the settings screen chooses a name, and what that name holds
-   * is this module's business.
+   * Ids rather than the themes themselves, so the caller stays ignorant of the
+   * corpus — the settings screen chooses names, and what those names hold is
+   * this module's business.
    */
-  collectionId?: string;
+  collectionIds?: readonly string[];
   /**
-   * Particular tunes of that collection, by id — the player's own medley.
+   * A named playlist, in order, with duplicates honoured.
    *
-   * Empty or absent means the whole collection at the chosen level. Ignored
-   * without a collection, since composed tunes have no ids worth naming.
+   * Read only when `selection` is `defined`. Every id must name a tune in the
+   * chosen collections; anything else is ignored, which is what a stale pick
+   * deserves.
    */
   themeIds?: readonly string[];
+  /** Whether to draw at random from the collections, or play `themeIds`. */
+  selection?: 'medley' | 'defined';
   /**
    * Times a scale or arpeggio is played through, up and back down.
    *
@@ -388,26 +391,31 @@ export function generateExercise(options: GenerateOptions): Exercise {
      * the instrument's compass. A collection with nothing at this level is the
      * same situation as a metre no cell is written in.
      */
-    const chosen =
-      options.collectionId && options.collectionId !== COMPOSED
-        ? collectionById(options.collectionId)
-        : undefined;
+    const fromCollections = themesOf(options.collectionIds ?? []);
+    const playing = fromCollections.length > 0;
     /*
-     * Naming tunes narrows the pool to exactly those tunes, and turns two
-     * filters off — the level, because a player who names the tunes has
-     * already answered that question, and the id check is against the whole
-     * collection so a stale pick simply names nothing rather than misfiring.
+     * A defined run is a playlist: the ids in the order given, duplicates and
+     * all, rather than a filter over the collection. Mapping rather than
+     * filtering is the whole difference — a filter returns corpus order and
+     * one copy of each, which would quietly overrule both of the things a
+     * player says by building a list by hand.
+     *
+     * It also turns the level filter off, because somebody who has named the
+     * tunes has already answered the question the level exists to answer.
      */
-    const picked =
-      chosen && options.themeIds?.length
-        ? chosen.themes.filter((theme) => options.themeIds!.includes(theme.id))
+    const playlist =
+      playing && options.selection === 'defined' && options.themeIds?.length
+        ? options.themeIds
+            .map((id) => themeById(id))
+            .filter((theme): theme is Theme => theme !== undefined && fromCollections.includes(theme))
         : undefined;
     const corpus =
-      picked ??
-      chosen?.themes ??
-      Array.from({ length: wanted }, (_, i) =>
-        composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
-      ).filter((tune): tune is Theme => tune !== null);
+      playlist ??
+      (playing
+        ? fromCollections
+        : Array.from({ length: wanted }, (_, i) =>
+            composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
+          ).filter((tune): tune is Theme => tune !== null));
 
     /*
      * **A collection is played in its tunes' own time signatures**, changing
@@ -420,13 +428,15 @@ export function generateExercise(options: GenerateOptions): Exercise {
       instrument: options.instrument,
       clef: options.clef,
       fifths: options.fifths,
-      difficulty: picked ? undefined : options.difficulty.id,
+      difficulty: playlist ? undefined : options.difficulty.id,
       keys: orderByCloseness(options.fifths, options.keySet ?? [options.fifths]),
-      metre: chosen ? undefined : metre,
+      metre: playing ? undefined : metre,
       count: options.themeCount,
       horizonBeats,
       rng,
       corpus,
+      // A playlist is played through in order; a medley is drawn from.
+      order: playlist ? 'given' : 'random',
     });
     if (stitched) {
       /*
@@ -456,10 +466,10 @@ export function generateExercise(options: GenerateOptions): Exercise {
        * tunes stay unlabelled: they have ids, not names, and labelling
        * `tune-3` would dress machinery up as repertoire.
        */
-      const labels = chosen
+      const labels = playing
         ? stitched.used.map((id, at) => ({
             atBeat: stitched.starts[at],
-            text: chosen.themes.find((theme) => theme.id === id)?.name ?? id,
+            text: themeById(id)?.name ?? id,
           }))
         : [];
       return assembleExercise(stitched.slots, stitched.pitches, {

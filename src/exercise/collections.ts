@@ -84,7 +84,7 @@ export interface Collection {
 export const COLLECTIONS: readonly Collection[] = [
   {
     id: 'default',
-    name: 'The written themes',
+    name: 'Inbuilt',
     blurb:
       'Written for the app rather than borrowed. What survived the review of 2026-08-20 — eleven of the forty-seven were cut, and are kept in themes.ts rather than deleted so a verdict can be revisited.',
     provenance: 'original',
@@ -95,7 +95,7 @@ export const COLLECTIONS: readonly Collection[] = [
   },
   {
     id: 'traditional',
-    name: 'Traditional tunes',
+    name: 'Nursery',
     blurb:
       'Nursery songs and rounds, written as degrees so they transpose to any key. They double as a calibration for the ear: nobody has to adjudicate whether Twinkle is a melody, so what they settle is what the written themes’ own "deliberately plain" actually costs.',
     provenance: 'traditional',
@@ -136,23 +136,38 @@ export const COLLECTIONS: readonly Collection[] = [
   },
 ];
 
-/**
- * Not a collection: tunes built from the cells, for this exercise, on the spot.
- *
- * The default, and what the app did before collections existed. It belongs in
- * the same control as the collections because it answers the same question —
- * where does the music come from — and a player choosing between "endless
- * fresh tunes" and "the Bach" is choosing one thing, not setting two.
- */
-export const COMPOSED = 'composed';
-
 export function collectionById(id: string): Collection | undefined {
   return COLLECTIONS.find((collection) => collection.id === id);
 }
 
-/** Whether an id names something the material picker can be set to. */
-export function isMaterialSource(id: string): boolean {
-  return id === COMPOSED || collectionById(id) !== undefined;
+/**
+ * The themes of every chosen collection, in the order the collections are
+ * listed — which is what a medley draws from once more than one may be chosen.
+ *
+ * An empty choice is not an empty corpus but a different kind of material
+ * altogether: no collection means the composer builds tunes from cells, which
+ * is what the app did before collections existed. Callers test the length
+ * rather than looking for a sentinel id, because "composed" was never a
+ * collection and giving it an id made it look like one — a control listing it
+ * beside the others invited the question of how many tunes it held, which it
+ * has no answer to.
+ */
+export function themesOf(collectionIds: readonly string[]): readonly Theme[] {
+  return COLLECTIONS.filter((collection) => collectionIds.includes(collection.id)).flatMap(
+    (collection) => collection.themes,
+  );
+}
+
+/** Which collection holds a theme, for grouping a list of them by their source. */
+export function collectionOf(themeId: string): Collection | undefined {
+  return COLLECTIONS.find((collection) =>
+    collection.themes.some((theme) => theme.id === themeId),
+  );
+}
+
+/** A theme by id, from anywhere in the corpus. */
+export function themeById(themeId: string): Theme | undefined {
+  return collectionOf(themeId)?.themes.find((theme) => theme.id === themeId);
 }
 
 /**

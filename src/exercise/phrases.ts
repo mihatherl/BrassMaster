@@ -75,6 +75,16 @@ export interface StitchOptions {
    * key on, skip what will not fit — are exercised rather than assumed.
    */
   corpus: readonly Theme[];
+  /**
+   * How the corpus is drawn from: at random, or straight through in order.
+   *
+   * `given` is a player's own playlist and takes the corpus literally — its
+   * order, its repeats, cycling back to the top if the run outlasts it. The
+   * no-repeat rule is suspended with it: declining to play the same tune
+   * twice running is right when the app is choosing and wrong when somebody
+   * has deliberately asked for it twice.
+   */
+  order?: 'random' | 'given';
 }
 
 export interface StitchedPhrases {
@@ -202,8 +212,19 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
      * how eight bars of practice becomes the same eight bars again, and the
      * player stops reading and starts remembering.
      */
-    const choices = fitting.length > 1 ? fitting.filter((t) => t.id !== last) : fitting;
-    const theme = options.rng.pick(choices);
+    /*
+     * A playlist steps through what it was given, in order, cycling once it
+     * runs out; a medley draws. `played` counts themes laid down, so the
+     * cycling is over the material that actually fits — a tune the compass
+     * will not hold drops out of the rotation rather than leaving a gap.
+     */
+    let theme: Theme;
+    if (options.order === 'given') {
+      theme = fitting[played % fitting.length];
+    } else {
+      const choices = fitting.length > 1 ? fitting.filter((t) => t.id !== last) : fitting;
+      theme = options.rng.pick(choices);
+    }
     const realised = place(theme)!;
 
     slots.push(...realised.slots);

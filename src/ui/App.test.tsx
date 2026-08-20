@@ -596,3 +596,89 @@ describe('headphones and speakers', () => {
     expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputs).toHaveLength(1);
   });
 });
+
+/*
+ * Choosing which written music a run plays.
+ *
+ * The libraries are a multi-select and the playlist is an ordered thing with
+ * repeats — both are easy to regress into the set-and-single they replaced,
+ * and neither shows up in a screenshot.
+ */
+describe('choosing tunes', () => {
+  const openThemes = () => {
+    renderApp();
+    fireEvent.click(screen.getByText('Exercise'));
+    fireEvent.click(screen.getByRole('button', { name: /Themes/ }));
+  };
+
+  it('composes until a library is chosen, and says so', () => {
+    openThemes();
+    expect(screen.getByRole('button', { name: /^Composed/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    // No selection control at all: there is nothing yet to select from.
+    expect(screen.queryByText('Selection')).toBeNull();
+  });
+
+  it('takes more than one library at once', () => {
+    openThemes();
+    fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Nursery/ }));
+    // Order in storage is the order they were tapped; `sanitise` normalises it
+    // to the corpus's own on the way back in, and nothing downstream reads it
+    // either way — `themesOf` walks the corpus, not this list.
+    const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
+    expect([...stored.collectionIds].sort()).toEqual(['bach', 'traditional']);
+    // And Composed lets go, since it is the state of having chosen none.
+    expect(screen.getByRole('button', { name: /^Composed/ }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+  });
+
+  it('builds a playlist that keeps its order and its repeats', () => {
+    openThemes();
+    fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Defined/ }));
+
+    // The dialog lists what is available; tapping adds to the right column.
+    const dialog = screen.getByRole('dialog');
+    const add = (name: RegExp) =>
+      fireEvent.click(within(dialog).getAllByRole('button', { name })[0]);
+    add(/Invention 8/);
+    add(/Jesu/);
+    add(/Invention 8/);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+    const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
+    expect(stored.themeIds).toEqual(['bwv779-invention', 'jesu-joy', 'bwv779-invention']);
+    expect(stored.selection).toBe('defined');
+  });
+
+  it('drops back to a medley when the last tune is taken out', () => {
+    openThemes();
+    fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Defined/ }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getAllByRole('button', { name: /Jesu/ })[0]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Clear' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+
+    const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
+    expect(stored.themeIds).toEqual([]);
+    expect(stored.selection).toBe('medley');
+  });
+
+  it('forgets the playlist when its library is deselected', () => {
+    openThemes();
+    fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Defined/ }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getAllByRole('button', { name: /Jesu/ })[0]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
+
+    const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
+    expect(stored.collectionIds).toEqual([]);
+    expect(stored.themeIds).toEqual([]);
+  });
+});

@@ -10,7 +10,7 @@
 import { INSTRUMENTS, availableClefs, writtenRange, type Clef, type Instrument } from '../domain/instruments';
 import type { ReadingMode } from '../render/surface';
 import type { PlaybackMode } from '../engine/session';
-import { COMPOSED, collectionById, isMaterialSource } from '../exercise/collections';
+import { COLLECTIONS, themesOf } from '../exercise/collections';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { EXERCISE_KINDS } from '../exercise/types';
 import { MAJOR_KEYS } from '../domain/keys';
@@ -74,24 +74,36 @@ export interface Settings {
    */
   drillId: DrillId;
   /**
-   * Where the Themes material gets its tunes: `COMPOSED`, or a collection id.
+   * Which collections the Themes material draws from. Empty is not empty.
    *
-   * Always present and always valid, like `drillId`, so choosing Themes after a
-   * season of sight-reading opens on a real source rather than on a question.
-   * Ignored by every other material.
+   * **No collection means composed material** — tunes assembled from cells for
+   * this exercise, endlessly fresh, which is what the app did before
+   * collections existed. That is the default and it is the absence of a
+   * choice rather than a choice of its own: "Composed" was briefly an id in
+   * this list and it read as a collection with nothing in it, which is exactly
+   * the question it cannot answer.
    *
-   * `COMPOSED` is the default and is what the app did before collections
-   * existed — tunes assembled from cells for this exercise, endlessly fresh.
-   * A named collection plays that collection's tunes instead.
+   * More than one may be chosen, and then a medley draws from all of them —
+   * nobody sorting through their own music thinks of Bach and the nursery
+   * tunes as two mutually exclusive worlds.
    */
-  collectionId: string;
+  collectionIds: string[];
   /**
-   * Particular tunes of that collection — the player's own medley, by id.
+   * Whether the run takes the collections at random or plays a named list.
    *
-   * Empty means the default: the whole collection at the chosen level. With
-   * picks, the level stops filtering — naming the tunes has already answered
-   * the question the level exists to answer. Meaningless without a collection,
-   * and `sanitise` empties it when the collection goes.
+   * `medley` is the default and asks nothing more of the player: whatever is
+   * in the chosen collections, at the chosen level, in an order the seed
+   * decides. `defined` plays `themeIds` exactly.
+   */
+  selection: 'medley' | 'defined';
+  /**
+   * The defined run's tunes, in order, by id — a playlist, not a set.
+   *
+   * Order is the player's and duplicates are deliberate: putting a tune in
+   * twice is how somebody drills the one that is giving them trouble, and a
+   * list that quietly collapsed it to one occurrence would be overruling them.
+   * Only read when `selection` is `defined`; `sanitise` drops any id the
+   * chosen collections do not hold, keeping the rest in place.
    */
   themeIds: string[];
   /*
@@ -360,7 +372,8 @@ export const DEFAULT_SETTINGS: Settings = {
   difficultyId: 'easy',
   kind: 'phrases',
   drillId: 'major-scale',
-  collectionId: COMPOSED,
+  collectionIds: [],
+  selection: 'medley',
   themeIds: [],
   register: 'middle',
   // Left to the difficulty, which is what the app has always done.
@@ -535,20 +548,34 @@ export function sanitise(settings: Settings): Settings {
    * retired, or held back from a build — and a player who chose it should get
    * music, not an empty screen naming something that is gone.
    */
-  const collectionId = isMaterialSource(settings.collectionId) ? settings.collectionId : COMPOSED;
+  /*
+   * Only collections that exist, in the order the corpus lists them rather
+   * than the order they were tapped — so two players with the same three
+   * chosen have the same medley, and a stored order cannot outlive a
+   * collection being renamed or moved.
+   */
+  const collectionIds = COLLECTIONS.filter((collection) =>
+    (Array.isArray(settings.collectionIds) ? settings.collectionIds : []).includes(collection.id),
+  ).map((collection) => collection.id);
 
   /*
-   * Picks live and die with their collection. Each id must name a tune the
-   * chosen collection actually holds — a pick left over from another
-   * collection, or from a tune since retired, names nothing and is dropped
-   * rather than kept to misfire later. No collection, no picks.
+   * Picks live and die with their collections. Each id must name a tune the
+   * chosen collections actually hold — a pick left over from a collection
+   * since deselected, or a tune since retired, names nothing and is dropped
+   * rather than kept to misfire later.
+   *
+   * **Filtered, never deduplicated**: a tune listed twice is a player drilling
+   * it twice, and position in the list is theirs to decide.
    */
-  const holder = collectionById(collectionId);
-  const themeIds = holder
-    ? (Array.isArray(settings.themeIds) ? settings.themeIds : []).filter((id) =>
-        holder.themes.some((theme) => theme.id === id),
-      )
-    : [];
+  const available = new Set(themesOf(collectionIds).map((theme) => theme.id));
+  const themeIds = (Array.isArray(settings.themeIds) ? settings.themeIds : []).filter((id) =>
+    available.has(id),
+  );
+
+  /* A defined run with nothing left in its list is a medley in all but name,
+     and saying so keeps the screen from offering an empty playlist. */
+  const selection: Settings['selection'] =
+    settings.selection === 'defined' && themeIds.length > 0 ? 'defined' : 'medley';
 
   /*
    * The set decides, and the starting key follows it.
@@ -595,7 +622,8 @@ export function sanitise(settings: Settings): Settings {
     // has nothing here, and the merge above must land on "off".
     variableTempo: settings.variableTempo === true,
     ...drillsOf(settings),
-    collectionId,
+    collectionIds,
+    selection,
     themeIds,
     materials: sanitiseMaterials(settings, keySet, difficulty),
     register: REGISTERS.some((r) => r.id === settings.register)
