@@ -52,9 +52,14 @@ export const TRADITIONAL: readonly Theme[] = [
     // nothing shorter than a crotchet. The validator said so, not I.
     difficulty: 'easy',
     metres: [[4, 4]],
-    bars: 4,
-    /* Three notes and a step-wise fall. The smallest tune anyone knows. */
+    bars: 8,
+    /* Three notes and a step-wise fall. The smallest tune anyone knows —
+       twice, for the second verse. */
     events: [
+      n(3, 1), n(2, 1), n(1, 2),
+      n(3, 1), n(2, 1), n(1, 2),
+      n(1, 0.5), n(1, 0.5), n(1, 0.5), n(1, 0.5), n(2, 0.5), n(2, 0.5), n(2, 0.5), n(2, 0.5),
+      n(3, 1), n(2, 1), n(1, 2),
       n(3, 1), n(2, 1), n(1, 2),
       n(3, 1), n(2, 1), n(1, 2),
       n(1, 0.5), n(1, 0.5), n(1, 0.5), n(1, 0.5), n(2, 0.5), n(2, 0.5), n(2, 0.5), n(2, 0.5),
@@ -119,7 +124,8 @@ export const TRADITIONAL: readonly Theme[] = [
      */
     events: [
       n(1, 1), n(1, 1), n(5, 1), n(5, 1),
-      n(6, 0.5), n(6, 0.5), n(6, 0.5), n(6, 0.5), n(5, 2),
+      // "have you a-ny wool" is A B C B A, not four repeated A's.
+      n(6, 0.5), n(7, 0.5), n(1, 0.5, { octave: 1 }), n(7, 0.5), n(6, 2),
       n(4, 1), n(4, 1), n(3, 1), n(3, 1),
       n(2, 1), n(2, 1), n(1, 2),
       n(4, 0.5), n(4, 0.5), n(4, 0.5), n(4, 0.5), n(3, 1), n(3, 1),
@@ -151,13 +157,21 @@ export const TRADITIONAL: readonly Theme[] = [
     difficulty: 'beginner',
     metres: [[4, 4]],
     bars: 8,
+    /*
+     * Cut on first review — "almost Old MacDonald" — and the diagnosis was in
+     * the note: G G G D E E D. The D is the fourth *below* the tonic, not the
+     * fifth above it, so "Old Mac-Don-ald" falls away and climbs back rather
+     * than leaping up. Same degrees either way, which is why it stayed
+     * recognisable while being wrong, and why an ear caught what the validator
+     * never could.
+     */
     events: [
-      n(1, 1), n(1, 1), n(1, 1), n(5, 1),
-      n(6, 1), n(6, 1), n(5, 2),
+      n(1, 1), n(1, 1), n(1, 1), n(5, 1, { octave: -1 }),
+      n(6, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(5, 2, { octave: -1 }),
       n(3, 1), n(3, 1), n(2, 1), n(2, 1),
       n(1, 4),
-      n(1, 1), n(1, 1), n(1, 1), n(5, 1),
-      n(6, 1), n(6, 1), n(5, 2),
+      n(1, 1), n(1, 1), n(1, 1), n(5, 1, { octave: -1 }),
+      n(6, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(5, 2, { octave: -1 }),
       n(3, 1), n(3, 1), n(2, 1), n(2, 1),
       n(1, 4),
     ],
@@ -203,7 +217,7 @@ export const TRADITIONAL: readonly Theme[] = [
       n(5, 1), n(3, 1), n(3, 2),
       n(4, 1), n(2, 1), n(2, 2),
       n(1, 1), n(3, 1), n(5, 1), n(5, 1),
-      n(3, 1), n(1, 1), n(1, 2),
+      n(3, 1), n(1, 3),
     ],
   },
   {
@@ -220,7 +234,7 @@ export const TRADITIONAL: readonly Theme[] = [
       n(5, 1), n(6, 1), n(5, 1), n(4, 1),
       n(3, 1), n(4, 1), n(5, 2),
       n(2, 2), n(5, 2),
-      n(3, 2), n(1, 2),
+      n(3, 1), n(1, 3),
     ],
   },
   {
@@ -228,14 +242,23 @@ export const TRADITIONAL: readonly Theme[] = [
     name: 'Ode to joy',
     difficulty: 'easy',
     metres: [[4, 4]],
-    bars: 8,
-    /* Beethoven, 1824. The dotted figure in bars four and eight is the whole
-       character of it, and the only rhythm here that is not a plain crotchet. */
+    bars: 16,
+    /* Beethoven, 1824. All sixteen bars: the tune, its answer, the middle
+       that drops to the low fifth, and the return. Eight bars stopped it
+       half-said. */
     events: [
       n(3, 1), n(3, 1), n(4, 1), n(5, 1),
       n(5, 1), n(4, 1), n(3, 1), n(2, 1),
       n(1, 1), n(1, 1), n(2, 1), n(3, 1),
       n(3, 1.5), n(2, 0.5), n(2, 2),
+      n(3, 1), n(3, 1), n(4, 1), n(5, 1),
+      n(5, 1), n(4, 1), n(3, 1), n(2, 1),
+      n(1, 1), n(1, 1), n(2, 1), n(3, 1),
+      n(2, 1.5), n(1, 0.5), n(1, 2),
+      n(2, 1), n(2, 1), n(3, 1), n(1, 1),
+      n(2, 1), n(3, 0.5), n(4, 0.5), n(3, 1), n(1, 1),
+      n(2, 1), n(3, 0.5), n(4, 0.5), n(3, 1), n(2, 1),
+      n(1, 1), n(2, 1), n(5, 2, { octave: -1 }),
       n(3, 1), n(3, 1), n(4, 1), n(5, 1),
       n(5, 1), n(4, 1), n(3, 1), n(2, 1),
       n(1, 1), n(1, 1), n(2, 1), n(3, 1),
@@ -247,8 +270,9 @@ export const TRADITIONAL: readonly Theme[] = [
     name: 'Jingle bells',
     difficulty: 'easy',
     metres: [[4, 4]],
-    bars: 8,
-    /* Pierpont, 1857. The chorus only — the verse needs a pickup, which a
+    bars: 16,
+    /* Pierpont, 1857. The whole chorus — eight bars broke off mid-sentence,
+       at the half close on the dominant. The verse needs a pickup, which a
        theme cannot yet carry. */
     events: [
       n(3, 1), n(3, 1), n(3, 2),
@@ -259,6 +283,14 @@ export const TRADITIONAL: readonly Theme[] = [
       n(4, 1), n(3, 1), n(3, 1), n(3, 0.5), n(3, 0.5),
       n(3, 1), n(2, 1), n(2, 1), n(3, 1),
       n(2, 2), n(5, 2),
+      n(3, 1), n(3, 1), n(3, 2),
+      n(3, 1), n(3, 1), n(3, 2),
+      n(3, 1), n(5, 1), n(1, 1), n(2, 1),
+      n(3, 4),
+      n(4, 1), n(4, 1), n(4, 1), n(4, 1),
+      n(4, 1), n(3, 1), n(3, 1), n(3, 0.5), n(3, 0.5),
+      n(5, 1), n(5, 1), n(4, 1), n(2, 1),
+      n(1, 4),
     ],
   },
   {

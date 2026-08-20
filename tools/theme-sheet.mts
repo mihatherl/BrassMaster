@@ -28,7 +28,7 @@ import { instrumentById } from '../src/domain/instruments.ts';
 import { metreFor } from '../src/domain/metre.ts';
 import { DIFFICULTIES, difficultyById } from '../src/exercise/difficulty.ts';
 import { exerciseFromTheme, validateTheme, type Theme } from '../src/exercise/theme.ts';
-import { THEMES } from '../src/exercise/themes.ts';
+import { ALL_THEMES, THEMES, UNJUDGED } from '../src/exercise/themes.ts';
 import { TRADITIONAL } from '../src/exercise/tunes-traditional.ts';
 import type { Exercise } from '../src/exercise/types.ts';
 import { exerciseToSvg } from './render-svg.mts';
@@ -95,13 +95,18 @@ function beatsOf(duration: { value: string; dotted: boolean; tuplet?: number }):
 const sets: Array<{ heading: string; blurb: string; themes: readonly Theme[] }> = [
   {
     heading: 'Traditional tunes',
-    blurb: 'Melodies everyone knows, written as degrees. The question is not whether these are tunes — it is what a tune sounds like next to the set below.',
+    blurb: 'Reworked from the first review: Old MacDonald now falls to the fourth below rather than leaping to the fifth above, Baa baa rises A–B–C–B–A, Lightly row and London Bridge end on one held note, and Hot cross buns, Ode to joy and Jingle bells are no longer cut off mid-sentence.',
     themes: TRADITIONAL,
   },
   {
-    heading: 'The forty-seven',
-    blurb: 'Retired in v2.20.0 for reading a level or two easy. Written, in their own words, "deliberately plain … not that the tunes are memorable".',
-    themes: THEMES,
+    heading: 'Still to judge',
+    blurb: 'The verdict file ran out before these. Nothing else is waiting.',
+    themes: ALL_THEMES.filter((theme) => UNJUDGED.has(theme.id)),
+  },
+  {
+    heading: 'Kept from the forty-seven',
+    blurb: 'What survived the review of 2026-08-20. Eleven were cut; they are listed in themes.ts rather than deleted, so a verdict can be revisited.',
+    themes: THEMES.filter((theme) => !UNJUDGED.has(theme.id)),
   },
 ];
 

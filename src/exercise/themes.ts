@@ -1278,7 +1278,35 @@ const COMPOUND: readonly Theme[] = [
   },
 ];
 
-export const THEMES: readonly Theme[] = [
+/**
+ * Cut on review, 2026-08-20, by ear.
+ *
+ * Listed rather than deleted, for the same reason a cell's id must not be
+ * reused: a verdict is about a tune, and a tune that has been judged should
+ * stay findable. Reinstating one is deleting a line here — a decision that can
+ * be revisited is worth more than a tidy file.
+ */
+const CUT: ReadonlySet<string> = new Set([
+  'two-by-two',
+  'slow-waltz',
+  'six-eight-beat',
+  'waltz-step',
+  'twinkle-dotted',
+  'chromatic-descent',
+  'pushed-along',
+  'waltz-run',
+  'perpetual-three',
+  'perpetual-triplets',
+  'six-eight-running',
+]);
+
+/**
+ * Not yet reached by a review — the verdict file was truncated before these
+ * two. They are here, unjudged, and should go back on the sheet.
+ */
+export const UNJUDGED: ReadonlySet<string> = new Set(['plain-answer', 'six-eight-flight']);
+
+const ALL: readonly Theme[] = [
   ...FIRST_BATCH,
   ...HARDER,
   ...VARIATIONS,
@@ -1290,6 +1318,13 @@ export const THEMES: readonly Theme[] = [
   ...MORE_TRIPLETS,
   ...COMPOUND,
 ];
+
+/** What survived the review. */
+export const THEMES: readonly Theme[] = ALL.filter((theme) => !CUT.has(theme.id));
+
+/** Everything, including what was cut — for a review sheet that shows both. */
+export const ALL_THEMES: readonly Theme[] = ALL;
+
 
 export function themeById(id: string): Theme | undefined {
   return THEMES.find((theme) => theme.id === id);
