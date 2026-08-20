@@ -18,21 +18,24 @@
  * collection marked `restricted` is one a paid build must not ship, and
  * `collections.test.ts` enforces it rather than trusting anyone to remember.
  *
- * **A player could one day choose one.** "Practise the carols" in December is a
- * feature that needs collections to exist before it can be built. Nothing
- * player-facing depends on this yet — see the note on shipping below.
+ * **A player chooses one.** Themes asks where its tunes come from — composed
+ * from cells, or a named collection — and that is what this list fills.
  *
  * **Material versions per collection.** Accepting a batch of Bach should not
  * restate anything about the forty-seven. See `corpus.ts`, which enforces the
  * digest of every accepted collection separately.
  *
- * ## Nothing here ships yet
+ * ## What still holds the line
  *
- * The app composes its tunes from the cells in `cells.ts`, and imports none of
- * these. That is the current design, not an oversight, but it does mean
- * approved material has nowhere to go — a question worth settling deliberately
- * rather than by drift. Until it is settled, these exist to be reviewed and to
- * carry their provenance.
+ * These reach players, so `unjudged` is the only thing standing between a tune
+ * nobody has heard and somebody's practice. Add a theme to a collection and add
+ * its id to that set in the same edit, until it has been played to somebody.
+ *
+ * A theme is offered only in a metre it is written in, which is quieter than it
+ * sounds: material in a metre the settings screen does not list is unreachable
+ * and looks fine. Nine-eight was added on 2026-08-20 for exactly that reason —
+ * two Bach excerpts were sitting here that no combination of settings could
+ * ever have served.
  */
 
 import type { Theme } from './theme';
@@ -104,10 +107,10 @@ export const COLLECTIONS: readonly Collection[] = [
     id: 'bach',
     name: 'Bach',
     blurb:
-      'Two fugue subjects and six excerpts read out of public-domain MIDI — five of the Two-Part Inventions, and the obbligato from Jesu, Joy of Man’s Desiring. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
+      'Two fugue subjects and seven excerpts read out of public-domain MIDI — six of the Two-Part Inventions, and the obbligato from Jesu, Joy of Man’s Desiring. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 2,
+    revision: 3,
     themes: BORROWED,
     /*
      * Two groups here, unheard for different reasons.
@@ -128,6 +131,7 @@ export const COLLECTIONS: readonly Collection[] = [
       'bwv782-invention',
       'bwv784-invention',
       'bwv786-invention',
+      'bwv781-invention',
     ]),
   },
 ];

@@ -28,12 +28,19 @@
  *
  * ## What counts as the corpus
  *
- * What a **player is handed** — the accepted cells, from which `compose.ts`
- * builds every tune. Deliberately not the review corpora: `themes.ts`,
- * `tunes-traditional.ts` and `tunes-borrowed.ts` are not imported by the app at
- * all and never enter a bundle, so counting them would make the number describe
- * the repository rather than the build. A candidate is not material until it
- * has been heard and accepted, and this number is a claim about what shipped.
+ * Two things, counted separately, because they are versioned for different
+ * reasons.
+ *
+ * `CORPUS_REVISION` counts the **accepted cells**, from which `compose.ts`
+ * builds a tune on the spot. Candidates are excluded: a candidate is under
+ * review, where churn is the whole activity and pinning it would be friction
+ * with no reader.
+ *
+ * `RECORDED_COLLECTIONS` counts each **named collection** of written themes.
+ * They used to be review-only, which made a single number for "the corpus"
+ * sensible; since 2026-08-20 a player can choose one, and a collection now
+ * moves on its own — accepting a batch of Bach must not restate anything about
+ * the forty-seven.
  */
 
 import { CELLS, type Cell } from './cells';
@@ -45,7 +52,7 @@ import { isRest, type Theme } from './theme';
  *
  * Independent of the product version on purpose — see the note above.
  */
-export const CORPUS_REVISION = 1;
+export const CORPUS_REVISION = 2;
 
 /**
  * The digest each revision described.
@@ -57,6 +64,8 @@ export const CORPUS_REVISION = 1;
 const RECORDED: Readonly<Record<number, string>> = {
   // 157 accepted cells, the corpus as it stood when the number was introduced.
   1: '19f9a62f',
+  // 194: the thirty-seven nine-eight cells, heard and accepted 2026-08-20.
+  2: '5f18741f',
 };
 
 /**
@@ -72,6 +81,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'traditional@1': 'e0d7777b', // 12 nursery songs and rounds
   'bach@1': '90398ba7', // 2 fugue subjects, 2 converted excerpts
   'bach@2': '4c8c8104', // and four of the Two-Part Inventions
+  'bach@3': 'bd73b4e2', // and Invention 10, once nine-eight existed to hold it
 };
 
 /*

@@ -20,8 +20,12 @@
  * 3. **A stable end.** Both ends must be the tonic, mediant or dominant, which
  *    a subject usually is and a passage usually is not.
  *
- * **Candidates. Nothing in the app imports this**, so none of it reaches a
- * player until it has been heard.
+ * **These reach players now.** That was not true when the file was written —
+ * nothing imported it — and it changed on 2026-08-20 when collections became
+ * selectable material: this list is the Bach collection, and a player can
+ * choose it. What still holds the line is the collection's `unjudged` set in
+ * `collections.ts`, which names what has not been heard. Add a theme here and
+ * add its id there, until it has been played to somebody.
  *
  * ## Copyright
  *
@@ -41,11 +45,13 @@
  * everything beside it. Which theme came from which source is recorded on each.
  *
  * The converter refuses to guess a key, and reports what the file claims so the
- * caller can disagree with it knowingly. Two of its findings so far came from
- * real material rather than from reasoning about it: a voice that rests while
- * the other states the subject, and a sequencer that writes 9/8 as 3/4 full of
- * triplets. Both produced right notes on wrong beats, which is the failure mode
- * to keep watching for.
+ * caller can disagree with it knowingly. Every fault it has had was found by
+ * running real music rather than by reasoning about it, and every one was the
+ * same shape — **right notes on wrong beats**, silent because the wrong value
+ * is itself legal. A voice resting while the other states the subject; a
+ * sequencer writing 9/8 as 3/4 full of triplets; a grid of twelfths that could
+ * not hold a demisemiquaver and rounded every one to a triplet; notes crossing
+ * bar lines untied. Assume there are more of that shape.
  */
 
 import type { Theme } from './theme';
@@ -310,6 +316,37 @@ export const BORROWED: readonly Theme[] = [
       n(3, 1 / 2), n(2, 1 / 2), n(5, 1 / 2), n(2, 1 / 2), n(2, 1 / 2), n(1, 1 / 2), n(6, 1 / 2, { alter: 1 }), n(1, 1 / 2),
       n(1, 1 / 2), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(5, 1 / 4, { alter: -1, octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(5, 1 / 4), n(4, 1 / 4), n(5, 1 / 2), n(2, 1 / 2),
       n(3, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(1, 1 / 4), n(4, 1 / 4), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4), n(6, 1 / 4), n(7, 1 / 4), n(6, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), n(4, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4),
+    ],
+  },
+{
+    id: 'bwv781-invention',
+    name: 'Invention 10',
+    /*
+     * G major, in nine-eight — the metre this collection had to wait for. It is
+     * almost all quavers in their threes, so what it drills is the compound
+     * pulse itself: three to the bar, and the eye has to group by three or it
+     * loses the beat entirely. Twelve bars, which is where the converter found
+     * the mediant after a run beginning on the tonic.
+     *
+     * The reason nine-eight exists in the settings screen at all, along with
+     * `jesu-joy` above. Both were unreachable until 2026-08-20.
+     */
+    difficulty: 'medium',
+    metres: [[9, 8]],
+    bars: 12,
+    events: [
+      n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(1, 1 / 2, { octave: 1 }),
+      n(7, 1), n(5, 1 / 2), n(2, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(5, 1 / 2), n(2, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(5, 1 / 2),
+      n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2), n(3, 1 / 2), n(7, 1 / 2, { alter: -1 }), n(5, 1 / 2), n(3, 1 / 2), n(7, 1 / 2, { alter: -1 }), n(5, 1 / 2), n(3, 1 / 2),
+      n(6, 1 / 2), n(4, 1 / 2), n(2, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(2, 1 / 2), n(4, 1 / 2), n(6, 1 / 2), n(5, 1 / 2), n(4, 1 / 2),
+      n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(6, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(4, 1 / 2), n(3, 1 / 2),
+      n(4, 1 / 2), n(2, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(7, 1 / 2, { octave: -1 }), n(2, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2),
+      n(3, 1 / 2), n(4, 1 / 2), n(5, 1 / 2), n(6, 1 / 2), n(3, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(6, 1 / 2), n(3, 1 / 2), n(1, 1 / 2, { octave: 1 }),
+      n(2, 1 / 2), n(3, 1 / 2), n(4, 1 / 2, { alter: 1 }), n(5, 1 / 2), n(2, 1 / 2), n(7, 1 / 2), n(5, 1 / 2), n(2, 1 / 2), n(7, 1 / 2),
+      n(1, 2), n(2, 1 / 2), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(6, 1 / 2, { octave: -1 }),
+      n(7, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(7, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(2, 1 / 2), n(3, 1 / 2), n(4, 1 / 2),
+      n(3, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(6, 1 / 2), n(7, 1 / 2), n(1, 1 / 2, { octave: 1 }),
+      n(4, 1 / 2, { alter: 1 }), n(5, 1 / 2), n(4, 1 / 2, { alter: 1 }), n(3, 1 / 2), n(4, 1 / 2, { alter: 1 }), n(2, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(2, 1 / 2, { octave: 1 }), n(3, 1 / 2, { octave: 1 }),
     ],
   },
 ];

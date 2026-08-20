@@ -458,6 +458,17 @@ export const TIME_SIGNATURES = [
   { beatsPerBar: 3, beatUnit: 4, label: '3/4' },
   { beatsPerBar: 2, beatUnit: 4, label: '2/4' },
   { beatsPerBar: 6, beatUnit: 8, label: '6/8' },
+  /*
+   * Added 2026-08-20, once there were cells to build tunes from.
+   *
+   * Deliberately not before. A metre with no cells written in it leaves the
+   * composer nothing to assemble, so Themes would have fallen back to free
+   * material while still calling itself tunes — and the two Bach excerpts that
+   * need this metre, the Jesu Joy obbligato and Invention 10, could not be
+   * offered at all, since a theme is only ever offered in a metre it is
+   * written in.
+   */
+  { beatsPerBar: 9, beatUnit: 8, label: '9/8' },
 ] as const;
 
 export function loadSettings(): Settings {

@@ -320,9 +320,8 @@ const SIX_EIGHT = corpus([6, 8], [
  * find nothing to build from, and Composed would fall back to free material
  * while appearing to offer tunes.
  *
- * **Every one is a candidate.** They are three pulses long and they parse, and
- * neither of those makes them music. They reach a player after they have been
- * heard on the cell sheet, and not before.
+ * The first thirty-seven were heard and accepted on 2026-08-20. The rest cells
+ * below them arrived from that same hearing and are candidates in their turn.
  *
  * Levelled as the six-eight cells are, which is the calibration to copy: a
  * beginner reads nothing shorter than the pulse, so the tune moves in dotted
@@ -332,45 +331,74 @@ const SIX_EIGHT = corpus([6, 8], [
  */
 const NINE_EIGHT = corpus([9, 8], [
   // The pulse itself, three to the bar. Nothing shorter than a dotted crotchet.
-  ['three-pulses', 'open', 'beginner', '0q. 2q. 4q.', 'candidate'],
-  ['pulse-climb', 'open', 'beginner', '0q. 1q. 2q.', 'candidate'],
-  ['pulse-arch', 'open', 'beginner', '0q. 2q. 0q.', 'candidate'],
-  ['pulse-fifth', 'open', 'beginner', '0q. 4q. 2q.', 'candidate'],
-  ['lilt', 'open', 'easy', '0e 1e 2e 3q. 4q.', 'candidate'],
-  ['long-lift', 'open', 'easy', '0q. 1q. 2q 3e', 'candidate'],
-  ['step-lift', 'open', 'easy', '0q 1e 2q. 3q.', 'candidate'],
-  ['run-lilt', 'open', 'easy', '0e 1e 2e 3e 4e 5e 6q.', 'candidate'],
-  ['fall', 'open', 'easy', '4q. 2q 1e 0q.', 'candidate'],
-  ['pushed', 'open', 'medium', '0e 2q 4q. 3q.', 'candidate'],
-  ['dotted-lilt', 'open', 'medium', '0q. 1e 2e 3e 4q.', 'candidate'],
-  ['semi-lilt', 'open', 'hard', '0s 1s 2e 3e 4q. 5q.', 'candidate'],
-  ['flight', 'open', 'hard', '0e 2s 3s 4e 5e 4e 2e 1q.', 'candidate'],
-  ['pulse-up', 'move', 'beginner', '0q. 1q. 2q.', 'candidate'],
-  ['pulse-down', 'move', 'beginner', '0q. -1q. -2q.', 'candidate'],
-  ['pulse-turn', 'move', 'beginner', '0q. 2q. 1q.', 'candidate'],
-  ['pulse-back', 'move', 'beginner', '2q. 1q. 0q.', 'candidate'],
-  ['step-lilt', 'move', 'easy', '0q 1e 2q 1e 0q.', 'candidate'],
-  ['held-lilt', 'move', 'easy', '0q. 1q 2e 3q.', 'candidate'],
-  ['walk', 'move', 'easy', '0e 1e 2e 3e 2e 1e 0q.', 'candidate'],
-  ['turn', 'move', 'easy', '0e 1e 0e -1e 0e 1e 2q.', 'candidate'],
-  ['dotted-walk', 'move', 'medium', '0q. 1e 2e 3e 2q.', 'candidate'],
-  ['rest-lilt', 'move', 'medium', 're 0e 1e 2q. 3q.', 'candidate'],
-  ['semi-walk', 'move', 'hard', '0s 1s 2s 3s 4e 5e 4e 2e 1q.', 'candidate'],
-  ['snap-lilt', 'move', 'hard', '0e. 1s 2e 3q. 4q.', 'candidate'],
+  ['three-pulses', 'open', 'beginner', '0q. 2q. 4q.'],
+  ['pulse-climb', 'open', 'beginner', '0q. 1q. 2q.'],
+  ['pulse-arch', 'open', 'beginner', '0q. 2q. 0q.'],
+  ['pulse-fifth', 'open', 'beginner', '0q. 4q. 2q.'],
+  ['lilt', 'open', 'easy', '0e 1e 2e 3q. 4q.'],
+  ['long-lift', 'open', 'easy', '0q. 1q. 2q 3e'],
+  ['step-lift', 'open', 'easy', '0q 1e 2q. 3q.'],
+  ['run-lilt', 'open', 'easy', '0e 1e 2e 3e 4e 5e 6q.'],
+  ['fall', 'open', 'easy', '4q. 2q 1e 0q.'],
+  ['pushed', 'open', 'medium', '0e 2q 4q. 3q.'],
+  ['dotted-lilt', 'open', 'medium', '0q. 1e 2e 3e 4q.'],
+  ['semi-lilt', 'open', 'hard', '0s 1s 2e 3e 4q. 5q.'],
+  ['flight', 'open', 'hard', '0e 2s 3s 4e 5e 4e 2e 1q.'],
+  ['pulse-up', 'move', 'beginner', '0q. 1q. 2q.'],
+  ['pulse-down', 'move', 'beginner', '0q. -1q. -2q.'],
+  ['pulse-turn', 'move', 'beginner', '0q. 2q. 1q.'],
+  ['pulse-back', 'move', 'beginner', '2q. 1q. 0q.'],
+  ['step-lilt', 'move', 'easy', '0q 1e 2q 1e 0q.'],
+  ['held-lilt', 'move', 'easy', '0q. 1q 2e 3q.'],
+  ['walk', 'move', 'easy', '0e 1e 2e 3e 2e 1e 0q.'],
+  ['turn', 'move', 'easy', '0e 1e 0e -1e 0e 1e 2q.'],
+  ['dotted-walk', 'move', 'medium', '0q. 1e 2e 3e 2q.'],
+  ['rest-lilt', 'move', 'medium', 're 0e 1e 2q. 3q.'],
+  ['semi-walk', 'move', 'hard', '0s 1s 2s 3s 4e 5e 4e 2e 1q.'],
+  ['snap-lilt', 'move', 'hard', '0e. 1s 2e 3q. 4q.'],
   // Closes are anchored by their last note, so the shape leading to it is the
   // cadence; a dotted minim is the longest single note a nine-eight bar holds.
-  ['pulse-close', 'close', 'beginner', '2q. 1q. 0q.', 'candidate'],
-  ['pulse-fall-close', 'close', 'beginner', '4q. 2q. 0q.', 'candidate'],
-  ['long-close', 'close', 'beginner', '1q. 0h.', 'candidate'],
-  ['fall-close', 'close', 'beginner', '2q. 0h.', 'candidate'],
-  ['step-close', 'close', 'easy', '2q. 1q 1e 0q.', 'candidate'],
-  ['turn-close', 'close', 'easy', '2e 1e 0e 1q. 0q.', 'candidate'],
-  ['run-close', 'close', 'easy', '5e 4e 3e 2e 1e 0e 0q.', 'candidate'],
-  ['breath-close', 'close', 'easy', '2q. 0q. rq.', 'candidate'],
-  ['dotted-close', 'close', 'medium', '1q. 1q 0e 0q.', 'candidate'],
-  ['pushed-close', 'close', 'medium', '1e 0q 1q. 0q.', 'candidate'],
-  ['semi-close', 'close', 'hard', '2s 1s -1s 0s 0e 1q. 0q.', 'candidate'],
-  ['snap-close', 'close', 'hard', '1e. 0s 0e 1q. 0q.', 'candidate'],
+  ['pulse-close', 'close', 'beginner', '2q. 1q. 0q.'],
+  ['pulse-fall-close', 'close', 'beginner', '4q. 2q. 0q.'],
+  ['long-close', 'close', 'beginner', '1q. 0h.'],
+  ['fall-close', 'close', 'beginner', '2q. 0h.'],
+  ['step-close', 'close', 'easy', '2q. 1q 1e 0q.'],
+  ['turn-close', 'close', 'easy', '2e 1e 0e 1q. 0q.'],
+  ['run-close', 'close', 'easy', '5e 4e 3e 2e 1e 0e 0q.'],
+  ['breath-close', 'close', 'easy', '2q. 0q. rq.'],
+  ['dotted-close', 'close', 'medium', '1q. 1q 0e 0q.'],
+  ['pushed-close', 'close', 'medium', '1e 0q 1q. 0q.'],
+  ['semi-close', 'close', 'hard', '2s 1s -1s 0s 0e 1q. 0q.'],
+  ['snap-close', 'close', 'hard', '1e. 0s 0e 1q. 0q.'],
+  /*
+   * Rests *inside* the bar, asked for on 2026-08-20 after the first thirty-seven
+   * were accepted.
+   *
+   * The corpus had been leaning on rests at the edges — a bar that begins after
+   * a beat, or breathes at the end — and almost none in the middle, which is
+   * where compound time actually uses them. A gap on the second pulse is what
+   * makes a jig lilt rather than run, and a player who never reads one never
+   * learns to count through silence in the middle of a phrase.
+   *
+   * **No beginner cells here, and not by oversight**: that level's `restChance`
+   * is zero, so a beginner tune with a rest in it fails validation. Rests start
+   * at easy, which is also about when a reader can afford to look away from the
+   * notes long enough to count one.
+   */
+  ['call-answer', 'open', 'easy', '0q. rq. 2q.', 'candidate'],
+  ['step-breath', 'open', 'easy', '0q 1e rq. 2q.', 'candidate'],
+  ['breath-lilt', 'move', 'easy', '0q. re 1e 2e 3q.', 'candidate'],
+  ['answer', 'move', 'easy', '0e 1e 2e rq. 3q.', 'candidate'],
+  ['gapped-close', 'close', 'easy', '2q. rq. 0q.', 'candidate'],
+  ['breath-fall-close', 'close', 'easy', '4q. rq. 0q.', 'candidate'],
+  ['breath-lift', 'open', 'medium', '0q. 1q re 2q.', 'candidate'],
+  ['rest-turn', 'move', 'medium', '0q. 1e re 2e 3q.', 'candidate'],
+  ['two-breaths', 'move', 'medium', '0e re 1e 2e re 3e 4q.', 'candidate'],
+  ['pushed-breath', 'move', 'medium', '0e 1q re 2e 3e 4q.', 'candidate'],
+  ['echo-close', 'close', 'medium', '2e 1e 0e rq. 0q.', 'candidate'],
+  ['stutter', 'open', 'hard', '0e re 0e 1e re 1e 2q.', 'candidate'],
+  ['snap-breath', 'move', 'hard', '0e. 1s re 2e 3e 4e 5q.', 'candidate'],
+  ['semi-breath', 'move', 'hard', '0s 1s 2s 3s rq 4e 5e 6q.', 'candidate'],
 ]);
 
 export const CELLS: readonly Cell[] = [
