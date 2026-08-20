@@ -503,6 +503,16 @@ that engages with the reason recorded here.
 
 ## 7. Open questions, named so they are not forgotten
 
+- **Whether a variation engine can be trusted.** Raised 2026-08-20 from
+  listening: *"things that might mathematically seem like variations don't seem
+  to land properly."* A transformation that is formally a variation —
+  arpeggiate, ornament, diminish — is not necessarily *heard* as one, and the
+  difference is not recoverable from the notes. So a variation engine needs the
+  same ear in the loop the corpus now has, and its output belongs on the review
+  sheet beside its source before any of it reaches a player. Tradition offers a
+  clue: Twinkle, Baa baa black sheep and the Alphabet Song are one contour with
+  three rhythmic settings, so what survives may be **rhythmic and ornamental
+  rather than contour-altering**. A hypothesis to test, not a rule.
 - **The mastery criterion.** How much evidence promotes a player, and how much
   demotes them. Gets the whole ladder wrong if it is wrong: too strict and it
   never advances, too loose and it advances past them. Wants measuring against
