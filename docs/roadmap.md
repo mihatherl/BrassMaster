@@ -343,6 +343,27 @@ should not be "fixed".
 | **v3.0.0** | **the App Store launch.** A major, on the repository's own rule that majors mark a change of category: one product becomes two, and one of them is sold. |
 | **v3.x** | after launch — the phone-hosted library (Phase 5), then orchestration (Phase 6). |
 
+#### The corpus has its own number
+
+Decided 2026-08-20, from the observation that *"doing this would run the
+versioning of the product upward in itself"* — a fair objection, because the
+release number is a promise about **behaviour**, and accepting a batch of cells
+changes none of it. Material is a second axis and gets a second number:
+`2.27.0 · corpus 1`, shown together in Settings.
+
+`CORPUS_REVISION` in `exercise/corpus.ts` is set by hand, since it is the number
+a person cites. A hand-set number drifts, and a version that silently lies about
+its contents is worse than none because it is believed — so each revision
+records the digest of the material it described, and the suite fails the moment
+they disagree, naming the number to bump and the digest to write. The hand-set
+number stays human; the derived one keeps it honest.
+
+**The corpus is the accepted cells** — what a player is actually handed, from
+which `compose.ts` builds every tune. Deliberately not `themes.ts`,
+`tunes-traditional.ts` or `tunes-borrowed.ts`: none is imported by the app or
+enters a bundle, so counting them would make the number describe the repository
+rather than the build. A candidate is not material until it has been heard.
+
 Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
 
 ### Where each build runs

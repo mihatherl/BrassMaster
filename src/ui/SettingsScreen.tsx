@@ -4,6 +4,7 @@ import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
 import { metreFor } from '../domain/metre';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
+import { corpusSummary } from '../exercise/corpus';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
@@ -28,6 +29,9 @@ import {
   TIME_SIGNATURES,
   type Settings,
 } from '../storage/settings';
+
+/* Fixed for a build, so it is read once rather than on every render. */
+const CORPUS = corpusSummary();
 
 /**
  * A collapsible settings section.
@@ -896,9 +900,15 @@ export function SettingsScreen({
         . Notation drawn with Bravura by Steinberg, SIL OFL 1.1.
       </p>
       {/* So a stale cached copy announces itself rather than being mistaken for
-          a change that did not work. */}
+          a change that did not work.
+
+          The corpus carries its own number because material and behaviour are
+          different axes: accepting a batch of cells changes what a player is
+          handed without changing anything the release number promises. See
+          `exercise/corpus.ts`. */}
       <p className="field__note muted credits">
-        v{__APP_VERSION__} · build {__BUILD_TIME__}
+        v{__APP_VERSION__} · build {__BUILD_TIME__} · corpus {CORPUS.revision} ({CORPUS.cells}{' '}
+        cells)
       </p>
 
       {/*
