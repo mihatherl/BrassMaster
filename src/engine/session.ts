@@ -254,29 +254,26 @@ export class Session {
     // `alignment.test.ts` holds it to that.
     const opening = metreAt(exercise.metres, 0);
     /*
-     * Never less compensation than the device itself admits to.
+     * The lead is the player's measured figure, and nothing else's.
      *
-     * `leadMs` is what the player measured by tapping, and zero is what an
-     * output they never calibrated says — but zero is also a claim no phone
-     * speaker can honestly make: `outputLatency` is the browser's own report of
-     * the gap between handing a sound over and its leaving the hardware, a
-     * fifth of a second on an ordinary Android phone. A tap-measured lead can
-     * never truly be *below* that gap, so the larger of the two is the honest
-     * figure either way: an uncalibrated speaker gets the device's own number,
-     * and a calibrated headset keeps the player's, which already contains it.
-     *
-     * Found by ear, in nine-eight: at Jesu Joy's pace a quaver is 208ms, so an
-     * uncompensated speaker put every note audibly one written note behind the
-     * strike line — the same offset that hides inside a slower 4/4 as a vague
-     * lateness nobody can name.
+     * The browser reports its own estimate of output latency, and for one
+     * evening this floored the lead at that report — it seemed unarguable that
+     * compensation should never be *less* than what the device admits to. It
+     * lasted one test by ear: on the player's own machine the report exceeded
+     * reality by most of a second, so every sound ran ahead of the page by a
+     * pulse — and by exactly a pulse, which put the count-in clicks back onto
+     * the changing numbers and made the overshoot *look* like the fix working.
+     * An estimate wrong in either direction cannot be applied automatically;
+     * it is shown on the outputs screen as a starting point instead, and the
+     * tap calibration there — the player's ear against this very clock — is
+     * the one figure this trusts. See `alignment.test.ts`, which pins it.
      */
-    const reported = (context as { outputLatency?: number }).outputLatency ?? 0;
     this.transport = new Transport(
       context,
       tempo,
       exercise.tempo,
       opening.pulseBeats,
-      Math.max(options.audioLead ?? 0, Number.isFinite(reported) ? reported : 0),
+      options.audioLead ?? 0,
     );
     this.input = options.input;
     // The fingers are answered the instant they move, not at the next tick:

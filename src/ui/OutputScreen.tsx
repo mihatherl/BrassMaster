@@ -13,8 +13,11 @@ import { AUDIO_LEAD_RANGE, type AudioOutput, type Settings } from '../storage/se
  * outputs: the phone's own speaker sounds the note on the beat, a pair of
  * over-ear headphones sounds it a little late, and a pair of earbuds sounds it
  * a lot late. Bluetooth buffers the sound on its way to the ear, each device
- * by its own amount, and nothing the app can read reports how much — so the
- * player measures it, once per device, by tapping along with a click. The
+ * by its own amount, and nothing the app can read reports how much reliably — so the
+ * player measures it, once per device, by tapping along with a click — the
+ * browser's own `outputLatency` estimate is shown as a starting point, and
+ * deliberately never applied by itself, having been measured wrong by most of
+ * a second on real hardware. The
  * measurement is kept under the device's name and the sound is brought
  * forward by that much whenever the device is chosen. See
  * `Transport.audioLead` for what "brought forward" means.
@@ -186,6 +189,15 @@ interface CalibrationScreenProps {
  */
 function CalibrationScreen({ initial, onSave, onCancel }: CalibrationScreenProps) {
   const [name, setName] = useState(initial.name);
+  // Read once: the figure drifts a little between reads, and a hint that
+  // twitches invites chasing it with the slider.
+  const [reportedMs] = useState(() => {
+    const context = getAudioContext();
+    const reported = (context as { outputLatency?: number }).outputLatency;
+    return typeof reported === 'number' && Number.isFinite(reported) && reported > 0
+      ? Math.round(reported * 1000)
+      : null;
+  });
   const [leadMs, setLeadMs] = useState(initial.leadMs);
   const [taps, setTaps] = useState<number[]>([]);
   const [pulsing, setPulsing] = useState(false);
@@ -304,6 +316,17 @@ function CalibrationScreen({ initial, onSave, onCancel }: CalibrationScreenProps
           <p className="field__note muted">
             The dot shows where the beat is. Nudge this until the click lands on it.
           </p>
+          {/* Guidance only, never applied by itself: for one evening the app
+              floored the lead at this figure, and on real hardware the report
+              exceeded reality by most of a second — every sound ran ahead of
+              the page. What the browser estimates is a place to start tapping
+              from; the ear against the click is the measurement. */}
+          {reportedMs !== null && (
+            <p className="field__note muted">
+              This browser estimates its own output delay at about {reportedMs} ms — a starting
+              point, not a measurement. Trust your ear over it.
+            </p>
+          )}
         </label>
 
         <label className="field">

@@ -211,11 +211,19 @@ describe('sound against the clock', () => {
 });
 
 /*
- * The device's own latency report is honoured, which is what put Jesu Joy's
- * quavers back on the strike line for a phone speaker nobody had calibrated.
+ * The browser's latency estimate is never applied automatically.
+ *
+ * For one evening it was — a floor of `context.outputLatency` under the
+ * player's measured lead, on the reasoning that compensation should never be
+ * less than what the device admits to. On real hardware the report exceeded
+ * reality by most of a second and every sound ran ahead of the page by a
+ * pulse; and because one pulse is exactly the count-in's number interval, the
+ * clicks landed back on the changing numbers and the overshoot looked like a
+ * fix. The estimate is wrong in either direction on real devices, so the tap
+ * calibration is the only figure the transport takes, and this pins that.
  */
-describe('the output latency floor', () => {
-  const withLatency = (outputLatency: number | undefined, calibrated: number) => {
+describe('the output latency report', () => {
+  const leadInForce = (outputLatency: number | undefined, calibrated: number) => {
     const ctx = {
       get currentTime() {
         return audioTime;
@@ -244,20 +252,17 @@ describe('the output latency floor', () => {
       vi.advanceTimersByTime(25);
     }
     session.stop();
-    // How early the first sound was handed over, against the clock's beat.
+    // How early the first sound was handed over, against the clock's beat —
+    // which is the lead actually in force, whatever anyone reported.
     const first = exercise.notes[0];
     return session.transport.timeForBeat(first.startBeat) - played[0].startTime;
   };
 
-  it('hands sound over early by the reported latency when nothing was calibrated', () => {
-    expect(withLatency(0.2, 0)).toBeCloseTo(0.2, 6);
+  it('uses exactly what the player measured, ignoring the report', () => {
+    expect(leadInForce(0.8, 0.15)).toBeCloseTo(0.15, 6);
   });
 
-  it('keeps a player-measured lead that already exceeds the report', () => {
-    expect(withLatency(0.1, 0.3)).toBeCloseTo(0.3, 6);
-  });
-
-  it('stands unchanged where the browser reports nothing', () => {
-    expect(withLatency(undefined, 0)).toBeCloseTo(0, 6);
+  it('applies nothing for an uncalibrated output, whatever the browser claims', () => {
+    expect(leadInForce(0.8, 0)).toBeCloseTo(0, 6);
   });
 });
