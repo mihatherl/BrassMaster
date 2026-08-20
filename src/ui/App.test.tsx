@@ -519,6 +519,33 @@ describe('headphones and speakers', () => {
     expect(screen.queryByText(/Sound brought forward/)).toBeNull();
   });
 
+  /*
+   * The same fact on the play screen, where a wrong profile actually hurts.
+   *
+   * A headset lead left in force on the phone's speaker shifted every sound a
+   * quaver against the page, and the run screen gave no hint the app was
+   * compensating for hardware nobody was wearing — it cost an evening's
+   * diagnosis, twice, once in each direction. The note is also the one
+   * signpost from a run to the calibration screen, which otherwise hides in
+   * the advanced menu.
+   */
+  it('names the adjustment during a run, and leads to where it was set', () => {
+    stored([{ id: 'z', name: 'Zen Air', leadMs: 250 }], 'z');
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    const note = screen.getByRole('button', {
+      name: /Sound brought forward 250 ms for Zen Air/,
+    });
+    fireEvent.click(note);
+    expect(screen.getByRole('heading', { name: 'Headphones & speakers' })).toBeTruthy();
+  });
+
+  it('says nothing during a run when no lead is in force', () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.queryByText(/Sound brought forward/)).toBeNull();
+  });
+
   it('is a door in Advanced, saying what is in use', () => {
     stored([{ id: 'b', name: 'Bose', leadMs: 180 }], 'b');
     renderApp();

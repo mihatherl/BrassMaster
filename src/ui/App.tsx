@@ -239,6 +239,11 @@ export function App() {
           exercise={exercise}
           onFinish={onFinish}
           onExit={() => setScreen('settings')}
+          /* Leaving mid-run for the calibration screen unmounts the play
+             surface exactly as Exit does, so the session is stopped the same
+             way; Back from there lands on Settings, which is where every
+             other door out of a run already leads. */
+          onOutputs={() => setScreen('outputs')}
           /* A tempo settled on while playing is the tempo to open with next
              time — written back once the run is over, never during it. */
           onTempoSettled={(tempo) => updateSettings({ ...chosen, tempo })}

@@ -295,6 +295,25 @@ body {
  * a share of the width as well as in absolute terms, so a narrow phone gives
  * the slider what it needs first.
  */
+/*
+ * The one adjustment a player cannot hear the absence of: sound being sent
+ * early for a calibrated output. Italic and muted because it is a fact, not a
+ * control — but it is a button, because the fact's whole job is to lead to the
+ * screen where it was set, which otherwise hides in the advanced menu.
+ */
+.play-lead {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  text-underline-offset: 2px;
+}
+
 .play-aside {
   grid-area: aside;
   display: flex;

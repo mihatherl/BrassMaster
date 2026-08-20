@@ -68,6 +68,18 @@ interface PlayScreenProps {
   inKey?: (fifths: number) => Exercise;
   /** The key the player settled on, reported when the run ends, as with tempo. */
   onKeySettled?: (fifths: number) => void;
+  /**
+   * Opens the outputs screen, where the lead being applied was measured.
+   *
+   * Here because an invisible lead is a diagnosis trap: the sound is being
+   * deliberately sent early for a device the player may no longer be wearing,
+   * and nothing on this screen said so — which cost an evening of hunting a
+   * "timing bug" that was a headphone profile, twice, once in each direction.
+   * The note this enables names the adjustment and links to where it is set;
+   * it also happens to be the only signpost to a screen otherwise buried in
+   * the advanced menu.
+   */
+  onOutputs?: () => void;
 }
 
 export function PlayScreen({
@@ -78,6 +90,7 @@ export function PlayScreen({
   onTempoSettled,
   inKey,
   onKeySettled,
+  onOutputs,
 }: PlayScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
@@ -489,6 +502,25 @@ export function PlayScreen({
     })();
   };
 
+  /* The output whose measured lead the transport is applying; see settings. */
+  const activeOutput = settings.audioOutputs.find((o) => o.id === settings.audioOutputId);
+  /*
+   * Names the adjustment in force and leads to where it was set.
+   *
+   * Only while there is one: a zero lead is not news, and a standing label
+   * would bury the one time it matters. On the gate as well as beside the
+   * music, because the gate is where a player reads — and switching back to
+   * the speaker is cheapest before the count-in, not three bars into a run
+   * that already sounds wrong. It is also the one signpost from playing to
+   * the calibration screen, which otherwise hides in the advanced menu.
+   */
+  const leadNote =
+    activeOutput && activeOutput.leadMs > 0 && onOutputs ? (
+      <button type="button" className="play-lead" onClick={onOutputs}>
+        Sound brought forward {activeOutput.leadMs} ms for {activeOutput.name}
+      </button>
+    ) : null;
+
   if (!started) {
     return (
       <div className="screen screen--centred">
@@ -529,6 +561,7 @@ export function PlayScreen({
           >
             Back to settings
           </button>
+          {leadNote}
         </div>
       </div>
     );
@@ -692,6 +725,7 @@ export function PlayScreen({
           </span>
           <span className="play-stats__accuracy">{accuracy}%</span>
         </div>
+        {leadNote}
       </div>
 
       <div className="play-aside">
