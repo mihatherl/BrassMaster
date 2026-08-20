@@ -195,6 +195,15 @@ const mode = arg('mode', 'major') as 'major' | 'minor';
 const [beatsPerBar, beatUnit] = arg('metre', '4/4').split('/').map(Number);
 const id = arg('id', 'borrowed');
 const wantTrack = Number(arg('track', '-1'));
+/*
+ * How many bars to take, from the start or from `--from`.
+ *
+ * A whole invention is thirty-odd bars where the corpus works in eight to
+ * sixteen, and a subject is usually stated in the first few. Taking the whole
+ * piece is still the default, because play-along wants all of it.
+ */
+const wantBars = Number(arg('bars', '0'));
+const fromBar = Number(arg('from', '1'));
 
 const { division, tracks } = readMidi(path);
 const notes = wantTrack >= 0 ? (tracks[wantTrack] ?? []) : tracks.flat().sort((a, b) => a.start - b.start);
@@ -239,10 +248,30 @@ const tonicIndex = (() => {
   return spelled.octave * 7 + LETTERS.indexOf(spelled.letter as Letter);
 })();
 
-const raw = single.map((note, index) => ({
-  beats: beatsOf(note.ticks, `note ${index}`),
-  ...toDegree(note.midi, fifths, mode, tonicIndex),
-}));
+/*
+ * Silence is music, and dropping it moves everything after it.
+ *
+ * A voice in a two-part invention rests while the other announces the subject,
+ * so the upper line of BWV 779 begins half a beat in and rests for two and a
+ * half in the middle. Without these, every note after a rest lands early and
+ * the whole line is displaced against the barline — correct notes, wrong
+ * rhythm, which reads as a subtly wrong piece rather than as an error.
+ */
+type Raw = { beats: number; rest: true } | ({ beats: number } & ReturnType<typeof toDegree>);
+
+const raw: Raw[] = [];
+let expected = 0;
+single.forEach((note, index) => {
+  const silence = (note.start - expected) / division;
+  if (silence > 1 / (GRID * 2)) {
+    raw.push({ beats: Math.round(silence * GRID) / GRID, rest: true });
+  }
+  raw.push({
+    beats: beatsOf(note.ticks, `note ${index}`),
+    ...toDegree(note.midi, fifths, mode, tonicIndex),
+  });
+  expected = note.start + note.ticks;
+});
 
 /*
  * Octaves are stated relative to wherever the theme's tonic is placed, and
@@ -252,8 +281,13 @@ const raw = single.map((note, index) => ({
  * below the reference otherwise carries `octave: -1` on every single note, and
  * a reader has to hold that in their head to see the shape.
  */
-const commonest = [...raw.reduce((counts, note) => counts.set(note.octave, (counts.get(note.octave) ?? 0) + 1), new Map<number, number>())]
-  .sort((a, b) => b[1] - a[1])[0][0];
+const commonest = [
+  ...raw.reduce(
+    (counts, note) =>
+      'rest' in note ? counts : counts.set(note.octave, (counts.get(note.octave) ?? 0) + 1),
+    new Map<number, number>(),
+  ),
+].sort((a, b) => b[1] - a[1])[0][0];
 
 /** Twelfths reduced, so a triplet reads `1 / 3` rather than `4 / 12`. */
 function beatSource(beats: number): string {
@@ -264,22 +298,41 @@ function beatSource(beats: number): string {
   return `${numerator / by} / ${GRID / by}`;
 }
 
-const events = raw.map(({ beats, degree, alter, octave }) => {
-  const shifted = octave - commonest;
-  const extra = [alter ? `alter: ${alter}` : '', shifted ? `octave: ${shifted}` : '']
+const events = raw.map((event) => {
+  if ('rest' in event) return { line: `r(${beatSource(event.beats)})`, beats: event.beats };
+  const shifted = event.octave - commonest;
+  const extra = [event.alter ? `alter: ${event.alter}` : '', shifted ? `octave: ${shifted}` : '']
     .filter(Boolean)
     .join(', ');
-  return { line: `n(${degree}, ${beatSource(beats)}${extra ? `, { ${extra} }` : ''})`, beats };
+  return {
+    line: `n(${event.degree}, ${beatSource(event.beats)}${extra ? `, { ${extra} }` : ''})`,
+    beats: event.beats,
+  };
 });
 
-const total = events.reduce((sum, e) => sum + e.beats, 0);
+/* Sliced by bar before anything is counted, so the report describes what was
+   actually taken rather than what was read. */
+const sliced = (() => {
+  if (!wantBars) return events;
+  const start = (fromBar - 1) * barBeats;
+  const stop = start + wantBars * barBeats;
+  const out: typeof events = [];
+  let at = 0;
+  for (const event of events) {
+    if (at >= start && at + event.beats <= stop + 1e-9) out.push(event);
+    at += event.beats;
+  }
+  return out;
+})();
+
+const total = sliced.reduce((sum, e) => sum + e.beats, 0);
 const bars = Math.round(total / barBeats);
 
 // Laid out a bar to a line, which is how a reviewer reads it back.
 const lines: string[] = [];
 let running = 0;
 let current: string[] = [];
-for (const event of events) {
+for (const event of sliced) {
   current.push(event.line);
   running += event.beats;
   if (running >= barBeats - 1e-9) {
@@ -312,4 +365,21 @@ if (Math.abs(total - bars * barBeats) > 1e-6) {
 }
 if (offGrid.length) {
   process.stderr.write(`  ${offGrid.length} note(s) off the grid: ${offGrid.slice(0, 5).join('; ')}\n`);
+}
+
+/*
+ * Whether the excerpt could be a theme at all.
+ *
+ * Themes abut, so both ends must be the tonic, mediant or dominant — and where
+ * a piece is cut is a musical judgement no tool should make. Saying which cuts
+ * would validate turns that judgement from a guess into a short list.
+ */
+const degreesOf = (line: string) => Number(/^n\((\d)/.exec(line)?.[1] ?? 0);
+const sounded = sliced.filter((event) => event.line.startsWith('n('));
+if (sounded.length) {
+  const ends = [degreesOf(sounded[0].line), degreesOf(sounded[sounded.length - 1].line)];
+  const stable = ends.every((degree) => [1, 3, 5].includes(degree));
+  process.stderr.write(
+    `  ends on degrees ${ends.join(' and ')} — ${stable ? 'a theme may start and end here' : 'not stable, so this cut will not validate'}\n`,
+  );
 }
