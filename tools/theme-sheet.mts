@@ -28,9 +28,7 @@ import { instrumentById } from '../src/domain/instruments.ts';
 import { metreFor } from '../src/domain/metre.ts';
 import { DIFFICULTIES, difficultyById } from '../src/exercise/difficulty.ts';
 import { exerciseFromTheme, validateTheme, type Theme } from '../src/exercise/theme.ts';
-import { ALL_THEMES, THEMES, UNJUDGED } from '../src/exercise/themes.ts';
-import { TRADITIONAL } from '../src/exercise/tunes-traditional.ts';
-import { BORROWED } from '../src/exercise/tunes-borrowed.ts';
+import { COLLECTIONS } from '../src/exercise/collections.ts';
 import type { Exercise } from '../src/exercise/types.ts';
 import { exerciseToSvg } from './render-svg.mts';
 
@@ -86,35 +84,32 @@ function beatsOf(duration: { value: string; dotted: boolean; tuplet?: number }):
 }
 
 /*
- * Two sets, kept apart on the page rather than merged.
+ * One section per collection, kept apart on the page rather than merged.
  *
- * The traditional tunes are here as a calibration for the ear: nobody has to
- * adjudicate whether Twinkle is a melody, so what they settle is what the
- * forty-seven's own "deliberately plain" actually cost. Merging them into one
- * list would lose exactly that comparison.
+ * The sections used to be written here, which put the grouping in the review
+ * tool when it is a property of the material — so it now comes from
+ * `exercise/collections.ts` and this file only decides how to draw it.
+ *
+ * Keeping them apart is the point of the page. The traditional tunes are a
+ * calibration for the ear: nobody has to adjudicate whether Twinkle is a
+ * melody, so what they settle is what the written themes' own "deliberately
+ * plain" actually costs. One merged list would lose exactly that comparison.
+ *
+ * Tunes not yet heard are marked where they sit rather than gathered into a
+ * section of their own, so a verdict is given next to the material it belongs
+ * with and not in isolation from it.
  */
-const sets: Array<{ heading: string; blurb: string; themes: readonly Theme[] }> = [
-  {
-    heading: 'Traditional tunes',
-    blurb: 'Reworked from the first review: Old MacDonald now falls to the fourth below rather than leaping to the fifth above, Baa baa rises A–B–C–B–A, Lightly row and London Bridge end on one held note, and Hot cross buns, Ode to joy and Jingle bells are no longer cut off mid-sentence.',
-    themes: TRADITIONAL,
-  },
-  {
-    heading: 'Borrowed from the canon',
-    blurb: 'Fugue subjects, which are themes in the technical sense — built to be recognised when they return. Both are minor, which the format could not express until today.',
-    themes: BORROWED,
-  },
-  {
-    heading: 'Still to judge',
-    blurb: 'The verdict file ran out before these. Nothing else is waiting.',
-    themes: ALL_THEMES.filter((theme) => UNJUDGED.has(theme.id)),
-  },
-  {
-    heading: 'Kept from the forty-seven',
-    blurb: 'What survived the review of 2026-08-20. Eleven were cut; they are listed in themes.ts rather than deleted, so a verdict can be revisited.',
-    themes: THEMES.filter((theme) => !UNJUDGED.has(theme.id)),
-  },
-];
+const sets = COLLECTIONS.map((collection) => ({
+  heading: collection.name,
+  /* Provenance and version on the page, because the reviewer's question is not
+     only "is it a tune" but "what am I looking at and may we use it". */
+  meta:
+    `${collection.provenance.replace('-', ' ')} · revision ${collection.revision}` +
+    `${collection.status === 'candidate' ? ' · under review' : ''}`,
+  blurb: collection.blurb,
+  themes: collection.themes,
+  unjudged: collection.unjudged ?? new Set<string>(),
+}));
 
 const chosen = sets.flatMap((set) =>
   onlyLevel ? set.themes.filter((theme) => theme.difficulty === onlyLevel) : set.themes,
@@ -127,7 +122,7 @@ function panel(theme: Theme): string {
   const problems = validateTheme(theme);
 
   if (!exercise) {
-    return `<figure data-theme="${theme.id}"><figcaption><code>${theme.id}</code> <b>${theme.name}</b></figcaption>
+    return `<figure data-theme="${theme.id}"><figcaption><code>${theme.id}</code> <b>${theme.name}</b>${unjudgedIds.has(theme.id) ? ' <span class="unheard">not yet heard</span>' : ''}</figcaption>
       <p class="none">would not fit the instrument</p></figure>`;
   }
 
@@ -151,7 +146,7 @@ function panel(theme: Theme): string {
     : '';
 
   return `<figure data-theme="${theme.id}">
-  <figcaption><code>${theme.id}</code> <b>${theme.name}</b> <span>${theme.difficulty} · ${metreSpec[0]}/${metreSpec[1]} · ${theme.bars} bars</span></figcaption>
+  <figcaption><code>${theme.id}</code> <b>${theme.name}</b> <span>${theme.difficulty} · ${metreSpec[0]}/${metreSpec[1]} · ${theme.bars} bars</span>${unjudgedIds.has(theme.id) ? '<span class="unheard">not yet heard</span>' : ''}</figcaption>
   ${problems.length ? `<p class="none">${problems.join('; ')}</p>` : ''}
   ${exerciseToSvg(exercise, width)}
   ${table}
@@ -164,6 +159,8 @@ function panel(theme: Theme): string {
 </figure>`;
 }
 
+const unjudgedIds = new Set(sets.flatMap((set) => [...set.unjudged]));
+
 const sections = sets.map((set) => {
   const levels = DIFFICULTIES.filter((level) => !onlyLevel || level.id === onlyLevel).map((level) => {
     const tunes = set.themes.filter((theme) => theme.difficulty === level.id);
@@ -174,6 +171,7 @@ const sections = sets.map((set) => {
   });
   if (levels.every((level) => level === '')) return '';
   return `<section><h2>${set.heading} <span class="count">${set.themes.length}</span></h2>
+    <p class="meta">${set.meta}</p>
     <p class="blurb">${set.blurb}</p>${levels.join('\n')}</section>`;
 });
 
@@ -185,6 +183,8 @@ const html = `<!doctype html>
   h1 { font-size: 1.4rem; } h2 { font-size: 1.25rem; margin-top: 3rem; border-bottom: 2px solid #333; padding-bottom: 0.25rem; }
   h3 { font-size: 1rem; margin: 1.75rem 0 0.5rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; }
   .blurb { color: #666; font-size: 0.88rem; margin: 0.5rem 0 0; }
+  .meta { color: #888; font-size: 0.78rem; margin: 0.2rem 0 0; text-transform: lowercase; letter-spacing: 0.02em; }
+  .unheard { background: #fde68a; color: #713f12; font-size: 0.7rem; padding: 0.1rem 0.35rem; border-radius: 3px; margin-left: 0.4rem; }
   .count { color: #999; font-weight: 400; }
   figure { margin: 1.25rem 0; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; }
   figcaption { color: #666; font-size: 0.85rem; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }

@@ -13,7 +13,7 @@ import { CORPUS_REVISION, corpusDigest, corpusDrift, corpusSummary, shippedCells
  */
 describe('the corpus version', () => {
   it('matches the material it claims to describe', () => {
-    expect(corpusDrift()).toBeNull();
+    expect(corpusDrift()).toEqual([]);
   });
 
   it('counts what a player can be handed, not what the repository holds', () => {

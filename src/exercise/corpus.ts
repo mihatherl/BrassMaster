@@ -37,6 +37,8 @@
  */
 
 import { CELLS, type Cell } from './cells';
+import { COLLECTIONS, type Collection } from './collections';
+import { isRest, type Theme } from './theme';
 
 /**
  * Bumped when accepted material changes. Record the new digest below.
@@ -55,6 +57,20 @@ export const CORPUS_REVISION = 1;
 const RECORDED: Readonly<Record<number, string>> = {
   // 157 accepted cells, the corpus as it stood when the number was introduced.
   1: '19f9a62f',
+};
+
+/**
+ * The same, per named collection, keyed `<id>@<revision>`.
+ *
+ * Kept separate from the cells so that accepting a batch of Bach restates
+ * nothing about the forty-seven — which is the point of chunking the corpus at
+ * all. Only `accepted` collections appear: a candidate is under review, where
+ * churn is the whole activity and pinning it would be friction with no reader.
+ */
+const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
+  'default@1': 'e1dc294e', // 36 kept of the forty-seven
+  'traditional@1': 'e0d7777b', // 12 nursery songs and rounds
+  'bach@1': '90398ba7', // 2 fugue subjects, 2 converted excerpts
 };
 
 /*
@@ -93,6 +109,39 @@ function canonical(cells: readonly Cell[]): string {
     .join('\n');
 }
 
+/*
+ * The same treatment for themes.
+ *
+ * Written out field by field rather than JSON-stringified, because the shape of
+ * a `Theme` is not the material: adding an optional field nobody uses, or
+ * reordering the interface, must not read as every collection changing at once.
+ */
+function canonicalThemes(themes: readonly Theme[]): string {
+  return [...themes]
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .map((theme) => {
+      const events = theme.events
+        .map((event) =>
+          isRest(event)
+            ? `r:${event.beats}`
+            : `${event.degree}${event.alter ? `${event.alter > 0 ? '+' : ''}${event.alter}` : ''}` +
+              `${event.octave ? `^${event.octave}` : ''}:${event.beats}${event.tied ? '~' : ''}`,
+        )
+        .join(',');
+      const metres = theme.metres.map(([n, d]) => `${n}/${d}`).join('&');
+      const keys = (theme.keyChanges ?? [])
+        .map((change) => `${change.atBar}:${change.fifths}`)
+        .join(';');
+      return `${theme.id}|${theme.difficulty}|${theme.mode ?? 'major'}|${metres}|${theme.bars}|${events}|${keys}`;
+    })
+    .join('\n');
+}
+
+/** A digest of one collection's material. */
+export function collectionDigest(collection: Collection): string {
+  return fnv1a(canonicalThemes(collection.themes));
+}
+
 /**
  * The cells a player can actually be handed.
  *
@@ -115,27 +164,67 @@ export interface CorpusSummary {
   revision: number;
   cells: number;
   digest: string;
+  /** Every named collection, whether or not it ships. */
+  collections: ReadonlyArray<{ id: string; revision: number; themes: number; digest: string }>;
 }
 
 export function corpusSummary(): CorpusSummary {
-  return { revision: CORPUS_REVISION, cells: shippedCells().length, digest: corpusDigest() };
+  return {
+    revision: CORPUS_REVISION,
+    cells: shippedCells().length,
+    digest: corpusDigest(),
+    collections: COLLECTIONS.map((collection) => ({
+      id: collection.id,
+      revision: collection.revision,
+      themes: collection.themes.length,
+      digest: collectionDigest(collection),
+    })),
+  };
 }
 
 /**
- * Why the revision and the material disagree, or null when they agree.
+ * Everywhere a recorded revision and the material it names disagree.
  *
- * Returns a sentence rather than a boolean because the fix is not obvious from
- * a failure: whoever trips this is mid-edit on a cell and needs telling which
- * number to bump and what to write beside it.
+ * Sentences rather than booleans because the fix is not obvious from a failure:
+ * whoever trips this is mid-edit on a cell or a tune and needs telling which
+ * number to bump and what to write beside it, without reading this file.
+ *
+ * A list rather than the first problem, because the collections are independent
+ * — finding out about one changed collection per run would make accepting a
+ * batch across two of them a guessing game.
  */
-export function corpusDrift(): string | null {
+export function corpusDrift(): string[] {
+  const problems: string[] = [];
+
   const recorded = RECORDED[CORPUS_REVISION];
   const digest = corpusDigest();
   if (recorded === undefined) {
-    return `corpus revision ${CORPUS_REVISION} has no recorded digest — add \`${CORPUS_REVISION}: '${digest}'\` to RECORDED in corpus.ts`;
+    problems.push(
+      `corpus revision ${CORPUS_REVISION} has no recorded digest — add \`${CORPUS_REVISION}: '${digest}'\` to RECORDED in corpus.ts`,
+    );
+  } else if (recorded !== digest) {
+    problems.push(
+      `the accepted cells have changed (digest ${digest}, but revision ${CORPUS_REVISION} recorded ${recorded}) — bump CORPUS_REVISION to ${CORPUS_REVISION + 1} and add \`${CORPUS_REVISION + 1}: '${digest}'\` to RECORDED in corpus.ts`,
+    );
   }
-  if (recorded !== digest) {
-    return `the accepted cells have changed (digest ${digest}, but revision ${CORPUS_REVISION} recorded ${recorded}) — bump CORPUS_REVISION to ${CORPUS_REVISION + 1} and add \`${CORPUS_REVISION + 1}: '${digest}'\` to RECORDED in corpus.ts`;
+
+  for (const collection of COLLECTIONS) {
+    // Candidates are under review, where churn is the activity itself.
+    if (collection.status !== 'accepted') continue;
+    const key = `${collection.id}@${collection.revision}`;
+    const held = RECORDED_COLLECTIONS[key];
+    const now = collectionDigest(collection);
+    if (held === undefined) {
+      problems.push(
+        `collection '${collection.id}' revision ${collection.revision} has no recorded digest — add \`'${key}': '${now}'\` to RECORDED_COLLECTIONS in corpus.ts`,
+      );
+    } else if (held !== now) {
+      const next = collection.revision + 1;
+      problems.push(
+        `collection '${collection.id}' has changed (digest ${now}, but revision ${collection.revision} recorded ${held}) — set its revision to ${next} in collections.ts and add \`'${collection.id}@${next}': '${now}'\` to RECORDED_COLLECTIONS in corpus.ts`,
+      );
+    }
   }
-  return null;
+
+  return problems;
 }
