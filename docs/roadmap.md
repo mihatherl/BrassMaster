@@ -503,6 +503,33 @@ that engages with the reason recorded here.
 
 ## 7. Open questions, named so they are not forgotten
 
+- **Chromaticism does not count toward difficulty, and it should.** Found
+  2026-08-20 by measuring the royal theme of *The Musical Offering*: written
+  down as hard, measured as **easy**. `validateTheme`'s "no harder than the
+  level below" check asks whether a theme does anything that level never does,
+  and accidentals are tested as a *yes or no* — so once the level below allows
+  any accidental, a subject chromatic in every bar and one with a single
+  passing note are indistinguishable. Note length, widest leap and span are all
+  measured as quantities; chromaticism alone is not, and it is the thing that
+  actually makes that subject hard to read. Wants an accidental *rate* beside
+  the others.
+- **Two-part counterpoint is the play-along material, and the format cannot
+  hold it.** Raised 2026-08-20: fugues and the Two-Part Inventions are two
+  independent lines of equal interest, so the app could play one while the
+  player takes the other, and then swap. That is Phase 6's orchestration
+  arriving from a completely different direction — and better than it, because
+  an accompaniment part is dull to play where a countersubject is not. A
+  `Theme` is one voice; this needs either two linked themes or a second voice
+  on one, and the decision wants making before any counterpoint is transcribed.
+- **The Two-Part Inventions need a converter, not a transcriber.** Each is
+  twenty to forty bars of two voices, and writing thousands of notes out from
+  recall would produce plausible, wrong music — worse than none, since it costs
+  the reviewer's attention to find and shakes their trust in everything beside
+  it. The route is a tool that reads a public-domain score (Mutopia's LilyPond,
+  or MusicXML) and emits `Theme` degrees, which would also serve any other
+  score worth borrowing. Note the app already parses MusicXML in `import/`,
+  though it yields pitches rather than degrees, so the key would have to be
+  read back out.
 - **Whether a variation engine can be trusted.** Raised 2026-08-20 from
   listening: *"things that might mathematically seem like variations don't seem
   to land properly."* A transformation that is formally a variation —

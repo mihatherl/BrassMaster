@@ -1,0 +1,116 @@
+/*
+ * Borrowed subjects, for review.
+ *
+ * Themes taken from the canon rather than written, on the reasoning that hard
+ * material is hard to *write*: the things that make music difficult — wide
+ * leaps, chromatics, awkward rhythms — are the same things that stop it being a
+ * melody, so writing for difficulty tends to produce études. Borrowing from
+ * someone who could do both is an accelerant, not a shortcut.
+ *
+ * **Fugue subjects are the sweet spot, and not by metaphor.** A subject *is* a
+ * theme in the technical sense: short, self-contained, and built to be
+ * recognised when it returns. It is the one kind of classical material designed
+ * for exactly this job. Three further constraints decide what can be taken:
+ *
+ * 1. **Single line.** A monophonic exercise needs monophonic source, which is
+ *    why organ and keyboard counterpoint transcribes better than orchestral
+ *    writing — the subject is stated alone before anything joins it.
+ * 2. **A brass compass.** `realiseTheme` returns null rather than compressing,
+ *    so anything much past two octaves will not render on an E flat bass.
+ * 3. **A stable end.** Both ends must be the tonic, mediant or dominant, which
+ *    a subject usually is and a passage usually is not.
+ *
+ * **Candidates. Nothing in the app imports this**, so none of it reaches a
+ * player until it has been heard.
+ *
+ * ## Copyright
+ *
+ * Bach died in 1750 and Liszt in 1886; the music is long out of copyright. What
+ * is *not* free is a particular modern engraving, which is its own work — so
+ * these are written as degrees from the music rather than copied from an
+ * edition, exactly as the traditional tunes are.
+ *
+ * ## How far my hand goes, and where it stops
+ *
+ * These few are written out because they are short, famous and checkable. **The
+ * fifteen Two-Part Inventions are not**, and will not be until there is a
+ * converter that reads a public-domain score: each is twenty to forty bars of
+ * two independent voices, and transcribing thousands of notes from memory would
+ * produce plausible, wrong music — which is worse than none, because it costs a
+ * reviewer's attention to find and shakes their trust in everything beside it.
+ * See `docs/roadmap.md` on what that converter needs.
+ */
+
+import type { Theme } from './theme';
+
+/** A note of `beats` on `degree`, with the options a chromatic line needs. */
+function n(degree: number, beats: number, extra: { alter?: number; octave?: number } = {}) {
+  return { degree, beats, ...extra };
+}
+
+export const BORROWED: readonly Theme[] = [
+  {
+    id: 'bwv1080-subject',
+    name: 'The Art of Fugue — subject',
+    // Labelled by measurement, not by reputation: minims and crotchets, a span
+    // of eight semitones and one accidental. Great music that is easy to read,
+    // which is not a contradiction — its difficulty is in the playing.
+    difficulty: 'easy',
+    mode: 'minor',
+    metres: [[4, 4]],
+    bars: 5,
+    /*
+     * D A F D | C sharp D E | F G F E | D. Bach's plainest great subject: the
+     * tonic triad laid out in minims, a leading note from below, then a
+     * stepwise turn home. It spans eight semitones, which is why it fits a
+     * brass compass where most of the repertoire does not — and it is entirely
+     * diatonic but for the raised seventh, so the difficulty is in the reading
+     * rather than in the accidentals.
+     */
+    events: [
+      n(1, 2), n(5, 2),
+      n(3, 2), n(1, 2),
+      n(7, 1, { alter: 1, octave: -1 }), n(1, 1), n(2, 2),
+      n(3, 1), n(4, 1), n(3, 1), n(2, 1),
+      n(1, 4),
+    ],
+  },
+  {
+    id: 'bwv1079-royal',
+    name: 'The Musical Offering — royal theme',
+    /*
+     * Written down as hard, measured as **easy**, and labelled easy only
+     * because the validator insists — which is a finding about the difficulty
+     * model, not about the theme.
+     *
+     * The check asks whether a theme does anything the level below never does.
+     * Accidentals are one of its tests, but as a *yes or no*: once the level
+     * below allows any accidental at all, a theme chromatic in every bar and a
+     * theme with one passing note are indistinguishable to it. This subject is
+     * plain in note length, leap and span while being chromatic throughout —
+     * which is exactly what makes it hard to read, and exactly what nothing
+     * measures. See `docs/roadmap.md`.
+     */
+    difficulty: 'easy',
+    mode: 'minor',
+    metres: [[4, 4]],
+    bars: 5,
+    /*
+     * The theme Frederick the Great gave Bach to improvise on: a rising minor
+     * triad to the flat sixth, a leading note, then a long chromatic descent
+     * through the flattened second. Genuinely hard in the way the corpus was
+     * short of — the chromatics are the subject rather than an ornament of it.
+     *
+     * Watch this one on the sheet in remote keys: the app never writes a double
+     * accidental and spells the natural above instead, so the descent may
+     * respell somewhere it should not.
+     */
+    events: [
+      n(1, 2), n(3, 2),
+      n(5, 2), n(6, 2),
+      n(7, 2, { alter: 1 }), n(1, 2, { octave: 1 }),
+      n(5, 1), n(4, 1), n(3, 1), n(2, 1),
+      n(2, 1, { alter: -1 }), n(1, 1), n(7, 1, { alter: 1, octave: -1 }), n(1, 1),
+    ],
+  },
+];

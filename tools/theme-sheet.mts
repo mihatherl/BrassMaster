@@ -30,6 +30,7 @@ import { DIFFICULTIES, difficultyById } from '../src/exercise/difficulty.ts';
 import { exerciseFromTheme, validateTheme, type Theme } from '../src/exercise/theme.ts';
 import { ALL_THEMES, THEMES, UNJUDGED } from '../src/exercise/themes.ts';
 import { TRADITIONAL } from '../src/exercise/tunes-traditional.ts';
+import { BORROWED } from '../src/exercise/tunes-borrowed.ts';
 import type { Exercise } from '../src/exercise/types.ts';
 import { exerciseToSvg } from './render-svg.mts';
 
@@ -97,6 +98,11 @@ const sets: Array<{ heading: string; blurb: string; themes: readonly Theme[] }> 
     heading: 'Traditional tunes',
     blurb: 'Reworked from the first review: Old MacDonald now falls to the fourth below rather than leaping to the fifth above, Baa baa rises A–B–C–B–A, Lightly row and London Bridge end on one held note, and Hot cross buns, Ode to joy and Jingle bells are no longer cut off mid-sentence.',
     themes: TRADITIONAL,
+  },
+  {
+    heading: 'Borrowed from the canon',
+    blurb: 'Fugue subjects, which are themes in the technical sense — built to be recognised when they return. Both are minor, which the format could not express until today.',
+    themes: BORROWED,
   },
   {
     heading: 'Still to judge',
