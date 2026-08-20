@@ -449,6 +449,52 @@ it arrives there. Armed before the screens exist, and mutation-tested by wiring
 the store into `App` unguarded and watching the free build fail — which is the
 exact mistake it is there to catch.
 
+## Borrowing music without transcribing it — the MIDI converter
+
+`npm run midi -- <file.mid> --fifths N --mode minor --metre 3/4` reads a MIDI
+file and prints `Theme` source. Written because transcribing by hand had gone
+wrong twice in ways only an ear caught — Old MacDonald leaping a fifth up where
+the tune falls a fourth down, and a minor theme coming out a sixth upside down
+— and because the Two-Part Inventions are forty bars of two voices each, where
+a plausible wrong note is unfindable and costs more to catch than it saved.
+
+**Spelled by the app's own `spellInKey`, not by arithmetic in the tool.** A
+letter *is* a diatonic step, so once a pitch is spelled the degree falls out of
+the letter. That means a borrowed theme is spelled exactly as a generated one
+would be, and the ruling against double accidentals holds without the converter
+knowing the rule exists.
+
+**It refuses to guess the key.** A MIDI file carries a key signature only if
+someone bothered, and it is wrong often enough not to be trusted. A guess would
+produce a theme correct in every note and in the wrong key — the hardest error
+of all to see, because nothing about it looks wrong.
+
+**Everything it had to decide goes to stderr**, never into the output:
+overlapping notes collapsed to one voice and how many, notes that would not sit
+on a grid of twelfths, bars that do not add up. A converter that tidied silently
+would be worse than none, since the whole reason it exists is that quiet errors
+are expensive here.
+
+**Two cosmetic things that are not cosmetic.** Octaves are shifted to whichever
+one most notes already sit in — a tune below the reference otherwise carries
+`octave: -1` on every note and a reader has to hold that in their head to see
+the shape. And twelfths are reduced, so a triplet reads `1 / 3` rather than
+`4 / 12`. The generated source is the product; if it is unreadable the tool has
+not done its job.
+
+**Proved against files with known contents** rather than against real music:
+Twinkle round-trips to exactly the degrees that were hand-written and approved;
+the same A minor line reads as `1 2 3 4 5` in minor and `6 7 1 2 3` in major,
+which is the mode doing visible work; triplets land on twelfths; a chord
+reports its collapse; a short bar reports that it is short.
+
+**Licensing is the part the tool cannot help with.** The *notes* of a work by a
+composer long dead are public-domain facts and degrees carry none of a
+transcriber's engraving — but a particular file is still someone's work.
+Tobis Notenarchiv's inventions, which look ideal, are **CC BY-NC**: unusable
+by a paid app whatever the underlying music is. Check the source before running
+this on it.
+
 ## Themes in the minor — the mode
 
 The blocker found before transcribing any Bach: a theme could not end on its
