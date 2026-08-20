@@ -309,7 +309,77 @@ const SIX_EIGHT = corpus([6, 8], [
   ['semi-close', 'close', 'hard', '2s 1s -1s 0s 0e 0q.'],
 ]);
 
-export const CELLS: readonly Cell[] = [...FOUR_FOUR, ...THREE_FOUR, ...TWO_FOUR, ...SIX_EIGHT];
+/*
+ * Nine-eight. Three dotted-crotchet pulses; quavers in threes.
+ *
+ * Written 2026-08-20 so that nine-eight can be offered at all. Two Bach
+ * excerpts are in it — the Jesu Joy obbligato and Invention 10 — and neither
+ * could ever be handed to a player while the app had no nine-eight to choose,
+ * because a theme is only offered in a metre it is written in. Adding the metre
+ * without cells would have been the worse half of the fix: the composer would
+ * find nothing to build from, and Composed would fall back to free material
+ * while appearing to offer tunes.
+ *
+ * **Every one is a candidate.** They are three pulses long and they parse, and
+ * neither of those makes them music. They reach a player after they have been
+ * heard on the cell sheet, and not before.
+ *
+ * Levelled as the six-eight cells are, which is the calibration to copy: a
+ * beginner reads nothing shorter than the pulse, so the tune moves in dotted
+ * crotchets; easy takes quavers in their threes; medium is where a figure
+ * starts off the pulse or leans on a dotted quaver; hard runs semiquavers. The
+ * level of a cell is a claim about its rhythm and its shape, not its notes.
+ */
+const NINE_EIGHT = corpus([9, 8], [
+  // The pulse itself, three to the bar. Nothing shorter than a dotted crotchet.
+  ['three-pulses', 'open', 'beginner', '0q. 2q. 4q.', 'candidate'],
+  ['pulse-climb', 'open', 'beginner', '0q. 1q. 2q.', 'candidate'],
+  ['pulse-arch', 'open', 'beginner', '0q. 2q. 0q.', 'candidate'],
+  ['pulse-fifth', 'open', 'beginner', '0q. 4q. 2q.', 'candidate'],
+  ['lilt', 'open', 'easy', '0e 1e 2e 3q. 4q.', 'candidate'],
+  ['long-lift', 'open', 'easy', '0q. 1q. 2q 3e', 'candidate'],
+  ['step-lift', 'open', 'easy', '0q 1e 2q. 3q.', 'candidate'],
+  ['run-lilt', 'open', 'easy', '0e 1e 2e 3e 4e 5e 6q.', 'candidate'],
+  ['fall', 'open', 'easy', '4q. 2q 1e 0q.', 'candidate'],
+  ['pushed', 'open', 'medium', '0e 2q 4q. 3q.', 'candidate'],
+  ['dotted-lilt', 'open', 'medium', '0q. 1e 2e 3e 4q.', 'candidate'],
+  ['semi-lilt', 'open', 'hard', '0s 1s 2e 3e 4q. 5q.', 'candidate'],
+  ['flight', 'open', 'hard', '0e 2s 3s 4e 5e 4e 2e 1q.', 'candidate'],
+  ['pulse-up', 'move', 'beginner', '0q. 1q. 2q.', 'candidate'],
+  ['pulse-down', 'move', 'beginner', '0q. -1q. -2q.', 'candidate'],
+  ['pulse-turn', 'move', 'beginner', '0q. 2q. 1q.', 'candidate'],
+  ['pulse-back', 'move', 'beginner', '2q. 1q. 0q.', 'candidate'],
+  ['step-lilt', 'move', 'easy', '0q 1e 2q 1e 0q.', 'candidate'],
+  ['held-lilt', 'move', 'easy', '0q. 1q 2e 3q.', 'candidate'],
+  ['walk', 'move', 'easy', '0e 1e 2e 3e 2e 1e 0q.', 'candidate'],
+  ['turn', 'move', 'easy', '0e 1e 0e -1e 0e 1e 2q.', 'candidate'],
+  ['dotted-walk', 'move', 'medium', '0q. 1e 2e 3e 2q.', 'candidate'],
+  ['rest-lilt', 'move', 'medium', 're 0e 1e 2q. 3q.', 'candidate'],
+  ['semi-walk', 'move', 'hard', '0s 1s 2s 3s 4e 5e 4e 2e 1q.', 'candidate'],
+  ['snap-lilt', 'move', 'hard', '0e. 1s 2e 3q. 4q.', 'candidate'],
+  // Closes are anchored by their last note, so the shape leading to it is the
+  // cadence; a dotted minim is the longest single note a nine-eight bar holds.
+  ['pulse-close', 'close', 'beginner', '2q. 1q. 0q.', 'candidate'],
+  ['pulse-fall-close', 'close', 'beginner', '4q. 2q. 0q.', 'candidate'],
+  ['long-close', 'close', 'beginner', '1q. 0h.', 'candidate'],
+  ['fall-close', 'close', 'beginner', '2q. 0h.', 'candidate'],
+  ['step-close', 'close', 'easy', '2q. 1q 1e 0q.', 'candidate'],
+  ['turn-close', 'close', 'easy', '2e 1e 0e 1q. 0q.', 'candidate'],
+  ['run-close', 'close', 'easy', '5e 4e 3e 2e 1e 0e 0q.', 'candidate'],
+  ['breath-close', 'close', 'easy', '2q. 0q. rq.', 'candidate'],
+  ['dotted-close', 'close', 'medium', '1q. 1q 0e 0q.', 'candidate'],
+  ['pushed-close', 'close', 'medium', '1e 0q 1q. 0q.', 'candidate'],
+  ['semi-close', 'close', 'hard', '2s 1s -1s 0s 0e 1q. 0q.', 'candidate'],
+  ['snap-close', 'close', 'hard', '1e. 0s 0e 1q. 0q.', 'candidate'],
+]);
+
+export const CELLS: readonly Cell[] = [
+  ...FOUR_FOUR,
+  ...THREE_FOUR,
+  ...TWO_FOUR,
+  ...SIX_EIGHT,
+  ...NINE_EIGHT,
+];
 
 /** The levels in order, so "at or below" is a comparison of indices. */
 export const CELL_LEVELS: readonly CellLevel[] = ['beginner', 'easy', 'medium', 'hard'];

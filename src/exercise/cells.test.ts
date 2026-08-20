@@ -2,9 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { CELLS, cellAsTheme, cellsFor, parseCell, selectCells, type Cell } from './cells';
 
 describe('the corpus as it stands', () => {
-  it('is all accepted, so introducing the status moved nothing', () => {
+  /*
+   * This used to assert the corpus was *all* accepted, which was true when the
+   * status was introduced and stopped being true the day unreviewed material
+   * first arrived — the nine-eight cells, written so that metre could be
+   * offered at all. The status now carries real weight rather than none, which
+   * is what it was for; what must stay true is that both kinds sit in the tree
+   * and only one of them reaches a player.
+   */
+  it('holds reviewed and unreviewed material side by side', () => {
     expect(CELLS.length).toBeGreaterThan(100);
-    expect(CELLS.every((cell) => cell.status === 'accepted')).toBe(true);
+    expect(CELLS.some((cell) => cell.status === 'accepted')).toBe(true);
+    expect(CELLS.some((cell) => cell.status === 'candidate')).toBe(true);
+    expect(
+      CELLS.every((cell) => cell.status === 'accepted' || cell.status === 'candidate'),
+    ).toBe(true);
   });
 
   /*
