@@ -42,6 +42,7 @@
 import { readFileSync } from 'node:fs';
 import { spellInKey, tonicPitchClass } from '../src/domain/keys.ts';
 import { LETTERS, type Letter } from '../src/domain/pitch.ts';
+import { durationFromBeats } from '../src/domain/rhythm.ts';
 
 // --- Reading the file ------------------------------------------------------
 
@@ -268,9 +269,20 @@ for (const note of notes) {
   single.push(note);
 }
 
-/* Snapped to twelfths of a beat, which holds both triplets and semiquavers.
-   Anything that will not sit on that grid is named rather than rounded away. */
-const GRID = 12;
+/*
+ * Snapped to twenty-fourths of a beat.
+ *
+ * Twelfths held triplets and semiquavers and looked sufficient, and quietly
+ * were not: a demisemiquaver is an eighth of a beat, which is not a twelfth of
+ * anything, so every one of them rounded to a triplet semiquaver. Right notes,
+ * wrong beats again — and silent, because the rounded value is itself a legal
+ * duration. Twenty-fourths divide by three and by eight, so triplets,
+ * semiquavers and demisemiquavers all land exactly.
+ *
+ * Anything that still will not sit on the grid is named rather than rounded
+ * away.
+ */
+const GRID = 24;
 const offGrid: string[] = [];
 const beatsOf = (ticks: number, what: string) => {
   const exact = (ticks / division) * scale;
@@ -294,21 +306,103 @@ const tonicIndex = (() => {
  * the whole line is displaced against the barline — correct notes, wrong
  * rhythm, which reads as a subtly wrong piece rather than as an error.
  */
-type Raw = { beats: number; rest: true } | ({ beats: number } & ReturnType<typeof toDegree>);
+type Raw =
+  | { beats: number; rest: true }
+  | ({ beats: number; tied?: true } & ReturnType<typeof toDegree>);
+
+/*
+ * Durations the app can actually draw, longest first.
+ *
+ * Asked of the app rather than listed here, so the tool cannot drift from what
+ * the renderer will accept — and derived over the same twelfths the grid uses,
+ * which is what makes both triplets and semiquavers members of it.
+ */
+const WRITABLE = Array.from({ length: GRID * 4 }, (_, i) => (GRID * 4 - i) / GRID).filter(
+  (beats) => durationFromBeats(beats) !== null,
+);
+
+/*
+ * A silence broken into rests that can be written.
+ *
+ * Bach leaves a voice quiet for a beat and a quarter while the other one
+ * answers, and no single rest is a beat and a quarter long — so it becomes a
+ * crotchet rest and a semiquaver rest, which is what a score prints. Greedy
+ * from the longest, which is also how a copyist fills a bar.
+ *
+ * Notes get no such treatment: splitting one means tying it, and this format
+ * ties only across a bar line. An unwritable note is reported instead, because
+ * a wrong duration is worse than a refusal.
+ */
+function restsFor(beats: number): number[] {
+  const out: number[] = [];
+  let left = beats;
+  while (left > 1 / (GRID * 2)) {
+    const piece = WRITABLE.find((value) => value <= left + 1e-9);
+    if (piece === undefined) break;
+    out.push(piece);
+    left = Math.round((left - piece) * GRID) / GRID;
+  }
+  return out;
+}
+
 
 const raw: Raw[] = [];
 let expected = 0;
 single.forEach((note, index) => {
   const silence = ((note.start - expected) / division) * scale;
   if (silence > 1 / (GRID * 2)) {
-    raw.push({ beats: Math.round(silence * GRID) / GRID, rest: true });
+    for (const rest of restsFor(Math.round(silence * GRID) / GRID)) {
+      raw.push({ beats: rest, rest: true });
+    }
   }
+  const beats = beatsOf(note.ticks, `note ${index}`);
   raw.push({
-    beats: beatsOf(note.ticks, `note ${index}`),
+    beats,
     ...toDegree(note.midi, fifths, mode, tonicIndex),
   });
   expected = note.start + note.ticks;
 });
+
+/*
+ * Notes broken at the bar line, and joined by a tie.
+ *
+ * Counterpoint holds a note across the bar constantly — a suspension is
+ * precisely that — and the format writes it the way a score does: two notes of
+ * the same degree, the first marked `tied`. Without this the note sits astride
+ * the line, which the validator rejects and a renderer could not draw.
+ *
+ * Done before the slice, so a cut by bar never has to divide an event, and the
+ * bars it takes are full ones. Rests are split at the line too and simply not
+ * tied, because a rest either side of a bar line is two rests.
+ *
+ * A piece that lands on the line is left alone: only an event that would
+ * *cross* it is divided. And a piece that is still unwritable after the split
+ * is reported rather than emitted quietly — a note of a beat and a quarter
+ * inside one bar needs a tie this format does not take, and a wrong duration is
+ * worse than a refusal.
+ */
+const atBarLines = (() => {
+  const out: Raw[] = [];
+  let at = 0;
+  for (const event of raw) {
+    let left = event.beats;
+    while (left > 1e-9) {
+      const toLine = barBeats - (at % barBeats);
+      const piece = Math.min(left, toLine > 1e-9 ? toLine : barBeats);
+      const rounded = Math.round(piece * GRID) / GRID;
+      const crosses = rounded < left - 1e-9;
+      out.push(
+        'rest' in event
+          ? { beats: rounded, rest: true }
+          : { ...event, beats: rounded, ...(crosses ? { tied: true } : {}) },
+      );
+      at = Math.round((at + rounded) * GRID) / GRID;
+      left = Math.round((left - rounded) * GRID) / GRID;
+    }
+  }
+  return out;
+})();
+
 
 /*
  * Octaves are stated relative to wherever the theme's tonic is placed, and
@@ -319,7 +413,7 @@ single.forEach((note, index) => {
  * a reader has to hold that in their head to see the shape.
  */
 const commonest = [
-  ...raw.reduce(
+  ...atBarLines.reduce(
     (counts, note) =>
       'rest' in note ? counts : counts.set(note.octave, (counts.get(note.octave) ?? 0) + 1),
     new Map<number, number>(),
@@ -335,14 +429,15 @@ function beatSource(beats: number): string {
   return `${numerator / by} / ${GRID / by}`;
 }
 
-const events = raw.map((event) => {
+const events = atBarLines.map((event) => {
   if ('rest' in event) return { line: `r(${beatSource(event.beats)})`, beats: event.beats };
   const shifted = event.octave - commonest;
   const extra = [event.alter ? `alter: ${event.alter}` : '', shifted ? `octave: ${shifted}` : '']
     .filter(Boolean)
     .join(', ');
+  const parts = [extra, event.tied ? 'tied: true' : ''].filter(Boolean).join(', ');
   return {
-    line: `n(${event.degree}, ${beatSource(event.beats)}${extra ? `, { ${extra} }` : ''})`,
+    line: `n(${event.degree}, ${beatSource(event.beats)}${parts ? `, { ${parts} }` : ''})`,
     beats: event.beats,
   };
 });
@@ -427,6 +522,25 @@ if (statedFifths !== undefined && (statedFifths !== fifths || statedMinor !== (m
   process.stderr.write(
     `  the file declares ${statedFifths} sharps/flats ${statedMinor ? 'minor' : 'major'},` +
       ` read as ${fifths} ${mode} — check which is right\n`,
+  );
+}
+
+
+/*
+ * Whether the bars taken can actually be written.
+ *
+ * Asked of the slice rather than of the file, because a fault forty bars past
+ * the cut says nothing about the excerpt — and the earlier version, which
+ * counted the whole track, made clean cuts look broken. A note of a beat and a
+ * quarter inside one bar is the usual offender: a score ties it, and this
+ * format ties only across a bar line.
+ */
+const unwritable = sliced.filter((event) => durationFromBeats(event.beats) === null);
+if (unwritable.length) {
+  process.stderr.write(
+    `  ${unwritable.length} event(s) in these bars no single value can write: ` +
+      `${[...new Set(unwritable.map((e) => `${e.beats} beats`))].slice(0, 4).join('; ')}` +
+      ` — a score would tie these inside the bar, which this format does not take\n`,
   );
 }
 

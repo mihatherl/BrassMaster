@@ -50,8 +50,18 @@
 
 import type { Theme } from './theme';
 
-/** A note of `beats` on `degree`, with the options a chromatic line needs. */
-function n(degree: number, beats: number, extra: { alter?: number; octave?: number } = {}) {
+/**
+ * A note of `beats` on `degree`, with the options a chromatic line needs.
+ *
+ * `tied` joins it to the next note of the same degree, which counterpoint needs
+ * constantly — a suspension is a note held across the bar line, and this format
+ * writes one the way a score does, as two notes joined.
+ */
+function n(
+  degree: number,
+  beats: number,
+  extra: { alter?: number; octave?: number; tied?: boolean } = {},
+) {
   return { degree, beats, ...extra };
 }
 
@@ -203,6 +213,103 @@ export const BORROWED: readonly Theme[] = [
       n(5, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2),
       n(6, 1 / 2, { octave: -1 }), n(5, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2), n(5, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }),
       n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2),
+    ],
+  },
+{
+    id: 'bwv776-invention',
+    name: 'Invention 5',
+    /*
+     * E flat, and the plainest of the four to read: crotchets and quavers where
+     * the others run in semiquavers, so what makes it hard is the key and the
+     * two-octave climb rather than the speed. Four bars because that is where
+     * the subject and its answer close, and the converter found the tonic at
+     * both ends of exactly that span.
+     */
+    difficulty: 'hard',
+    metres: [[4, 4]],
+    bars: 4,
+    events: [
+      r(1 / 2), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 2), n(2, 1 / 2), n(3, 1), n(4, 1),
+      r(1 / 2), n(2, 1 / 4), n(1, 1 / 4), n(2, 1 / 2), n(3, 1 / 2), n(4, 1), n(5, 1),
+      n(3, 1 / 2), n(6, 1 / 2), n(5, 1 / 2), n(4, 1 / 2), n(3, 1 / 4), n(4, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 2), n(2, 1 / 2),
+      n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(1, 3 / 4, { octave: 1 }), n(6, 1 / 4), n(7, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(2, 1 / 2, { octave: 1 }), n(1, 1 / 2, { octave: 1 }),
+    ],
+  },
+{
+    id: 'bwv782-invention',
+    name: 'Invention 11',
+    /*
+     * G minor, and the most chromatic thing in the collection — the flattened
+     * second and the raised sixth both turn up inside the first bar, which is
+     * the quantity of accidentals the difficulty model still cannot measure
+     * and the ear notices immediately.
+     *
+     * Six bars. Later cuts are barred by a note of a beat and a quarter, which
+     * a score ties inside the bar and this format cannot.
+     */
+    difficulty: 'hard',
+    mode: 'minor',
+    metres: [[4, 4]],
+    bars: 6,
+    events: [
+      r(1 / 4), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 4, { alter: -1 }), n(1, 1 / 4), n(2, 1 / 4), n(3, 1 / 4), n(1, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(1, 1 / 4, { alter: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(3, 1 / 4), n(2, 1 / 4),
+      n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }), n(3, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(4, 1 / 4),
+      n(3, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(2, 1 / 4), n(3, 1 / 4), n(4, 1 / 4), n(5, 1 / 4), n(6, 1 / 4, { alter: 1 }), n(7, 1 / 2), n(5, 1 / 2), r(1 / 2), n(5, 1 / 2),
+      n(6, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(5, 1 / 4), n(6, 1 / 2), n(6, 1 / 2, { alter: 1 }), n(7, 1 / 4), n(6, 1 / 4, { alter: 1 }), n(5, 1 / 4), n(6, 1 / 4, { alter: 1 }), n(7, 1 / 2), n(1, 1 / 2, { alter: -1, octave: 1 }),
+      n(1, 1 / 2, { octave: 1 }), n(5, 1 / 4), n(4, 1 / 4), n(5, 1 / 4), n(6, 1 / 4), n(7, 1 / 4), n(5, 1 / 4), n(6, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(6, 1 / 4),
+      n(5, 1 / 4), n(4, 1 / 4), n(5, 1 / 4), n(6, 1 / 4, { alter: 1 }), n(7, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(2, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(6, 1 / 4, { alter: 1 }), n(5, 1 / 4), n(5, 1 / 4, { alter: -1 }), n(3, 1 / 4, { octave: 1 }), n(2, 1 / 4, { octave: 1 }), n(1, 1 / 4, { octave: 1 }),
+    ],
+  },
+{
+    id: 'bwv784-invention',
+    name: 'Invention 13',
+    /*
+     * A minor, and the one whose subject is pure arpeggio — the figure that
+     * makes it famous is also, exactly, the shape a brass player drills. Which
+     * is the argument for the whole exercise: this is a study and a piece of
+     * music at once, and nothing written for difficulty has managed both.
+     *
+     * The first theme here to carry a tie. Three notes are held across the bar
+     * line, written as a score writes them: the same degree twice, the first
+     * marked `tied`.
+     */
+    difficulty: 'hard',
+    mode: 'minor',
+    metres: [[4, 4]],
+    bars: 8,
+    events: [
+      r(1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(4, 1 / 4), n(3, 1 / 2), n(5, 1 / 2), n(7, 1 / 2, { alter: 1, octave: -1 }), n(5, 1 / 2),
+      n(1, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(4, 1 / 4), n(3, 1 / 2), n(1, 1 / 2), r(1),
+      r(1 / 4), n(5, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(4, 1 / 2), n(6, 1 / 2, { tied: true }),
+      n(6, 1 / 4), n(4, 1 / 4), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(7, 1 / 2, { octave: -1 }), n(3, 1 / 2), n(5, 1 / 2, { tied: true }),
+      n(5, 1 / 4), n(3, 1 / 4), n(1, 1 / 4), n(3, 1 / 4), n(6, 1 / 2, { octave: -1 }), n(4, 3 / 4), n(2, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 2, { octave: -1 }), n(3, 1 / 2, { tied: true }),
+      n(3, 1 / 4), n(1, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 2, { octave: -1 }), n(2, 1 / 2), n(3, 1 / 2), r(3 / 2),
+      r(1 / 4), n(7, 1 / 4, { octave: -1 }), n(3, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(6, 1 / 4), n(5, 1 / 2), n(7, 1 / 2), n(2, 1 / 2), n(7, 1 / 2),
+      n(3, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(3, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(6, 1 / 4), n(5, 1 / 2), n(3, 1 / 2), n(7, 1 / 2), n(5, 1 / 2),
+    ],
+  },
+{
+    id: 'bwv786-invention',
+    name: 'Invention 15',
+    /*
+     * B minor, and the widest — it sits low and climbs, so it is the one most
+     * likely to be declined on a smaller compass. That is not a fault: a theme
+     * that will not fit is simply not offered, and the settings screen counts
+     * what fits before a player chooses it.
+     */
+    difficulty: 'hard',
+    mode: 'minor',
+    metres: [[4, 4]],
+    bars: 8,
+    events: [
+      r(1 / 2), n(1, 1 / 4), n(7, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 2), n(5, 1 / 2, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(5, 1 / 2, { octave: -1 }),
+      n(5, 1 / 2, { octave: -1 }), n(4, 1 / 2, { octave: -1 }), n(2, 1 / 2), n(4, 1 / 2, { octave: -1 }), n(4, 1 / 2, { octave: -1 }), n(3, 1 / 4, { octave: -1 }), n(2, 1 / 4, { octave: -1 }), n(3, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }),
+      n(5, 1 / 2, { octave: -1 }), r(3 / 4), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(6, 1 / 4, { alter: 1, octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }),
+      n(6, 1 / 4, { alter: 1, octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(5, 1 / 4, { alter: -1, octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(5, 1 / 4, { alter: -1, octave: -1 }), n(2, 1 / 2), n(5, 1 / 4, { octave: -1 }), n(5, 1 / 4, { alter: -1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 4),
+      n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4), n(3, 1 / 4), n(6, 3 / 4, { alter: 1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(5, 1 / 4), n(5, 1 / 4, { alter: -1 }), n(5, 1 / 2), n(2, 1 / 2),
+      n(3, 1 / 2), n(2, 1 / 2), n(5, 1 / 2), n(2, 1 / 2), n(2, 1 / 2), n(1, 1 / 2), n(6, 1 / 2, { alter: 1 }), n(1, 1 / 2),
+      n(1, 1 / 2), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(5, 1 / 4, { alter: -1, octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(5, 1 / 4), n(4, 1 / 4), n(5, 1 / 2), n(2, 1 / 2),
+      n(3, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(1, 1 / 4), n(4, 1 / 4), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4), n(6, 1 / 4), n(7, 1 / 4), n(6, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), n(4, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4),
     ],
   },
 ];

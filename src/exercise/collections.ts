@@ -104,19 +104,31 @@ export const COLLECTIONS: readonly Collection[] = [
     id: 'bach',
     name: 'Bach',
     blurb:
-      'Two fugue subjects and two converted excerpts. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
+      'Two fugue subjects and six excerpts read out of public-domain MIDI — five of the Two-Part Inventions, and the obbligato from Jesu, Joy of Man’s Desiring. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 1,
+    revision: 2,
     themes: BORROWED,
     /*
-     * The two subjects predate the converter and were written from memory, so
-     * they have not had the scrutiny the converted pair has. Approved by ear
-     * 2026-08-20: *"The two Bach themes are great"* — which was said of
-     * `bwv779-invention` and `jesu-joy`, and should not be read as covering
-     * these two.
+     * Two groups here, unheard for different reasons.
+     *
+     * The subjects predate the converter and were written from memory, so they
+     * never had the scrutiny the converted ones did. Approved by ear 2026-08-20:
+     * *"The two Bach themes are great"* — said of `bwv779-invention` and
+     * `jesu-joy`, and not to be read as covering these.
+     *
+     * The four inventions added the same day are simply new. They are measured,
+     * they validate and they fit a compass, and none of that says they are
+     * music worth practising — which is the one question only the ear settles.
      */
-    unjudged: new Set(['bwv1080-subject', 'bwv1079-royal']),
+    unjudged: new Set([
+      'bwv1080-subject',
+      'bwv1079-royal',
+      'bwv776-invention',
+      'bwv782-invention',
+      'bwv784-invention',
+      'bwv786-invention',
+    ]),
   },
 ];
 

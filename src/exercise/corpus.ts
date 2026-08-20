@@ -71,6 +71,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'default@1': 'e1dc294e', // 36 kept of the forty-seven
   'traditional@1': 'e0d7777b', // 12 nursery songs and rounds
   'bach@1': '90398ba7', // 2 fugue subjects, 2 converted excerpts
+  'bach@2': '4c8c8104', // and four of the Two-Part Inventions
 };
 
 /*
