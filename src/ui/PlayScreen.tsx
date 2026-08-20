@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ensureRunning, getAudioContext, markStuck, unlockAudio } from '../audio/context';
 import { FollowingVoice } from '../audio/following-voice';
 import { Sampler, type Voice } from '../audio/sampler';
-import { barAt, metreFor } from '../domain/metre';
+import { barAt, metreAt } from '../domain/metre';
 import { keyAt } from '../domain/keys';
 import { instrumentById } from '../domain/instruments';
 import type { Transport } from '../engine/clock';
@@ -697,7 +697,11 @@ export function PlayScreen({
       <div className="play-aside">
         <TempoDial
           tempo={tempo}
-          compound={metreFor(settings.beatsPerBar, settings.beatUnit).isCompound}
+          /* The exercise's opening metre, not the settings' — a collection
+             medley plays in its tunes' own metres, and the transport counts
+             the opening metre's pulse, so that is the unit the dial's number
+             actually means. The settings metre can now be a different one. */
+          compound={metreAt(exercise.metres, 0).isCompound}
           onChange={(bpm) => {
             setTempo(bpm);
             // The clock takes it at the next beat it has not committed to;
