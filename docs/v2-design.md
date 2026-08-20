@@ -449,6 +449,45 @@ it arrives there. Armed before the screens exist, and mutation-tested by wiring
 the store into `App` unguarded and watching the free build fail — which is the
 exact mistake it is there to catch.
 
+## Themes in the minor — the mode
+
+The blocker found before transcribing any Bach: a theme could not end on its
+own tonic if that tonic was minor. Both ends of a theme must be stable so any
+two can abut, stable meant degrees 1, 3 and 5, and a minor tune's tonic was
+degree 6 of the relative major. **Bach's organ works are overwhelmingly
+minor**, so the whole of the repertoire most worth borrowing was unreachable.
+
+`Theme.mode` fixes it. Absent means major, so nothing written before it moved.
+
+**Degrees are of the theme's own scale.** Degree 1 of a minor theme is its own
+tonic; its thirds, sixths and sevenths are already minor and need no `alter` to
+say so. The key signature is unchanged either way — the mode says which note of
+it the tune sits on.
+
+**The first attempt did the opposite, and a test caught it.** Minor themes were
+to be written as degrees of the *relative* major, keeping one scale in the
+code. That is technically capable and a trap in practice: the minor tonic is
+degree 6 there, so every ascent from home needs an octave offset, and the first
+tune written that way came out a sixth upside down — written by me, in the test
+that was meant to prove the feature. **A format that is capable and reliably
+misused is worse than one that is narrower.** Reading degrees through the
+theme's own scale also deleted the special case it had introduced: stable
+degrees are 1, 3 and 5 again, in both modes.
+
+**Placement follows the mode's tonic too.** A theme is placed by its tonic
+rather than by centring its span, because the tonic is what a player feels the
+music sitting on — so an A minor tune wants its A in the window, not the C of
+the signature it shares. Anchoring on the signature's tonic put every minor
+tune a third out of the register a player expects.
+
+Both rules were mutation-tested: reading the minor through the major scale, and
+placing it on the relative major's tonic, each fail a test that names them.
+
+**And `tsc` caught what the suite did not**, again. `realiseTheme` returns
+`SlotPitch`, which is a MIDI number *or* a spelled pitch; the test did
+arithmetic on it and vitest coerced happily while the build refused. The gate
+is three commands because they do not catch the same things.
+
 ## Reviewing the corpus before it ships
 
 `npm run cells` is now a review surface rather than only a sheet: every cell

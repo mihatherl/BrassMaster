@@ -71,6 +71,46 @@ export interface ThemeKeyChange {
   fifths: number;
 }
 
+/**
+ * Which mode a theme is in.
+ *
+ * **Degrees are of the theme's own scale.** Degree 1 of a minor theme is its
+ * own tonic — an A in a signature of no sharps — and 3, 6 and 7 are already
+ * the minor's, needing no `alter` to say so. The key signature is unchanged
+ * either way; the mode says which note of it the tune sits on.
+ *
+ * The first attempt wrote minor tunes as degrees of the *relative major*, and
+ * a test caught why that is a trap: the minor tonic is degree 6 there, so
+ * every ascent from home needs an octave offset, and the first tune written
+ * that way came out a sixth upside down. A format that is technically capable
+ * and reliably misused is worse than one that is narrower.
+ *
+ * Absent means major, so every theme written before modes existed is unchanged.
+ */
+export type Mode = 'major' | 'minor';
+
+/**
+ * The natural minor. Its raised sevenths and sixths are written with `alter`
+ * where a tune wants them, exactly as chromatic notes always were — a harmonic
+ * minor is a natural minor with a sharpened seventh, not a scale of its own.
+ */
+const MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10];
+
+function scaleOf(mode: Mode = 'major'): readonly number[] {
+  return mode === 'minor' ? MINOR_SCALE : MAJOR_SCALE;
+}
+
+/**
+ * Semitones from the key signature's own tonic up to the mode's.
+ *
+ * Zero in the major; nine in the minor, whose tonic is the sixth degree of the
+ * signature it shares. What placement centres on, so a minor tune sits where
+ * its own home note wants to be rather than where the relative major's does.
+ */
+function tonicOffset(mode: Mode = 'major'): number {
+  return mode === 'minor' ? 9 : 0;
+}
+
 export interface Theme {
   id: string;
   /** Shown to nobody yet; it is for whoever is reading the corpus. */
@@ -84,12 +124,20 @@ export interface Theme {
    * inferred. Most themes name one.
    */
   metres: ReadonlyArray<readonly [number, number]>;
+  /** Major unless it says otherwise. */
+  mode?: Mode;
   bars: number;
   events: readonly ThemeEvent[];
   keyChanges?: readonly ThemeKeyChange[];
 }
 
-/** Degrees a phrase may begin and end on, so that any two themes can abut. */
+/**
+ * Degrees a phrase may begin and end on, so that any two themes can abut.
+ *
+ * The tonic, mediant and dominant — and because degrees are of the theme's own
+ * scale, that is 1, 3 and 5 in either mode. The minor needed no special case
+ * once its degrees stopped being borrowed from the relative major.
+ */
 const STABLE_DEGREES = [1, 3, 5];
 
 /**
@@ -236,7 +284,7 @@ export function validateTheme(theme: Theme): string[] {
      * measured within each key rather than across the join, since where the
      * join lands is decided later, by the compass.
      */
-    const offsets = sounded.map(semitonesAbove);
+    const offsets = sounded.map((note) => semitonesAbove(note, theme.mode));
     const span = Math.max(...offsets) - Math.min(...offsets);
     if (span > difficulty.rangeSemitones) {
       problems.push(
@@ -385,8 +433,8 @@ function readableKey(fifths: number): number {
 }
 
 /** Semitones above the tonic for a degree, with any chromatic inflection. */
-function semitonesAbove(note: ThemeNote): number {
-  return MAJOR_SCALE[note.degree - 1] + (note.alter ?? 0) + (note.octave ?? 0) * 12;
+function semitonesAbove(note: ThemeNote, mode: Mode = 'major'): number {
+  return scaleOf(mode)[note.degree - 1] + (note.alter ?? 0) + (note.octave ?? 0) * 12;
 }
 
 /**
@@ -470,7 +518,7 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
 
   function spanOf(base: number): [number, number] {
     const tonics = tonicsFrom(base);
-    const pitched = sounded.map(({ note, key }) => tonics[key] + semitonesAbove(note));
+    const pitched = sounded.map(({ note, key }) => tonics[key] + semitonesAbove(note, theme.mode));
     return [Math.min(...pitched), Math.max(...pitched)];
   }
 
@@ -485,7 +533,10 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
    * against the whole theme, since one that modulates upwards can fit at the
    * start and run off the top later.
    */
-  const tonicClass = ((tonicPitchClass(keys[0].fifths) % 12) + 12) % 12;
+  // The pitch class the tune sits on, which in the minor is a sixth above the
+  // signature's own tonic rather than the signature's tonic itself.
+  const tonicClass =
+    ((((tonicPitchClass(keys[0].fifths) + tonicOffset(theme.mode)) % 12) + 12) % 12);
   const [windowLow, windowHigh] = tonicWindow(instrument, clef);
   const bases: number[] = [];
   for (let midi = lowest - 24; midi <= highest + 24; midi++) {
@@ -516,7 +567,7 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
    * spelling stands.
    */
   const pitches: SlotPitch[] = sounded.map(({ note, key }) => {
-    const midi = tonics[key] + semitonesAbove(note);
+    const midi = tonics[key] + semitonesAbove(note, theme.mode);
     if (!note.alter) return midi;
     const letter = spellInKey(midi - note.alter, keys[key].fifths).letter;
     return spellWithLetter(midi, letter) ?? midi;

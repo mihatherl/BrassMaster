@@ -6,7 +6,13 @@ import { midiOf } from '../domain/pitch';
 import { composeTune } from './compose';
 import { DIFFICULTIES } from './difficulty';
 import { createRng } from './rng';
-import { exerciseFromTheme, realiseTheme, validateTheme, type Theme } from './theme';
+import {
+  exerciseFromTheme,
+  realiseTheme,
+  tonicWindow,
+  validateTheme,
+  type Theme,
+} from './theme';
 
 const EB_BASS = { instrument: instrumentById('eb-bass'), clef: 'treble' as const };
 
@@ -231,5 +237,81 @@ describe('realiseTheme', () => {
     expect(tail.writtenMidi).toBe(heads[0].writtenMidi);
     // The far end takes no accidental of its own: it is one sound continuing.
     expect(tail.showAccidental).toBe(false);
+  });
+});
+
+describe('a theme in the minor', () => {
+  /*
+   * Written the way an author would: degree 1 is the tune's own tonic, and its
+   * thirds and sevenths are already minor without a single `alter`. In a
+   * signature of no sharps this is A minor.
+   */
+  const aMinor = (over: Partial<Theme> = {}): Theme =>
+    themeOf({
+      id: 'minor',
+      mode: 'minor',
+      difficulty: 'easy',
+      metres: [[4, 4]],
+      bars: 2,
+      events: [
+        { degree: 1, beats: 1 },
+        { degree: 3, beats: 1 },
+        { degree: 5, beats: 1 },
+        { degree: 4, beats: 1 },
+        { degree: 3, beats: 1 },
+        { degree: 2, beats: 1 },
+        { degree: 7, beats: 1, alter: 1 },
+        { degree: 1, beats: 1 },
+      ],
+      ...over,
+    });
+
+  const options = { ...EB_BASS, fifths: 0, metre: metreFor(4, 4) };
+
+  it('is written from its own tonic, and validates like any other', () => {
+    expect(validateTheme(aMinor())).toEqual([]);
+  });
+
+  /*
+   * The reason the mode exists at all. Read as a major scale the same degrees
+   * are a different tune — a major third where the minor has a minor one.
+   */
+  /* `pitches` holds either a MIDI number or a spelled pitch; the minor tunes
+     here are diatonic, so they arrive as numbers. */
+  const midis = (theme: Theme): number[] =>
+    realiseTheme(theme, options)!.pitches.map((pitch) =>
+      typeof pitch === 'number' ? pitch : midiOf(pitch),
+    );
+
+  it('sounds its thirds and sevenths minor without being told to', () => {
+    const minor = midis(aMinor());
+    const major = midis(aMinor({ mode: 'major' }));
+    expect(minor[1] - minor[0]).toBe(3);
+    expect(major[1] - major[0]).toBe(4);
+  });
+
+  /*
+   * A minor tune sits on its own home note. Placing by the signature's tonic
+   * would put every one of them a third out of the register a player expects.
+   */
+  it('sits on its own tonic, not the relative major’s', () => {
+    const [low, high] = tonicWindow(EB_BASS.instrument, EB_BASS.clef);
+    const first = midis(aMinor())[0];
+    expect(first).toBeGreaterThanOrEqual(low);
+    expect(first).toBeLessThanOrEqual(high);
+  });
+
+  it('starts on a different note from the major theme it shares a key with', () => {
+    const minor = midis(aMinor());
+    const major = midis(aMinor({ mode: 'major' }));
+    // A against C. Compared as pitch classes rather than by distance, since
+    // which octave each landed in is the compass's business: A is nine
+    // semitones above C going up, three below it going down, and only the
+    // signed comparison says which note it actually is.
+    expect((((minor[0] - major[0]) % 12) + 12) % 12).toBe(9);
+  });
+
+  it('leaves every theme written before modes existed exactly as it was', () => {
+    expect(midis(aMinor({ mode: undefined }))).toEqual(midis(aMinor({ mode: 'major' })));
   });
 });
