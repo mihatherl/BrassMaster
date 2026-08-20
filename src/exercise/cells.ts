@@ -38,6 +38,20 @@
  */
 
 export type CellRole = 'open' | 'move' | 'close';
+
+/**
+ * Whether a cell has been through review.
+ *
+ * **`candidate` cells never reach a player.** `cellsFor` hands out accepted
+ * ones only, so new material can sit in the tree — and on the review sheet —
+ * without ever being composed into somebody's practice. That is what makes it
+ * safe to write a dozen figures and judge them later rather than judging each
+ * one before it may exist.
+ *
+ * A spec that omits it is accepted, so the corpus as it stood when this was
+ * introduced needed no editing and nothing already in a player's hands moved.
+ */
+export type CellStatus = 'accepted' | 'candidate';
 export type CellLevel = 'beginner' | 'easy' | 'medium' | 'hard';
 
 export interface CellEvent {
@@ -63,6 +77,7 @@ export interface Cell {
   metre: readonly [number, number];
   role: CellRole;
   level: CellLevel;
+  status: CellStatus;
   events: readonly CellEvent[];
 }
 
@@ -93,10 +108,13 @@ export function parseCell(bar: string): CellEvent[] {
     });
 }
 
-type Spec = readonly [id: string, role: CellRole, level: CellLevel, bar: string];
+type Spec =
+  | readonly [id: string, role: CellRole, level: CellLevel, bar: string]
+  | readonly [id: string, role: CellRole, level: CellLevel, bar: string, status: CellStatus];
 
 function corpus(metre: readonly [number, number], specs: readonly Spec[]): Cell[] {
-  return specs.map(([id, role, level, bar]) => ({
+  return specs.map(([id, role, level, bar, status]) => ({
+    status: status ?? 'accepted',
     id: `${metre[0]}${metre[1]}-${id}`,
     metre,
     role,
@@ -297,19 +315,38 @@ export const CELLS: readonly Cell[] = [...FOUR_FOUR, ...THREE_FOUR, ...TWO_FOUR,
 export const CELL_LEVELS: readonly CellLevel[] = ['beginner', 'easy', 'medium', 'hard'];
 
 /** Cells for a metre at a level: the level's own and every level below it. */
-export function cellsFor(
+/**
+ * The rule about what may be composed, over any list of cells.
+ *
+ * Kept apart from the lookup below so it can be tested against a corpus that
+ * is not the real one — the accepted-only clause is untestable against `CELLS`
+ * alone, which holds no candidates, and a test that cannot fail was exactly
+ * what the first version of this had.
+ */
+export function selectCells(
+  cells: readonly Cell[],
   metre: readonly [number, number],
   level: CellLevel,
   role?: CellRole,
 ): Cell[] {
   const ceiling = CELL_LEVELS.indexOf(level);
-  return CELLS.filter(
+  return cells.filter(
     (cell) =>
+      // Unreviewed material is never composed into anyone's practice.
+      cell.status === 'accepted' &&
       cell.metre[0] === metre[0] &&
       cell.metre[1] === metre[1] &&
       CELL_LEVELS.indexOf(cell.level) <= ceiling &&
       (role === undefined || cell.role === role),
   );
+}
+
+export function cellsFor(
+  metre: readonly [number, number],
+  level: CellLevel,
+  role?: CellRole,
+): Cell[] {
+  return selectCells(CELLS, metre, level, role);
 }
 
 /**

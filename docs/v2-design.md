@@ -449,6 +449,51 @@ it arrives there. Armed before the screens exist, and mutation-tested by wiring
 the store into `App` unguarded and watching the free build fail — which is the
 exact mistake it is there to catch.
 
+## Reviewing the corpus before it ships
+
+`npm run cells` is now a review surface rather than only a sheet: every cell
+takes a verdict — keep or cut, with a note — held in the page's own storage so
+a review survives a refresh and can be done over several sittings, and **Save
+verdicts** downloads them as JSON for the repository. The page cannot write to
+the repository and does not pretend to; one manual hop is the honest cost of
+having no server, and it is cheaper than the alternative.
+
+**Cells have a status, and a candidate never reaches a player.** `selectCells`
+hands out accepted ones only, so unreviewed material can sit in the tree and on
+the sheet without being composed into anybody's practice. A spec that omits the
+status is accepted, so the 157 cells that existed when this arrived needed no
+editing and nothing in a player's hands moved.
+
+**Why the sheet is not deployed to brassmaster.net.** The proposal was to
+publish candidates on the server and review them there. A static site has
+nowhere to store a verdict, so the tags round-trip as a file either way — the
+hosting buys nothing there — while it would publish unreleased material on the
+product's front door and put a deploy cycle between writing a figure and
+looking at it. The tailnet already serves a local directory over HTTPS to a
+phone, which is the same convenience without any of that:
+
+    npm run cells && tailscale serve --bg --https=8451 "$PWD/cells.html"
+
+**Accepted-versus-discarded, held as ids over a bundled default, is the same
+model a player's corpus overlay will need.** Building it for the reviewer first
+means the user-facing version is that mechanism pointed at another audience
+rather than a second one.
+
+### The test that could not fail
+
+The accepted-only rule was first written inside `cellsFor`, which reads the
+module's own corpus — and the corpus holds no candidates, so a test for it
+built a candidate the function could never see. Removing the rule entirely left
+all eleven tests passing. Split into `selectCells(cells, …)` with `cellsFor`
+calling it, the rule can be exercised against a corpus that is not the real
+one, and breaking it now fails.
+
+**That is the second time in two days** the same mistake has been caught the
+same way — the first was `masteryOf` against `masteryFor`. The pattern worth
+naming: **a rule that reads a module-level constant cannot be tested, only
+described.** Separate the rule from the lookup, and mutation-test it, or the
+test is a sentence rather than a check.
+
 ## Looking at the cells, and what an id is for
 
 `npm run cells` engraves every cell in the corpus — all 157 — grouped by metre
