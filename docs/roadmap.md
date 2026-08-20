@@ -364,6 +364,35 @@ which `compose.ts` builds every tune. Deliberately not `themes.ts`,
 enters a bundle, so counting them would make the number describe the repository
 rather than the build. A candidate is not material until it has been heard.
 
+#### And it is chunked into collections
+
+Added 2026-08-20: *"I really think we need to chunk up the corpuses to have the
+'Bach corpus', 'carols corpus', 'default corpus (ie the 47)'."* Now
+`exercise/collections.ts` — three today (the 36 written themes, 12 traditional
+tunes, 4 Bach), each with its own provenance and its own revision.
+
+**Provenance is the load-bearing part.** It is a fact about a collection rather
+than any tune in it, and it decides what a *sold* app may carry: four of the
+fifteen Mutopia inventions are CC BY-SA, and the generator's models are trained
+on a corpus forbidding commercial use. `restricted` marks a collection a paid
+build must not ship, and the suite enforces it. This is where the licensing
+tripwires in `CLAUDE.md` stop being something to remember.
+
+**Open, and worth settling deliberately: none of it ships.** The app composes
+every tune from cells and imports no collection at all, so approved material
+currently has nowhere to go — the traditional tunes and the Bach have been
+heard and accepted and no player can reach them. Three routes, and the choice is
+a product decision rather than a technical one:
+
+1. **Collections become selectable material** — "practise the carols" in
+   December, the Bach when you want something hard. The obvious feature, and the
+   one collections were built to allow. Needs a settings surface and a path
+   through generation.
+2. **Collections seed the composer** — their tunes join the cells as material to
+   vary rather than to play verbatim, which is closer to how the app works now.
+3. **They stay a reference set** — a calibration for the ear and a source for
+   the variation engine, never handed to a player directly.
+
 Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
 
 ### Where each build runs
