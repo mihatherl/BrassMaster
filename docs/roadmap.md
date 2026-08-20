@@ -521,15 +521,28 @@ that engages with the reason recorded here.
   an accompaniment part is dull to play where a countersubject is not. A
   `Theme` is one voice; this needs either two linked themes or a second voice
   on one, and the decision wants making before any counterpoint is transcribed.
-- **The Two-Part Inventions need a converter, not a transcriber.** Each is
-  twenty to forty bars of two voices, and writing thousands of notes out from
-  recall would produce plausible, wrong music — worse than none, since it costs
-  the reviewer's attention to find and shakes their trust in everything beside
-  it. The route is a tool that reads a public-domain score (Mutopia's LilyPond,
-  or MusicXML) and emits `Theme` degrees, which would also serve any other
-  score worth borrowing. Note the app already parses MusicXML in `import/`,
-  though it yields pitches rather than degrees, so the key would have to be
-  read back out.
+- **~~The Two-Part Inventions need a converter, not a transcriber.~~** Built
+  2026-08-20 as `tools/midi-to-theme.mts`: reads a public-domain MIDI, spells it
+  with the app's own `spellInKey`, and emits `Theme` degrees. It refuses to
+  choose a key — a MIDI key signature is wrong or absent often enough that
+  obeying one would put wrong accidentals into the corpus silently — but reports
+  what the file claims, so a caller's guess becomes a check. It also names which
+  cuts could be themes, since both ends must be tonic, mediant or dominant and
+  where to cut is a judgement no tool should make.
+
+  Every fault it has had was found by running real music rather than by
+  reasoning about it, and all were the same shape: **right notes on wrong
+  beats**, which reads as a subtly odd piece rather than as an error. Rests
+  dropped (a voice resting while the other states the subject); a file declaring
+  3/4 and filling it with triplets where the music is 9/8. Assume more of that
+  shape, and keep the ear in the loop — the converted output goes on the review
+  sheet like everything else. Nothing in the app imports the borrowed corpus.
+
+  Still open: the app parses MusicXML in `import/` but yields pitches rather
+  than degrees, so a MusicXML path would need the key read back out. Mutopia's
+  LilyPond is unread. Of the fifteen inventions there, **eleven are plain public
+  domain and four (BWV 772, 777, 780, 783) are CC BY-SA**, which a paid app
+  cannot use.
 - **Whether a variation engine can be trusted.** Raised 2026-08-20 from
   listening: *"things that might mathematically seem like variations don't seem
   to land properly."* A transformation that is formally a variation —
