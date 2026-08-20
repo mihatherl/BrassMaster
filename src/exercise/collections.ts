@@ -120,8 +120,23 @@ export const COLLECTIONS: readonly Collection[] = [
   },
 ];
 
+/**
+ * Not a collection: tunes built from the cells, for this exercise, on the spot.
+ *
+ * The default, and what the app did before collections existed. It belongs in
+ * the same control as the collections because it answers the same question —
+ * where does the music come from — and a player choosing between "endless
+ * fresh tunes" and "the Bach" is choosing one thing, not setting two.
+ */
+export const COMPOSED = 'composed';
+
 export function collectionById(id: string): Collection | undefined {
   return COLLECTIONS.find((collection) => collection.id === id);
+}
+
+/** Whether an id names something the material picker can be set to. */
+export function isMaterialSource(id: string): boolean {
+  return id === COMPOSED || collectionById(id) !== undefined;
 }
 
 /**

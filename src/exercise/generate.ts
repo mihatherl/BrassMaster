@@ -36,6 +36,7 @@ import { metreFor, type Metre } from '../domain/metre';
 import { createRng, type Rng } from './rng';
 import { assembleExercise, type Slot, type SlotPitch } from './assemble';
 import { tonicWindow } from './theme';
+import { COMPOSED, collectionById } from './collections';
 import { stitchThemes } from './phrases';
 import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
@@ -153,6 +154,14 @@ export interface GenerateOptions {
    * something meant to be played whole.
    */
   themeCount: number;
+  /**
+   * Where the themes come from: `COMPOSED` (the default) or a collection id.
+   *
+   * An id rather than the themes themselves, so the caller stays ignorant of
+   * the corpus — the settings screen chooses a name, and what that name holds
+   * is this module's business.
+   */
+  collectionId?: string;
   /**
    * Times a scale or arpeggio is played through, up and back down.
    *
@@ -357,9 +366,30 @@ export function generateExercise(options: GenerateOptions): Exercise {
     const tuneBeats = TUNE_BARS * metre.barBeats;
     const wanted =
       options.themeCount + (horizonBeats ? Math.ceil(horizonBeats / tuneBeats) : 0) + 2;
-    const corpus = Array.from({ length: wanted }, (_, i) =>
-      composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
-    ).filter((tune): tune is Theme => tune !== null);
+    /*
+     * A named collection is played rather than composed from.
+     *
+     * Its tunes are written, finite and few — four Bach against an endless
+     * supply of composed ones — so the stitcher will repeat within a run where
+     * a fresh corpus would not. That is the bargain a player makes by asking
+     * for *this* music rather than for more music, and the stitcher already
+     * handles it: it declines to play the same tune twice running wherever it
+     * has any choice at all.
+     *
+     * Everything downstream is unchanged, including the fall back to generated
+     * material when nothing in the corpus fits the metre, the difficulty and
+     * the instrument's compass. A collection with nothing at this level is the
+     * same situation as a metre no cell is written in.
+     */
+    const chosen =
+      options.collectionId && options.collectionId !== COMPOSED
+        ? collectionById(options.collectionId)
+        : undefined;
+    const corpus = chosen
+      ? chosen.themes
+      : Array.from({ length: wanted }, (_, i) =>
+          composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
+        ).filter((tune): tune is Theme => tune !== null);
 
     const stitched = stitchThemes({
       instrument: options.instrument,

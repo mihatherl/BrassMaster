@@ -116,6 +116,7 @@ export function App() {
         drillId: settings.drillId,
         bars: length.bars,
         themeCount: length.themeCount,
+        collectionId: settings.collectionId,
         cycles: length.cycles,
         register: settings.register,
         range: settings.range ?? undefined,

@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { instrumentById, writtenRange } from '../domain/instruments';
+import { COMPOSED } from '../exercise/collections';
 import {
   AUDIO_LEAD_RANGE,
   audioLeadFor,
@@ -418,5 +419,26 @@ describe('the cushion', () => {
   it('is half for a settings file that predates it', () => {
     store({ tempo: 90 });
     expect(loadSettings().cushionLevel).toBe(0.5);
+  });
+});
+
+/*
+ * A collection is expected to come and go — retired, or held back from a build
+ * that may not carry it — and a stored id naming one that is gone must not
+ * leave a player with a source the app cannot resolve.
+ */
+describe('a chosen collection that is no longer there', () => {
+  it('falls back to composed tunes rather than to nothing', () => {
+    const settings = sanitise({ ...DEFAULT_SETTINGS, collectionId: 'retired-last-year' });
+    expect(settings.collectionId).toBe(COMPOSED);
+  });
+
+  it('keeps one that does exist', () => {
+    const settings = sanitise({ ...DEFAULT_SETTINGS, collectionId: 'bach' });
+    expect(settings.collectionId).toBe('bach');
+  });
+
+  it('defaults to composed', () => {
+    expect(DEFAULT_SETTINGS.collectionId).toBe(COMPOSED);
   });
 });

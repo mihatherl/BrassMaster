@@ -10,6 +10,7 @@
 import { INSTRUMENTS, availableClefs, writtenRange, type Clef, type Instrument } from '../domain/instruments';
 import type { ReadingMode } from '../render/surface';
 import type { PlaybackMode } from '../engine/session';
+import { COMPOSED, isMaterialSource } from '../exercise/collections';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { EXERCISE_KINDS } from '../exercise/types';
 import { MAJOR_KEYS } from '../domain/keys';
@@ -72,6 +73,18 @@ export interface Settings {
    * rather than on a question. Ignored by everything but the drills.
    */
   drillId: DrillId;
+  /**
+   * Where the Themes material gets its tunes: `COMPOSED`, or a collection id.
+   *
+   * Always present and always valid, like `drillId`, so choosing Themes after a
+   * season of sight-reading opens on a real source rather than on a question.
+   * Ignored by every other material.
+   *
+   * `COMPOSED` is the default and is what the app did before collections
+   * existed — tunes assembled from cells for this exercise, endlessly fresh.
+   * A named collection plays that collection's tunes instead.
+   */
+  collectionId: string;
   /*
    * How long a run is, is no longer here.
    *
@@ -338,6 +351,7 @@ export const DEFAULT_SETTINGS: Settings = {
   difficultyId: 'easy',
   kind: 'phrases',
   drillId: 'major-scale',
+  collectionId: COMPOSED,
   register: 'middle',
   // Left to the difficulty, which is what the app has always done.
   range: null,
@@ -495,6 +509,14 @@ export function sanitise(settings: Settings): Settings {
     : DEFAULT_SETTINGS.difficultyId;
 
   /*
+   * A stored collection that no longer exists falls back to composed material
+   * rather than to nothing. Collections are expected to come and go — one
+   * retired, or held back from a build — and a player who chose it should get
+   * music, not an empty screen naming something that is gone.
+   */
+  const collectionId = isMaterialSource(settings.collectionId) ? settings.collectionId : COMPOSED;
+
+  /*
    * The set decides, and the starting key follows it.
    *
    * The other way round while there were two controls: the screen named a
@@ -539,6 +561,7 @@ export function sanitise(settings: Settings): Settings {
     // has nothing here, and the merge above must land on "off".
     variableTempo: settings.variableTempo === true,
     ...drillsOf(settings),
+    collectionId,
     materials: sanitiseMaterials(settings, keySet, difficulty),
     register: REGISTERS.some((r) => r.id === settings.register)
       ? settings.register

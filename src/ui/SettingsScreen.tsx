@@ -4,7 +4,9 @@ import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
 import { metreFor } from '../domain/metre';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
+import { COLLECTIONS, COMPOSED } from '../exercise/collections';
 import { corpusSummary } from '../exercise/corpus';
+import { themesFor } from '../exercise/phrases';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
@@ -189,6 +191,23 @@ export function SettingsScreen({
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     onChange({ ...settings, [key]: value });
   };
+
+  /* The chosen collection, where one is chosen, and how much of it currently
+     fits — so the note under the control can name it. */
+  const chosenCollection = COLLECTIONS.find((c) => c.id === settings.collectionId);
+  const chosenSource = chosenCollection
+    ? {
+        name: chosenCollection.name,
+        fits: themesFor({
+          instrument,
+          clef: settings.clef,
+          fifths: settings.fifths,
+          difficulty: settings.difficultyId,
+          metre,
+          corpus: chosenCollection.themes,
+        }).length,
+      }
+    : null;
 
   // Enough of each section to see at a glance what is set, without reproducing
   // the whole screen in miniature — the long sections show only what matters.
@@ -441,6 +460,60 @@ export function SettingsScreen({
     </div>
   );
 
+  /*
+   * Where the Themes material gets its tunes.
+   *
+   * The count beside each collection is not decoration. A collection holds
+   * written tunes at fixed levels and metres, so "Bach" at a level it has
+   * nothing for falls back to composed material — correct behaviour, and
+   * indistinguishable on screen from being given Bach, which is the problem.
+   * A player who has *asked* for particular music should be told when it does
+   * not fit what else they have chosen, rather than quietly handed something
+   * else. It is counted against the real placement, so an instrument whose
+   * compass will not hold a tune is counted out here too.
+   */
+  const sourceField = (
+    <div className="field">
+      <span className="field__label">Tunes from</span>
+      <div className="drills">
+        {[{ id: COMPOSED, name: 'Composed', fits: null as number | null }]
+          .concat(
+            COLLECTIONS.map((collection) => ({
+              id: collection.id,
+              name: collection.name,
+              fits: themesFor({
+                instrument,
+                clef: settings.clef,
+                fifths: settings.fifths,
+                difficulty: settings.difficultyId,
+                metre,
+                corpus: collection.themes,
+              }).length,
+            })),
+          )
+          .map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={settings.collectionId === option.id}
+              className={`segmented__option drill ${settings.collectionId === option.id ? 'is-selected' : ''}`}
+              onClick={() => update('collectionId', option.id)}
+            >
+              {option.name}
+              {option.fits !== null && <span className="muted"> {option.fits}</span>}
+            </button>
+          ))}
+      </div>
+      {chosenSource !== null && chosenSource.fits === 0 && (
+        <p className="field__note muted">
+          Nothing in {chosenSource.name} is written at this level in{' '}
+          {settings.beatsPerBar}/{settings.beatUnit}, so composed tunes will play instead. Try
+          another level or time signature.
+        </p>
+      )}
+    </div>
+  );
+
   const difficultyField = (
         <div className="field">
           <span className="field__label">Difficulty</span>
@@ -643,6 +716,9 @@ export function SettingsScreen({
                     {/* Which shape, before which key: the drill is what the
                         box *is*, and everything under it qualifies it. */}
                     {isPattern(kind.id) && drillField}
+                    {/* Where the tunes come from is what this box *is*, so it
+                        sits where the drill does and above what qualifies it. */}
+                    {kind.id === 'themes' && sourceField}
                     {keysField}
                     {difficultyField}
                     {/* A scale is a shape played against a click rather than a

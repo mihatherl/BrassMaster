@@ -335,9 +335,12 @@ describe('the app', () => {
       expect(fieldsShown()).toEqual(['Keys', 'Difficulty', 'Time signature']);
       expect(hasRange(), 'and it is the only one that asks').toBe(true);
 
-      // A theme is written already: neither a register nor a range to ask about.
+      // A theme is written already: neither a register nor a range to ask
+      // about. It does ask where the tunes come from — composed on the spot, or
+      // one of the named collections — which is what the box *is*, so it leads
+      // the way the drill does.
       choose(/Themes/);
-      expect(fieldsShown()).toEqual(['Keys', 'Difficulty', 'Time signature']);
+      expect(fieldsShown()).toEqual(['Tunes from', 'Keys', 'Difficulty', 'Time signature']);
       expect(hasRange()).toBe(false);
     });
 
