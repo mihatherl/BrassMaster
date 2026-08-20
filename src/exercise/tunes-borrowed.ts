@@ -32,13 +32,20 @@
  *
  * ## How far my hand goes, and where it stops
  *
- * These few are written out because they are short, famous and checkable. **The
- * fifteen Two-Part Inventions are not**, and will not be until there is a
- * converter that reads a public-domain score: each is twenty to forty bars of
- * two independent voices, and transcribing thousands of notes from memory would
- * produce plausible, wrong music — which is worse than none, because it costs a
- * reviewer's attention to find and shakes their trust in everything beside it.
- * See `docs/roadmap.md` on what that converter needs.
+ * The first two are written out because they are short, famous and checkable.
+ * **Everything after them was measured, not remembered**: `tools/midi-to-theme.mts`
+ * reads a public-domain MIDI, spells it with the app's own `spellInKey`, and
+ * reports every place it had to decide. That line matters because transcribing
+ * thousands of notes from memory produces plausible, wrong music — worse than
+ * none, since it costs a reviewer's attention to find and shakes their trust in
+ * everything beside it. Which theme came from which source is recorded on each.
+ *
+ * The converter refuses to guess a key, and reports what the file claims so the
+ * caller can disagree with it knowingly. Two of its findings so far came from
+ * real material rather than from reasoning about it: a voice that rests while
+ * the other states the subject, and a sequencer that writes 9/8 as 3/4 full of
+ * triplets. Both produced right notes on wrong beats, which is the failure mode
+ * to keep watching for.
  */
 
 import type { Theme } from './theme';
@@ -46,6 +53,11 @@ import type { Theme } from './theme';
 /** A note of `beats` on `degree`, with the options a chromatic line needs. */
 function n(degree: number, beats: number, extra: { alter?: number; octave?: number } = {}) {
   return { degree, beats, ...extra };
+}
+
+/** A rest of `beats`. Counterpoint enters on an upbeat more often than not. */
+function r(beats: number) {
+  return { rest: true as const, beats };
 }
 
 export const BORROWED: readonly Theme[] = [
@@ -111,6 +123,86 @@ export const BORROWED: readonly Theme[] = [
       n(7, 2, { alter: 1 }), n(1, 2, { octave: 1 }),
       n(5, 1), n(4, 1), n(3, 1), n(2, 1),
       n(2, 1, { alter: -1 }), n(1, 1), n(7, 1, { alter: 1, octave: -1 }), n(1, 1),
+    ],
+  },
+  {
+    id: 'bwv779-invention',
+    name: 'Invention 8 — opening',
+    /*
+     * **The first theme here nobody wrote down from memory.** Read out of a
+     * public-domain MIDI by `tools/midi-to-theme.mts`, spelled by the app's own
+     * `spellInKey`, and cut where the converter said a cut would validate — so
+     * unlike the two subjects above, its notes are a measurement rather than a
+     * recollection. That is the whole reason it is here: one verified tune says
+     * more about whether the pipeline can be trusted than fifteen unverified
+     * ones, and everything that follows it will arrive the same way.
+     *
+     * Six bars because the converter reported bars 1-6 ending on the tonic and
+     * 1-12 on the dominant, which is Bach's own phrase structure — the subject
+     * in F, its answer in C. The tool found the cut; it does not know why the
+     * cut is there.
+     */
+    difficulty: 'hard',
+    metres: [[3, 4]],
+    bars: 6,
+    /*
+     * Bach's upper voice, entering on the second quaver — the lower voice
+     * answers a bar later, which is why this makes sense as the play-along
+     * experiment as well as a reading test.
+     *
+     * Hard for reasons that are all measurable: continuous semiquavers from bar
+     * 2, a span of nineteen semitones, and three bars of sequence where the eye
+     * must keep its place in a repeating figure that shifts each bar. What it
+     * has that the written-for-difficulty themes lacked is that it is also a
+     * tune — listen for whether the sequences read as music or as an exercise,
+     * because that is the one thing measurement cannot settle.
+     */
+    events: [
+      r(1 / 2), n(1, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(5, 1 / 2), n(1, 1 / 2),
+      n(1, 1 / 2, { octave: 1 }), n(7, 1 / 4), n(6, 1 / 4), n(5, 1 / 4), n(6, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(2, 1 / 4),
+      n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2),
+      n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }),
+      n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(2, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(2, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(2, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
+      n(6, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(1, 1 / 4, { octave: 1 }),
+    ],
+  },
+  {
+    id: 'jesu-joy',
+    name: 'Jesu, Joy of Man\'s Desiring',
+    /*
+     * The obbligato, not the chorale. The tune most people can hum is the
+     * flowing quaver line the instruments play *around* the sung melody, and it
+     * is the one that suits brass: stepwise almost throughout, an octave and a
+     * minor third from end to end, and it never stops moving — which is the
+     * whole reading exercise.
+     *
+     * Eight bars because the converter reported that cut ending on the dominant.
+     * Bars 1-4 end on the supertonic and would not have validated, which is
+     * correct of it: the phrase genuinely is not over there.
+     */
+    difficulty: 'medium',
+    metres: [[9, 8]],
+    bars: 8,
+    /*
+     * **Read as 9/8 although the file says 3/4.** The sequencer wrote compound
+     * time as simple time full of triplets, so every quaver arrived as a third
+     * of a beat and each bar came out a third short — the notes right, the
+     * barlines wrong, which is the kind of error that reads as a slightly odd
+     * piece rather than as a fault. `--scale 1.5` rewrites the note values
+     * without changing what is heard; a 9/8 bar at a dotted crotchet and a 3/4
+     * bar at a crotchet are the same length of time.
+     *
+     * The quaver rest at the start is real: the line enters after the beat.
+     */
+    events: [
+      r(1 / 2), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(4, 1 / 2), n(4, 1 / 2), n(6, 1 / 2), n(5, 1 / 2),
+      n(5, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2),
+      n(4, 1 / 2), n(5, 1 / 2), n(6, 1 / 2), n(5, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(3, 1 / 2), n(1, 1 / 2),
+      n(7, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(2, 1 / 2), n(5, 1 / 2, { octave: -1 }), n(7, 1 / 2, { octave: -1 }), n(2, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2),
+      n(3, 1 / 2), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(4, 1 / 2), n(4, 1 / 2), n(6, 1 / 2), n(5, 1 / 2),
+      n(5, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2),
+      n(6, 1 / 2, { octave: -1 }), n(5, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2), n(5, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }),
+      n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2),
     ],
   },
 ];

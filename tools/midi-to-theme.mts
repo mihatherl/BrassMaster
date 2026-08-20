@@ -69,7 +69,17 @@ function readVar(data: Buffer, at: number): [value: number, next: number] {
  * Handles running status, which real files use constantly and a naive reader
  * silently mis-parses into nonsense rather than failing.
  */
-function readTrack(data: Buffer, at: number, end: number): RawNote[] {
+/*
+ * What the file says about itself.
+ *
+ * Neither field is obeyed — the key is still the caller's to give, and the
+ * metre still the caller's to choose. They are read so that a disagreement can
+ * be *reported*, which is the difference between a converter that is wrong and
+ * one that says it might be.
+ */
+type Declared = { metre?: [number, number]; fifths?: number; minor?: boolean };
+
+function readTrack(data: Buffer, at: number, end: number, declared: Declared): RawNote[] {
   const notes: RawNote[] = [];
   const sounding = new Map<number, { start: number }>();
   let time = 0;
@@ -90,8 +100,17 @@ function readTrack(data: Buffer, at: number, end: number): RawNote[] {
     }
 
     if (status === 0xff) {
-      i++; // meta type
+      const type = data[i++];
       const [length, afterLength] = readVar(data, i);
+      // Only the first of each is kept: a file that changes metre partway is
+      // beyond a tool that writes one `metres` entry, and the report will say so
+      // by disagreeing with whatever the caller passed.
+      if (type === 0x58 && length >= 2 && !declared.metre) {
+        declared.metre = [data[afterLength], 2 ** data[afterLength + 1]];
+      } else if (type === 0x59 && length >= 2 && declared.fifths === undefined) {
+        declared.fifths = data.readInt8(afterLength);
+        declared.minor = data[afterLength + 1] === 1;
+      }
       i = afterLength + length;
       continue;
     }
@@ -126,22 +145,23 @@ function readTrack(data: Buffer, at: number, end: number): RawNote[] {
   return notes.sort((a, b) => a.start - b.start || a.midi - b.midi);
 }
 
-function readMidi(path: string): { division: number; tracks: RawNote[][] } {
+function readMidi(path: string): { division: number; tracks: RawNote[][]; declared: Declared } {
   const data = readFileSync(path);
   if (data.toString('ascii', 0, 4) !== 'MThd') throw new Error(`${path} is not a MIDI file`);
   const division = data.readInt16BE(12);
   if (division <= 0) throw new Error('SMPTE timing is not supported; needs ticks per quarter note');
 
   const tracks: RawNote[][] = [];
+  const declared: Declared = {};
   let at = 8 + data.readUInt32BE(4);
   while (at < data.length) {
     const length = data.readUInt32BE(at + 4);
     if (data.toString('ascii', at, at + 4) === 'MTrk') {
-      tracks.push(readTrack(data, at + 8, at + 8 + length));
+      tracks.push(readTrack(data, at + 8, at + 8 + length, declared));
     }
     at += 8 + length;
   }
-  return { division, tracks };
+  return { division, tracks, declared };
 }
 
 // --- Turning pitches into degrees ------------------------------------------
@@ -186,7 +206,10 @@ function arg(name: string, fallback: string): string {
 
 const path = process.argv[2];
 if (!path || path.startsWith('--')) {
-  process.stderr.write('usage: midi-to-theme <file.mid> [--track N] [--fifths N] [--mode major|minor] [--metre 4/4] [--id name]\n');
+  process.stderr.write(
+    'usage: midi-to-theme <file.mid> [--track N] [--fifths N] [--mode major|minor]\n' +
+      '                     [--metre 4/4] [--scale N] [--bars N] [--from N] [--id name]\n',
+  );
   process.exit(2);
 }
 
@@ -194,6 +217,10 @@ const fifths = Number(arg('fifths', '0'));
 const mode = arg('mode', 'major') as 'major' | 'minor';
 const [beatsPerBar, beatUnit] = arg('metre', '4/4').split('/').map(Number);
 const id = arg('id', 'borrowed');
+/* Escaped, because this repertoire is full of apostrophes — "Jesu, Joy of
+   Man's Desiring" emitted raw closes the string and breaks the file it is
+   pasted into. */
+const name = arg('name', id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 const wantTrack = Number(arg('track', '-1'));
 /*
  * How many bars to take, from the start or from `--from`.
@@ -204,8 +231,18 @@ const wantTrack = Number(arg('track', '-1'));
  */
 const wantBars = Number(arg('bars', '0'));
 const fromBar = Number(arg('from', '1'));
+/*
+ * Rewrites note values without changing what is heard.
+ *
+ * Sequencers write compound time as simple time full of triplets: the Jesu Joy
+ * files declare 3/4, so its nine quavers to the bar arrive as thirds of a beat
+ * and a 9/8 bar comes out a third short. `--scale 1.5` turns those thirds into
+ * halves, which is what a quaver is worth in 9/8. Purely notational — the
+ * printed tempo absorbs it, since 9/8 at a dotted crotchet is 3/4 at a crotchet.
+ */
+const scale = Number(arg('scale', '1'));
 
-const { division, tracks } = readMidi(path);
+const { division, tracks, declared } = readMidi(path);
 const notes = wantTrack >= 0 ? (tracks[wantTrack] ?? []) : tracks.flat().sort((a, b) => a.start - b.start);
 
 if (notes.length === 0) {
@@ -236,7 +273,7 @@ for (const note of notes) {
 const GRID = 12;
 const offGrid: string[] = [];
 const beatsOf = (ticks: number, what: string) => {
-  const exact = ticks / division;
+  const exact = (ticks / division) * scale;
   const snapped = Math.round(exact * GRID) / GRID;
   if (Math.abs(exact - snapped) > 0.02) offGrid.push(`${what} ${exact.toFixed(3)} beats`);
   return snapped;
@@ -262,7 +299,7 @@ type Raw = { beats: number; rest: true } | ({ beats: number } & ReturnType<typeo
 const raw: Raw[] = [];
 let expected = 0;
 single.forEach((note, index) => {
-  const silence = (note.start - expected) / division;
+  const silence = ((note.start - expected) / division) * scale;
   if (silence > 1 / (GRID * 2)) {
     raw.push({ beats: Math.round(silence * GRID) / GRID, rest: true });
   }
@@ -345,7 +382,7 @@ if (current.length) lines.push('      ' + current.join(', ') + ',');
 
 process.stdout.write(`  {
     id: '${id}',
-    name: '${id}',
+    name: '${name}',
     difficulty: 'medium',${mode === 'minor' ? "\n    mode: 'minor'," : ''}
     metres: [[${beatsPerBar}, ${beatUnit}]],
     bars: ${bars},
@@ -359,10 +396,40 @@ process.stderr.write(
   `${path}: ${single.length} notes, ${bars} bars of ${beatsPerBar}/${beatUnit}` +
     ` (${total.toFixed(2)} beats)\n`,
 );
-if (collapsed) process.stderr.write(`  ${collapsed} overlapping note(s) dropped — one voice was kept\n`);
+if (collapsed) {
+  process.stderr.write(
+    `  ${collapsed} overlapping note(s) dropped across the whole track — one voice was kept` +
+      `${wantBars ? ', not only the bars taken' : ''}\n`,
+  );
+}
 if (Math.abs(total - bars * barBeats) > 1e-6) {
   process.stderr.write(`  does not fill its bars: ${total.toFixed(3)} against ${(bars * barBeats).toFixed(3)}\n`);
 }
+/*
+ * What the file claims, against what it was told.
+ *
+ * The tool still refuses to pick a key — MIDI key signatures are wrong or
+ * absent often enough that trusting one would put wrong accidentals into the
+ * corpus silently. But saying what the file claims costs nothing and turns two
+ * of the caller's guesses into a check.
+ */
+const { metre: statedMetre, fifths: statedFifths, minor: statedMinor } = declared;
+if (statedMetre) {
+  const statedBar = (statedMetre[0] * 4) / statedMetre[1];
+  if (Math.abs(statedBar * scale - barBeats) > 1e-9) {
+    process.stderr.write(
+      `  the file declares ${statedMetre[0]}/${statedMetre[1]} but ${beatsPerBar}/${beatUnit} was asked for` +
+        `${scale === 1 ? ' — try --scale ' + (barBeats / statedBar).toFixed(3).replace(/0+$/, '') : ''}\n`,
+    );
+  }
+}
+if (statedFifths !== undefined && (statedFifths !== fifths || statedMinor !== (mode === 'minor'))) {
+  process.stderr.write(
+    `  the file declares ${statedFifths} sharps/flats ${statedMinor ? 'minor' : 'major'},` +
+      ` read as ${fifths} ${mode} — check which is right\n`,
+  );
+}
+
 if (offGrid.length) {
   process.stderr.write(`  ${offGrid.length} note(s) off the grid: ${offGrid.slice(0, 5).join('; ')}\n`);
 }
