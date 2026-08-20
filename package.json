@@ -16,7 +16,8 @@
     "svg": "tsx tools/stave-to-svg.mts",
     "shots": "tsx tools/shots.mts",
     "tunes": "tsx tools/tune-sheet.mts",
-    "cells": "tsx tools/cell-sheet.mts"
+    "cells": "tsx tools/cell-sheet.mts",
+    "themes-sheet": "tsx tools/theme-sheet.mts"
   },
   "dependencies": {
     "react": "^19.2.8",
