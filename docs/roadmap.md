@@ -378,20 +378,25 @@ on a corpus forbidding commercial use. `restricted` marks a collection a paid
 build must not ship, and the suite enforces it. This is where the licensing
 tripwires in `CLAUDE.md` stop being something to remember.
 
-**Open, and worth settling deliberately: none of it ships.** The app composes
-every tune from cells and imports no collection at all, so approved material
-currently has nowhere to go — the traditional tunes and the Bach have been
-heard and accepted and no player can reach them. Three routes, and the choice is
-a product decision rather than a technical one:
+**Settled 2026-08-20: collections are selectable material.** Themes asks where
+its tunes come from — composed from cells, as before, or a named collection —
+and the choice leads that box the way the drill leads Drills. Two routes were
+declined: seeding the composer with collection tunes (which is the variation
+engine's job, and unbuilt), and keeping them as a reference set only.
 
-1. **Collections become selectable material** — "practise the carols" in
-   December, the Bach when you want something hard. The obvious feature, and the
-   one collections were built to allow. Needs a settings surface and a path
-   through generation.
-2. **Collections seed the composer** — their tunes join the cells as material to
-   vary rather than to play verbatim, which is closer to how the app works now.
-3. **They stay a reference set** — a calibration for the ear and a source for
-   the variation engine, never handed to a player directly.
+The seam was already there: `stitchThemes` takes the corpus it lays end to end,
+so a collection's themes go where composed tunes did and the key tour, the
+no-repeat rule and the fallback are untouched. Two consequences worth knowing:
+
+- **A written collection repeats within a run.** Four Bach against an endless
+  supply of composed tunes — the stitcher declines to play the same tune twice
+  running wherever it has a choice, and with one theme it has none. That is the
+  bargain of asking for *this* music rather than for more music.
+- **The count beside each collection is load-bearing.** Falling back to composed
+  material is correct where nothing fits the level and metre, and
+  indistinguishable on screen from being handed Bach — so the control counts
+  what actually fits, against the real placement, and says so in words at zero.
+  A player who asked for particular music must not be quietly given other music.
 
 Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
 
