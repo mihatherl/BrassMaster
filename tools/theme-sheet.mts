@@ -29,6 +29,7 @@ import { metreFor } from '../src/domain/metre.ts';
 import { DIFFICULTIES, difficultyById } from '../src/exercise/difficulty.ts';
 import { exerciseFromTheme, validateTheme, type Theme } from '../src/exercise/theme.ts';
 import { THEMES } from '../src/exercise/themes.ts';
+import { TRADITIONAL } from '../src/exercise/tunes-traditional.ts';
 import type { Exercise } from '../src/exercise/types.ts';
 import { exerciseToSvg } from './render-svg.mts';
 
@@ -83,7 +84,30 @@ function beatsOf(duration: { value: string; dotted: boolean; tuplet?: number }):
   return duration.tuplet ? (plain * 2) / duration.tuplet : plain;
 }
 
-const chosen = onlyLevel ? THEMES.filter((theme) => theme.difficulty === onlyLevel) : THEMES;
+/*
+ * Two sets, kept apart on the page rather than merged.
+ *
+ * The traditional tunes are here as a calibration for the ear: nobody has to
+ * adjudicate whether Twinkle is a melody, so what they settle is what the
+ * forty-seven's own "deliberately plain" actually cost. Merging them into one
+ * list would lose exactly that comparison.
+ */
+const sets: Array<{ heading: string; blurb: string; themes: readonly Theme[] }> = [
+  {
+    heading: 'Traditional tunes',
+    blurb: 'Melodies everyone knows, written as degrees. The question is not whether these are tunes — it is what a tune sounds like next to the set below.',
+    themes: TRADITIONAL,
+  },
+  {
+    heading: 'The forty-seven',
+    blurb: 'Retired in v2.20.0 for reading a level or two easy. Written, in their own words, "deliberately plain … not that the tunes are memorable".',
+    themes: THEMES,
+  },
+];
+
+const chosen = sets.flatMap((set) =>
+  onlyLevel ? set.themes.filter((theme) => theme.difficulty === onlyLevel) : set.themes,
+);
 
 function panel(theme: Theme): string {
   const [metreSpec] = theme.metres;
@@ -129,12 +153,17 @@ function panel(theme: Theme): string {
 </figure>`;
 }
 
-const sections = DIFFICULTIES.filter((level) => !onlyLevel || level.id === onlyLevel).map((level) => {
-  const tunes = chosen.filter((theme) => theme.difficulty === level.id);
-  if (tunes.length === 0) return '';
-  return `<section><h2>${level.name} <span class="count">${tunes.length}</span></h2>${tunes
-    .map(panel)
-    .join('\n')}</section>`;
+const sections = sets.map((set) => {
+  const levels = DIFFICULTIES.filter((level) => !onlyLevel || level.id === onlyLevel).map((level) => {
+    const tunes = set.themes.filter((theme) => theme.difficulty === level.id);
+    if (tunes.length === 0) return '';
+    return `<h3>${level.name} <span class="count">${tunes.length}</span></h3>${tunes
+      .map(panel)
+      .join('\n')}`;
+  });
+  if (levels.every((level) => level === '')) return '';
+  return `<section><h2>${set.heading} <span class="count">${set.themes.length}</span></h2>
+    <p class="blurb">${set.blurb}</p>${levels.join('\n')}</section>`;
 });
 
 const html = `<!doctype html>
@@ -142,7 +171,9 @@ const html = `<!doctype html>
 <title>The tunes — ${chosen.length} for review</title>
 <style>
   body { font: 15px/1.4 system-ui, sans-serif; margin: 0 auto 4rem; max-width: ${width + 60}px; padding: 0 1rem; color: #222; background: #fff; }
-  h1 { font-size: 1.4rem; } h2 { font-size: 1.15rem; margin-top: 2.5rem; border-bottom: 1px solid #ddd; }
+  h1 { font-size: 1.4rem; } h2 { font-size: 1.25rem; margin-top: 3rem; border-bottom: 2px solid #333; padding-bottom: 0.25rem; }
+  h3 { font-size: 1rem; margin: 1.75rem 0 0.5rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; }
+  .blurb { color: #666; font-size: 0.88rem; margin: 0.5rem 0 0; }
   .count { color: #999; font-weight: 400; }
   figure { margin: 1.25rem 0; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; }
   figcaption { color: #666; font-size: 0.85rem; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
