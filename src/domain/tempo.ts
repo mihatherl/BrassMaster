@@ -56,6 +56,15 @@ export const TEMPO_RANGE = { min: 40, max: 220 } as const;
  * conflating the two is what left 6/8 at a setting of 80 being conducted at
  * 53. `compileTempo` is the one place the two meet.
  */
+/**
+ * What one of the player's beats is worth in crotchets, and where that changes.
+ *
+ * A medley plays each tune in its own metre, and the dial's number means the
+ * pulse of whatever is playing — so the conversion is a list keyed by beat,
+ * exactly as the metres it is derived from are. See `compileTempo`.
+ */
+export type Conversion = readonly { fromBeat: number; crotchetsPerBeat: number }[];
+
 export type TempoEvent =
   /** A step: this many conducted beats per minute from this beat on. */
   | { kind: 'tempo'; atBeat: number; bpm: number }
@@ -168,29 +177,43 @@ function beatsAcross(bpm0: number, slope: number, seconds: number): number {
 export function compileTempo(
   nominalBpm: number,
   events: readonly TempoEvent[] = [],
-  crotchetsPerBeat = 1,
+  crotchetsPerBeat: number | Conversion = 1,
 ): TempoMap {
   if (!Number.isFinite(nominalBpm) || nominalBpm <= 0) {
     throw new Error(`A tempo must be a positive number of bpm, not ${nominalBpm}`);
   }
-  if (!Number.isFinite(crotchetsPerBeat) || crotchetsPerBeat <= 0) {
-    throw new Error(`A beat must be a positive number of crotchets, not ${crotchetsPerBeat}`);
+  const conversion: Conversion =
+    typeof crotchetsPerBeat === 'number'
+      ? [{ fromBeat: 0, crotchetsPerBeat }]
+      : [...crotchetsPerBeat].sort((a, b) => a.fromBeat - b.fromBeat);
+  if (conversion.length === 0 || conversion[0].fromBeat > EPSILON) {
+    throw new Error('A conversion must say what a beat is worth from the start');
+  }
+  for (const step of conversion) {
+    if (!Number.isFinite(step.crotchetsPerBeat) || step.crotchetsPerBeat <= 0) {
+      throw new Error(`A beat must be a positive number of crotchets, not ${step.crotchetsPerBeat}`);
+    }
   }
 
   /*
-   * The one place the two units meet.
+   * The one place the two units meet, and it moves.
    *
    * Everything above compiles in the beat the player and the conductor count;
    * everything below measures beats in crotchets, because that is what
    * `timeAt` is asked about and what every note length in the app is written
    * in. A dotted-crotchet beat is 1.5 crotchets, so 80 of them a minute is 120
-   * crotchets a minute — and multiplying here is all that difference amounts
-   * to. Defaulting to 1 keeps every simple metre, and every existing caller,
-   * exactly as it was.
+   * crotchets a minute.
+   *
+   * **It is a list because a medley changes metre.** The dial's number means
+   * beats per minute where a beat is the pulse of whatever is playing — 80 in
+   * nine-eight is 80 dotted crotchets, 80 in four-four is 80 crotchets, which
+   * is what a conductor means by it and what a player expects to hear. Holding
+   * one conversion for the whole run instead kept the *crotchet* rate constant
+   * across the join, so a nine-eight tune handing over to a four-four one sped
+   * up by half again — 80 became 120, exactly the fault this list exists to
+   * stop. A single number keeps every simple case, and every caller that has
+   * only one metre, exactly as it was.
    */
-  const inCrotchets = (bpm: number) => bpm * crotchetsPerBeat;
-  nominalBpm = inCrotchets(nominalBpm);
-
   const beatOf = (event: TempoEvent) => ('atBeat' in event ? event.atBeat : event.fromBeat);
   // Holds before steps before ramps at the same beat; see above.
   const rank = { hold: 0, tempo: 1, ramp: 2 } as const;
@@ -201,7 +224,39 @@ export function compileTempo(
   const segments: Array<Span | Dwell> = [];
   let beat = 0;
   let t = 0;
-  let bpm = nominalBpm;
+  /* The tempo in the player's own unit, which is what survives a change of
+     metre: the conversion below turns it into crotchets afresh each time. */
+  let pulseBpm = nominalBpm;
+  let crotchets = conversion[0].crotchetsPerBeat;
+  const inCrotchets = (bpm: number) => bpm * crotchets;
+  let bpm = inCrotchets(pulseBpm);
+  nominalBpm = bpm;
+
+  /*
+   * Where the conversion changes, folded into the walk as plain spans.
+   *
+   * A metre change is not a tempo event and prints nothing — the signature is
+   * the notation for it — but it does change how many crotchets a beat is
+   * worth, so the map needs a boundary there exactly as it needs one at a
+   * step.
+   */
+  const conversionsAfterStart = conversion.filter((step) => step.fromBeat > EPSILON);
+  let nextConversion = 0;
+  const applyConversionsBefore = (upTo: number): void => {
+    while (
+      nextConversion < conversionsAfterStart.length &&
+      conversionsAfterStart[nextConversion].fromBeat <= upTo + EPSILON
+    ) {
+      const step = conversionsAfterStart[nextConversion++];
+      if (step.fromBeat > beat + EPSILON) {
+        segments.push({ kind: 'span', fromBeat: beat, t0: t, bpm0: bpm, slope: 0 });
+        t += secondsAcross(bpm, 0, step.fromBeat - beat);
+        beat = step.fromBeat;
+      }
+      crotchets = step.crotchetsPerBeat;
+      bpm = inCrotchets(pulseBpm);
+    }
+  };
 
   for (const event of ordered) {
     const at = beatOf(event);
@@ -211,6 +266,7 @@ export function compileTempo(
     if (at < beat - EPSILON) {
       throw new Error(`A tempo event at beat ${at} overlaps the one before it`);
     }
+    applyConversionsBefore(at);
     if (at > beat + EPSILON) {
       segments.push({ kind: 'span', fromBeat: beat, t0: t, bpm0: bpm, slope: 0 });
       t += secondsAcross(bpm, 0, at - beat);
@@ -222,7 +278,8 @@ export function compileTempo(
         if (!Number.isFinite(event.bpm) || event.bpm <= 0) {
           throw new Error(`A tempo must be a positive number of bpm, not ${event.bpm}`);
         }
-        bpm = inCrotchets(event.bpm);
+        pulseBpm = event.bpm;
+        bpm = inCrotchets(pulseBpm);
         break;
       }
       case 'ramp': {
@@ -237,6 +294,7 @@ export function compileTempo(
         segments.push({ kind: 'span', fromBeat: beat, t0: t, bpm0: bpm, slope });
         t += secondsAcross(bpm, slope, event.toBeat - beat);
         beat = event.toBeat;
+        pulseBpm = event.toBpm;
         bpm = toBpm;
         break;
       }
@@ -251,6 +309,8 @@ export function compileTempo(
     }
   }
 
+  // Any change of metre past the last tempo event still has to land.
+  applyConversionsBefore(Infinity);
   segments.push({ kind: 'span', fromBeat: beat, t0: t, bpm0: bpm, slope: 0 });
   return { nominalBpm, segments };
 }

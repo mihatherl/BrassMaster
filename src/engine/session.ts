@@ -246,12 +246,42 @@ export class Session {
     // the number they set is dotted crotchets, and 1.5 crotchets is what one
     // of those lasts.
     //
-    // The *opening* metre, and only it: the transport is told the conversion
-    // once, at construction. Medleys now generate metre-changing exercises, and
-    // this is still right for them: the dial's number keeps meaning the opening
-    // metre's pulse for the whole run, so the crotchet rate never lurches at a
-    // join — everything downstream counts crotchets and stays aligned.
-    // `alignment.test.ts` holds it to that.
+    /*
+     * What one of the player's beats is worth — and where that may change.
+     *
+     * **A change of metre means two different things**, and they want opposite
+     * treatment. Both turned up within a day of each other.
+     *
+     * *Within one piece*, a metre change is the composer's, and the convention
+     * where nothing is marked is that the note value carries across: 2/4 into
+     * 6/8 is quaver = quaver, so the crotchet holds its length and the new
+     * dotted-crotchet pulse is half again as long. That is the reading an
+     * imported part gets, and the metre list was built for it.
+     *
+     * *Between pieces*, there is no such continuity to keep. A medley hands
+     * over from one tune to another and the dial's number means the pulse of
+     * whichever is playing — 80 in nine-eight is 80 dotted crotchets, 80 in
+     * four-four is 80 crotchets, which is what a conductor means by it.
+     * Reported by ear on 2026-08-21: Jesu Joy into Invention 13 at 80 "seemed
+     * a whole lot faster… maybe about 120", which is 80 x 1.5, the crotchet
+     * rate carried across a seam where nothing should have carried.
+     *
+     * The seams are the theme starts, which `labels` already names — so a
+     * metre change at a label is a new piece and re-reads the dial, and one
+     * anywhere else is the composer's and does not. Imported music has no
+     * labels at all, so it keeps the old reading entire.
+     */
+    const seams = new Set([0, ...exercise.labels.map((label) => label.atBeat)]);
+    const conversion = exercise.metres
+      .filter((change) => seams.has(change.fromBeat))
+      .map((change) => ({
+        fromBeat: change.fromBeat,
+        crotchetsPerBeat: change.metre.pulseBeats,
+      }));
+    if (conversion.length === 0 || conversion[0].fromBeat > 0) {
+      // Whatever else happens, the map must be told what a beat is from the top.
+      conversion.unshift({ fromBeat: 0, crotchetsPerBeat: metreAt(exercise.metres, 0).pulseBeats });
+    }
     const opening = metreAt(exercise.metres, 0);
     /*
      * The lead is the player's measured figure, and nothing else's.
@@ -272,7 +302,7 @@ export class Session {
       context,
       tempo,
       exercise.tempo,
-      opening.pulseBeats,
+      conversion,
       options.audioLead ?? 0,
     );
     this.input = options.input;

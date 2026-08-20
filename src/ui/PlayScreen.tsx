@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ensureRunning, getAudioContext, markStuck, unlockAudio } from '../audio/context';
 import { FollowingVoice } from '../audio/following-voice';
 import { Sampler, type Voice } from '../audio/sampler';
-import { barAt, metreAt } from '../domain/metre';
+import { barAt, changesMetre, metreAt } from '../domain/metre';
 import { keyAt } from '../domain/keys';
 import { instrumentById } from '../domain/instruments';
 import type { Transport } from '../engine/clock';
@@ -147,6 +147,17 @@ export function PlayScreen({
    * never trigger the render that mounts it.
    */
   const [transport, setTransport] = useState<Transport | null>(null);
+  /*
+   * The metre the music has reached, for the tempo dial's unit.
+   *
+   * The dial's number is pulses per minute, so what a pulse *is* decides
+   * whether it reads "bpm" or "dotted" — and in a medley that changes at the
+   * joins. Polled rather than read per frame: the answer only moves a handful
+   * of times in a run, and `metreAt` hands back the very object the list
+   * holds, so reference equality keeps React out of it in between. The
+   * conductor tracks the same thing the same way.
+   */
+  const [metreNow, setMetreNow] = useState(() => metreAt(exercise.metres, 0));
   /** Whether the music is about to run out and more may be asked for. */
   const [offering, setOffering] = useState(false);
   /** Whether the run is being held, which is what the second button says. */
@@ -167,6 +178,16 @@ export function PlayScreen({
   keySettledRef.current = onKeySettled;
   const dialKeyRef = useRef(dialKey);
   dialKeyRef.current = dialKey;
+
+  useEffect(() => {
+    // Nothing to follow where the music holds one metre, which is most of it.
+    if (!transport || !changesMetre(exercise.metres)) return;
+    const id = window.setInterval(() => {
+      const inForce = metreAt(exercise.metres, transport.visualBeat());
+      setMetreNow((was) => (was === inForce ? was : inForce));
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [transport, exercise]);
 
   useEffect(() => {
     if (!started) return;
@@ -731,11 +752,10 @@ export function PlayScreen({
       <div className="play-aside">
         <TempoDial
           tempo={tempo}
-          /* The exercise's opening metre, not the settings' — a collection
-             medley plays in its tunes' own metres, and the transport counts
-             the opening metre's pulse, so that is the unit the dial's number
-             actually means. The settings metre can now be a different one. */
-          compound={metreAt(exercise.metres, 0).isCompound}
+          /* The metre in force, not the settings' and not the opening one: the
+             dial's number is pulses per minute, and a medley changes what a
+             pulse is at every join. */
+          compound={metreNow.isCompound}
           onChange={(bpm) => {
             setTempo(bpm);
             // The clock takes it at the next beat it has not committed to;

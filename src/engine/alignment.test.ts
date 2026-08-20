@@ -267,3 +267,113 @@ describe('the output latency report', () => {
     expect(leadInForce(0.8, 0)).toBeCloseTo(0, 6);
   });
 });
+
+/*
+ * The dial's number means the pulse of whatever is playing.
+ *
+ * Reported by ear: a medley of Jesu Joy (9/8) into Invention 13 (4/4) at 80
+ * "seemed a whole lot faster… maybe about 120" once the second tune began —
+ * which is 80 x 1.5, the dotted crotchet's worth in crotchets. The transport
+ * had been told the conversion once from the opening metre, so it held the
+ * *crotchet* rate steady across the join and the pulse sped up by half again.
+ *
+ * Measured here as a conductor would: how long one pulse lasts, on both sides
+ * of the change.
+ */
+describe('tempo across a change of metre', () => {
+  const secondsPerPulse = (session: Session, exercise: Exercise, beat: number) => {
+    const pulse = metreAt(exercise.metres, beat).pulseBeats;
+    return session.transport.timeForBeat(beat + pulse) - session.transport.timeForBeat(beat);
+  };
+
+  it('keeps one pulse the same length either side of the join', () => {
+    const exercise = themesRun({
+      collectionIds: ['bach'],
+      difficultyId: 'easy',
+      metre: [4, 4],
+      themeIds: ['jesu-joy', 'bwv784-invention'],
+    });
+    const change = exercise.metres.find((m) => m.fromBeat > 0);
+    expect(change, 'the medley must actually change metre').toBeDefined();
+    expect(metreAt(exercise.metres, 0).isCompound).toBe(true);
+    expect(change!.metre.isCompound).toBe(false);
+
+    const { session } = drive(exercise, 1);
+    // 96 bpm in the harness: a pulse lasts 60/96 either side, compound or not.
+    const before = secondsPerPulse(session, exercise, 0);
+    const after = secondsPerPulse(session, exercise, change!.fromBeat);
+    expect(before).toBeCloseTo(60 / 96, 6);
+    expect(after).toBeCloseTo(60 / 96, 6);
+  });
+
+  it('runs a bar of each metre at its own honest length', () => {
+    const exercise = themesRun({
+      collectionIds: ['bach'],
+      difficultyId: 'easy',
+      metre: [4, 4],
+      themeIds: ['jesu-joy', 'bwv784-invention'],
+    });
+    const change = exercise.metres.find((m) => m.fromBeat > 0)!;
+    const { session } = drive(exercise, 1);
+    const barSeconds = (beat: number) => {
+      const m = metreAt(exercise.metres, beat);
+      return (
+        session.transport.timeForBeat(beat + m.barBeats) - session.transport.timeForBeat(beat)
+      );
+    };
+    // Three pulses to a 9/8 bar, four to a 4/4 one — so the bars differ, and
+    // that difference is the music rather than a change of speed.
+    expect(barSeconds(0)).toBeCloseTo((60 / 96) * 3, 6);
+    expect(barSeconds(change.fromBeat)).toBeCloseTo((60 / 96) * 4, 6);
+  });
+});
+
+/*
+ * The same change of metre, read two ways, because it means two things.
+ *
+ * Within a piece the note value carries across a change — 2/4 into 6/8 is
+ * quaver = quaver, so the crotchet holds and the new pulse is half again as
+ * long. Between pieces nothing carries: each tune plays at the dial's number.
+ * The seam is what tells them apart, and `labels` is where the seams are.
+ */
+describe('a metre change within a piece, against one between pieces', () => {
+  const runWith = (labels: Array<{ atBeat: number; text: string }>) => {
+    const exercise: Exercise = {
+      ...themesRun({ collectionIds: [], difficultyId: 'easy', metre: [2, 4] }),
+      metres: [
+        { fromBeat: 0, metre: metreFor(2, 4) },
+        { fromBeat: 4, metre: metreFor(6, 8) },
+      ],
+      labels,
+      totalBeats: 16,
+      chosenBeats: 16,
+      tempo: [],
+    };
+    const session = new Session({
+      context,
+      input: new ValveInput(() => audioTime),
+      exercise,
+      tempo: 60,
+      countInBars: 0,
+      metronomeEnabled: false,
+      playbackMode: 'off',
+      brassVoice: voice,
+    });
+    // One pulse of the 6/8 section, in seconds.
+    return (
+      session.transport.timeForBeat(4 + metreFor(6, 8).pulseBeats) -
+      session.transport.timeForBeat(4)
+    );
+  };
+
+  it('carries the note value across a change inside one piece', () => {
+    // No label at the change: the crotchet stays a second, so the dotted
+    // crotchet that follows lasts one and a half.
+    expect(runWith([])).toBeCloseTo(1.5, 6);
+  });
+
+  it('re-reads the dial where one piece hands over to the next', () => {
+    // A label at the change: the new tune plays at 60 of its own pulse.
+    expect(runWith([{ atBeat: 4, text: 'The next tune' }])).toBeCloseTo(1, 6);
+  });
+});

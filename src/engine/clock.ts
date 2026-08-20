@@ -18,6 +18,7 @@
 import {
   beatAt,
   compileTempo,
+  type Conversion,
   rampRatioAt,
   timeAt,
   type TempoEvent,
@@ -85,7 +86,7 @@ export class Transport {
    * have since turned away from. See `rebaseTempo`.
    */
   private nominalBpm: number;
-  private readonly crotchetsPerBeat: number;
+  private readonly crotchetsPerBeat: number | Conversion;
   private readonly scoreEvents: readonly TempoEvent[];
   private playerEvents: TempoEvent[] = [];
   /** The last speed the player asked for, or null if they never have. */
@@ -136,12 +137,17 @@ export class Transport {
    * says how long one of those is, which is `metre.pulseBeats`. It defaults to
    * 1 because that is every simple metre, where the two have always been the
    * same thing and nothing here changes.
+   *
+   * A **list** where the music changes metre: the dial's number then means the
+   * pulse of whatever is playing, which is what a conductor means by it. One
+   * number for a whole medley made a nine-eight tune hand over to a four-four
+   * one half again too fast. See `Conversion` in `domain/tempo.ts`.
    */
   constructor(
     context: AudioContext,
     tempo: number,
     events: readonly TempoEvent[] = [],
-    crotchetsPerBeat = 1,
+    crotchetsPerBeat: number | Conversion = 1,
     audioLead = 0,
   ) {
     this.context = context;
@@ -149,7 +155,11 @@ export class Transport {
     // Still seconds per *crotchet*, whatever the beat is: its customer is the
     // scrolling surface, which measures the page in the same crotchets every
     // note length is written in.
-    this.nominalSecondsPerBeat = 60 / (tempo * crotchetsPerBeat);
+    /* The opening conversion: this is the page's scale, fixed when it is laid
+       out, and deliberately not something that moves mid-run. */
+    const opening =
+      typeof crotchetsPerBeat === 'number' ? crotchetsPerBeat : crotchetsPerBeat[0].crotchetsPerBeat;
+    this.nominalSecondsPerBeat = 60 / (tempo * opening);
     this.nominalBpm = tempo;
     this.crotchetsPerBeat = crotchetsPerBeat;
     this.scoreEvents = [...events];
