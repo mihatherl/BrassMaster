@@ -209,3 +209,55 @@ describe('sound against the clock', () => {
     expect(worstClickError(exercise, session, clicks)).toBeLessThan(1e-6);
   });
 });
+
+/*
+ * The device's own latency report is honoured, which is what put Jesu Joy's
+ * quavers back on the strike line for a phone speaker nobody had calibrated.
+ */
+describe('the output latency floor', () => {
+  const withLatency = (outputLatency: number | undefined, calibrated: number) => {
+    const ctx = {
+      get currentTime() {
+        return audioTime;
+      },
+      get destination() {
+        return {} as AudioNode;
+      },
+      createGain: () => ({ gain: { value: 0 }, connect: () => {} }),
+      outputLatency,
+    } as unknown as AudioContext;
+    const exercise = themesRun({ collectionId: 'composed', difficultyId: 'easy', metre: [4, 4] });
+    const session = new Session({
+      context: ctx,
+      input: new ValveInput(() => audioTime),
+      exercise,
+      tempo: 96,
+      countInBars: 0,
+      metronomeEnabled: false,
+      playbackMode: 'reference',
+      brassVoice: voice,
+      audioLead: calibrated,
+    });
+    session.start();
+    for (let t = 0; t <= 3; t += 0.025) {
+      audioTime = t;
+      vi.advanceTimersByTime(25);
+    }
+    session.stop();
+    // How early the first sound was handed over, against the clock's beat.
+    const first = exercise.notes[0];
+    return session.transport.timeForBeat(first.startBeat) - played[0].startTime;
+  };
+
+  it('hands sound over early by the reported latency when nothing was calibrated', () => {
+    expect(withLatency(0.2, 0)).toBeCloseTo(0.2, 6);
+  });
+
+  it('keeps a player-measured lead that already exceeds the report', () => {
+    expect(withLatency(0.1, 0.3)).toBeCloseTo(0.3, 6);
+  });
+
+  it('stands unchanged where the browser reports nothing', () => {
+    expect(withLatency(undefined, 0)).toBeCloseTo(0, 6);
+  });
+});

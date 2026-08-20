@@ -1395,7 +1395,18 @@ export class StaveRenderer {
 
   private drawCountIn(beat: number): void {
     const { ctx } = this;
-    const remaining = Math.ceil(-beat);
+    /*
+     * Counted in pulses of the opening metre, because that is what the
+     * metronome is clicking and what a conductor would say: a 9/8 bar is
+     * "three", not "four-and-a-half rounded up". This used to count crotchets,
+     * which is the same number in every simple metre and wrong in every
+     * compound one — a 9/8 count-in showed 5 4 3 2 1 changing every crotchet
+     * against three clicks, the numbers and the clicks visibly telling
+     * different time. Nine-eight was unreachable when it was written, which is
+     * how it survived: the fault needed a compound metre to show at all.
+     */
+    const pulse = metreAt(this.options.exercise.metres, 0).pulseBeats;
+    const remaining = Math.ceil(-beat / pulse);
     ctx.fillStyle = this.options.theme.countIn;
     ctx.font = `600 ${Math.round(this.height * 0.4)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';

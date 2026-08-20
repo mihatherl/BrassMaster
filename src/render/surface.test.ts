@@ -1530,3 +1530,51 @@ describe('revealTiesByBar', () => {
     for (let i = 0; i < 5; i++) expect(shown(i), `note ${i}`).toBeUndefined();
   });
 });
+
+/*
+ * The count-in counts what the metronome clicks: pulses of the opening metre.
+ *
+ * A crotchet count is the same number in every simple metre and wrong in every
+ * compound one, which is exactly how the fault shipped — 9/8 was unreachable
+ * until the medley work, and the first person to reach it watched "5 4 3 2 1"
+ * tick against three clicks. The number a player is counted in with has to be
+ * the number the conductor would say.
+ */
+describe('the count-in number', () => {
+  const numberShown = (metres: Array<readonly [number, number]>, beat: number): string => {
+    const calls: RecordedCall[] = [];
+    const exercise = build('phrases', 'treble', 0, 5);
+    exercise.metres = metres.map(([n, d], i) => ({
+      // Segment lengths are arbitrary here: only the opening matters to a
+      // count-in, which is over before any change arrives.
+      fromBeat: i * 12,
+      metre: metreFor(n, d),
+    }));
+    // An unstarted transport reads beat = time / secondsPerBeat from origin
+    // zero, so a negative clock stands the renderer inside the count-in.
+    new StaveRenderer({
+      canvas: mockCanvas(calls),
+      exercise,
+      transport: new Transport(fakeAudioContext(beat * 0.6), 100),
+      theme: LIGHT_THEME,
+      scrollSpeed: 110,
+      readingMode: 'scrolling',
+      verdictFor: () => undefined,
+    }).draw();
+    const texts = calls.filter((c) => c.method === 'fillText').map((c) => String(c.args[0]));
+    // The big centred numeral is the only single-digit text a count-in frame
+    // paints besides bar numbers, and bar numbers never paint before beat 0.
+    return texts[texts.length - 1] ?? '';
+  };
+
+  it('says three at the top of a nine-eight bar, as the clicks do', () => {
+    expect(numberShown([[9, 8]], -4.4)).toBe('3');
+    expect(numberShown([[9, 8]], -2.9)).toBe('2');
+    expect(numberShown([[9, 8]], -1.4)).toBe('1');
+  });
+
+  it('still counts four in common time, where the crotchet is the pulse', () => {
+    expect(numberShown([[4, 4]], -3.9)).toBe('4');
+    expect(numberShown([[4, 4]], -0.5)).toBe('1');
+  });
+});

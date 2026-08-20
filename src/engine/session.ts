@@ -247,17 +247,36 @@ export class Session {
     // of those lasts.
     //
     // The *opening* metre, and only it: the transport is told the conversion
-    // once, at construction. A part that changes metre changes what one of the
-    // player's beats lasts, and this is the place that would have to learn to
-    // follow it — recorded in `musicxml-import-plan.md` rather than guessed at
-    // here, since nothing generates such an exercise yet.
+    // once, at construction. Medleys now generate metre-changing exercises, and
+    // this is still right for them: the dial's number keeps meaning the opening
+    // metre's pulse for the whole run, so the crotchet rate never lurches at a
+    // join — everything downstream counts crotchets and stays aligned.
+    // `alignment.test.ts` holds it to that.
     const opening = metreAt(exercise.metres, 0);
+    /*
+     * Never less compensation than the device itself admits to.
+     *
+     * `leadMs` is what the player measured by tapping, and zero is what an
+     * output they never calibrated says — but zero is also a claim no phone
+     * speaker can honestly make: `outputLatency` is the browser's own report of
+     * the gap between handing a sound over and its leaving the hardware, a
+     * fifth of a second on an ordinary Android phone. A tap-measured lead can
+     * never truly be *below* that gap, so the larger of the two is the honest
+     * figure either way: an uncalibrated speaker gets the device's own number,
+     * and a calibrated headset keeps the player's, which already contains it.
+     *
+     * Found by ear, in nine-eight: at Jesu Joy's pace a quaver is 208ms, so an
+     * uncompensated speaker put every note audibly one written note behind the
+     * strike line — the same offset that hides inside a slower 4/4 as a vague
+     * lateness nobody can name.
+     */
+    const reported = (context as { outputLatency?: number }).outputLatency ?? 0;
     this.transport = new Transport(
       context,
       tempo,
       exercise.tempo,
       opening.pulseBeats,
-      options.audioLead ?? 0,
+      Math.max(options.audioLead ?? 0, Number.isFinite(reported) ? reported : 0),
     );
     this.input = options.input;
     // The fingers are answered the instant they move, not at the next tick:
