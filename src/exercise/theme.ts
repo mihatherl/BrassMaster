@@ -162,6 +162,25 @@ export interface Theme {
    * deriving one. It is set from the source, or by an ear on the review sheet.
    */
   tempo?: number;
+  /**
+   * Lets this theme leap further than `THEME_MAX_LEAP`, on a person's say-so.
+   *
+   * **Per theme and never global**, because the cap has two jobs and only one
+   * of them is being waived. It stops the *composer* writing tunes nobody
+   * could play, and it stops a borrowed piece being taken that no brass player
+   * would thank us for — and borrowed music is the only case where a human can
+   * look at the thing and decide it is worth it anyway.
+   *
+   * Set on the Prelude in C 2026-08-21, deliberately: *"it's a hard song and
+   * should be available to people wanting a challenge. Rules be damned."* Its
+   * two-hand arpeggio climbs from the bass note to the top of the chord and
+   * drops back to restart, and that drop reaches twenty-one semitones.
+   *
+   * What it does **not** waive is the compass. `realiseTheme` still refuses an
+   * instrument the theme will not fit, so this can widen what is offered and
+   * never what is unplayable.
+   */
+  allowWideLeaps?: boolean;
   events: readonly ThemeEvent[];
   keyChanges?: readonly ThemeKeyChange[];
 }
@@ -396,8 +415,13 @@ export function validateTheme(theme: Theme): string[] {
       if (sounded[i - 1].tied) continue;
       const leap = Math.abs(offsets[i] - offsets[i - 1]);
       widestLeap = Math.max(widestLeap, leap);
-      if (leap > THEME_MAX_LEAP) {
-        problems.push(at(`leaps ${leap} semitones at note ${i}; a theme may leap ${THEME_MAX_LEAP}`));
+      if (leap > THEME_MAX_LEAP && !theme.allowWideLeaps) {
+        problems.push(
+          at(
+            `leaps ${leap} semitones at note ${i}; a theme may leap ${THEME_MAX_LEAP} ` +
+              `unless it sets allowWideLeaps`,
+          ),
+        );
       }
     }
 

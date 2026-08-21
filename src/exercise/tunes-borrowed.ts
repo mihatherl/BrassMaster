@@ -456,57 +456,119 @@ export const BORROWED: readonly Theme[] = [
     id: 'bwv846-prelude',
     name: 'Prelude in C — arpeggio study',
     /*
-     * **An arpeggio study, and not a theme — which is worth saying plainly**,
-     * because everything else in this collection is a tune and a good musician
-     * meeting this one will notice. The Prelude has no melody: it is broken
-     * chords across two hands, and what a single line gives is the upper part,
-     * six semiquavers with a quaver rest where the left hand plays. It sounds
-     * like the Prelude because the harmony is in the figure.
+     * **Both hands, as one line — and it breaks a rule on purpose.**
      *
-     * **Hard, and the reason is the one that matters on brass.** It measured
-     * as hard on note rate, and separately looked easy on repetition — only
-     * two of its twelve bar-shapes are new, so a reader who has read bar one
-     * has read half of it. Both were beside the point, settled by watching
-     * somebody play it on a B flat tuba: *"mispitching everywhere, jumping up
-     * at huge intervals everywhere. The fingering isn't going to be the
-     * problem."* Its median interval is a **fourth** where every other piece
-     * here moves by step, and thirty per cent of its intervals exceed a fifth
-     * against two to nine per cent elsewhere. Every one is a partial to find
-     * and slot, and the fingering is trivial — barely a valve moves in C.
+     * The Prelude is broken chords across two staves: each half-bar is eight
+     * semiquavers, of which the left hand plays the first two and *holds* them
+     * while the right hand arpeggiates above. Taking one staff gave six notes
+     * and a rest, which is neither hand's part. Ruled 2026-08-21: *"the initial
+     * two notes in each bar need to be part of the arpeggio."* So `--reflow`
+     * merges the staves and gives every note the length of the gap to the next
+     * — which is what one player has no choice but to do, since you cannot
+     * sustain and arpeggiate at once.
      *
-     * **Nineteen bars, because that is where it resolves.** It was cut at
-     * eight first, which was the converter's answer rather than a musical one:
-     * the tool tests whether the last *note* is stable, and in a piece with no
-     * melody that says nothing about whether the music has arrived. Reading
-     * the harmony bar by bar instead, root-position C major falls at bars 1, 4,
-     * 19 and 35, with a close on the dominant at 11. Bar 19 is the return of
-     * the tonic after the chromatic bars from 12, and bar 20 is where it moves
-     * off again — so nineteen ends on the arrival rather than beside it.
+     * That makes the figure climb from the bass note to the top of the chord
+     * and drop back to restart, and the drop reaches twenty-one semitones —
+     * past the sixteen a theme may leap. `allowWideLeaps` waives it, on the
+     * player's say-so: *"it's a hard song and should be available to people
+     * wanting a challenge. Rules be damned."* The cap still guards everything
+     * the composer writes; this is the one piece that has looked a person in
+     * the eye and been let through anyway.
+     *
+     * **Eight bars, because that is what a brass player can hold.** The whole
+     * nineteen spans thirty-eight semitones — the bass walks from C4 down to
+     * G2 while the top reaches A5 — and fits no instrument in the band at all.
+     * Folding each bar into one register brings it to thirty-one and fits only
+     * the E flat bass, at the cost of a twenty-nine semitone seam, which is a
+     * worse thing to play than the drift it fixes. Eight bars spans twenty-two
+     * and every instrument can take it.
+     *
+     * The cost is honest: it stops at bar 8 rather than at a resolution. Bar 4
+     * closes on the tonic if that matters more than the length.
      */
     difficulty: 'hard',
+    allowWideLeaps: true,
     metres: [[4, 4]],
-    bars: 19,
+    bars: 8,
     tempo: 60,
     events: [
-      r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), r(1 / 2), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), r(1 / 2), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), r(1 / 2), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(2, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(1, 1 / 4, { octave: 1 }), n(2, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(1, 1 / 4, { octave: 1 }), r(1 / 2), n(2, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(1, 1 / 4, { octave: 1 }), n(2, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(1, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(2, 1 / 4), n(5, 1 / 4), n(7, 1 / 4), n(2, 1 / 4), n(5, 1 / 4), n(7, 1 / 4), r(1 / 2), n(2, 1 / 4), n(5, 1 / 4), n(7, 1 / 4), n(2, 1 / 4), n(5, 1 / 4), n(7, 1 / 4),
-      r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { alter: 1, octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { alter: 1, octave: 1 }), r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { alter: 1, octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { alter: 1, octave: 1 }),
-      r(1 / 2), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), r(1 / 2), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), r(1 / 2), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4),
-      r(1 / 2), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), r(1 / 2), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }),
-      r(1 / 2), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), r(1 / 2), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4),
-      r(1 / 2), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), r(1 / 2), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4),
-      r(1 / 2), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), r(1 / 2), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4),
-      r(1 / 2), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), r(1 / 2), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4),
+      n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
+      n(1, 1 / 4), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }),
+      n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }),
+      n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
+      n(1, 1 / 4), n(3, 1 / 4), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(3, 1 / 4), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }),
+      n(1, 1 / 4), n(2, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(2, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }),
+      n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }),
+      n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }),
+    ],
+  },
+  {
+    id: 'bwv-anh114-menuett',
+    name: 'Menuett in G',
+    /*
+     * **Complete — all thirty-two bars, ending where it ends.** The first
+     * whole piece in this collection rather than an excerpt, which is what the
+     * corpus has wanted since the chorales were tried: nothing here has to be
+     * cut, so nothing here is cut badly.
+     *
+     * Asked for as *"the treble clef only, except where there are no notes on
+     * the treble, in which case fill the void with the notes from the bass"* —
+     * which is exactly what the converter's own rule does when it merges the
+     * staves: the higher note wins where both sound, and the lower stands
+     * where it sounds alone. In this edition the treble never rests, so the
+     * two come out identical; the rule cost nothing here and is right for the
+     * next source where it does.
+     *
+     * **Medium, and that matters more than the piece does.** A scan on
+     * 2026-08-21 found medium the thinnest level in the corpus and, worse,
+     * that nine of its eleven themes were cross-rhythm études from the written
+     * set — there was nothing at medium that was simply *a tune of moderate
+     * difficulty*, which is most of what a middling player reads. This is one:
+     * stepwise almost throughout (its typical interval is a whole tone),
+     * twenty-one semitones end to end, and it fits every instrument in the
+     * band.
+     *
+     * Not by Bach, and worth knowing: the Notebook for Anna Magdalena Bach is
+     * a household anthology, and this minuet is Christian Petzold's. He died
+     * in 1733, so it is public domain twice over.
+     */
+    difficulty: 'medium',
+    metres: [[3, 4]],
+    bars: 32,
+    tempo: 140,
+    events: [
+      n(5, 1), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2), n(4, 1 / 2),
+      n(5, 1), n(1, 1), n(1, 1),
+      n(6, 1), n(4, 1 / 2), n(5, 1 / 2), n(6, 1 / 2), n(7, 1 / 2),
+      n(1, 1, { octave: 1 }), n(1, 1), n(1, 1),
+      n(4, 1), n(5, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2),
+      n(3, 1), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2),
+      n(7, 1, { octave: -1 }), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2), n(1, 3 / 8), n(3, 1 / 8),
+      n(2, 3),
+      n(5, 1), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2), n(4, 1 / 2),
+      n(5, 1), n(1, 1), n(1, 1),
+      n(6, 1), n(4, 1 / 2), n(5, 1 / 2), n(6, 1 / 2), n(7, 1 / 2),
+      n(1, 1, { octave: 1 }), n(1, 1), n(1, 1),
+      n(4, 1), n(5, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2),
+      n(3, 1), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2),
+      n(2, 1), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }),
+      n(1, 3),
+      n(3, 1, { octave: 1 }), n(1, 1 / 2, { octave: 1 }), n(2, 1 / 2, { octave: 1 }), n(3, 1 / 2, { octave: 1 }), n(1, 1 / 2, { octave: 1 }),
+      n(2, 1, { octave: 1 }), n(5, 1 / 2), n(6, 1 / 2), n(7, 1 / 2), n(5, 1 / 2),
+      n(1, 1, { octave: 1 }), n(6, 1 / 2), n(7, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(5, 1 / 2),
+      n(4, 1, { alter: 1 }), n(3, 1 / 2), n(4, 1 / 2, { alter: 1 }), n(2, 1),
+      n(2, 1 / 2), n(3, 1 / 2), n(4, 1 / 2, { alter: 1 }), n(5, 1 / 2), n(6, 1 / 2), n(7, 1 / 2),
+      n(1, 1, { octave: 1 }), n(7, 1), n(6, 1),
+      n(7, 1), n(2, 1), n(4, 1, { alter: 1 }),
+      n(5, 3),
+      n(5, 1), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(1, 1),
+      n(6, 1), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(1, 1),
+      n(5, 1), n(4, 1), n(3, 1),
+      n(2, 1 / 2), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(2, 1),
+      n(5, 1 / 2, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(7, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(2, 1 / 2), n(3, 1 / 2),
+      n(4, 1), n(3, 1), n(2, 1),
+      n(3, 1 / 2), n(5, 1 / 2), n(1, 1), n(7, 1, { octave: -1 }),
+      n(1, 3),
     ],
   },
 ];

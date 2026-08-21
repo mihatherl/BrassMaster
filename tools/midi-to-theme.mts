@@ -216,7 +216,8 @@ const path = process.argv[2];
 if (!path || path.startsWith('--')) {
   process.stderr.write(
     'usage: midi-to-theme <file.mid> [--track N] [--fifths N] [--mode major|minor]\n' +
-      '                     [--metre 4/4] [--scale N] [--bars N] [--from N] [--id name]\n',
+      '                     [--metre 4/4] [--scale N] [--bars N] [--from N] [--id name]\n' +
+      '                     [--simplify beats] [--reflow on]\n',
   );
   process.exit(2);
 }
@@ -268,6 +269,42 @@ const scale = Number(arg('scale', '1'));
  * pretending the piece is unusable is not.
  */
 const simplify = Number(arg('simplify', '0'));
+/*
+ * Re-time a merged texture into one continuous line. Off by default.
+ *
+ * The second thing here that edits rather than measures, and it exists for
+ * music written across two staves that one player has to take alone. The
+ * Prelude in C is the case: each half-bar is eight semiquavers, of which the
+ * left hand plays the first two and *holds* them while the right hand
+ * arpeggiates above. Read as one voice that gives six notes and a rest, which
+ * is neither hand's part and nobody's arrangement.
+ *
+ * A brass player has no choice — you cannot sustain and arpeggiate at once —
+ * so every note becomes as long as the gap to the next one, and the held
+ * left-hand notes join the run. That is what any arrangement of this piece for
+ * a single instrument does, and it is the whole of what this option means.
+ *
+ * Never use it on counterpoint. Two independent voices re-timed this way are
+ * not a line, they are both lines shuffled together.
+ */
+const reflow = arg('reflow', '') === 'on';
+/*
+ * Fold the line back into one register, bar by bar. Off by default.
+ *
+ * The third and last thing here that arranges rather than measures, and it is
+ * what "transcribe the bass clef onto the treble" actually requires. Keyboard
+ * music uses the whole keyboard: the Prelude in C keeps each bar inside
+ * thirteen to twenty-two semitones — perfectly playable — while its bass walks
+ * from C4 down to G2 across nineteen bars, so the excerpt as written spans
+ * thirty-eight and fits no brass instrument at all.
+ *
+ * Each bar is shifted by whole octaves to sit where the first one sits, which
+ * keeps every bar's own shape exactly — the arpeggio is untouched — and
+ * removes only the drift between them. That is what an arranger does with this
+ * piece for one instrument, and it is why the harmony still moves underneath
+ * while the figure stays under the hand.
+ */
+const fold = arg('fold', '') === 'on';
 
 const { division, tracks, declared } = readMidi(path);
 const notes = wantTrack >= 0 ? (tracks[wantTrack] ?? []) : tracks.flat().sort((a, b) => a.start - b.start);
@@ -285,14 +322,79 @@ if (notes.length === 0) {
  */
 let collapsed = 0;
 const single: RawNote[] = [];
-for (const note of notes) {
-  const last = single[single.length - 1];
-  if (last && note.start < last.start + last.ticks) {
-    collapsed++;
-    if (note.midi > last.midi) single[single.length - 1] = { ...note, start: last.start };
-    continue;
+if (reflow) {
+  /*
+   * One note per onset, the highest where several start together — a genuine
+   * chord still reduces to its top note — and each lasting exactly until the
+   * next begins. The last keeps its own length, since nothing follows to
+   * measure it against.
+   */
+  const byOnset = new Map<number, RawNote>();
+  for (const note of notes) {
+    const held = byOnset.get(note.start);
+    if (!held || note.midi > held.midi) byOnset.set(note.start, note);
+    else collapsed++;
   }
-  single.push(note);
+  const onsets = [...byOnset.keys()].sort((a, b) => a - b);
+  onsets.forEach((start, index) => {
+    const note = byOnset.get(start)!;
+    const next = onsets[index + 1];
+    single.push({ ...note, ticks: next === undefined ? note.ticks : next - start });
+  });
+} else {
+  for (const note of notes) {
+    const last = single[single.length - 1];
+    if (last && note.start < last.start + last.ticks) {
+      collapsed++;
+      if (note.midi > last.midi) single[single.length - 1] = { ...note, start: last.start };
+      continue;
+    }
+    single.push(note);
+  }
+}
+
+/*
+ * Each bar brought into the register the first one occupies.
+ *
+ * Whole octaves only, and applied to a whole bar at a time: shifting single
+ * notes would rewrite the figure, and shifting by anything but an octave would
+ * rewrite the harmony.
+ */
+if (fold && single.length) {
+  const ticksPerBar = division * ((beatsPerBar * 4) / beatUnit);
+  const barOf = (note: RawNote) => Math.floor(note.start / ticksPerBar);
+  /*
+   * Aligned on where each bar *starts*, not on its lowest note.
+   *
+   * The floor was tried first and made the seams worse than the drift: a bar
+   * lifted to put its bottom note in place lands its opening note somewhere
+   * else entirely, and the jump at the bar line reached twenty-nine semitones
+   * — a worse thing to play than the three octaves it was fixing. Every bar of
+   * this piece restarts the same figure, so aligning the restarts is what keeps
+   * the line continuous.
+   */
+  const startsIn = new Map<number, number>();
+  for (const note of single) {
+    const bar = barOf(note);
+    if (!startsIn.has(bar)) startsIn.set(bar, note.midi);
+  }
+  const reference = startsIn.get(barOf(single[0])) ?? single[0].midi;
+  let moved = 0;
+  for (const note of single) {
+    const opening = startsIn.get(barOf(note))!;
+    // The octave shift that puts this bar's opening nearest the first bar's.
+    const octaves = Math.round((reference - opening) / 12);
+    if (octaves !== 0) {
+      note.midi += octaves * 12;
+      moved++;
+    }
+  }
+  if (moved) {
+    process.stderr.write(
+      `  ${moved} note(s) folded by whole octaves into the opening register — ` +
+        `an arrangement, not a transcription\n`,
+    );
+  }
 }
 
 /*

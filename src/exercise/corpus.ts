@@ -90,6 +90,8 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@8': '31851769', // and the inventions brought from keyboard speed to brass
   'bach@9': '5b6fc0c7', // and the Prelude in C, an arpeggio study rather than a tune
   'bach@10': '283d5def', // Prelude recut to bar 19, where the harmony resolves
+  'bach@11': '9a169a34', // Prelude taken with both hands, leaping wider than the cap
+  'bach@12': 'aeb8995d', // and Petzold's Menuett in G, complete and at medium
 };
 
 /*
@@ -155,7 +157,10 @@ function canonicalThemes(themes: readonly Theme[]): string {
          every collection that has none exactly where it was — and a tempo is
          material, since it is half of what a difficulty level now means. */
       const speed = theme.tempo ? `|${theme.tempo}` : '';
-      return `${theme.id}|${theme.difficulty}|${theme.mode ?? 'major'}|${metres}|${theme.bars}|${events}|${keys}${speed}`;
+      /* A waived rule is part of what the material *is*, so it moves the
+         digest — otherwise a theme could gain an exemption unremarked. */
+      const waived = theme.allowWideLeaps ? '|wide' : '';
+      return `${theme.id}|${theme.difficulty}|${theme.mode ?? 'major'}|${metres}|${theme.bars}|${events}|${keys}${speed}${waived}`;
     })
     .join('\n');
 }

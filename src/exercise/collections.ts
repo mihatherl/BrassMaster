@@ -124,10 +124,10 @@ export const COLLECTIONS: readonly Collection[] = [
     id: 'bach',
     name: 'Bach',
     blurb:
-      'Two fugue subjects and eight excerpts read out of public-domain MIDI — six of the Two-Part Inventions, the obbligato from Jesu, Joy of Man’s Desiring, the vocal line of Sheep may safely graze, the Air on the G string with its ornaments simplified, and the Prelude in C as an arpeggio study. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
+      'Two fugue subjects and eight excerpts read out of public-domain MIDI — six of the Two-Part Inventions, the obbligato from Jesu, Joy of Man’s Desiring, the vocal line of Sheep may safely graze, the Air on the G string with its ornaments simplified, the Prelude in C as an arpeggio study, and Petzold’s Menuett in G complete. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 10,
+    revision: 12,
     themes: BORROWED,
     /*
      * Two groups here, unheard for different reasons.
@@ -152,6 +152,7 @@ export const COLLECTIONS: readonly Collection[] = [
       'bwv208-sheep',
       'bwv1068-air',
       'bwv846-prelude',
+      'bwv-anh114-menuett',
     ]),
   },
 ];
