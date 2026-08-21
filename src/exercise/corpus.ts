@@ -79,6 +79,7 @@ const RECORDED: Readonly<Record<number, string>> = {
 const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'default@1': 'e1dc294e', // 36 kept of the forty-seven
   'traditional@1': 'e0d7777b', // 12 nursery songs and rounds
+  'traditional@2': '3ea333c2', // and eight more, aimed at beginner and the empty metres
   'bach@1': '90398ba7', // 2 fugue subjects, 2 converted excerpts
   'bach@2': '4c8c8104', // and four of the Two-Part Inventions
   'bach@3': 'bd73b4e2', // and Invention 10, once nine-eight existed to hold it

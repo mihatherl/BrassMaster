@@ -8,8 +8,17 @@
  * that they were written "deliberately plain … not that the tunes are
  * memorable".
  *
- * **Candidates. Nothing in the app imports this**, so none of it reaches a
- * player until it has been heard and kept.
+ * **These reach players.** That changed on 2026-08-20, when collections became
+ * selectable: this list is the Nursery collection. What holds the line is the
+ * collection's `unjudged` set in `collections.ts` — a tune goes in there in the
+ * same edit that adds it here, and comes out when somebody has heard it.
+ *
+ * **And unlike the Bach, these are written from memory.** There is no converter
+ * step and no file to check them against: the melodies are common knowledge and
+ * that is the whole reason they can be written at all. It is also the risk —
+ * Old MacDonald shipped falling to the fifth *above* instead of the fourth
+ * below, which no validator could catch because the degrees were legal either
+ * way. Every tune here needs an ear on it before it is kept.
  *
  * ## Why degrees and not MusicXML
  *
@@ -35,6 +44,12 @@
  * an accident of taste but of which traditional tunes are simple enough to be
  * beginner material. A corpus built only from here would leave the metre picker
  * lopsided.
+ *
+ * The 2026-08-21 batch was aimed at exactly that, and at the level the whole
+ * corpus is thinnest in: a scan that day put beginner at nine themes against
+ * hard's eighteen, which is backwards for an app whose advanced players have
+ * mostly moved on. Three-four now has Happy Birthday, two-four has Yankee
+ * Doodle, and six-eight has a second tune.
  */
 
 import type { Theme } from './theme';
@@ -42,6 +57,11 @@ import type { Theme } from './theme';
 /** A note of `beats` on `degree`, with the options a few need. */
 function n(degree: number, beats: number, extra: { alter?: number; octave?: number } = {}) {
   return { degree, beats, ...extra };
+}
+
+/** A rest of `beats`, for a tune that begins part-way through its first bar. */
+function r(beats: number) {
+  return { rest: true as const, beats };
 }
 
 export const TRADITIONAL: readonly Theme[] = [
@@ -312,4 +332,176 @@ export const TRADITIONAL: readonly Theme[] = [
       n(1, 3),
     ],
   },
+  {
+    id: 'trad-saints',
+    name: 'When the saints go marching in',
+    /* Crotchets and minims throughout, which makes it the rarest thing in the
+       corpus: a tune everybody knows that a beginner can actually read. Every
+       brass band on earth plays it. */
+    difficulty: 'beginner',
+    metres: [[4, 4]],
+    bars: 8,
+    events: [
+      n(1, 1), n(3, 1), n(4, 1), n(5, 1),
+      n(5, 4),
+      n(1, 1), n(3, 1), n(4, 1), n(5, 1),
+      n(5, 4),
+      n(1, 1), n(3, 1), n(4, 1), n(5, 1),
+      n(3, 2), n(1, 2),
+      n(3, 2), n(2, 2),
+      n(1, 4),
+    ],
+  },
+  {
+    id: 'trad-michael-row',
+    name: 'Michael row the boat ashore',
+    /* The second beginner tune in plain crotchets, and it moves by thirds
+       rather than by step — which is a different thing to read from Mary or
+       Hot cross buns, both of which walk. */
+    difficulty: 'beginner',
+    metres: [[4, 4]],
+    bars: 8,
+    events: [
+      n(1, 1), n(3, 1), n(5, 2),
+      n(5, 1), n(3, 1), n(5, 2),
+      n(3, 1), n(1, 1), n(2, 2),
+      n(1, 4),
+      n(1, 1), n(3, 1), n(5, 2),
+      n(5, 1), n(6, 1), n(5, 2),
+      n(3, 1), n(2, 1), n(1, 2),
+      n(1, 4),
+    ],
+  },
+  {
+    id: 'trad-happy-birthday',
+    name: 'Happy birthday',
+    /*
+     * **The first tune here in three-four**, which the file has wanted since it
+     * was written: simple traditional tunes are overwhelmingly in two and four,
+     * and the metre picker has had nothing to offer at this level.
+     *
+     * Public domain: the melody is "Good Morning to All" by Mildred Hill, who
+     * died in 1916, and the words that made it famous were held to carry no
+     * copyright of their own in 2016.
+     *
+     * It enters on the second half of a bar, so the first bar is filled with a
+     * rest — which is also the first anacrusis in this collection, and worth a
+     * beginner meeting.
+     */
+    difficulty: 'easy',
+    metres: [[3, 4]],
+    bars: 9,
+    events: [
+      r(2), n(5, 0.5, { octave: -1 }), n(5, 0.5, { octave: -1 }),
+      n(6, 1, { octave: -1 }), n(5, 1, { octave: -1 }), n(1, 1),
+      n(7, 2, { octave: -1 }), n(5, 0.5, { octave: -1 }), n(5, 0.5, { octave: -1 }),
+      n(6, 1, { octave: -1 }), n(5, 1, { octave: -1 }), n(2, 1),
+      n(1, 2), n(5, 0.5, { octave: -1 }), n(5, 0.5, { octave: -1 }),
+      n(5, 1), n(3, 1), n(1, 1),
+      n(7, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(4, 0.5), n(4, 0.5),
+      n(3, 1), n(1, 1), n(2, 1),
+      n(1, 3),
+    ],
+  },
+  {
+    id: 'trad-yankee-doodle',
+    name: 'Yankee doodle',
+    /* **The first tune here in two-four.** Quavers in pairs against a two-beat
+       bar, which is a quite different feel to read from the same notes in
+       four-four — the bar line comes twice as often and the eye has to keep up
+       with it. */
+    difficulty: 'easy',
+    metres: [[2, 4]],
+    bars: 8,
+    events: [
+      n(1, 0.5), n(1, 0.5), n(2, 0.5), n(3, 0.5),
+      n(1, 0.5), n(3, 0.5), n(2, 1),
+      n(1, 0.5), n(1, 0.5), n(2, 0.5), n(3, 0.5),
+      n(1, 1), n(7, 1, { octave: -1 }),
+      n(1, 0.5), n(1, 0.5), n(2, 0.5), n(3, 0.5),
+      n(4, 0.5), n(3, 0.5), n(2, 0.5), n(1, 0.5),
+      n(7, 0.5, { octave: -1 }), n(5, 0.5, { octave: -1 }), n(6, 0.5, { octave: -1 }), n(7, 0.5, { octave: -1 }),
+      n(1, 2),
+    ],
+  },
+  {
+    id: 'trad-oh-susanna',
+    name: 'Oh Susanna',
+    /* Stephen Foster, who died in 1864. The quaver pickup into a rising
+       arpeggio is the figure to watch: it is the same shape three times and a
+       reader who spots that has most of the tune. */
+    difficulty: 'easy',
+    metres: [[4, 4]],
+    bars: 8,
+    events: [
+      n(1, 0.5), n(2, 0.5), n(3, 1), n(5, 1), n(5, 1),
+      n(6, 1), n(5, 1), n(3, 1), n(1, 1),
+      n(2, 1), n(3, 1), n(3, 1), n(2, 1),
+      n(1, 2), n(2, 2),
+      n(1, 0.5), n(2, 0.5), n(3, 1), n(5, 1), n(5, 1),
+      n(6, 1), n(5, 1), n(3, 1), n(1, 1),
+      n(2, 1), n(3, 1), n(3, 1), n(2, 1),
+      n(1, 4),
+    ],
+  },
+  {
+    id: 'trad-this-old-man',
+    name: 'This old man',
+    /* Climbs the whole octave in its third and fourth bars, which is further
+       than anything else at this level here reaches. */
+    difficulty: 'easy',
+    metres: [[4, 4]],
+    bars: 8,
+    events: [
+      n(5, 1), n(3, 1), n(5, 2),
+      n(5, 1), n(3, 1), n(5, 2),
+      n(6, 1), n(5, 1), n(4, 1), n(5, 1),
+      n(6, 1), n(7, 1), n(1, 2, { octave: 1 }),
+      n(1, 1, { octave: 1 }), n(1, 1, { octave: 1 }), n(5, 1), n(5, 1),
+      n(6, 1), n(6, 1), n(5, 2),
+      n(4, 1), n(4, 1), n(3, 1), n(2, 1),
+      n(1, 4),
+    ],
+  },
+  {
+    id: 'trad-three-blind-mice',
+    name: 'Three blind mice',
+    /* The second tune here in six-eight, where there was one. A round, like
+       Frère Jacques — so it is also a candidate for the play-along idea, where
+       the app takes one entry and the player the other. */
+    difficulty: 'easy',
+    metres: [[6, 8]],
+    bars: 8,
+    events: [
+      n(3, 1), n(2, 1), n(1, 1),
+      n(3, 1), n(2, 1), n(1, 1),
+      n(5, 1), n(4, 0.5), n(4, 0.5), n(5, 1),
+      n(5, 1), n(4, 0.5), n(4, 0.5), n(5, 1),
+      n(5, 0.5), n(1, 1, { octave: 1 }), n(7, 0.5), n(1, 1, { octave: 1 }),
+      n(5, 0.5), n(1, 1, { octave: 1 }), n(7, 0.5), n(1, 1, { octave: 1 }),
+      n(5, 1), n(4, 1), n(3, 1),
+      n(1, 3),
+    ],
+  },
+  {
+    id: 'trad-alouette',
+    name: 'Alouette',
+    /* Plain crotchets for two bars and then a stepwise climb, which makes it a
+       gentle first meeting with a tune that moves by step rather than by the
+       thirds most of this collection walks in. */
+    difficulty: 'beginner',
+    metres: [[4, 4]],
+    bars: 8,
+    events: [
+      n(1, 1), n(1, 1), n(1, 1), n(2, 1),
+      n(3, 1), n(3, 1), n(2, 1), n(1, 1),
+      n(2, 1), n(3, 1), n(4, 1), n(3, 1),
+      n(2, 2), n(1, 2),
+      n(1, 1), n(1, 1), n(1, 1), n(2, 1),
+      n(3, 1), n(3, 1), n(2, 1), n(1, 1),
+      n(2, 1), n(3, 1), n(2, 1), n(7, 1, { octave: -1 }),
+      n(1, 4),
+    ],
+  },
+
 ];

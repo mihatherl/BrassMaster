@@ -97,11 +97,28 @@ export const COLLECTIONS: readonly Collection[] = [
     id: 'traditional',
     name: 'Nursery',
     blurb:
-      'Nursery songs and rounds, written as degrees so they transpose to any key. They double as a calibration for the ear: nobody has to adjudicate whether Twinkle is a melody, so what they settle is what the written themes’ own "deliberately plain" actually costs.',
+      'Nursery songs, rounds and singalongs, written as degrees so they transpose to any key. They double as a calibration for the ear: nobody has to adjudicate whether Twinkle is a melody, so what they settle is what the written themes’ own "deliberately plain" actually costs.',
     provenance: 'traditional',
     status: 'accepted',
-    revision: 1,
+    revision: 2,
     themes: TRADITIONAL,
+    /*
+     * The eight added 2026-08-21, aimed at the levels and metres the corpus was
+     * thinnest in. Written from common knowledge like the twelve before them,
+     * which is what makes them cheap and also what makes them risky: Old
+     * MacDonald shipped a fifth above where it should have fallen a fourth
+     * below, and no validator could have known.
+     */
+    unjudged: new Set([
+      'trad-saints',
+      'trad-michael-row',
+      'trad-happy-birthday',
+      'trad-yankee-doodle',
+      'trad-oh-susanna',
+      'trad-this-old-man',
+      'trad-three-blind-mice',
+      'trad-alouette',
+    ]),
   },
   {
     id: 'bach',
