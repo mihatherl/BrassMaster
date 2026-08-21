@@ -124,10 +124,10 @@ export const COLLECTIONS: readonly Collection[] = [
     id: 'bach',
     name: 'Bach',
     blurb:
-      'Bach whole where a brass player can hold it, and in excerpt where they cannot — six of the Two-Part Inventions, three of them complete; the obbligato from Jesu, Joy of Man’s Desiring; the vocal line of Sheep may safely graze; the Air on the G string with its ornaments simplified; the Prelude in C entire, voiced for one instrument; and Petzold’s Menuett in G. What decides whole against excerpt is compass rather than taste: a complete piece has the range it has, and three of these reach only the euphonium and the tubas.',
+      'Bach whole where a brass player can hold it, and in excerpt where they cannot — all six of the Two-Part Inventions complete; the obbligato from Jesu, Joy of Man’s Desiring; the vocal line of Sheep may safely graze; the Air on the G string with its ornaments simplified; the Prelude in C entire, voiced for one instrument; and Petzold’s Menuett in G. Nothing here is cut any more except where the source itself is an excerpt of a longer work. What a complete piece costs is reach rather than notes: it has the range it has, and three of these get as far as the euphonium and the tubas.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 13,
+    revision: 14,
     themes: BORROWED,
     /*
      * All of it, and after 2026-08-21 for one reason rather than two.

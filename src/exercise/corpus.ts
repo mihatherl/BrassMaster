@@ -93,6 +93,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@11': '9a169a34', // Prelude taken with both hands, leaping wider than the cap
   'bach@12': 'aeb8995d', // and Petzold's Menuett in G, complete and at medium
   'bach@13': '16621949', // the subjects withdrawn; four excerpts taken whole
+  'bach@14': 'fc0e6e64', // and the other three inventions, whole as well
 };
 
 /*
