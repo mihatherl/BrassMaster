@@ -704,6 +704,29 @@ that engages with the reason recorded here.
 
 ## 7. Open questions, named so they are not forgotten
 
+- **A level means two different things, and the app will soon have to say
+  which.** Raised 2026-08-21: *"there are differences based on whether it is
+  'microphone mode' or 'tapping the screen' mode."* Measured the same evening
+  and the corpus agrees — the two modes are different exercises. Tapping asks
+  for the right valves at the right instant, so what costs you is note rate,
+  rests and ties; the microphone asks for the note to come out, so what costs
+  you is leap, chromaticism and where the line sits. **48 of 69 themes sit at
+  a different level under the two**, sixteen of them harder to pitch than to
+  finger. `tools/difficulty-dry-run.mts` prints both columns.
+
+  Until the microphone exists, one label computed as the harder of the two is
+  right: a player tapping a Hard tune is stretched rather than misled. When it
+  ships, the label follows the mode. See `difficulty-model-plan.md` for the
+  whole measurement, including the two other axes the model cannot see —
+  cross-rhythm, which is most of what Medium actually is, and repetition.
+
+- **Run length has to follow the material now, not count four themes.**
+  Already on the list; completing the Bach pieces on 2026-08-21 made it press.
+  Four themes of the written corpus is 48 bars, of the nursery corpus 53, and
+  of the Bach corpus **126** — the Prelude alone is 35 bars where it used to be
+  8. Nothing is broken, and a player asking for a short practice can be handed
+  a quarter of an hour of Bach without being told.
+
 - **Chromaticism does not count toward difficulty, and it should.** Found
   2026-08-20 by measuring the royal theme of *The Musical Offering*: written
   down as hard, measured as **easy**. `validateTheme`'s "no harder than the
