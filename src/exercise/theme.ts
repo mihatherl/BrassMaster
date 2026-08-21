@@ -205,6 +205,48 @@ export function tonicWindow(instrument: Instrument, clef: Clef): [number, number
  */
 const THEME_MAX_LEAP = 16;
 
+/**
+ * How many of the fastest notes are set aside before judging how fast a theme
+ * moves — a twentieth of them, rounded down.
+ *
+ * One note in twenty, which for a theme of the length this corpus holds is the
+ * *"one or two tricky notes"* the rule was asked for, and calibrated against
+ * four real cases rather than chosen:
+ *
+ * | | fastest notes | verdict wanted |
+ * |---|---|---|
+ * | *Bist du bei mir* | 4 of 171 (2%) | tolerate — a slow aria with ornaments |
+ * | Sheep may safely graze, at twelve bars | 2 of 80 (3%) | tolerate |
+ * | `wide-steps` | 4 of 41 (10%) | **do not** — the dotted-quaver-against-semiquaver figure is what the theme teaches |
+ * | *Air on the G string* | 19 of 145 (13%) | do not — it genuinely runs |
+ *
+ * A tenth was tried first and reclassified `wide-steps` as medium, which is
+ * how the upper bound got found: notes that are the point of a theme are not
+ * ornaments, however few of them there are. A twentieth separates all four.
+ *
+ * Rounded down, so a short theme gets no tolerance at all — one fast note
+ * among five is not an ornament, it is a fifth of the tune.
+ */
+const ORNAMENT_TOLERANCE = 0.05;
+
+/**
+ * The shortest note a theme *substantially* asks for, ignoring its ornaments.
+ *
+ * A trimmed minimum: set the fastest few aside and take the shortest of what
+ * is left. That is the number both halves of the difficulty check read — the
+ * ceiling, which asks whether a theme is too fast for the level it claims, and
+ * the floor, which asks whether it is fast enough to have earned it.
+ *
+ * Rests are counted with the notes. A short rest is a reading difficulty of
+ * the same kind — it is a thing to get right in passing — and leaving them out
+ * would make a theme's tolerance depend on how much of it is silent.
+ */
+export function readingFloor(events: readonly ThemeEvent[]): number {
+  if (events.length === 0) return Infinity;
+  const lengths = events.map((event) => event.beats).sort((a, b) => a - b);
+  return lengths[Math.floor(lengths.length * ORNAMENT_TOLERANCE)];
+}
+
 export function validateTheme(theme: Theme): string[] {
   const problems: string[] = [];
   const at = (what: string) => `${theme.id}: ${what}`;
@@ -261,18 +303,31 @@ export function validateTheme(theme: Theme): string[] {
    *
    * Only the unambiguous claims are checked. Note *values* are not: the pool
    * says what the generator draws from, and a dotted minim is plainly fine for
-   * a beginner without appearing in it. The shortest note is checked, because
-   * that one really is a difficulty.
+   * a beginner without appearing in it. How fast the theme moves is checked,
+   * because that one really is a difficulty.
+   *
+   * **How fast it moves is not its fastest note.** Until 2026-08-21 it was:
+   * one note below the level's floor rejected the whole theme. That is too
+   * blunt for borrowed music, where a slow piece carries an ornament — *Bist
+   * du bei mir* is seventy-seven quavers and four demisemiquavers, and was
+   * refused at every level, so a player could not have it at all. The player's
+   * reasoning, which is the rule now: *"someone looking for a challenge won't
+   * be interested in them, and beginners will be happy to skip over the one or
+   * two notes they can't play."* Difficulty is what a reader meets most of the
+   * time, not the single hardest instant. See `readingFloor`.
    */
   const difficulty = DIFFICULTIES.find((d) => d.id === theme.difficulty);
   if (difficulty) {
     const shortest = Math.min(...difficulty.rhythms.map((r) => durationBeats(r.duration)));
-    for (const [index, event] of theme.events.entries()) {
-      if (event.beats < shortest - 1e-9) {
-        problems.push(
-          at(`event ${index} is shorter than ${theme.difficulty} reads: ${event.beats} beats`),
-        );
-      }
+    const floor = readingFloor(theme.events);
+    if (floor < shortest - 1e-9) {
+      const fast = theme.events.filter((event) => event.beats < shortest - 1e-9).length;
+      problems.push(
+        at(
+          `${fast} of ${theme.events.length} notes are shorter than ${theme.difficulty} reads ` +
+            `(${shortest} beats) — more than a few, so it is the texture rather than an ornament`,
+        ),
+      );
     }
 
     if (difficulty.accidentalChance === 0 && sounded.some((n) => (n.alter ?? 0) !== 0)) {
@@ -325,10 +380,16 @@ export function validateTheme(theme: Theme): string[] {
      */
     const below = DIFFICULTIES[DIFFICULTIES.indexOf(difficulty) - 1];
     if (below) {
-      const shortest = Math.min(...theme.events.map((e) => e.beats));
       const belowShortest = Math.min(...below.rhythms.map((r) => durationBeats(r.duration)));
+      /*
+       * Measured the same way as the ceiling, and it has to be: if a couple of
+       * ornaments are too few to disqualify a theme from its level, they are
+       * also too few to be what *earns* it the level above. Reading the raw
+       * minimum here and a trimmed one there would let a slow tune with one
+       * flourish claim to be harder than it reads.
+       */
       const harder =
-        shortest < belowShortest - 1e-9 ||
+        floor < belowShortest - 1e-9 ||
         widestLeap > below.maxInterval ||
         span > below.rangeSemitones ||
         (below.accidentalChance === 0 && sounded.some((n) => (n.alter ?? 0) !== 0)) ||

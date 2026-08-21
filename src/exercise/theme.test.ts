@@ -372,3 +372,68 @@ describe('a tie that does not cross a bar line', () => {
     expect(validateTheme(slurred).join(' ')).toContain('slur');
   });
 });
+
+/*
+ * How fast a theme moves is what it asks *most of the time*, not its fastest
+ * note.
+ *
+ * The rule until 2026-08-21 was the raw minimum, and one note below a level's
+ * floor rejected the theme outright — so `Bist du bei mir`, seventy-seven
+ * quavers and four demisemiquavers, was refused at every level and could not
+ * be offered at all. The player's reasoning: *"someone looking for a challenge
+ * won't be interested in them, and beginners will be happy to skip over the
+ * one or two notes they can't play."*
+ */
+describe('an ornament against a texture', () => {
+  /*
+   * Four bars of four-four filled with quavers, with `ornaments` of them
+   * replaced by a dotted quaver and a semiquaver — which keeps the bar
+   * arithmetic exact while adding notes faster than easy reads.
+   */
+  const withOrnaments = (ornaments: number, difficulty = 'easy'): Theme => {
+    const events: Theme['events'] = [];
+    let beats = 0;
+    for (let i = 0; i < ornaments; i++) {
+      events.push({ degree: 1, beats: 0.75 }, { degree: 2, beats: 0.25 });
+      beats += 1;
+    }
+    // Alternating degrees so nothing leaps, ending on the tonic.
+    for (let i = 0; beats < 16 - 1e-9; i++, beats += 0.5) {
+      events.push({ degree: i % 2 === 0 ? 3 : 2, beats: 0.5 });
+    }
+    events[events.length - 1] = { degree: 1, beats: 0.5 };
+    return { id: 'ornament-test', name: 'Ornament test', difficulty, metres: [[4, 4]], bars: 4, events };
+  };
+
+  it('lets a slow theme keep its level despite an ornament or two', () => {
+    expect(validateTheme(withOrnaments(1))).toEqual([]);
+  });
+
+  it('refuses one where the fast notes are the texture', () => {
+    // Enough of them that they are no longer a rounding error in the reading.
+    expect(validateTheme(withOrnaments(6)).join(' ')).toContain('texture rather than an ornament');
+  });
+
+  /*
+   * The other half, and the reason both had to change together: if two
+   * ornaments are too few to disqualify a theme from its level, they are also
+   * too few to be what *earns* it the level above. Otherwise a slow tune with
+   * one flourish could claim to be harder than it reads.
+   */
+  it('does not let an ornament buy the level above', () => {
+    const claimed = validateTheme(withOrnaments(1, 'medium'));
+    expect(claimed.join(' ')).toContain('no harder than easy');
+  });
+
+  /* Rounded down, so there is no tolerance to spend on a very short theme. */
+  it('gives a short theme no tolerance at all', () => {
+    const short: Theme = {
+      id: 'short', name: 'Short', difficulty: 'easy', metres: [[4, 4]], bars: 1,
+      events: [
+        { degree: 1, beats: 0.75 }, { degree: 2, beats: 0.25 },
+        { degree: 3, beats: 1 }, { degree: 2, beats: 1 }, { degree: 1, beats: 1 },
+      ],
+    };
+    expect(validateTheme(short).join(' ')).toContain('shorter than easy reads');
+  });
+});
