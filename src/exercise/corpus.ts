@@ -84,6 +84,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@3': 'bd73b4e2', // and Invention 10, once nine-eight existed to hold it
   'bach@4': 'facf8d92', // and Sheep may safely graze, chosen for being known
   'bach@5': '1b618b26', // Sheep recut to ten bars on the ear, and easy with it
+  'bach@6': '00c5f144', // and the Air, ornaments simplified — an arrangement
 };
 
 /*

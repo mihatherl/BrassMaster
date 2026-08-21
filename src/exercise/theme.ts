@@ -240,10 +240,20 @@ const ORNAMENT_TOLERANCE = 0.05;
  * Rests are counted with the notes. A short rest is a reading difficulty of
  * the same kind — it is a thing to get right in passing — and leaving them out
  * would make a theme's tolerance depend on how much of it is silent.
+ *
+ * **The far end of a tie is not counted**, because nobody plays it. A note of
+ * a beat and an eighth crossing a bar line is written as a crotchet tied to a
+ * demisemiquaver, and counting that demisemiquaver as a note the reader has to
+ * find would call the Air on the G string faster than it is — the same reason
+ * the interval check steps over a tie rather than measuring across it.
  */
 export function readingFloor(events: readonly ThemeEvent[]): number {
-  if (events.length === 0) return Infinity;
-  const lengths = events.map((event) => event.beats).sort((a, b) => a - b);
+  const played = events.filter((_, index) => {
+    const previous = events[index - 1];
+    return !(previous && !isRest(previous) && previous.tied);
+  });
+  if (played.length === 0) return Infinity;
+  const lengths = played.map((event) => event.beats).sort((a, b) => a - b);
   return lengths[Math.floor(lengths.length * ORNAMENT_TOLERANCE)];
 }
 

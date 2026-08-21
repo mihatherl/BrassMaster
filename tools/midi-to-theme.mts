@@ -242,6 +242,22 @@ const fromBar = Number(arg('from', '1'));
  * printed tempo absorbs it, since 9/8 at a dotted crotchet is 3/4 at a crotchet.
  */
 const scale = Number(arg('scale', '1'));
+/*
+ * Collapse runs of notes faster than this, in beats. Off by default.
+ *
+ * **This edits the music, and nothing else in this tool does.** Everything
+ * else here measures: it reads what a file says and reports what it had to
+ * decide. This makes an editorial choice, which is why it has to be asked for
+ * by name and why what it did is printed rather than assumed.
+ *
+ * It exists because the alternative for a piece like the Air on the G string
+ * is nothing at all: thirteen per cent of its notes are demisemiquavers, no
+ * difficulty level admits them, and there is to be no level above hard. A band
+ * arrangement of the Air simplifies exactly these figures; so does a teaching
+ * edition. Doing it deliberately and saying so is honest in a way that
+ * pretending the piece is unusable is not.
+ */
+const simplify = Number(arg('simplify', '0'));
 
 const { division, tracks, declared } = readMidi(path);
 const notes = wantTrack >= 0 ? (tracks[wantTrack] ?? []) : tracks.flat().sort((a, b) => a.start - b.start);
@@ -371,6 +387,83 @@ single.forEach((note, index) => {
 });
 
 /*
+ * Ornaments collapsed, where the caller asked for it.
+ *
+ * A run of notes faster than the threshold becomes one note: the run's first
+ * pitch, held for the run's whole length. First rather than last because a
+ * flourish departs *from* the note that carries the harmony, and it is the
+ * departure a reader needs; where the run returns to where it began — a turn
+ * or a mordent — the two are the same note anyway.
+ *
+ * A run whose total is still under the threshold cannot stand on its own, so
+ * it is added to the note before it instead. That is the isolated
+ * demisemiquaver: nothing to collapse it with, and lengthening its neighbour
+ * is what a simplifying editor does with one.
+ */
+const simplified = (() => {
+  if (!(simplify > 0)) return raw;
+  const out: Raw[] = [];
+  let collapsed = 0;
+  let runs = 0;
+  let stranded = 0;
+  for (let i = 0; i < raw.length; ) {
+    const event = raw[i];
+    if ('rest' in event || event.beats >= simplify - 1e-9) {
+      out.push(event);
+      i++;
+      continue;
+    }
+    // The whole consecutive run of too-fast notes; a rest ends it.
+    let total = 0;
+    const first = event;
+    let taken = 0;
+    while (i < raw.length) {
+      const next = raw[i];
+      if ('rest' in next || next.beats >= simplify - 1e-9) break;
+      total = Math.round((total + next.beats) * GRID) / GRID;
+      taken++;
+      i++;
+    }
+    runs++;
+    collapsed += taken;
+    const previous = out[out.length - 1];
+    const short = Math.round((simplify - total) * GRID) / GRID;
+    if (total >= simplify - 1e-9) {
+      out.push({ ...first, beats: total });
+    } else if (previous && !('rest' in previous)) {
+      out[out.length - 1] = {
+        ...previous,
+        beats: Math.round((previous.beats + total) * GRID) / GRID,
+      };
+    } else if (previous && 'rest' in previous && previous.beats > short + 1e-9) {
+      /*
+       * Nothing before it but silence, so it borrows from the silence: the
+       * rest gives up what the note is short of and the note comes in that
+       * much earlier. Total time is unchanged, which is what keeps every bar
+       * line where it was — and an editor simplifying a flourish out of an
+       * entry does exactly this, letting the note arrive on the beat it was
+       * decorating.
+       */
+      out[out.length - 1] = {
+        ...previous,
+        beats: Math.round((previous.beats - short) * GRID) / GRID,
+      };
+      out.push({ ...first, beats: simplify });
+    } else {
+      // Nowhere to put it. Left alone and counted, rather than dropped.
+      stranded++;
+      out.push({ ...first, beats: total });
+    }
+  }
+  process.stderr.write(
+    `  simplified ${collapsed} note(s) in ${runs} run(s) faster than ${simplify} beats — ` +
+      `this is an arrangement, not a transcription` +
+      `${stranded ? `; ${stranded} had nowhere to go and stand as they were` : ''}\n`,
+  );
+  return out;
+})();
+
+/*
  * Notes broken at the bar line, and joined by a tie.
  *
  * Counterpoint holds a note across the bar constantly — a suspension is
@@ -391,7 +484,7 @@ single.forEach((note, index) => {
 const atBarLines = (() => {
   const out: Raw[] = [];
   let at = 0;
-  for (const event of raw) {
+  for (const event of simplified) {
     let left = event.beats;
     while (left > 1e-9) {
       const toLine = barBeats - (at % barBeats);

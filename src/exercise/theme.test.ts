@@ -332,11 +332,13 @@ describe('a theme in the minor', () => {
  */
 describe('a tie that does not cross a bar line', () => {
   /* A crotchet tied to a semiquaver, then a dotted quaver and a minim — every
-     value drawable, which is the point: only the *join* is new. */
+     value drawable, which is the point: only the *join* is new.
+     Easy, not hard: the tied semiquaver is nobody's note to play, so it does
+     not make the theme fast — see `readingFloor`. */
   const held = (): Theme => ({
     id: 'within-bar-tie',
     name: 'Within-bar tie',
-    difficulty: 'hard',
+    difficulty: 'easy',
     metres: [[4, 4]],
     bars: 1,
     events: [
@@ -363,7 +365,7 @@ describe('a tie that does not cross a bar line', () => {
 
   /* The rule that does apply, and the only one: a tie joins same to same. */
   it('is still refused where it would be a slur', () => {
-    const slurred: Theme = { ...held(), events: [
+    const slurred: Theme = { ...held(), difficulty: 'hard', events: [
       { degree: 1, beats: 1, tied: true },
       { degree: 2, beats: 0.25 },
       { degree: 3, beats: 0.75 },
