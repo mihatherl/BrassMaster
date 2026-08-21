@@ -56,10 +56,24 @@ function measure(exercise: Exercise) {
   const span = midis.length ? Math.max(...midis) - Math.min(...midis) : 0;
   let widest = 0;
   for (let i = 1; i < midis.length; i++) widest = Math.max(widest, Math.abs(midis[i] - midis[i - 1]));
+  /*
+   * How far the tune moves *typically*, which on brass matters more than how
+   * far it moves at its widest — every leap is a partial to find and slot, and
+   * that is where a player misses. The widest leap alone is misleading: it is
+   * the same 12 semitones in Sheep, which leaps once in fifty-four notes, and
+   * in the Prelude, which leaps beyond a fifth thirty times in a hundred and
+   * forty. The median tells them apart at a glance; nothing else on this table
+   * did, and its absence sent a whole argument down the wrong axis.
+   */
+  const gaps: number[] = [];
+  for (let i = 1; i < midis.length; i++) gaps.push(Math.abs(midis[i] - midis[i - 1]));
+  gaps.sort((a, b) => a - b);
+  const typical = gaps.length ? gaps[gaps.length >> 1] : 0;
   const accidentals = exercise.notes.filter((note) => note.showAccidental).length;
   return {
     span,
     widest,
+    typical,
     accidental: midis.length ? accidentals / midis.length : 0,
     rest: exercise.notes.length + exercise.rests.length
       ? exercise.rests.length / (exercise.notes.length + exercise.rests.length)
@@ -142,9 +156,10 @@ function panel(theme: Theme): string {
 
   const table = level
     ? `<table class="measure">
-        <tr><th>span</th><th>widest leap</th><th>accidentals</th><th>rests</th></tr>
+        <tr><th>span</th><th>typical leap</th><th>widest leap</th><th>accidentals</th><th>rests</th></tr>
         <tr>
           ${cell(`${m.span}st`, `${level.rangeSemitones}st`, m.span < level.rangeSemitones - 2)}
+          ${cell(`${m.typical}st`, `steps`, m.typical > 3)}
           ${cell(`${m.widest}st`, `${level.maxInterval}st`, m.widest < level.maxInterval - 2)}
           ${cell(`${Math.round(m.accidental * 100)}%`, `${Math.round(level.accidentalChance * 100)}%`, level.accidentalChance > 0.02 && m.accidental === 0)}
           ${cell(`${Math.round(m.rest * 100)}%`, `${Math.round(level.restChance * 100)}%`, level.restChance > 0.02 && m.rest === 0)}

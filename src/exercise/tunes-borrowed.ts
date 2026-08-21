@@ -452,4 +452,49 @@ export const BORROWED: readonly Theme[] = [
       n(1, 1 / 4), n(6, 1 / 2, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 2), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(1, 2),
     ],
   },
+  {
+    id: 'bwv846-prelude',
+    name: 'Prelude in C — arpeggio study',
+    /*
+     * **An arpeggio study, and not a theme — which is worth saying plainly**,
+     * because everything else in this collection is a tune and a good musician
+     * meeting this one will notice. The Prelude has no melody: it is broken
+     * chords across two hands, and what a single line gives is the upper part,
+     * six semiquavers with a quaver rest where the left hand plays. It sounds
+     * like the Prelude because the harmony is in the figure.
+     *
+     * **Hard, and the reason is the one that matters on brass.** It measured
+     * as hard on note rate, and separately looked easy on repetition — only
+     * two of its twelve bar-shapes are new, so a reader who has read bar one
+     * has read half of it. Both of those were beside the point, settled by
+     * watching somebody play it on a B flat tuba: *"mispitching everywhere,
+     * jumping up at huge intervals everywhere. The fingering isn't going to be
+     * the problem."*
+     *
+     * The numbers agree once the right axis is measured. Its median interval
+     * is a **fourth** where every other piece here moves by step; thirty per
+     * cent of its intervals exceed a fifth against two to nine per cent
+     * elsewhere; the widest is fifteen semitones. Every one of those is a
+     * partial to find and slot, which is where a brass player misses — and the
+     * fingering is trivial, barely a valve moving in C major. A piece can be
+     * nearly free of one difficulty and brutal in the other.
+     *
+     * Eight bars, at the source's own sixty, which is already slower in notes
+     * a second than the inventions were brought to.
+     */
+    difficulty: 'hard',
+    metres: [[4, 4]],
+    bars: 8,
+    tempo: 60,
+    events: [
+      r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
+      r(1 / 2), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), r(1 / 2), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }),
+      r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }),
+      r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
+      r(1 / 2), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), r(1 / 2), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }), n(6, 1 / 4), n(3, 1 / 4, { octave: 1 }), n(6, 1 / 4, { octave: 1 }),
+      r(1 / 2), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), r(1 / 2), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }),
+      r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), r(1 / 2), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(5, 1 / 4, { octave: 1 }),
+      r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), r(1 / 2), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }),
+    ],
+  },
 ];

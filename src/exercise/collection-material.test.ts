@@ -104,8 +104,12 @@ describe('choosing where the tunes come from', () => {
     const { exercise } = run(['bach'], 'hard', [4, 4], 3);
     expect(exercise.labels.length).toBeGreaterThan(1);
     expect(exercise.labels[0].atBeat).toBe(0);
+    // Against the collection, not against a list of names written here — the
+    // sibling test above learnt this the same way, when a Bach theme whose
+    // title looked nothing like the others broke a working medley.
+    const names = new Set(collectionById('bach')!.themes.map((theme) => theme.name));
     for (const label of exercise.labels) {
-      expect(label.text).toMatch(/Invention|Fugue|Offering|Jesu/);
+      expect(names.has(label.text), label.text).toBe(true);
     }
   });
 
