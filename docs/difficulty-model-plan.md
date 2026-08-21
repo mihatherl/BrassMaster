@@ -36,7 +36,7 @@ that axis.
 
 ## And now the part that was not expected
 
-Judging on rate **alone** moves 22 of 69 themes and gets a dozen of them
+Judging on rate **alone** moves a fifth of the corpus and gets a dozen of them
 wrong. The rate column in the dry run is what a single-axis model would do:
 
 - *Twinkle centred* and *Twinkle figured*, both Hard, fall to Easy. They are
@@ -45,8 +45,8 @@ wrong. The rate column in the dry run is what a single-axis model would do:
 - *Air on the G string*, Hard, falls to Easy. At ♩=42 it is the slowest thing
   in the corpus. It also spans twenty semitones and carries an accidental in
   every ninth note.
-- Medium empties out — 12 themes to 4 — because nine of them are cross-rhythm
-  études whose difficulty is not speed at all.
+- Medium all but empties — eleven themes to three — because nine of them are
+  cross-rhythm études whose difficulty is not speed at all.
 
 Rate is a real axis and it is not the only one. **A theme earns its level on
 whichever axis it is hard on**, which is what `validateTheme` already says in
@@ -67,8 +67,10 @@ They separate cleanly, because they are different instruments:
   work before it is notes. What costs you is *interval, chromaticism and
   tessitura*, and the rate matters much less.
 
-Measured across the corpus: **48 of 69 themes sit at a different level in the
-two modes**, 16 of them harder to pitch than to finger. That is not noise —
+Measured across the corpus: **40 of 65 themes sit at a different level in the
+two modes**, 13 of them harder to pitch than to finger. (Sixty-five rather than
+sixty-seven: Inventions 8 and 10 will not realise on an E flat bass in C, which
+is the `allowWideRange` bargain visible in a second place.) That is not noise —
 that is two different exercises wearing one label.
 
 Examples the table makes obvious:
@@ -77,7 +79,7 @@ Examples the table makes obvious:
 |---|---|---|---|
 | `twos-and-threes` | hard | easy | semiquavers, but stepwise |
 | `trad-old-macdonald` | beginner | medium | nursery tune with an octave in it |
-| `bwv776-invention` (No. 5) | hard | easy | fast, but crotchets and quavers by step |
+| `bwv776-invention` (No. 5) | hard | medium | fast, but mostly crotchets and quavers by step |
 | `bwv846-prelude` | medium | hard | the leaps are the whole piece |
 | `chromatic-climb` | hard | hard | both, which is the point of it |
 
@@ -114,14 +116,17 @@ whether a property *appears*, not how much of it there is.
 ## What the proposed combination does
 
 Rate for the fingers, leap and chromaticism and span for the lip, the harder
-of the two as the label. It moves 20 of 69 themes and lands closer to the
+of the two as the label. It moves 17 of 65 themes and lands closer to the
 target spread than the current labels do:
 
 | | beginner | easy | medium | hard |
 |---|---|---|---|---|
 | target | 25% | 30% | 25% | 20% |
-| now | 17% | 36% | 17% | 29% |
-| proposed | 14% | 38% | 22% | 26% |
+| now | 18% | 35% | 17% | 29% |
+| proposed | 15% | 40% | 22% | 23% |
+
+Figures from the corpus of 2026-08-22, with the Bach pieces complete. They
+move whenever the corpus does; the tool is the authority, not this table.
 
 **Do not apply it yet.** Two reasons, and neither is arithmetic: the
 cross-rhythm gap would demote six themes that are correctly Medium today, and
@@ -130,11 +135,11 @@ would settle better than another day of measuring.
 
 ## One measurement that is not about difficulty at all
 
-**47 of 69 themes carry no tempo of their own** and are measured at the dial's
+**Most themes carry no tempo of their own** and are measured at the dial's
 default of 84. For those, seconds and beats are the same number wearing
 different units, and the reclassification cannot tell them anything. Every
 theme that *does* carry a tempo is a borrowed one, where the tempo came from
 the source and then from your ear.
 
-If the rate axis is to mean anything for the written corpus, those 47 need
+If the rate axis is to mean anything for the written corpus, those need
 tempos — which is a listening job, not a measuring one.
