@@ -322,23 +322,30 @@ const WRITABLE = Array.from({ length: GRID * 4 }, (_, i) => (GRID * 4 - i) / GRI
 );
 
 /*
- * A silence broken into rests that can be written.
+ * A length broken into values that can actually be drawn.
  *
- * Bach leaves a voice quiet for a beat and a quarter while the other one
- * answers, and no single rest is a beat and a quarter long — so it becomes a
- * crotchet rest and a semiquaver rest, which is what a score prints. Greedy
- * from the longest, which is also how a copyist fills a bar.
+ * Bach leaves a voice quiet for a beat and a quarter while the other answers,
+ * and holds a note for a beat and a quarter just as often — and no single rest
+ * or note is a beat and a quarter long. Both become a crotchet and a
+ * semiquaver, which is what a score prints; the notes are then joined by a tie
+ * and the rests simply follow one another.
  *
- * Notes get no such treatment: splitting one means tying it, and this format
- * ties only across a bar line. An unwritable note is reported instead, because
- * a wrong duration is worse than a refusal.
+ * Greedy from the longest, which is also how a copyist fills a bar. It is not
+ * the whole of notation's rules about which subdivisions a value may straddle,
+ * and it does not need to be: what it must never do is emit a length the
+ * renderer cannot draw.
  */
-function restsFor(beats: number): number[] {
+function writablePieces(beats: number): number[] {
   const out: number[] = [];
   let left = beats;
   while (left > 1 / (GRID * 2)) {
     const piece = WRITABLE.find((value) => value <= left + 1e-9);
-    if (piece === undefined) break;
+    // Nothing fits: hand back what is left so the report can name it rather
+    // than dropping the time and silently shortening the bar.
+    if (piece === undefined) {
+      out.push(left);
+      break;
+    }
     out.push(piece);
     left = Math.round((left - piece) * GRID) / GRID;
   }
@@ -351,7 +358,7 @@ let expected = 0;
 single.forEach((note, index) => {
   const silence = ((note.start - expected) / division) * scale;
   if (silence > 1 / (GRID * 2)) {
-    for (const rest of restsFor(Math.round(silence * GRID) / GRID)) {
+    for (const rest of writablePieces(Math.round(silence * GRID) / GRID)) {
       raw.push({ beats: rest, rest: true });
     }
   }
@@ -391,11 +398,31 @@ const atBarLines = (() => {
       const piece = Math.min(left, toLine > 1e-9 ? toLine : barBeats);
       const rounded = Math.round(piece * GRID) / GRID;
       const crosses = rounded < left - 1e-9;
-      out.push(
-        'rest' in event
-          ? { beats: rounded, rest: true }
-          : { ...event, beats: rounded, ...(crosses ? { tied: true } : {}) },
-      );
+      /*
+       * And each bar's worth broken again into values that can be drawn, the
+       * notes joined by ties — which is what a score does inside a bar as
+       * readily as across one. The format was documented as tying only across
+       * a bar line; that was a description of *generated* material, where a
+       * note is never written longer than one value, and it was never a rule
+       * the validator or the renderer enforced. Real music ties inside a bar
+       * constantly, and BWV 773 was turned away for exactly that.
+       *
+       * A piece that carries on into the next bar is tied at its end as well
+       * as between its own parts, so the join survives the split.
+       */
+      const pieces = writablePieces(rounded);
+      pieces.forEach((part, index) => {
+        const lastOfPiece = index === pieces.length - 1;
+        out.push(
+          'rest' in event
+            ? { beats: part, rest: true }
+            : {
+                ...event,
+                beats: part,
+                ...(!lastOfPiece || crosses ? { tied: true } : {}),
+              },
+        );
+      });
       at = Math.round((at + rounded) * GRID) / GRID;
       left = Math.round((left - rounded) * GRID) / GRID;
     }

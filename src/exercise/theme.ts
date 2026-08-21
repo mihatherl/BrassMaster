@@ -39,9 +39,16 @@ export interface ThemeNote {
   /**
    * Held into the note that follows, which must be the same degree.
    *
-   * Only ever across a bar line, because that is the only reason this app
-   * writes a tie at all — a note that fits inside its bar is written as one
-   * note. See *Ties, as built*.
+   * This used to say "only ever across a bar line", which described the
+   * generator rather than the format: material written here is never longer
+   * than one drawable value, so a tie inside a bar had no way to arise. It was
+   * never a rule — the validator asks only that a tie reaches a note of the
+   * same pitch, and the renderer draws one wherever it falls.
+   *
+   * Borrowed music ties inside a bar constantly: a note of a beat and a
+   * quarter is a crotchet tied to a semiquaver, and no single value writes it.
+   * BWV 773 was turned away for precisely that before the description was
+   * corrected. See *Ties, as built*.
    */
   tied?: boolean;
 }

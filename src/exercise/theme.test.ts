@@ -315,3 +315,60 @@ describe('a theme in the minor', () => {
     expect(midis(aMinor({ mode: undefined }))).toEqual(midis(aMinor({ mode: 'major' })));
   });
 });
+
+/*
+ * Ties inside a bar, which borrowed music needs and generated music never did.
+ *
+ * The field's own description said ties were "only ever across a bar line" —
+ * true of the generator, which never writes a note longer than one drawable
+ * value, and never a rule the validator or the renderer enforced. Real music
+ * ties inside a bar constantly: a note of a beat and a quarter is a crotchet
+ * tied to a semiquaver and no single value writes it. BWV 773 was turned away
+ * for exactly that until the converter learnt to split and tie.
+ *
+ * Written because the capability is now load-bearing and nothing held it: it
+ * worked by accident of what the rules did not say, which is precisely the
+ * kind of thing a refactor removes without noticing.
+ */
+describe('a tie that does not cross a bar line', () => {
+  /* A crotchet tied to a semiquaver, then a dotted quaver and a minim — every
+     value drawable, which is the point: only the *join* is new. */
+  const held = (): Theme => ({
+    id: 'within-bar-tie',
+    name: 'Within-bar tie',
+    difficulty: 'hard',
+    metres: [[4, 4]],
+    bars: 1,
+    events: [
+      { degree: 1, beats: 1, tied: true },
+      { degree: 1, beats: 0.25 },
+      { degree: 2, beats: 0.75 },
+      { degree: 3, beats: 2 },
+    ],
+  });
+
+  it('is legal, and is how a beat and a quarter gets written', () => {
+    expect(validateTheme(held())).toEqual([]);
+  });
+
+  it('reaches the player as one sounded note, held', () => {
+    const exercise = exerciseFromTheme(held(), { ...EB_BASS, fifths: 0, metre: metreFor(4, 4) });
+    expect(exercise).not.toBeNull();
+    // Two noteheads, the first tied into the second — which is what the
+    // engine reads to sound one note rather than two.
+    expect(exercise!.notes[0].tiedToNext).toBe(true);
+    expect(exercise!.notes[1].startBeat).toBeCloseTo(1, 9);
+    expect(exercise!.notes[1].writtenMidi).toBe(exercise!.notes[0].writtenMidi);
+  });
+
+  /* The rule that does apply, and the only one: a tie joins same to same. */
+  it('is still refused where it would be a slur', () => {
+    const slurred: Theme = { ...held(), events: [
+      { degree: 1, beats: 1, tied: true },
+      { degree: 2, beats: 0.25 },
+      { degree: 3, beats: 0.75 },
+      { degree: 1, beats: 2 },
+    ] };
+    expect(validateTheme(slurred).join(' ')).toContain('slur');
+  });
+});
