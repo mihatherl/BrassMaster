@@ -411,6 +411,91 @@ cheap is that `metres` has been a list since imported music needed it — the
 renderer could already draw a mid-line signature change, and the feature was
 wiring, not machinery.
 
+#### Where the corpus actually is, and the shape it should be
+
+Scanned 2026-08-21, because the collections had been growing by whatever
+occurred to us next rather than against any statement of what was needed.
+
+| | beginner | easy | medium | hard | total |
+|---|---|---|---|---|---|
+| Inbuilt | 4 | 10 | 9 | 13 | 36 |
+| Nursery | 5 | 7 | — | — | 12 |
+| Bach | — | 2 | 2 | 5 | 9 |
+| **all** | **9** | **19** | **11** | **18** | **57** |
+
+Three findings, and only the first is a surprise.
+
+**The corpus is shaped like the interests of the people building it, not like
+the people using it.** Hard outnumbers beginner two to one, because Bach is
+interesting to source and nursery tunes are not. A run is four themes, so a
+beginner meets the same tune every other sitting while an advanced player has
+eighteen to draw on — which is exactly backwards.
+
+**The metre gaps sit where the content is thinnest.** Six of the twenty
+level-by-metre boxes are empty, and they are beginner and easy in everything
+but four-four: 3/4 has nothing below medium, 6/8 nothing at beginner, 9/8
+nothing below medium. Composed material covers all twenty (the cells are
+healthy — 5 to 19 per box), so the hole is in the *named* collections, where a
+player who has chosen "Nursery" and three-four gets composed tunes instead.
+
+**Compass is not a constraint.** Every theme fits every instrument in every
+key, bar one hard theme at five flats. That is worth knowing because it was the
+constraint we designed most carefully around, and it has never once bitten.
+
+**The ruling that shapes what comes next**, from the player 2026-08-21: *"the
+majority of our content should be aimed at beginner-easy and medium levels, as
+more advanced people probably have moved on from training apps."* That is a
+statement about who this is for, and it settles two things at once.
+
+- **Weight new material low.** A rough target of 25 / 30 / 25 / 20 across the
+  four levels, against today's 16 / 33 / 19 / 32 — so beginner and medium are
+  where the next hundred themes should land, and hard needs nothing added for
+  its own sake.
+- **Do not build a level above `hard`.** It has been tempting twice: BWV 778
+  and 785 were rejected for running in demisemiquavers, which the app can draw
+  but no level admits. Under this ruling that is the right outcome rather than
+  a gap — the players who could read them are not the players this is for.
+
+#### Complete pieces, not excerpts
+
+Also asked for 2026-08-21: *"I'd love to see more of it — even complete scores,
+seeing as Jesu Joy and the inventions don't seem to go through to conclusion."*
+Right, and cheaper than it sounds: a whole piece **passes the stable-ends rule
+more easily than an excerpt**, because a piece ends on its tonic by
+construction. Cutting is what was hard.
+
+Two things stand in the way, and both are worth building.
+
+1. **Ties inside a bar.** The format ties only across a bar line — a rule that
+   was true of generated material and is false of real music. It is what
+   stopped BWV 773 (a note of a beat and a quarter mid-bar, which a score
+   writes with a tie). Complete pieces will meet it constantly.
+2. **Run length against piece length.** A run is four themes; four complete
+   inventions is a hundred and twenty bars, which is a recital rather than a
+   sitting. Length should follow what was chosen rather than counting tunes
+   blindly.
+
+#### The collection to build next: Bach's chorales
+
+The model generalises, and the best next use of it answers both of the above at
+once. Bach harmonised some 370 Lutheran chorales; their soprano lines are
+complete hymn tunes of eight to sixteen bars, mostly crotchets and quavers,
+stepwise, ending on a proper cadence.
+
+- They land in **easy and medium**, which is exactly where the corpus is
+  thinnest, rather than adding to hard.
+- They are **complete pieces**, which is what was asked for.
+- Brass bands play hymn tunes constantly; this is core repertoire rather than a
+  curiosity, and the melodies are older and more plainly public domain than
+  Bach's harmonisation of them.
+- There are enough of them to change the corpus's shape on their own.
+- They make the two-voice play-along idea concrete: a chorale's bass is a real
+  part, and hymn-tune playing is how a band already rehearses together.
+
+**Licensing tripwire to walk around:** the obvious bulk source for chorales is
+KernScores, which is CCARH — the same terms that already forbid the generator's
+Essen-trained models from anything commercial. Source from somewhere else.
+
 Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
 
 ### Where each build runs
