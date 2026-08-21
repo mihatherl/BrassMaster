@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateExercise } from './generate';
-import { collectionById } from './collections';
+import { collectionById, playableThemes } from './collections';
 import { difficultyById } from './difficulty';
 import { TUNE_BARS } from './compose';
 import { instrumentById } from '../domain/instruments';
@@ -51,6 +51,33 @@ function run(
   return { exercise, bars: exercise.totalBeats / m.barBeats };
 }
 
+/*
+ * Which Bach can actually be played, asked rather than assumed.
+ *
+ * This file has now broken three times because it named themes or levels the
+ * corpus happened to hold — a title that did not match a regex, a level whose
+ * only members turned out to be unheard. The corpus changing is the one thing
+ * it is guaranteed to do, so what a test needs from it gets derived.
+ */
+const playable = (id: string) => playableThemes(collectionById(id)!);
+
+/**
+ * A written theme whose length is *not* the composer's fixed one, so a bar
+ * count alone says which of the two produced a run. Searched for rather than
+ * named: which tunes are playable changes every time one is heard.
+ */
+const telling = [...playable('default'), ...playable('bach')].find(
+  (theme) => theme.bars % TUNE_BARS !== 0,
+)!;
+
+/** Its level, and a tune of a different metre at that same level. */
+const tellingLevel = telling.difficulty;
+const differentMetre = [...playable('default'), ...playable('bach')].find(
+  (t) =>
+    t.difficulty === tellingLevel &&
+    (t.metres[0][0] !== telling.metres[0][0] || t.metres[0][1] !== telling.metres[0][1]),
+)!;
+
 describe('choosing where the tunes come from', () => {
   it('composes from cells by default', () => {
     // Composed tunes are a fixed length, so a whole number of them is the tell.
@@ -58,12 +85,13 @@ describe('choosing where the tunes come from', () => {
   });
 
   /*
-   * Both Bach subjects are five bars, and nothing the composer writes is —
-   * so a run that divides by five and not by eight came from the collection.
+   * A written tune is whatever length it is; a composed one is always
+   * TUNE_BARS. So a run that divides by the collection's own bar count and not
+   * by the composer's came from the collection.
    */
   it('plays a collection when one is named', () => {
-    const { bars } = run(['bach'], 'easy', [4, 4]);
-    expect(bars % 5).toBe(0);
+    const { bars } = run(['default', 'bach'], tellingLevel, [4, 4], 3, [telling.id]);
+    expect(bars % telling.bars).toBe(0);
     expect(bars % TUNE_BARS).not.toBe(0);
   });
 
@@ -76,9 +104,12 @@ describe('choosing where the tunes come from', () => {
    * nothing composed produces.
    */
   it('ignores the chosen time signature and plays each tune in its own', () => {
-    const { exercise } = run(['bach'], 'easy', [6, 8]);
-    expect(exercise.metres[0].metre.beatsPerBar).toBe(4);
-    expect((exercise.totalBeats / 4) % 5).toBe(0);
+    // Six-eight is asked for; the collection holds nothing in it, and plays
+    // its tunes in their own metres regardless rather than falling through.
+    const own = telling.metres[0];
+    const { exercise } = run(['default', 'bach'], tellingLevel, [6, 8], 3, [telling.id]);
+    expect(exercise.metres[0].metre.beatsPerBar).toBe(own[0]);
+    expect(exercise.metres[0].metre.beatUnit).toBe(own[1]);
   });
 
   /*
@@ -88,7 +119,10 @@ describe('choosing where the tunes come from', () => {
    * same trespass a key change there would be.
    */
   it('changes metre between tunes, and only where a tune begins', () => {
-    const { exercise } = run(['bach'], 'hard', [4, 4], 3);
+    const { exercise } = run(['default', 'bach'], tellingLevel, [4, 4], 3, [
+      telling.id,
+      differentMetre.id,
+    ]);
     expect(changesMetre(exercise.metres)).toBe(true);
     const starts = new Set(exercise.labels.map((label) => label.atBeat));
     for (const change of exercise.metres) {
@@ -101,13 +135,13 @@ describe('choosing where the tunes come from', () => {
    * carries its printed name rather than its id, and the first is at the top.
    */
   it('labels each tune with its name at its first bar', () => {
-    const { exercise } = run(['bach'], 'hard', [4, 4], 3);
+    const { exercise } = run(['default', 'bach'], tellingLevel, [4, 4], 3);
     expect(exercise.labels.length).toBeGreaterThan(1);
     expect(exercise.labels[0].atBeat).toBe(0);
     // Against the collection, not against a list of names written here — the
     // sibling test above learnt this the same way, when a Bach theme whose
     // title looked nothing like the others broke a working medley.
-    const names = new Set(collectionById('bach')!.themes.map((theme) => theme.name));
+    const names = new Set([...playable('default'), ...playable('bach')].map((t) => t.name));
     for (const label of exercise.labels) {
       expect(names.has(label.text), label.text).toBe(true);
     }
@@ -168,11 +202,13 @@ describe('choosing where the tunes come from', () => {
      * which is the one thing this corpus is meant to do.
      */
     const namesOf = (id: string) =>
-      new Set(collectionById(id)!.themes.map((theme) => theme.name));
-    const { exercise } = run(['bach', 'traditional'], 'easy', [4, 4], 4);
+      new Set(playableThemes(collectionById(id)!).map((theme) => theme.name));
+    // Bach and Nursery no longer share a level once the unheard are excluded,
+    // so the pair here is Bach and the written themes, which both have medium.
+    const { exercise } = run(['bach', 'default'], 'medium', [4, 4], 4);
     const played = exercise.labels.map((label) => label.text);
     expect(played.some((name) => namesOf('bach').has(name))).toBe(true);
-    expect(played.some((name) => namesOf('traditional').has(name))).toBe(true);
+    expect(played.some((name) => namesOf('default').has(name))).toBe(true);
   });
 
   /*

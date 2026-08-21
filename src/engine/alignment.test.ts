@@ -291,7 +291,7 @@ describe('tempo across a change of metre', () => {
       collectionIds: ['bach'],
       difficultyId: 'easy',
       metre: [4, 4],
-      themeIds: ['jesu-joy', 'bwv784-invention'],
+      themeIds: ['jesu-joy', 'bwv779-invention'],
     });
     const change = exercise.metres.find((m) => m.fromBeat > 0);
     expect(change, 'the medley must actually change metre').toBeDefined();
@@ -311,7 +311,7 @@ describe('tempo across a change of metre', () => {
       collectionIds: ['bach'],
       difficultyId: 'easy',
       metre: [4, 4],
-      themeIds: ['jesu-joy', 'bwv784-invention'],
+      themeIds: ['jesu-joy', 'bwv779-invention'],
     });
     const change = exercise.metres.find((m) => m.fromBeat > 0)!;
     const { session } = drive(exercise, 1);
@@ -321,10 +321,16 @@ describe('tempo across a change of metre', () => {
         session.transport.timeForBeat(beat + m.barBeats) - session.transport.timeForBeat(beat)
       );
     };
-    // Three pulses to a 9/8 bar, four to a 4/4 one — so the bars differ, and
-    // that difference is the music rather than a change of speed.
-    expect(barSeconds(0)).toBeCloseTo((60 / 96) * 3, 6);
-    expect(barSeconds(change.fromBeat)).toBeCloseTo((60 / 96) * 4, 6);
+    /*
+     * A bar lasts one pulse times however many pulses it holds — three to a
+     * nine-eight bar, three to a three-four one, four to a four-four. The
+     * bars may differ in length and that difference is the music; what must
+     * not differ is the pulse. Read from the metres rather than written in,
+     * because which tunes are playable changes as they are heard.
+     */
+    const pulses = (beat: number) => metreAt(exercise.metres, beat).pulsesPerBar;
+    expect(barSeconds(0)).toBeCloseTo((60 / 96) * pulses(0), 6);
+    expect(barSeconds(change.fromBeat)).toBeCloseTo((60 / 96) * pulses(change.fromBeat), 6);
   });
 });
 

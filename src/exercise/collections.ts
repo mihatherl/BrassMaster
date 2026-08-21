@@ -174,8 +174,29 @@ export function collectionById(id: string): Collection | undefined {
  */
 export function themesOf(collectionIds: readonly string[]): readonly Theme[] {
   return COLLECTIONS.filter((collection) => collectionIds.includes(collection.id)).flatMap(
-    (collection) => collection.themes,
+    (collection) => playableThemes(collection),
   );
+}
+
+/**
+ * A collection's themes minus the ones nobody has heard.
+ *
+ * **`unjudged` used to be decorative.** Three files said it was what stood
+ * between a tune nobody had listened to and somebody's practice, and it was
+ * read by the review sheet and by nothing else — so every unheard tune was
+ * being handed to players the moment it was written. Found on 2026-08-21 while
+ * checking what a deploy would ship, which is exactly one deploy later than it
+ * should have been found.
+ *
+ * The cells had it right all along: a candidate cell is excluded by
+ * `selectCells`, so the status does work rather than describing work. This is
+ * the same rule, in the one place every player-facing path already goes
+ * through — the review sheet still reads `collection.themes` directly, because
+ * showing the unheard ones is its entire job.
+ */
+export function playableThemes(collection: Collection): readonly Theme[] {
+  if (!collection.unjudged?.size) return collection.themes;
+  return collection.themes.filter((theme) => !collection.unjudged!.has(theme.id));
 }
 
 /** Which collection holds a theme, for grouping a list of them by their source. */
