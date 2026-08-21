@@ -78,7 +78,7 @@ function readVar(data: Buffer, at: number): [value: number, next: number] {
  * be *reported*, which is the difference between a converter that is wrong and
  * one that says it might be.
  */
-type Declared = { metre?: [number, number]; fifths?: number; minor?: boolean };
+type Declared = { metre?: [number, number]; fifths?: number; minor?: boolean; bpm?: number };
 
 function readTrack(data: Buffer, at: number, end: number, declared: Declared): RawNote[] {
   const notes: RawNote[] = [];
@@ -108,6 +108,13 @@ function readTrack(data: Buffer, at: number, end: number, declared: Declared): R
       // by disagreeing with whatever the caller passed.
       if (type === 0x58 && length >= 2 && !declared.metre) {
         declared.metre = [data[afterLength], 2 ** data[afterLength + 1]];
+      } else if (type === 0x51 && length >= 3 && declared.bpm === undefined) {
+        /* Microseconds per crotchet, which is how a file states its speed.
+           Only the first: a piece that changes tempo is beyond one number, and
+           the report will not pretend otherwise. */
+        const usPerCrotchet =
+          (data[afterLength] << 16) | (data[afterLength + 1] << 8) | data[afterLength + 2];
+        if (usPerCrotchet > 0) declared.bpm = Math.round(60_000_000 / usPerCrotchet);
       } else if (type === 0x59 && length >= 2 && declared.fifths === undefined) {
         declared.fifths = data.readInt8(afterLength);
         declared.minor = data[afterLength + 1] === 1;
@@ -239,7 +246,10 @@ const fromBar = Number(arg('from', '1'));
  * files declare 3/4, so its nine quavers to the bar arrive as thirds of a beat
  * and a 9/8 bar comes out a third short. `--scale 1.5` turns those thirds into
  * halves, which is what a quaver is worth in 9/8. Purely notational — the
- * printed tempo absorbs it, since 9/8 at a dotted crotchet is 3/4 at a crotchet.
+ * printed tempo absorbs it, since 9/8 at a dotted crotchet is 3/4 at a crotchet
+ * — and that is literal: the tempo emitted is multiplied by the same factor, so
+ * Jesu Joy's 72 crotchets in the file becomes 108 in nine-eight, which is the
+ * same 72 dotted-crotchet pulses a minute the file always meant.
  */
 const scale = Number(arg('scale', '1'));
 /*
@@ -600,7 +610,7 @@ process.stdout.write(`  {
     name: '${name}',
     difficulty: 'medium',${mode === 'minor' ? "\n    mode: 'minor'," : ''}
     metres: [[${beatsPerBar}, ${beatUnit}]],
-    bars: ${bars},
+    bars: ${bars},${declared.bpm ? `\n    tempo: ${Math.round(declared.bpm * scale)},` : ''}
     events: [
 ${lines.join('\n')}
     ],

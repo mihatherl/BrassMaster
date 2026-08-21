@@ -67,13 +67,20 @@ function measure(exercise: Exercise) {
   };
 }
 
-/** Note events for the player: midi, start and length in seconds. */
+/**
+ * Note events for the player: midi, start and length in **beats**.
+ *
+ * Beats rather than seconds so the tempo can be changed on the page. It used
+ * to be seconds, baked at one tempo for the whole sheet — which was fine while
+ * a theme had no tempo of its own, and stopped being fine the moment they did:
+ * hearing the Air at 42 and Invention 13 at 100 is most of how you tell them
+ * apart, and one number for the page could not do it.
+ */
 function voice(exercise: Exercise): Array<[number, number, number]> {
-  const perBeat = 60 / tempo;
   return exercise.notes.map((note) => [
     note.soundingMidi,
-    Number((note.startBeat * perBeat).toFixed(4)),
-    Number((beatsOf(note.duration) * perBeat).toFixed(4)),
+    Number(note.startBeat.toFixed(4)),
+    Number(beatsOf(note.duration).toFixed(4)),
   ]);
 }
 
@@ -122,7 +129,7 @@ function panel(theme: Theme): string {
   const problems = validateTheme(theme);
 
   if (!exercise) {
-    return `<figure data-theme="${theme.id}"><figcaption><code>${theme.id}</code> <b>${theme.name}</b>${unjudgedIds.has(theme.id) ? ' <span class="unheard">not yet heard</span>' : ''}</figcaption>
+    return `<figure data-theme="${theme.id}" data-tempo="${theme.tempo ?? tempo}" data-sourced="${theme.tempo ? '1' : ''}"><figcaption><code>${theme.id}</code> <b>${theme.name}</b>${unjudgedIds.has(theme.id) ? ' <span class="unheard">not yet heard</span>' : ''}</figcaption>
       <p class="none">would not fit the instrument</p></figure>`;
   }
 
@@ -145,13 +152,15 @@ function panel(theme: Theme): string {
       </table>`
     : '';
 
-  return `<figure data-theme="${theme.id}">
+  return `<figure data-theme="${theme.id}" data-tempo="${theme.tempo ?? tempo}" data-sourced="${theme.tempo ? '1' : ''}">
   <figcaption><code>${theme.id}</code> <b>${theme.name}</b> <span>${theme.difficulty} · ${metreSpec[0]}/${metreSpec[1]} · ${theme.bars} bars</span>${unjudgedIds.has(theme.id) ? '<span class="unheard">not yet heard</span>' : ''}</figcaption>
   ${problems.length ? `<p class="none">${problems.join('; ')}</p>` : ''}
   ${exerciseToSvg(exercise, width)}
   ${table}
   <div class="verdict">
     <button type="button" data-play='${JSON.stringify(voice(exercise))}'>Play</button>
+    <label class="tempo">♩=<input type="number" class="tempo__input" min="30" max="220" step="1"
+      value="${theme.tempo ?? tempo}" aria-label="tempo for ${theme.name}"><span class="tempo__rate"></span></label>
     <button type="button" data-verdict="keep">Keep</button>
     <button type="button" data-verdict="cut">Cut</button>
     <input type="text" placeholder="is it a tune?" aria-label="note on ${theme.id}">
@@ -170,9 +179,9 @@ const sections = sets.map((set) => {
       .join('\n')}`;
   });
   if (levels.every((level) => level === '')) return '';
-  return `<section><h2>${set.heading} <span class="count">${set.themes.length}</span></h2>
-    <p class="meta">${set.meta}</p>
-    <p class="blurb">${set.blurb}</p>${levels.join('\n')}</section>`;
+  return `<details class="section" open><summary><h2>${set.heading} <span class="count">${set.themes.length}</span></h2>
+    <p class="meta">${set.meta}</p></summary>
+    <p class="blurb">${set.blurb}</p>${levels.join('\n')}</details>`;
 });
 
 const html = `<!doctype html>
@@ -183,6 +192,18 @@ const html = `<!doctype html>
   h1 { font-size: 1.4rem; } h2 { font-size: 1.25rem; margin-top: 3rem; border-bottom: 2px solid #333; padding-bottom: 0.25rem; }
   h3 { font-size: 1rem; margin: 1.75rem 0 0.5rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; }
   .blurb { color: #666; font-size: 0.88rem; margin: 0.5rem 0 0; }
+  /* Sections collapse, because sixty-seven tunes is a lot of scrolling to
+     reach the one collection you came to judge. Open by default: nothing is
+     hidden from somebody who has just arrived. */
+  details.section > summary { cursor: pointer; list-style: none; padding: 0.3rem 0; border-bottom: 1px solid #e5e5e5; }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before { content: '▾ '; color: #999; }
+  details.section:not([open]) > summary::before { content: '▸ '; }
+  details.section > summary h2 { display: inline; }
+  details.section > summary .meta { display: inline; margin-left: 0.5rem; }
+  .tempo { font-size: 0.78rem; color: #666; margin-right: 0.6rem; white-space: nowrap; }
+  .tempo__input { width: 3.4rem; font: inherit; padding: 0.1rem 0.2rem; }
+  .tempo__rate { color: #999; }
   .meta { color: #888; font-size: 0.78rem; margin: 0.2rem 0 0; text-transform: lowercase; letter-spacing: 0.02em; }
   .unheard { background: #fde68a; color: #713f12; font-size: 0.7rem; padding: 0.1rem 0.35rem; border-radius: 3px; margin-left: 0.4rem; }
   .count { color: #999; font-weight: 400; }
@@ -259,17 +280,43 @@ ${sections.join('\n')}
    * the notes, and carrying 1.4MB of samples into a review page to make that
    * judgement would be a worse page for no better answer.
    */
+  function tempoOf(figure) {
+    return Number(figure.getAttribute('data-tempo')) || 84;
+  }
+
+  /*
+   * What the tempo actually costs a reader: notes a second at the shortest
+   * value the tune substantially uses. This is the number the difficulty model
+   * is moving to, so it is the one to show while choosing — a semiquaver at 42
+   * and a quaver at 108 are the same reading speed, and no note value says so.
+   */
+  function showRate(figure) {
+    var notes = figure.querySelector('[data-play]');
+    var out = figure.querySelector('.tempo__rate');
+    if (!notes || !out) return;
+    var lengths = JSON.parse(notes.getAttribute('data-play')).map(function (n) { return n[2]; });
+    if (!lengths.length) return;
+    lengths.sort(function (a, b) { return a - b; });
+    var floor = lengths[Math.floor(lengths.length * 0.05)];
+    var perSec = 1 / (floor * 60 / tempoOf(figure));
+    var sourced = figure.getAttribute('data-sourced');
+    out.textContent = ' · ' + perSec.toFixed(1) + '/sec' + (sourced ? '' : ' · guessed');
+  }
+
   function play(button) {
     if (stop) { stop(); if (stop.button === button) { stop = null; return; } }
     audio = audio || new (window.AudioContext || window.webkitAudioContext)();
     var notes = JSON.parse(button.getAttribute('data-play'));
+    // Beats into seconds at whatever tempo this figure is set to, read now
+    // rather than baked in — the point of the control beside it.
+    var perBeat = 60 / tempoOf(button.closest('figure[data-theme]'));
     var start = audio.currentTime + 0.08;
     var nodes = [];
     notes.forEach(function (note) {
       var osc = audio.createOscillator(), gain = audio.createGain();
       osc.type = 'triangle';
       osc.frequency.value = 440 * Math.pow(2, (note[0] - 69) / 12);
-      var at = start + note[1], until = at + Math.max(0.08, note[2] * 0.92);
+      var at = start + note[1] * perBeat, until = at + Math.max(0.08, note[2] * perBeat * 0.92);
       gain.gain.setValueAtTime(0.0001, at);
       gain.gain.exponentialRampToValueAtTime(0.22, at + 0.02);
       gain.gain.setValueAtTime(0.22, until - 0.05);
@@ -280,7 +327,7 @@ ${sections.join('\n')}
     });
     button.classList.add('playing');
     button.textContent = 'Stop';
-    var last = notes.length ? start + notes[notes.length - 1][1] + notes[notes.length - 1][2] : start;
+    var last = notes.length ? start + (notes[notes.length - 1][1] + notes[notes.length - 1][2]) * perBeat : start;
     var timer = setTimeout(function () { if (stop) stop(); }, (last - audio.currentTime + 0.2) * 1000);
     stop = function () {
       clearTimeout(timer);
@@ -306,6 +353,18 @@ ${sections.join('\n')}
   });
 
   document.addEventListener('input', function (event) {
+    if (event.target.matches('.tempo__input')) {
+      var figure = event.target.closest('figure[data-theme]');
+      var id = figure.getAttribute('data-theme');
+      figure.setAttribute('data-tempo', event.target.value);
+      figure.setAttribute('data-sourced', '1');
+      showRate(figure);
+      var held = verdicts[id] || {};
+      held.tempo = Number(event.target.value);
+      verdicts[id] = held;
+      try { localStorage.setItem(KEY, JSON.stringify(verdicts)); } catch (e) {}
+      return;
+    }
     if (!event.target.matches('.verdict input')) return;
     var id = event.target.closest('figure[data-theme]').getAttribute('data-theme');
     var current = verdicts[id] || {};
@@ -328,6 +387,19 @@ ${sections.join('\n')}
     verdicts = {};
     store();
   });
+
+  // Any tempo already chosen on a past visit, put back before the rates show.
+  Object.keys(verdicts).forEach(function (id) {
+    var held = verdicts[id];
+    if (!held || !held.tempo) return;
+    var figure = document.querySelector('figure[data-theme="' + id + '"]');
+    if (!figure) return;
+    figure.setAttribute('data-tempo', held.tempo);
+    figure.setAttribute('data-sourced', '1');
+    var input = figure.querySelector('.tempo__input');
+    if (input) input.value = held.tempo;
+  });
+  document.querySelectorAll('figure[data-theme]').forEach(showRate);
 
   paint();
 })();

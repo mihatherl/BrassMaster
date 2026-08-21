@@ -127,7 +127,7 @@ export const COLLECTIONS: readonly Collection[] = [
       'Two fugue subjects and eight excerpts read out of public-domain MIDI — six of the Two-Part Inventions, the obbligato from Jesu, Joy of Man’s Desiring, the vocal line of Sheep may safely graze, and the Air on the G string with its ornaments simplified. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 6,
+    revision: 7,
     themes: BORROWED,
     /*
      * Two groups here, unheard for different reasons.

@@ -134,6 +134,23 @@ export interface Theme {
   /** Major unless it says otherwise. */
   mode?: Mode;
   bars: number;
+  /**
+   * Crotchets a minute the tune is conceived at, where that is known.
+   *
+   * **Not a playback instruction** — the tempo dial is the player's, and this
+   * never moves it. It is what the piece *asks*, which is the missing half of
+   * what a difficulty level means: a semiquaver at 42 is a slower note to read
+   * than a quaver at 108, and the level could not see that until this existed.
+   *
+   * Absent for everything written rather than read, and deliberately not
+   * guessed. Measured across the sourced pieces on 2026-08-21, note values turn
+   * out to carry almost no information about tempo — a median semiquaver is 42
+   * in the Air and 100 in Invention 13, and a median quaver is 60 in Sheep and
+   * 108 in Bist du bei mir. The spread inside one note value is as wide as the
+   * spread between them, so a heuristic would be inventing a figure rather than
+   * deriving one. It is set from the source, or by an ear on the review sheet.
+   */
+  tempo?: number;
   events: readonly ThemeEvent[];
   keyChanges?: readonly ThemeKeyChange[];
 }

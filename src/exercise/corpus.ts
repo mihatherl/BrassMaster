@@ -86,6 +86,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@4': 'facf8d92', // and Sheep may safely graze, chosen for being known
   'bach@5': '1b618b26', // Sheep recut to ten bars on the ear, and easy with it
   'bach@6': '00c5f144', // and the Air, ornaments simplified — an arrangement
+  'bach@7': '8092ccf8', // and every sourced theme carrying the tempo it was read at
 };
 
 /*
@@ -147,7 +148,11 @@ function canonicalThemes(themes: readonly Theme[]): string {
       const keys = (theme.keyChanges ?? [])
         .map((change) => `${change.atBar}:${change.fifths}`)
         .join(';');
-      return `${theme.id}|${theme.difficulty}|${theme.mode ?? 'major'}|${metres}|${theme.bars}|${events}|${keys}`;
+      /* Tempo appended only where a theme has one, so adding the field left
+         every collection that has none exactly where it was — and a tempo is
+         material, since it is half of what a difficulty level now means. */
+      const speed = theme.tempo ? `|${theme.tempo}` : '';
+      return `${theme.id}|${theme.difficulty}|${theme.mode ?? 'major'}|${metres}|${theme.bars}|${events}|${keys}${speed}`;
     })
     .join('\n');
 }

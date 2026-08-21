@@ -161,6 +161,7 @@ export const BORROWED: readonly Theme[] = [
     difficulty: 'hard',
     metres: [[3, 4]],
     bars: 6,
+    tempo: 90,
     /*
      * Bach's upper voice, entering on the second quaver — the lower voice
      * answers a bar later, which is why this makes sense as the play-along
@@ -199,6 +200,7 @@ export const BORROWED: readonly Theme[] = [
     difficulty: 'medium',
     metres: [[9, 8]],
     bars: 8,
+    tempo: 108,
     /*
      * **Read as 9/8 although the file says 3/4.** The sequencer wrote compound
      * time as simple time full of triplets, so every quaver arrived as a third
@@ -234,6 +236,7 @@ export const BORROWED: readonly Theme[] = [
     difficulty: 'hard',
     metres: [[4, 4]],
     bars: 4,
+    tempo: 105,
     events: [
       r(1 / 2), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 2), n(2, 1 / 2), n(3, 1), n(4, 1),
       r(1 / 2), n(2, 1 / 4), n(1, 1 / 4), n(2, 1 / 2), n(3, 1 / 2), n(4, 1), n(5, 1),
@@ -257,6 +260,7 @@ export const BORROWED: readonly Theme[] = [
     mode: 'minor',
     metres: [[4, 4]],
     bars: 6,
+    tempo: 85,
     events: [
       r(1 / 4), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 4, { alter: -1 }), n(1, 1 / 4), n(2, 1 / 4), n(3, 1 / 4), n(1, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(1, 1 / 4, { alter: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(3, 1 / 4), n(2, 1 / 4),
       n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }), n(3, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(4, 1 / 4),
@@ -283,6 +287,7 @@ export const BORROWED: readonly Theme[] = [
     mode: 'minor',
     metres: [[4, 4]],
     bars: 8,
+    tempo: 100,
     events: [
       r(1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(4, 1 / 4), n(3, 1 / 2), n(5, 1 / 2), n(7, 1 / 2, { alter: 1, octave: -1 }), n(5, 1 / 2),
       n(1, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(4, 1 / 4), n(3, 1 / 2), n(1, 1 / 2), r(1),
@@ -307,6 +312,7 @@ export const BORROWED: readonly Theme[] = [
     mode: 'minor',
     metres: [[4, 4]],
     bars: 8,
+    tempo: 105,
     events: [
       r(1 / 2), n(1, 1 / 4), n(7, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 2), n(5, 1 / 2, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(1, 1 / 2), n(5, 1 / 2, { octave: -1 }),
       n(5, 1 / 2, { octave: -1 }), n(4, 1 / 2, { octave: -1 }), n(2, 1 / 2), n(4, 1 / 2, { octave: -1 }), n(4, 1 / 2, { octave: -1 }), n(3, 1 / 4, { octave: -1 }), n(2, 1 / 4, { octave: -1 }), n(3, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }),
@@ -334,6 +340,7 @@ export const BORROWED: readonly Theme[] = [
     difficulty: 'medium',
     metres: [[9, 8]],
     bars: 12,
+    tempo: 172,
     events: [
       n(1, 1 / 2), n(3, 1 / 2), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(5, 1 / 2), n(3, 1 / 2), n(1, 1 / 2), n(1, 1 / 2, { octave: 1 }),
       n(7, 1), n(5, 1 / 2), n(2, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(5, 1 / 2), n(2, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(5, 1 / 2),
@@ -379,6 +386,7 @@ export const BORROWED: readonly Theme[] = [
     difficulty: 'easy',
     metres: [[4, 4]],
     bars: 10,
+    tempo: 60,
     events: [
       n(1, 1), n(3, 1 / 2), n(2, 1 / 2), n(2, 3 / 2), n(3, 1 / 2),
       n(4, 1), n(6, 1 / 2), n(5, 1 / 2), n(3, 1), n(2, 1 / 2), n(1, 1 / 2),
@@ -421,6 +429,7 @@ export const BORROWED: readonly Theme[] = [
     difficulty: 'hard',
     metres: [[4, 4]],
     bars: 19,
+    tempo: 42,
     events: [
       n(1, 4, { tied: true }),
       n(1, 1), n(6, 1, { octave: -1 }), n(7, 1, { octave: -1 }), n(5, 1, { octave: -1 }),
