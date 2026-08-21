@@ -496,6 +496,54 @@ stepwise, ending on a proper cadence.
 KernScores, which is CCARH — the same terms that already forbid the generator's
 Essen-trained models from anything commercial. Source from somewhere else.
 
+#### Superseded the same day: recognisable beats well-made
+
+Two chorales were converted, validated at easy, fitted every instrument in
+every key — and were withdrawn on hearing them: *"I'm not a church choralist
+and aren't familiar with the two you put up already, and I'd leave them rather
+than take them. Select only for the more well known pieces (Sheep may safely
+graze, for instance)."*
+
+That overturns the criterion rather than the plan. **A tune the reader already
+knows is worth more than a better-made tune they do not**, because knowing it
+is what tells them they have played it wrong — which is the whole feedback loop
+this app exists to close. It is also why the nursery tunes work and why they
+were always a fair calibration: nobody has to be told whether Twinkle came out
+right.
+
+So no bulk ingestion of anything. Collections are **curated by fame**, one
+piece at a time, and the question to ask of a candidate is not "is this good
+material" but "would a player recognise it". Mutopia turns out to hold exactly
+that kind of Bach under a plain Public Domain licence — Sheep may safely graze,
+Air on the G string, Bist du bei mir, the Toccata and Fugue — which is a better
+source than the 371 ever were.
+
+#### The difficulty model gates on its shortest note, and that is too crude
+
+Found while converting those: `Air on the G string` and `Bist du bei mir` are
+both refused, each for containing notes shorter than a semiquaver, which no
+level admits. The counts say these are two different situations that the model
+cannot tell apart:
+
+| | notes | shorter than a semiquaver |
+|---|---|---|
+| Air on the G string | 145 | 19 (13%) |
+| Bist du bei mir | 171 | 4 (2%) |
+
+The Air really does run in demisemiquavers and refusing it is right. *Bist du
+bei mir* is a slow aria — 77 quavers, 27 crotchets — turned away for four
+ornamental notes, and that is the model being wrong rather than strict.
+
+**It is the same fault already recorded against accidentals**: the level is
+decided by whether a property appears at all, never by how much of it there is.
+A proportion would fix both — a level tolerating a small fraction of notes
+below its floor, and grading chromaticism by density rather than presence.
+Worth doing before the next curated batch, since it decides what can be taken.
+
+Note what it is *not* an argument for: a level above `hard` is still ruled out.
+The point is that these pieces are not above hard — one of them is easy with
+four ornaments on top.
+
 Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
 
 ### Where each build runs

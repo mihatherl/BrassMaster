@@ -42,7 +42,6 @@ import type { Theme } from './theme';
 import { THEMES, UNJUDGED as THEMES_UNJUDGED } from './themes';
 import { TRADITIONAL } from './tunes-traditional';
 import { BORROWED } from './tunes-borrowed';
-import { CHORALES } from './tunes-chorales';
 
 /**
  * Where the music came from, and what may be done with it.
@@ -105,25 +104,13 @@ export const COLLECTIONS: readonly Collection[] = [
     themes: TRADITIONAL,
   },
   {
-    id: 'chorales',
-    name: 'Chorales',
-    blurb:
-      'Bach’s harmonisations of Lutheran hymn tunes, taken whole — complete pieces rather than excerpts, in crotchets and minims, ending on a real cadence. A chorale’s difficulty is in the tuning and the breathing rather than the reading, which is why they sit at easy where the inventions sit at hard. Core brass band repertoire: a band reads hymn tunes at sight every week.',
-    provenance: 'public-domain',
-    status: 'accepted',
-    revision: 1,
-    themes: CHORALES,
-    /* Converted and validated, and nobody has heard them play yet. */
-    unjudged: new Set(CHORALES.map((theme) => theme.id)),
-  },
-  {
     id: 'bach',
     name: 'Bach',
     blurb:
-      'Two fugue subjects and seven excerpts read out of public-domain MIDI — six of the Two-Part Inventions, and the obbligato from Jesu, Joy of Man’s Desiring. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
+      'Two fugue subjects and eight excerpts read out of public-domain MIDI — six of the Two-Part Inventions, the obbligato from Jesu, Joy of Man’s Desiring, and the vocal line of Sheep may safely graze. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 3,
+    revision: 4,
     themes: BORROWED,
     /*
      * Two groups here, unheard for different reasons.
@@ -145,6 +132,7 @@ export const COLLECTIONS: readonly Collection[] = [
       'bwv784-invention',
       'bwv786-invention',
       'bwv781-invention',
+      'bwv208-sheep',
     ]),
   },
 ];

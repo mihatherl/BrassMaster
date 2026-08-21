@@ -349,4 +349,43 @@ export const BORROWED: readonly Theme[] = [
       n(4, 1 / 2, { alter: 1 }), n(5, 1 / 2), n(4, 1 / 2, { alter: 1 }), n(3, 1 / 2), n(4, 1 / 2, { alter: 1 }), n(2, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(2, 1 / 2, { octave: 1 }), n(3, 1 / 2, { octave: 1 }),
     ],
   },
+{
+    id: 'bwv208-sheep',
+    name: 'Sheep may safely graze',
+    /*
+     * The vocal line, not the flutes — twelve bars from where the voice enters
+     * at bar five, which is where the tune everybody knows begins. The famous
+     * recordings give the melody to whatever is available, but Bach gave it to
+     * a soprano and the obbligato to two recorders, and it is the sung line
+     * that a listener hums back.
+     *
+     * **The first theme chosen for being recognisable rather than for being
+     * well made.** Two chorales came before it, converted cleanly and
+     * withdrawn on the player's verdict: *"I'm not a church choralist and
+     * aren't familiar with the two you put up already, and I'd leave them
+     * rather than take them."* A tune the reader knows tells them when they
+     * have played it wrong; a tune they do not is just notes, and the corpus
+     * can already generate notes.
+     *
+     * Hard, which is not what the corpus most needs, and it is here anyway —
+     * famous material at hard beats obscure material at hard.
+     */
+    difficulty: 'hard',
+    metres: [[4, 4]],
+    bars: 12,
+    events: [
+      n(1, 1), n(3, 1 / 2), n(2, 1 / 2), n(2, 3 / 2), n(3, 1 / 2),
+      n(4, 1), n(6, 1 / 2), n(5, 1 / 2), n(3, 1), n(2, 1 / 2), n(1, 1 / 2),
+      n(3, 1 / 2), n(1, 1 / 2), n(7, 1 / 2, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(2, 3 / 2), n(3, 1 / 2),
+      n(7, 1, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(5, 2, { octave: -1 }),
+      n(5, 1, { octave: -1 }), n(7, 1 / 2, { alter: -1, octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(6, 3 / 2, { octave: -1 }), n(7, 1 / 2, { octave: -1 }),
+      n(1, 1), n(3, 1 / 2), n(2, 1 / 2), n(7, 1, { octave: -1 }), n(6, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }),
+      n(5, 1), n(6, 1 / 2), n(5, 1 / 2), n(5, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2),
+      n(5, 1), n(6, 1 / 2), n(5, 1 / 2), n(5, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2),
+      n(4, 3 / 2), n(5, 1 / 2), n(3, 1 / 2), n(2, 1 / 2), n(1, 1 / 2), n(2, 1 / 2),
+      n(7, 3 / 2, { octave: -1 }), n(1, 1 / 2), n(1, 2),
+      r(2), n(6, 1 / 2), n(4, 1 / 2), n(3, 1 / 2), n(2, 1 / 2),
+      n(5, 3 / 2), n(6, 1 / 2), n(3, 3 / 2), n(2, 1 / 4), n(1, 1 / 4),
+    ],
+  },
 ];
