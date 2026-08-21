@@ -1,4 +1,4 @@
-# Handover — 2026-08-20/21, the sessions that built the corpus pipeline
+# Handover — 2026-08-20/22, the corpus pipeline and the pieces taken whole
 
 You are picking up **one half** of a two-app product, from a parent folder
 holding both this repository and its sister. This half is *Brass Master*: the
@@ -20,10 +20,11 @@ what has happened since, which is almost entirely about **material**.
 
 | | Lines | When |
 |---|---|---|
-| `handover.md` — this file | ~260 | Now, all of it |
+| `handover.md` — this file | ~290 | Now, all of it |
 | **`roadmap.md`** | 460 | **Now, and before proposing any feature.** What the product is, what is deliberately not on it, and § *Where the corpus actually is* |
 | `../CLAUDE.md` | ~60 | Now. The seam, and which remote is which |
 | `handover-2026-08-19.md` | 222 | For the product decisions that predate the corpus work |
+| **`difficulty-model-plan.md`** | 130 | **Before touching a level, a tempo or `difficulty.ts`.** The dry run of 2026-08-21 and what it found |
 | `v3-library-plan.md` | 130 | Before any capture, library or v3 work |
 | `app-store-plan.md` | 260 | Before version 3 |
 | `v2-design.md` | 2,960 | **Never end to end.** Grep it for the noun you are touching |
@@ -37,7 +38,22 @@ note"`. Its headings are a map: `grep -n "^## " docs/v2-design.md`.
 
 ## Where this stands
 
-**v2.27.0, pushed to origin and green.** 1,332 tests across 65 files.
+**v2.28.0, pushed to origin, deployed and green.** 1,329 tests across 65 files.
+
+The session of 2026-08-21/22 did two things and started a third:
+
+- **Every Bach piece is now whole.** All six Two-Part Inventions and the
+  Prelude in C run to their own endings, where they used to stop wherever a
+  converter said a cut would validate. Two themes left the corpus — the Art of
+  Fugue's subject and the Musical Offering's royal theme, withdrawn on the
+  player's verdict.
+- **The difficulty reclassification was run as a dry run and applied to
+  nothing.** It confirmed the change it was asked to test and found two larger
+  things beside it. `docs/difficulty-model-plan.md` is the report; read it
+  before touching a level.
+- **The generator was un-parked for one night of GPU time**, at the player's
+  request, and its results are in `../BrassMXMLGenerator/docs/handover-ml.md`,
+  not here.
 
 The gate before any push is `npm test && npm run build && npm run lint`, all
 three, plus `npm run check:web` when anything touches the build split.
@@ -151,9 +167,31 @@ reality by most of a second, and because that error was about one pulse, the
 count-in clicks landed back on the numbers and the overshoot looked like the
 earlier fix working. Retracted. Only the tap calibration is trusted.
 
+**I tried to fix a bar by moving other bars.** The Prelude would not come out
+whole, and I spent three measurements shifting whole bars into a common
+register — align on the opening note, align on the centre, a greedy walk with
+seams — before measuring the thing that mattered: **one bar of it spans
+forty-one semitones on its own**, because from bar 24 the left hand holds a
+pedal while the right hand works two octaves above. No arrangement of bars can
+fix a bar. Once that was measured the answer took ten minutes: voice each bar
+closely, inside its own octave, which keeps every pitch class and every leap
+under an octave. *Measure the unit you are actually failing on.*
+
+**Every whole piece arrived a beat or two short, and for the same reason both
+times.** A MIDI file carries no trailing rest, so Invention 8 lost the two
+crotchet rests its final bar holds and Invention 10 lost a dotted crotchet. The
+converter says so — *"does not fill its bars: 100.000 against 99.000"* — and
+the LilyPond source beside the MIDI settles what the bar really holds. This is
+the same shape as every fault that tool has ever had: right notes, wrong beats,
+legal on their face.
+
 **Tests that name what the corpus holds break every time it moves.** Three in
 one file, three separate times. They now search for what they need — a theme
-whose length is not the composer's, a pair at one level in different metres.
+whose length is not the composer's, a pair at one level in different metres, a
+pair of compound and simple. It happened again on 2026-08-21 in three more
+files, because a completed piece goes *back* to being unheard and an unheard
+tune is not offered: the medley silently became one tune and the metre never
+changed. Name a property, never a tune.
 
 ## Rulings a newcomer breaks
 
@@ -174,38 +212,72 @@ whose length is not the composer's, a pair at one level in different metres.
 ## What is left
 
 **Waiting on the player's ear** — nothing here should be built on until it is
-heard:
+heard, and after 2026-08-22 that is nearly the whole Bach collection:
 
 | | |
 |---|---|
 | 8 nursery tunes | written from memory; the Old MacDonald risk is live |
-| 10 Bach themes | 5 inventions, Sheep, the Air, the Prelude, 2 fugue subjects |
+| **10 Bach themes** | six inventions and the Prelude now *complete* rather than cut, plus Sheep, the Air and the Menuett |
 | 14 nine-eight cells | rests inside the bar |
 | tempos | set on compositions, adjusted on anything that sounds wrong |
 
-**48 of 68 themes are playable**; the rest are unheard. Bach is down to two.
+**The Bach collection has one heard tune in it** — Jesu, Joy — because
+completing a piece makes it a different piece, and a verdict on six bars
+cannot cover thirty-four. That is the cost of the rule and it is the right
+cost; it also means the collection is thin on the deployed site until the
+review sheet has been through.
 
-**The reclassification the player approved but which has not run.** Difficulty
-should be judged on *seconds per note* rather than beats, now that themes carry
-tempo. Do it as a dry run first — whole corpus, old level against new, with
-note rates — before changing a label.
+**47 of 67 themes are playable.** The sheet is at `:8452` as always.
 
-**Three gaps in the difficulty model, all the same shape.** It measures whether
+**Three of the whole pieces reach only part of the band.** Inventions 8, 10
+and 13 and the Prelude carry `allowWideRange` and get as far as the euphonium
+and the two tubas; the guard now asks a declared-wide theme to reach three
+quarters of the keys rather than all of them. If the player would rather have
+them on every instrument than have them whole, the alternative is measured and
+in the code comments: one octave displacement of bars 2–26 brings Invention 8
+to twenty-six semitones with seams of nought and five.
+
+**The reclassification, run and not applied.** `npx tsx
+tools/difficulty-dry-run.mts` prints the whole corpus, old level against new,
+with the rates that decide it. It confirms that seconds beat beats — Invention
+10's quavers at 140 and Invention 13's semiquavers at 70 are the same 4.67
+notes a second, and the model called one medium and the other hard purely on
+how the note is drawn. **Only that one label has moved**, and it moved because
+the piece was taken whole rather than because the model changed.
+
+What stopped the rest being applied is in `difficulty-model-plan.md`: rate
+alone moves 22 of 69 themes and gets a dozen of them wrong, because a theme
+earns its level on whichever axis it is hard on. The player's own reading is
+measured there too — that microphone mode and tapping mode are different
+exercises — and the corpus agrees, at 48 themes of 69 sitting at a different
+level under the two.
+
+**47 of the written themes carry no tempo**, so for most of the corpus seconds
+and beats are the same number in different units. Giving them tempos is a
+listening job and it gates the rest of this.
+
+**Four gaps in the difficulty model, all the same shape.** It measures whether
 a property *appears*, not how much of it there is. Fixed for note length
-(`readingFloor`). Still open for **accidentals** — the Musical Offering is
-chromatic in every bar and sits at easy — and for **leap density**, though the
-corpus is already sorted correctly on that axis and the sheet now shows it.
-Note that per-level `maxInterval` must *not* become a ceiling: twenty of
-sixty-eight themes exceed their level's figure, including Twinkle.
+(`readingFloor`). Still open for **accidentals**; for **leap density**, though
+the corpus is already sorted correctly on that axis and the sheet shows it;
+and — the largest, found 2026-08-21 — for **cross-rhythm and syncopation**,
+which are on no axis at all although six of Medium's themes are made of
+nothing else. That is why a rate-only reclassification empties Medium.
+
+Note that per-level `maxInterval` must *not* become a ceiling: twenty themes
+exceed their level's figure, Twinkle among them. The dry run bands leaps
+separately for exactly that reason, and its four numbers are a brass judgement
+that wants an ear rather than more arithmetic.
 
 **Repetition is invisible to the model.** A piece that repeats one figure is far
 easier to read than one that does not at the same note rate. Measured but not
 acted on; it would have made the Prelude worse, not better.
 
-**Unbuilt, and on the roadmap:** run length following the material rather than
-counting four themes; complete inventions now that within-bar ties work; the
-variation engine; two-voice play-along, for which the inventions are already
-two voices in two tracks.
+**Unbuilt, and on the roadmap:** run length following the material — now
+pressing rather than tidy, because four themes of the Bach collection is 126
+bars where four of the written corpus is 48; the variation engine; two-voice
+play-along, for which the inventions are already two voices in two tracks and
+now complete on both.
 
 ## How to work here
 
