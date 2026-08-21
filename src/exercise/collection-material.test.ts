@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateExercise } from './generate';
-
+import { collectionById } from './collections';
 import { difficultyById } from './difficulty';
 import { TUNE_BARS } from './compose';
 import { instrumentById } from '../domain/instruments';
@@ -155,10 +155,20 @@ describe('choosing where the tunes come from', () => {
    * mutually exclusive worlds.
    */
   it('draws a medley from every chosen collection', () => {
+    /*
+     * Asked of the collections rather than of a list of names written here.
+     * The first version pattern-matched the titles it expected, and adding one
+     * Bach theme whose name did not look like the others — Sheep may safely
+     * graze — broke it while the medley was working perfectly. A test that
+     * enumerates the corpus has to be edited every time the corpus grows,
+     * which is the one thing this corpus is meant to do.
+     */
+    const namesOf = (id: string) =>
+      new Set(collectionById(id)!.themes.map((theme) => theme.name));
     const { exercise } = run(['bach', 'traditional'], 'easy', [4, 4], 4);
-    const names = new Set(exercise.labels.map((label) => label.text));
-    expect([...names].some((name) => /Offering|Fugue|Invention|Jesu/.test(name))).toBe(true);
-    expect([...names].some((name) => /Frère|Baa|Hot cross|Twinkle|Mary/.test(name))).toBe(true);
+    const played = exercise.labels.map((label) => label.text);
+    expect(played.some((name) => namesOf('bach').has(name))).toBe(true);
+    expect(played.some((name) => namesOf('traditional').has(name))).toBe(true);
   });
 
   /*
