@@ -89,6 +89,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@7': '8092ccf8', // and every sourced theme carrying the tempo it was read at
   'bach@8': '31851769', // and the inventions brought from keyboard speed to brass
   'bach@9': '5b6fc0c7', // and the Prelude in C, an arpeggio study rather than a tune
+  'bach@10': '283d5def', // Prelude recut to bar 19, where the harmony resolves
 };
 
 /*
