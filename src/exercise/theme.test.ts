@@ -391,7 +391,7 @@ describe('an ornament against a texture', () => {
    * arithmetic exact while adding notes faster than easy reads.
    */
   const withOrnaments = (ornaments: number, difficulty = 'easy'): Theme => {
-    const events: Theme['events'] = [];
+    const events: Array<Theme['events'][number]> = [];
     let beats = 0;
     for (let i = 0; i < ornaments; i++) {
       events.push({ degree: 1, beats: 0.75 }, { degree: 2, beats: 0.25 });
