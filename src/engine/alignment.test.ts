@@ -28,6 +28,7 @@ import { instrumentById } from '../domain/instruments';
 import { difficultyById } from '../exercise/difficulty';
 import { generateExercise } from '../exercise/generate';
 import type { Exercise } from '../exercise/types';
+import { COLLECTIONS, playableThemes } from '../exercise/collections';
 import { ValveInput } from './input';
 import { Session } from './session';
 
@@ -148,6 +149,32 @@ function worstClickError(exercise: Exercise, session: Session, clicks: number[])
   return worst;
 }
 
+/**
+ * A playable compound-time tune and a playable simple-time one, found rather
+ * than named.
+ *
+ * These tests used to name `jesu-joy` and `bwv779-invention`, and that broke
+ * for the third time on 2026-08-21 when Invention 8 was taken whole and went
+ * back to being unheard — a tune nobody has judged is not offered, so the
+ * medley silently became one tune and the metre never changed. The scenario
+ * needs *a* pair, not that pair: anything compound against anything simple,
+ * from whatever the corpus can currently hand a cornet.
+ */
+function compoundAndSimple(): { collectionIds: string[]; themeIds: string[] } {
+  const playable = COLLECTIONS.flatMap((collection) =>
+    playableThemes(collection).map((theme) => ({ collection, theme })),
+  );
+  const isCompound = (t: (typeof playable)[number]) =>
+    metreFor(t.theme.metres[0][0], t.theme.metres[0][1]).isCompound;
+  const compound = playable.find(isCompound);
+  const simple = playable.find((t) => !isCompound(t));
+  if (!compound || !simple) throw new Error('the corpus holds no compound/simple pair');
+  return {
+    collectionIds: [...new Set([compound.collection.id, simple.collection.id])],
+    themeIds: [compound.theme.id, simple.theme.id],
+  };
+}
+
 describe('sound against the clock', () => {
   it('holds through a metre change, which the medley made real', () => {
     /*
@@ -159,10 +186,9 @@ describe('sound against the clock', () => {
      * bar walked in 3/4 pulses, or the reverse, is off the grid at once.
      */
     const exercise = themesRun({
-      collectionIds: ['bach'],
       difficultyId: 'easy',
       metre: [4, 4],
-      themeIds: ['jesu-joy', 'bwv779-invention'],
+      ...compoundAndSimple(),
     });
     // The scenario only proves anything if the signature actually moves.
     expect(changesMetre(exercise.metres)).toBe(true);
@@ -288,10 +314,9 @@ describe('tempo across a change of metre', () => {
 
   it('keeps one pulse the same length either side of the join', () => {
     const exercise = themesRun({
-      collectionIds: ['bach'],
       difficultyId: 'easy',
       metre: [4, 4],
-      themeIds: ['jesu-joy', 'bwv779-invention'],
+      ...compoundAndSimple(),
     });
     const change = exercise.metres.find((m) => m.fromBeat > 0);
     expect(change, 'the medley must actually change metre').toBeDefined();
@@ -308,10 +333,9 @@ describe('tempo across a change of metre', () => {
 
   it('runs a bar of each metre at its own honest length', () => {
     const exercise = themesRun({
-      collectionIds: ['bach'],
       difficultyId: 'easy',
       metre: [4, 4],
-      themeIds: ['jesu-joy', 'bwv779-invention'],
+      ...compoundAndSimple(),
     });
     const change = exercise.metres.find((m) => m.fromBeat > 0)!;
     const { session } = drive(exercise, 1);

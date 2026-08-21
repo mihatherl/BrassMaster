@@ -449,6 +449,61 @@ it arrives there. Armed before the screens exist, and mutation-tested by wiring
 the store into `App` unguarded and watching the free build fail — which is the
 exact mistake it is there to catch.
 
+## A complete piece has the range it has — v2.28.0
+
+Four of the Bach pieces were excerpts cut where the converter said a cut would
+validate, and the ruling of 2026-08-21 is that this was never a musical
+decision: *"some are just artlessly cut off without resolution."* It was a
+range decision wearing musical clothes. Inventions 8, 13 and 15 and the
+Prelude in C now run to their own endings.
+
+**`allowWideRange`, the sibling of `allowWideLeaps`.** A level's
+`rangeSemitones` has two jobs — it stops the *composer* writing a tune that
+wanders further than that level's reader can follow, and it describes how wide
+a borrowed piece is — and only the second may be waived, one theme at a time,
+by somebody who has looked at it. Invention 8's upper voice covers thirty-one
+semitones across its thirty-four bars; that is a fact about Bach, not about the
+model.
+
+**What is never waived is the compass.** `realiseTheme` still declines an
+instrument the theme will not fit, so a wide piece is offered to fewer of the
+band — Invention 8 and 13 reach the euphonium and the two tubas — and the
+material count beside the collection says so before a player chooses. The
+guard in `tunes-borrowed.test.ts` splits accordingly: an ordinary theme must
+fit somebody in every key, a declared-wide one in three quarters of them.
+Reaching almost nobody is still the fault it always was, and it fails as
+silence rather than as an error, which is why it is tested at all.
+
+**Close voicing, and the bar that spans three and a half octaves.** The Prelude
+in C could not be completed by shifting whole bars, and the measurement says
+why: from bar 24 the left hand holds a low pedal while the right hand works two
+octaves above it, so **one bar spans forty-one semitones on its own**.
+`--fold`, which brings each bar into the opening register, cannot fix a bar
+that is itself wider than any instrument.
+
+So `--close 12` raises each bar's low notes by octaves until the bar sits
+inside an octave: the same chord, every pitch class kept, the bass brought up
+into the figure rather than left where nobody can reach it. Across all
+thirty-five bars that turns a span of forty-five semitones into twenty-nine
+with **no leap anywhere wider than an octave** — where the eight-bar excerpt it
+replaces leapt twenty-one and needed `allowWideLeaps` to do it. The waiver it
+needed is gone; the one it needs now is the range.
+
+It is the fourth thing in that tool which arranges rather than measures, and
+like the other three it must be asked for by name and says on stderr what it
+did. What it gives up is register, which one instrument could not have had; what
+it keeps is the harmony, the figure, and the ending.
+
+**Two themes left the corpus.** The Art of Fugue's subject and the Musical
+Offering's royal theme, withdrawn on the player's verdict — the last two
+written from memory rather than measured.
+
+**And a tool for the question that replaced "are the notes right".**
+`npx tsx tools/theme-fit.mts` prints, for every theme, whether it validates and
+how much of the band can take it in how many keys. Once themes are whole rather
+than cut, that is the question, and it used to be answerable only by silence in
+the app.
+
 ## Borrowing music without transcribing it — the MIDI converter
 
 `npm run midi -- <file.mid> --fifths N --mode minor --metre 3/4` reads a MIDI

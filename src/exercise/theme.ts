@@ -181,6 +181,32 @@ export interface Theme {
    * never what is unplayable.
    */
   allowWideLeaps?: boolean;
+  /**
+   * Lets this theme span further than its level's `rangeSemitones`, on a
+   * person's say-so — the same waiver as `allowWideLeaps`, for the other
+   * measurement, and it exists for the same reason: **a complete piece has the
+   * range it has.**
+   *
+   * Added 2026-08-21, when the inventions were asked for whole rather than as
+   * excerpts: *"some are just artlessly cut off without resolution."* Cutting
+   * at eight bars was never a musical decision, it was a range decision
+   * wearing musical clothes — Invention 8's upper voice covers thirty-one
+   * semitones across its thirty-four bars, and every level tops out at
+   * twenty-six because that is what the *generator* should write.
+   *
+   * The distinction that makes this safe is the one `allowWideLeaps` already
+   * draws. `rangeSemitones` has two jobs: it stops the composer writing a tune
+   * that wanders further than a level's reader can follow, and it describes
+   * how wide a borrowed piece is. Only the second is waived, on one theme at a
+   * time, by somebody who has looked at it.
+   *
+   * **The compass is not waived and cannot be.** `realiseTheme` still declines
+   * an instrument the theme will not fit, so a wide piece is simply offered to
+   * fewer of the band — Invention 13 whole reaches the euphonium and the two
+   * tubas and no further — and the material count beside the collection says
+   * so before a player chooses it.
+   */
+  allowWideRange?: boolean;
   events: readonly ThemeEvent[];
   keyChanges?: readonly ThemeKeyChange[];
 }
@@ -405,7 +431,7 @@ export function validateTheme(theme: Theme): string[] {
      */
     const offsets = sounded.map((note) => semitonesAbove(note, theme.mode));
     const span = Math.max(...offsets) - Math.min(...offsets);
-    if (span > difficulty.rangeSemitones) {
+    if (span > difficulty.rangeSemitones && !theme.allowWideRange) {
       problems.push(
         at(`spans ${span} semitones; ${theme.difficulty} reads ${difficulty.rangeSemitones}`),
       );

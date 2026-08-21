@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { instrumentById, writtenRange } from '../domain/instruments';
+import { COLLECTIONS, playableThemes } from '../exercise/collections';
 
 import {
   AUDIO_LEAD_RANGE,
@@ -436,13 +437,19 @@ describe('picked tunes', () => {
   /* A playlist is ordered and may repeat: both are the player's decision, and
      a sanitiser that tidied either away would be overruling them. */
   it('keeps order and duplicates', () => {
+    /* Two tunes the corpus can currently hand a player, rather than two named
+       ones: a named tune goes back to being unheard the moment it changes, and
+       the sanitiser is right to drop it — which broke this test rather than the
+       code, twice. */
+    const heard = COLLECTIONS.flatMap((collection) => [...playableThemes(collection)]);
+    const ids = [heard[0].id, heard[1].id, heard[0].id];
     const settings = sanitise({
       ...DEFAULT_SETTINGS,
-      collectionIds: ['bach'],
+      collectionIds: [...new Set(COLLECTIONS.filter((c) => playableThemes(c).length).map((c) => c.id))],
       selection: 'defined',
-      themeIds: ['bwv779-invention', 'jesu-joy', 'bwv779-invention'],
+      themeIds: ids,
     });
-    expect(settings.themeIds).toEqual(['bwv779-invention', 'jesu-joy', 'bwv779-invention']);
+    expect(settings.themeIds).toEqual(ids);
   });
 
   it('draws from every chosen collection at once', () => {

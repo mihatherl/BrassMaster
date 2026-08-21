@@ -48,21 +48,54 @@ describe('every borrowed theme', () => {
 describe('what a player can actually be given', () => {
   const KEYS = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
 
-  it.each(BORROWED.map((theme) => [theme.id, theme] as const))(
+  /*
+   * How many of the twelve keys the theme reaches somebody in.
+   *
+   * Only the clefs an instrument actually reads: asking a tenor horn for bass
+   * clef throws rather than returning null, since that is a caller's mistake
+   * and not a theme that will not fit.
+   */
+  const keysReached = (theme: (typeof BORROWED)[number]) => {
+    const metre = metreFor(theme.metres[0][0], theme.metres[0][1]);
+    return KEYS.filter((fifths) =>
+      INSTRUMENTS.some((instrument) =>
+        (Object.keys(instrument.transposition) as Clef[]).some(
+          (clef) => realiseTheme(theme, { instrument, clef, fifths, metre }) !== null,
+        ),
+      ),
+    );
+  };
+
+  it.each(BORROWED.filter((theme) => !theme.allowWideRange).map((theme) => [theme.id, theme] as const))(
     '%s fits some instrument in every key',
     (_id, theme) => {
-      const metre = metreFor(theme.metres[0][0], theme.metres[0][1]);
-      for (const fifths of KEYS) {
-        // Only the clefs an instrument actually reads: asking a tenor horn for
-        // bass clef throws rather than returning null, since that is a caller's
-        // mistake and not a theme that will not fit.
-        const fits = INSTRUMENTS.filter((instrument) =>
-          (Object.keys(instrument.transposition) as Clef[]).some(
-            (clef) => realiseTheme(theme, { instrument, clef, fifths, metre }) !== null,
-          ),
-        );
-        expect(fits.length, `${theme.id} fits nothing at ${fifths}`).toBeGreaterThan(0);
-      }
+      expect(keysReached(theme)).toEqual(KEYS);
+    },
+  );
+
+  /*
+   * A theme that declares `allowWideRange` is allowed to reach fewer, and is
+   * still not allowed to reach almost nobody.
+   *
+   * The waiver exists because a complete piece has the range it has — Invention
+   * 8 covers thirty-one semitones over its thirty-four bars — and the price is
+   * paid in who can be offered it: the euphonium and the two tubas, in most
+   * keys but not all. That is the same fallback as an instrument the theme will
+   * not fit, and the material count says so before a player chooses.
+   *
+   * What must not happen is the fault this guard was written for in the first
+   * place: a theme nobody is ever handed, failing as silence rather than as an
+   * error. Three quarters of the keys keeps that distinction sharp — the widest
+   * theme in the corpus today reaches nine of eleven, and something reaching
+   * two or three is a piece that wants cutting rather than waiving.
+   */
+  it.each(BORROWED.filter((theme) => theme.allowWideRange).map((theme) => [theme.id, theme] as const))(
+    '%s is wide by declaration, and still reaches most keys',
+    (_id, theme) => {
+      const reached = keysReached(theme);
+      expect(reached.length, `${theme.id} reaches only ${reached.join(', ')}`).toBeGreaterThanOrEqual(
+        Math.ceil(KEYS.length * 0.75),
+      );
     },
   );
 });

@@ -124,28 +124,32 @@ export const COLLECTIONS: readonly Collection[] = [
     id: 'bach',
     name: 'Bach',
     blurb:
-      'Two fugue subjects and eight excerpts read out of public-domain MIDI — six of the Two-Part Inventions, the obbligato from Jesu, Joy of Man’s Desiring, the vocal line of Sheep may safely graze, the Air on the G string with its ornaments simplified, the Prelude in C as an arpeggio study, and Petzold’s Menuett in G complete. A subject is a theme in the technical sense — short, self-contained, built to be recognised when it returns — which is why the canon is the shortest route to material that is genuinely hard and still a tune.',
+      'Bach whole where a brass player can hold it, and in excerpt where they cannot — six of the Two-Part Inventions, three of them complete; the obbligato from Jesu, Joy of Man’s Desiring; the vocal line of Sheep may safely graze; the Air on the G string with its ornaments simplified; the Prelude in C entire, voiced for one instrument; and Petzold’s Menuett in G. What decides whole against excerpt is compass rather than taste: a complete piece has the range it has, and three of these reach only the euphonium and the tubas.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 12,
+    revision: 13,
     themes: BORROWED,
     /*
-     * Two groups here, unheard for different reasons.
+     * All of it, and after 2026-08-21 for one reason rather than two.
      *
-     * The subjects predate the converter and were written from memory, so they
-     * never had the scrutiny the converted ones did. Approved by ear 2026-08-20:
-     * *"The two Bach themes are great"* — said of `bwv779-invention` and
-     * `jesu-joy`, and not to be read as covering these.
+     * The two fugue subjects that used to sit here — the Art of Fugue's and
+     * the Musical Offering's royal theme — are gone from the collection
+     * entirely, withdrawn on the player's verdict. They were the last two
+     * written from memory rather than measured, which is a fair summary of
+     * why they went.
      *
-     * The four inventions added the same day are simply new. They are measured,
-     * they validate and they fit a compass, and none of that says they are
-     * music worth practising — which is the one question only the ear settles.
+     * What remains is either new or newly *complete*, and complete is the
+     * point: four of these were excerpts cut where a converter said a cut
+     * would validate, and *"some are just artlessly cut off without
+     * resolution."* A piece that now runs to its own ending is a different
+     * piece from the eight bars that stood in for it, so `bwv779-invention`
+     * comes back here having once been approved — the old verdict was about
+     * six bars and cannot cover thirty-four.
      */
     unjudged: new Set([
-      'bwv1080-subject',
-      'bwv1079-royal',
       'bwv776-invention',
       'bwv782-invention',
+      'bwv779-invention',
       'bwv784-invention',
       'bwv786-invention',
       'bwv781-invention',

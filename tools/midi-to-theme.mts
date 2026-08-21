@@ -217,7 +217,7 @@ if (!path || path.startsWith('--')) {
   process.stderr.write(
     'usage: midi-to-theme <file.mid> [--track N] [--fifths N] [--mode major|minor]\n' +
       '                     [--metre 4/4] [--scale N] [--bars N] [--from N] [--id name]\n' +
-      '                     [--simplify beats] [--reflow on]\n',
+      '                     [--simplify beats] [--reflow on] [--fold on] [--close N]\n',
   );
   process.exit(2);
 }
@@ -305,6 +305,28 @@ const reflow = arg('reflow', '') === 'on';
  * while the figure stays under the hand.
  */
 const fold = arg('fold', '') === 'on';
+/*
+ * Close voicing: raise each bar's low notes by octaves until the bar sits
+ * inside one octave. Off by default, and the fourth thing here that arranges.
+ *
+ * `--fold on` failed on the Prelude in C the moment the whole piece was asked
+ * for, and the measurement says why: from bar 24 the left hand holds a low
+ * pedal while the right hand arpeggiates above it, so **one bar spans
+ * forty-one semitones on its own**. No shifting of whole bars can fix a bar
+ * that is itself three and a half octaves wide, and no brass instrument has
+ * ever been able to play it.
+ *
+ * What one player does with that music instead is voice it closely: the same
+ * chord, the same notes, the bass brought up into the figure rather than left
+ * two octaves below where nobody can reach it. Measured across all
+ * thirty-five bars that turns a span of forty-five into twenty-nine, with no
+ * leap anywhere — inside a bar or across a bar line — wider than an octave.
+ *
+ * It is an arrangement and says so. What it preserves is every pitch class in
+ * every bar, which is to say the harmony and the figure; what it gives up is
+ * the register, which one instrument could not have had anyway.
+ */
+const closeVoicing = Number(arg('close', '0'));
 
 const { division, tracks, declared } = readMidi(path);
 const notes = wantTrack >= 0 ? (tracks[wantTrack] ?? []) : tracks.flat().sort((a, b) => a.start - b.start);
@@ -350,6 +372,35 @@ if (reflow) {
       continue;
     }
     single.push(note);
+  }
+}
+
+if (closeVoicing && single.length) {
+  const ticksPerBar = division * ((beatsPerBar * 4) / beatUnit);
+  const bars = new Map<number, RawNote[]>();
+  for (const note of single) {
+    const bar = Math.floor(note.start / ticksPerBar);
+    if (!bars.has(bar)) bars.set(bar, []);
+    bars.get(bar)!.push(note);
+  }
+  let raised = 0;
+  for (const bar of bars.values()) {
+    /* The ceiling is the bar's own top note and does not move: raising the
+       floor keeps the figure's shape and its climb, where lowering the top
+       would rewrite the melody. */
+    const top = Math.max(...bar.map((note) => note.midi));
+    for (const note of bar) {
+      while (top - note.midi > closeVoicing) {
+        note.midi += 12;
+        raised++;
+      }
+    }
+  }
+  if (raised) {
+    process.stderr.write(
+      `  ${raised} note(s) raised into their bar's own octave — an arrangement, ` +
+        `not a transcription\n`,
+    );
   }
 }
 

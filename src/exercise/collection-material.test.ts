@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateExercise } from './generate';
-import { collectionById, playableThemes } from './collections';
+import { COLLECTIONS, collectionById, playableThemes } from './collections';
 import { difficultyById } from './difficulty';
 import { TUNE_BARS } from './compose';
 import { instrumentById } from '../domain/instruments';
@@ -217,15 +217,25 @@ describe('choosing where the tunes come from', () => {
    * and one copy of each, quietly overruling both.
    */
   it('plays a defined list in the order given', () => {
-    const { exercise } = run(['bach'], 'easy', [4, 4], 4, [
-      'jesu-joy',
-      'bwv779-invention',
-      'jesu-joy',
-    ]);
+    /*
+     * The tunes are found rather than named. Naming them broke this test
+     * every time the corpus moved — most recently when Invention 8 was taken
+     * whole and went back to being unheard, which takes it out of what a
+     * playlist may hold at all.
+     */
+    const heard = COLLECTIONS.flatMap((collection) => [...playableThemes(collection)]);
+    const [first, second] = heard;
+    const { exercise } = run(
+      [...new Set(COLLECTIONS.filter((c) => playableThemes(c).length).map((c) => c.id))],
+      'easy',
+      [4, 4],
+      6,
+      [first.id, second.id, first.id],
+    );
     const played = exercise.labels.map((label) => label.text).slice(0, 3);
-    expect(played[0]).toMatch(/^Jesu/);
-    expect(played[1]).toMatch(/^Invention 8/);
-    expect(played[2]).toMatch(/^Jesu/);
+    expect(played[0]).toBe(first.name);
+    expect(played[1]).toBe(second.name);
+    expect(played[2]).toBe(first.name);
   });
 
   it('honours a tune asked for twice running', () => {

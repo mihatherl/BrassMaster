@@ -92,6 +92,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@10': '283d5def', // Prelude recut to bar 19, where the harmony resolves
   'bach@11': '9a169a34', // Prelude taken with both hands, leaping wider than the cap
   'bach@12': 'aeb8995d', // and Petzold's Menuett in G, complete and at medium
+  'bach@13': '16621949', // the subjects withdrawn; four excerpts taken whole
 };
 
 /*
