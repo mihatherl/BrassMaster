@@ -87,6 +87,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@5': '1b618b26', // Sheep recut to ten bars on the ear, and easy with it
   'bach@6': '00c5f144', // and the Air, ornaments simplified — an arrangement
   'bach@7': '8092ccf8', // and every sourced theme carrying the tempo it was read at
+  'bach@8': '31851769', // and the inventions brought from keyboard speed to brass
 };
 
 /*

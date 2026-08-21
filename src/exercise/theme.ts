@@ -142,6 +142,17 @@ export interface Theme {
    * what a difficulty level means: a semiquaver at 42 is a slower note to read
    * than a quaver at 108, and the level could not see that until this existed.
    *
+   * **The tempo a brass player takes it at**, which is not always the tempo
+   * the source states. Read from the file as a starting point and then brought
+   * to what this instrument does: the Bach sources are keyboard editions
+   * played by keyboardists, and Invention 10 arrives claiming 172 crotchets —
+   * a fine harpsichord jig and nobody's sight-reading on a cornet. Ruled on
+   * 2026-08-21: *"it might be played that fast on a keyboard, but I think we'd
+   * bring it back to (say) 140 on brass."* That figure is the calibration the
+   * others were brought to, at the reading rate it implies rather than by a
+   * flat percentage, because what a reader can manage is notes a second and
+   * not a share of somebody else's tempo.
+   *
    * Absent for everything written rather than read, and deliberately not
    * guessed. Measured across the sourced pieces on 2026-08-21, note values turn
    * out to carry almost no information about tempo — a median semiquaver is 42
