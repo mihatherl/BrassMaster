@@ -493,33 +493,45 @@ export const BORROWED: readonly Theme[] = [
     id: 'bwv846-prelude',
     name: 'Prelude in C',
     /*
-     * **Complete, in Bach's own register, and printed as divisi** — the first
+     * **Fifteen bars, in Bach's own register, printed as divisi** — the first
      * theme in the corpus to offer a second notehead. Roadmap § 1.10.
      *
-     * Three attempts got here. Eight bars stopped where the compass did. Close
-     * voicing raised each bar's low notes into the bar's own octave and reached
-     * all thirty-five, and the verdict on it was that it *"looks and sounds
-     * strange"* — rightly, because the bass had been moved into the middle of
-     * the figure, which is not where the music puts it. The ask was the
-     * ordinary musical answer: *"the player has the option of playing some of
-     * the notes (especially the first two notes) in each arpeggio within the
-     * range of their instrument… so perhaps we need to be printing divisi."*
+     * `--divisi 12` marks rather than moves: every note sits exactly where
+     * Bach wrote it, and the ones a single player cannot reach from the rest of
+     * their bar carry `alsoOctave`. The app prints both heads, accepts either
+     * fingering, and places the piece needing only one head of each note inside
+     * the compass. That is what the close-voiced arrangement this replaces was
+     * a substitute for, and why it *"looks and sounds strange"* — it had moved
+     * the bass into the middle of its own figure.
      *
-     * So `--divisi 12` marks rather than moves: every note sits exactly where
-     * Bach wrote it, and the 109 that a single player cannot reach from the
-     * rest of their bar carry `alsoOctave`. The app prints both heads, accepts
-     * either fingering, and places the piece needing only one head of each note
-     * within the compass.
+     * **Why fifteen bars and not thirty-five, which is the interesting part.**
+     * Taken whole with offers at the octave, the piece reaches three
+     * instruments in fifteen of seventy-seven instrument-and-key combinations
+     * — a piece almost nobody is handed, which is the fault
+     * `tunes-borrowed.test.ts` exists to catch, and it caught it. Measured
+     * against where the harmony closes:
      *
-     * **It reaches exactly what the arrangement reached** — the euphonium, both
-     * tubas and the cornets in two keys — so nothing was paid for the honesty.
+     * | cut at | instruments | key slots |
+     * |---|---|---|
+     * | bar 4 | 7/7 | 77 |
+     * | **bar 15** | **7/7** | **63** |
+     * | bar 19 | 4/7 | 29 |
+     * | bar 35 | 3/7 | 15 |
      *
-     * **Both waivers are set, and both are measured against the written line
-     * rather than the played one.** As printed it spans forty-five semitones
-     * and leaps twenty-nine, which no instrument has and nobody plays: taking
-     * the offers, no leap exceeds an octave. That gap is the thing to fix in
-     * the difficulty model one day — it measures the page, and a divisi page
-     * is not what any one player performs.
+     * Bar 15 closes on the tonic and reaches the whole band. Past it the bass
+     * has walked far enough down that one octave of offer no longer brings it
+     * into reach, and the band falls away.
+     *
+     * **Offers are one octave and only one**, which is what divisi means. The
+     * first attempt let the app take whatever octave fitted, which bought that
+     * fourth instrument and printed the late bars as pairs nearly three octaves
+     * apart, ledger lines running off both ends of the stave. A reading app
+     * that prints that has mistaken a range check for notation.
+     *
+     * Both waivers stay set and both measure the *written* line: as printed it
+     * leaps and spans more than any level allows, and taking the offers no leap
+     * exceeds an octave. The difficulty model measures the page, and a divisi
+     * page is not what one player performs.
      *
      * Read from a public-domain Mutopia edition, both hands merged by
      * `--reflow` into the single line one player has no choice but to take.
@@ -528,7 +540,7 @@ export const BORROWED: readonly Theme[] = [
     allowWideLeaps: true,
     allowWideRange: true,
     metres: [[4, 4]],
-    bars: 35,
+    bars: 15,
     tempo: 60,
     events: [
       n(1, 1 / 4, { alsoOctave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(1, 1 / 4, { alsoOctave: 1 }), n(3, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: 1 }),
@@ -546,26 +558,6 @@ export const BORROWED: readonly Theme[] = [
       n(4, 1 / 4, { octave: -1, alsoOctave: 1 }), n(6, 1 / 4, { octave: -1, alsoOctave: 1 }), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: -1, alsoOctave: 1 }), n(6, 1 / 4, { octave: -1, alsoOctave: 1 }), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(2, 1 / 4), n(6, 1 / 4), n(2, 1 / 4, { octave: 1 }),
       n(4, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { alter: 1, octave: -1, alsoOctave: 1 }), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), n(4, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { alter: 1, octave: -1, alsoOctave: 1 }), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4), n(2, 1 / 4), n(4, 1 / 4), n(7, 1 / 4),
       n(3, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1, alsoOctave: 1 }), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(3, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1, alsoOctave: 1 }), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }), n(1, 1 / 4), n(5, 1 / 4), n(1, 1 / 4, { octave: 1 }),
-      n(3, 1 / 4, { octave: -1, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(3, 1 / 4, { octave: -1, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4),
-      n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4),
-      n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(3, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(3, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4),
-      n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(6, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(6, 1 / 4, { alter: 1, octave: -1 }), n(1, 1 / 4), n(3, 1 / 4),
-      n(4, 1 / 4, { octave: -2, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(4, 1 / 4, { octave: -2, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4),
-      n(4, 1 / 4, { alter: 1, octave: -2, alsoOctave: 1 }), n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4, { alter: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4, { alter: 1 }), n(4, 1 / 4, { alter: 1, octave: -2, alsoOctave: 1 }), n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4, { alter: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4, { alter: 1 }),
-      n(5, 1 / 4, { alter: 1, octave: -2, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4), n(5, 1 / 4, { alter: 1, octave: -2, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(3, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(3, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(3, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { alter: 1, octave: -1, alsoOctave: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { alter: 1, octave: -1, alsoOctave: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4, { alter: 1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4, { alter: 1 }),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(3, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(5, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(5, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(3, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(5, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(5, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4),
-      n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -2, alsoOctave: 1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4),
-      n(1, 1 / 4, { octave: -2, alsoOctave: 1 }), n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(3, 1 / 4), n(1, 1 / 4, { octave: -2, alsoOctave: 1 }), n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(3, 1 / 4), n(5, 1 / 4, { octave: -1 }), n(6, 1 / 4, { alter: 1, octave: -1 }), n(3, 1 / 4),
-      n(1, 1 / 4, { octave: -2, alsoOctave: 1 }), n(1, 1 / 4, { octave: -1, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(4, 1 / 4), n(1, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(4, 1 / 4, { octave: -1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }), n(4, 1 / 4, { octave: -1 }), n(2, 1 / 4, { octave: -1, alsoOctave: 1 }),
-      n(1, 1 / 4, { octave: -2, alsoOctave: 1 }), n(7, 1 / 4, { octave: -2, alsoOctave: 1 }), n(5, 1 / 4), n(7, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(4, 1 / 4, { octave: 1 }), n(2, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(2, 1 / 4, { octave: 1 }), n(7, 1 / 4), n(5, 1 / 4), n(7, 1 / 4), n(2, 1 / 4, { alsoOctave: 1 }), n(4, 1 / 4), n(3, 1 / 4, { alsoOctave: 1 }), n(2, 1 / 4, { alsoOctave: 1 }),
-      n(1, 4, { octave: 1 }),
     ],
   },
   {

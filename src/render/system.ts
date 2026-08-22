@@ -620,6 +620,22 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
       duration: note.duration,
       showAccidental: note.showAccidental,
       colour: options.colourFor(index),
+      /*
+       * Divisi. Easy to forget here, and it was: `LayoutNote` is built in two
+       * places — the scrolling surface and this one — and only the surface was
+       * wired first, so the play screen printed both heads and the review
+       * sheet, the SVG renderer and the engraving snapshots all printed one.
+       * The reviewer saw the Prelude in its true register with none of its
+       * offers, which is the piece at its least readable.
+       */
+      ...(note.alternative
+        ? {
+            alternative: {
+              pitch: note.alternative.pitch,
+              showAccidental: note.alternative.showAccidental,
+            },
+          }
+        : {}),
     };
 
     if (note.tupletGroup >= 0) {

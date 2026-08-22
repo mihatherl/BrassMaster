@@ -618,12 +618,20 @@ function readableKey(fifths: number): number {
 }
 
 /**
- * How far the offered head sits from the written one, or null where no offer
- * reaches.
+ * The offered head's distance from the written one, or null where the offer
+ * does not reach.
  *
- * The nearest octave that lands inside the compass, searched outward: an offer
- * is ordinarily one octave and prints as one, and only takes a second where a
- * piece has drifted far enough that one will not do.
+ * **Exactly one octave, and this was tried the other way.** Searching outward
+ * for whichever octave landed inside the compass reached one more instrument,
+ * and made the page unreadable: on the Prelude in C, whose bass walks down two
+ * octaves across thirty-five bars, the late bars printed pairs nearly three
+ * octaves apart, with ledger lines running off both ends of the stave and a
+ * stem the height of the system. A reader cannot use that, and a reading app
+ * that prints it has mistaken a range check for notation.
+ *
+ * An octave is what divisi means. Where one octave will not bring a note into
+ * reach, the honest answers are a different instrument or a shorter piece —
+ * not a wider pair.
  */
 function offerFor(
   note: ThemeNote,
@@ -632,11 +640,8 @@ function offerFor(
   high: number,
 ): number | null {
   if (!note.alsoOctave) return null;
-  for (let octaves = 1; octaves <= 3; octaves++) {
-    const moved = at + 12 * octaves * note.alsoOctave;
-    if (moved >= low && moved <= high) return moved - at;
-  }
-  return null;
+  const moved = at + 12 * note.alsoOctave;
+  return moved >= low && moved <= high ? moved - at : null;
 }
 
 /** Semitones above the tonic for a degree, with any chromatic inflection. */

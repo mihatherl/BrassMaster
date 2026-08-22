@@ -116,7 +116,7 @@ export const COLLECTIONS: readonly Collection[] = [
       'Bach whole where a brass player can hold it, and in excerpt where they cannot — all six of the Two-Part Inventions complete; the obbligato from Jesu, Joy of Man’s Desiring; the vocal line of Sheep may safely graze; the Air on the G string with its ornaments simplified; the Prelude in C entire, voiced for one instrument; and Petzold’s Menuett in G. Nothing here is cut any more except where the source itself is an excerpt of a longer work. What a complete piece costs is reach rather than notes: it has the range it has, and three of these get as far as the euphonium and the tubas.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 17,
+    revision: 18,
     themes: BORROWED,
     /*
      * Only the Prelude, and it is not waiting on an ear: it is waiting on
