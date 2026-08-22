@@ -440,8 +440,9 @@ map are built, the importer parses MusicXML. Four things are genuinely open:
   is the first thing on this roadmap that would give it a reason to exist
   beyond one player's convenience.
 
-**6.2 The other voice — two-line themes, from the corpus.** The app plays one
-line while the player reads the other, and then they swap. Raised 2026-08-20
+**6.2 The other voice — two-line themes, from the corpus.** The app *sounds*
+one line while the player reads the other, and then they swap. Never drawn:
+see the ruling below. Raised 2026-08-20
 as an open question and promoted here on 2026-08-22: *"i think it is best as a
 duet if anything."*
 
@@ -456,27 +457,61 @@ corpus and every one of their sources is two voices in two tracks; only the
 upper voice was ever taken. The second line is one more run of the same
 converter against track 2.
 
-**The decision to make first, before any more counterpoint is transcribed** —
-a `Theme` is one voice, and it can stop being one in two ways:
+**Settled 2026-08-22, in conversation.** A `Theme` gains a **second voice on
+the same theme**, rather than the two lines being separate themes linked by an
+id.
 
-- **Two linked themes**, each valid on its own, joined by an id. Keeps `Theme`
-  as it is and puts the burden on validation: the pair must agree about bars,
-  metre and key, and the rule that themes abut applies to the pair rather than
-  to each.
-- **A second voice on one theme.** Every consumer of a `Theme` learns that
-  voices exist, which is the wider change, but the alignment is true by
-  construction rather than by a check.
+What decided it was placement. `realiseTheme` chooses where a theme sits by
+finding the octave that centres it in the instrument's compass, so two themes
+placed independently would each be centred — both voices landing in the same
+register, and the counterpoint collapsing into itself. Two voices have to
+share **one** placement with the written interval between them intact, which
+means a joint path would have been needed either way; the "leave `Theme`
+alone" advantage was mostly imaginary. One theme also keeps the bookkeeping
+honest: one id, one verdict on the review sheet, one entry in `unjudged`, one
+digest. A duet with two ids arrives in the review queue as two half-pieces.
 
-**And an asymmetry that makes either cheaper than it looks:** the voice the
-app sounds is not played by anybody, so it is not bound by the player's
-compass, by what a valve can reach, or by the fingering rules at all. Only the
-line being read has to fit. `realiseTheme` therefore places one voice and
-merely sounds the other, and the judge is untouched — it judges the read line
-and has never known about anything else.
+Two consequences fall out, which is usually the sign a shape is right. **The
+judge is untouched** — it judges the read line and has never known anything
+else existed. And **the pitch problem is already solved**: every note carries
+`writtenMidi` and `soundingMidi`, so the app sounds the partner at concert
+pitch while the player reads theirs transposed, and a cornet and a tuba both
+hear it in the right key.
 
-Open beside that: whether the unread line is drawn at all. Playing it and not
-printing it is the play-along behaviour and the simpler build; printing both
-staves is a score, and a different reading exercise.
+What it costs: a theme declares one `difficulty` and two voices may differ.
+The level is validated against **both** lines, so it means "reading either of
+these" — which is the honest reading for a duet and the only one that survives
+swapping.
+
+**Heard, never drawn.** Ruled 2026-08-22, and the reason is better than the
+mechanism: *"in real life band playing, we don't see the other line, only hear
+it."* So this is not a score on screen, and printing both staves is not a
+later setting to get to — it is a different exercise from the one the app is
+for. The player reads their line and hears the other, as they would in a
+bandroom.
+
+**Which voice sounds it, and the constraint that shapes it.** Asked for
+2026-08-22: *"if i pick a 2-part invention, it may be that i want to hear it
+as the same instrument as I am playing… some limitations on the choice are
+that it would need to be in range."*
+
+The constraint is right and it is **computed rather than stored**, because the
+sounded voice's absolute pitch is not a property of the theme: the whole thing
+is placed against the player's compass and the key in force, so the same
+partner line sits in a different octave for a cornet in F than for an E flat
+bass in C. `SAMPLE_MANIFEST` already declares what each voice can reach —
+trumpet 46–88, french horn 39–78, trombone 29–74, tuba 21–65, anything between
+samples reached by shifting no more than `SAMPLE_STEP` — so at realisation the
+app knows exactly which of the four can sound the partner, and offers those.
+"The same as mine" is one of the choices whenever it fits, which is what was
+asked for; where the player's own voice cannot reach the line, the app says so
+rather than substituting one quietly.
+
+**The swap is offered only where both lines fit**, agreed the same day. The
+sounded voice is bound by neither compass nor fingering — nobody plays it — so
+a piece can be readable in one direction and not the other. Half a duet is
+better than none, and it must say which half it is offering.
+
 
 ## 5. Releases, and where things run## 5. Releases, and where things run
 
