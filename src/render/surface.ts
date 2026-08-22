@@ -1265,6 +1265,17 @@ export class StaveRenderer {
         duration: note.duration,
         showAccidental: note.showAccidental,
         colour: this.noteColour(index),
+        /* Divisi: the second head travels with the first and is coloured with
+           it, since a verdict is about the slot rather than about which head
+           the player chose to take. */
+        ...(note.alternative
+          ? {
+              alternative: {
+                pitch: note.alternative.pitch,
+                showAccidental: note.alternative.showAccidental,
+              },
+            }
+          : {}),
       };
 
       const hint = this.options.hintFor?.(index);

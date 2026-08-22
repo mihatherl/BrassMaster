@@ -50,7 +50,30 @@ export interface ThemeNote {
    * BWV 773 was turned away for precisely that before the description was
    * corrected. See *Ties, as built*.
    */
-  tied?: boolean;
+  tied?: boolean;  /**
+   * This note may also be played an octave away — a divisi offer, printed as a
+   * second notehead and accepted by the judge either way.
+   *
+   * It exists for keyboard music one player has to take alone. The Prelude in
+   * C is the case: its arpeggio begins on two low notes that most of the band
+   * cannot reach, and the choices without this were to voice the bar closely,
+   * which *"looks and sounds strange"* because the bass ends up inside the
+   * figure, or to offer the piece to the euphonium and the tubas alone.
+   *
+   * **The written head stays the composer's.** This says which way a second
+   * head lies, not that the note has moved. Placement then needs only *one* of
+   * the two to be reachable, which is what lets a piece be printed as it was
+   * written and still be played on an instrument that cannot span it.
+   *
+   * **The direction is the theme's, the distance is the app's.** One octave is
+   * what an offer usually comes to and what gets printed; where a single
+   * octave still leaves the note out of reach, the app takes another, and
+   * prints the head where it actually put it. The Prelude in C needs this:
+   * its bass walks down two octaves across thirty-five bars, so what is one
+   * octave out of reach at the start is more than that by the end, and a fixed
+   * offer would fit three instruments where a chosen one fits the band.
+   */
+  alsoOctave?: 1 | -1;
 }
 
 export interface ThemeRest {
@@ -570,6 +593,12 @@ export interface RealisedTheme {
    * `realiseTheme` for why.
    */
   pitches: SlotPitch[];
+  /**
+   * A second notehead for some of those pitches — divisi — with `null` where a
+   * note has only one head. Parallel to `pitches`, and empty of offers where
+   * the theme declares none.
+   */
+  alternatives: (SlotPitch | null)[];
   keys: KeyChange[];
   beats: number;
 }
@@ -586,6 +615,28 @@ function readableKey(fifths: number): number {
   while (k > 7) k -= 12;
   while (k < -7) k += 12;
   return k;
+}
+
+/**
+ * How far the offered head sits from the written one, or null where no offer
+ * reaches.
+ *
+ * The nearest octave that lands inside the compass, searched outward: an offer
+ * is ordinarily one octave and prints as one, and only takes a second where a
+ * piece has drifted far enough that one will not do.
+ */
+function offerFor(
+  note: ThemeNote,
+  at: number,
+  low: number,
+  high: number,
+): number | null {
+  if (!note.alsoOctave) return null;
+  for (let octaves = 1; octaves <= 3; octaves++) {
+    const moved = at + 12 * octaves * note.alsoOctave;
+    if (moved >= low && moved <= high) return moved - at;
+  }
+  return null;
 }
 
 /** Semitones above the tonic for a degree, with any chromatic inflection. */
@@ -678,6 +729,27 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
     return [Math.min(...pitched), Math.max(...pitched)];
   }
 
+  /**
+   * Whether every note has *a* head this instrument can reach.
+   *
+   * A note offering an octave alternative needs only one of the two in range,
+   * which is the whole point of the offer: the Prelude in C spans forty-five
+   * semitones as Bach wrote it and no brass instrument has that, but no single
+   * note of it is unreachable once the bass may be taken an octave up.
+   *
+   * The written head is not moved and may well be out of range — it is printed
+   * because it is what the composer wrote, and the player takes the other one.
+   * A note with *both* heads out of reach is what makes a placement fail.
+   */
+  function reachable(base: number, low: number, high: number): boolean {
+    const tonics = tonicsFrom(base);
+    return sounded.every(({ note, key }) => {
+      const at = tonics[key] + semitonesAbove(note, theme.mode);
+      if (at >= low && at <= high) return true;
+      return offerFor(note, at, low, high) !== null;
+    });
+  }
+
   /*
    * The opening tonic may sit in any octave whose pitch class matches the key.
    * The one inside `tonicWindow` is the one wanted, so the same tune sits in
@@ -703,6 +775,9 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
   bases.sort((a, b) => Math.abs(a - home) - Math.abs(b - home));
 
   const holds = (candidate: number) => {
+    if (sounded.some(({ note }) => note.alsoOctave)) {
+      return reachable(candidate, lowest, highest);
+    }
     const [low, high] = spanOf(candidate);
     return low >= lowest && high <= highest;
   };
@@ -729,7 +804,25 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
     return spellWithLetter(midi, letter) ?? midi;
   });
 
-  return { slots, pitches, keys, beats: beat - fromBeat };
+  /*
+   * The offered head, where a note makes one. Spelled the same way as the
+   * written head and by the same rule, since it is the same note in a
+   * different octave and reads with the same letter.
+   */
+  const alternatives: (SlotPitch | null)[] = sounded.map(({ note, key }) => {
+    if (!note.alsoOctave) return null;
+    const at = tonics[key] + semitonesAbove(note, theme.mode);
+    /* Where the written head is already in reach the offer is the plain octave,
+       which is what a part prints; where it is not, it is whatever octave the
+       compass allows, since an offer nobody can play is not an offer. */
+    const shift = offerFor(note, at, lowest, highest) ?? 12 * note.alsoOctave;
+    const midi = at + shift;
+    if (!note.alter) return midi;
+    const letter = spellInKey(midi - note.alter, keys[key].fifths).letter;
+    return spellWithLetter(midi, letter) ?? midi;
+  });
+
+  return { slots, pitches, alternatives, keys, beats: beat - fromBeat };
 }
 
 /**
@@ -743,6 +836,7 @@ export function exerciseFromTheme(theme: Theme, options: RealiseOptions): Exerci
   if (!realised) return null;
 
   return assembleExercise(realised.slots, realised.pitches, {
+    alternatives: realised.alternatives,
     instrument: options.instrument,
     clef: options.clef,
     keys: realised.keys,

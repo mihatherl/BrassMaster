@@ -51,6 +51,11 @@ interface RawNote {
   /** Ticks from the start of the file. */
   start: number;
   ticks: number;
+  /**
+   * This note may also be played an octave away — set by `--divisi`, and
+   * emitted as `alsoOctave` for the app to print as a second notehead.
+   */
+  offer?: 1 | -1;
 }
 
 /** A variable-length quantity, as every delta time in a MIDI file is. */
@@ -217,7 +222,8 @@ if (!path || path.startsWith('--')) {
   process.stderr.write(
     'usage: midi-to-theme <file.mid> [--track N] [--fifths N] [--mode major|minor]\n' +
       '                     [--metre 4/4] [--scale N] [--bars N] [--from N] [--id name]\n' +
-      '                     [--simplify beats] [--reflow on] [--fold on] [--close N]\n',
+      '                     [--simplify beats] [--reflow on] [--fold on]\n' +
+      '                     [--close N] [--divisi N]\n',
   );
   process.exit(2);
 }
@@ -327,6 +333,23 @@ const fold = arg('fold', '') === 'on';
  * the register, which one instrument could not have had anyway.
  */
 const closeVoicing = Number(arg('close', '0'));
+/*
+ * Like `--close`, but it **offers** the octave instead of taking it.
+ *
+ * The difference is the whole of what divisi is for. `--close 12` raises a
+ * bar's low notes into the bar's own octave and the result is an arrangement:
+ * the bass ends up inside the figure, which on the Prelude in C *"looks and
+ * sounds strange"* because that is not where the music puts it. `--divisi 12`
+ * leaves every note exactly where Bach wrote it and marks the ones that would
+ * have moved, so the app prints two noteheads and the player takes whichever
+ * their instrument can reach.
+ *
+ * So this is the one option here that arranges nothing at all. It is a
+ * *measurement* of which notes a single player cannot reach from the rest of
+ * the bar, written down for somebody else to decide about — which is why it
+ * can be used where `--close` could not.
+ */
+const divisiWindow = Number(arg('divisi', '0'));
 
 const { division, tracks, declared } = readMidi(path);
 const notes = wantTrack >= 0 ? (tracks[wantTrack] ?? []) : tracks.flat().sort((a, b) => a.start - b.start);
@@ -375,7 +398,8 @@ if (reflow) {
   }
 }
 
-if (closeVoicing && single.length) {
+if ((closeVoicing || divisiWindow) && single.length) {
+  const window = closeVoicing || divisiWindow;
   const ticksPerBar = division * ((beatsPerBar * 4) / beatUnit);
   const bars = new Map<number, RawNote[]>();
   for (const note of single) {
@@ -390,7 +414,15 @@ if (closeVoicing && single.length) {
        would rewrite the melody. */
     const top = Math.max(...bar.map((note) => note.midi));
     for (const note of bar) {
-      while (top - note.midi > closeVoicing) {
+      if (divisiWindow) {
+        // Marked, not moved: the note stays where the composer put it.
+        if (top - note.midi > window) {
+          note.offer = 1;
+          raised++;
+        }
+        continue;
+      }
+      while (top - note.midi > window) {
         note.midi += 12;
         raised++;
       }
@@ -398,8 +430,11 @@ if (closeVoicing && single.length) {
   }
   if (raised) {
     process.stderr.write(
-      `  ${raised} note(s) raised into their bar's own octave — an arrangement, ` +
-        `not a transcription\n`,
+      divisiWindow
+        ? `  ${raised} note(s) marked as offering the octave above — printed as divisi, ` +
+            `and the notes themselves are untouched\n`
+        : `  ${raised} note(s) raised into their bar's own octave — an arrangement, ` +
+            `not a transcription\n`,
     );
   }
 }
@@ -487,7 +522,7 @@ const tonicIndex = (() => {
  */
 type Raw =
   | { beats: number; rest: true }
-  | ({ beats: number; tied?: true } & ReturnType<typeof toDegree>);
+  | ({ beats: number; tied?: true; offer?: 1 | -1 } & ReturnType<typeof toDegree>);
 
 /*
  * Durations the app can actually draw, longest first.
@@ -545,6 +580,7 @@ single.forEach((note, index) => {
   raw.push({
     beats,
     ...toDegree(note.midi, fifths, mode, tonicIndex),
+    ...(note.offer ? { offer: note.offer } : {}),
   });
   expected = note.start + note.ticks;
 });
@@ -715,7 +751,11 @@ function beatSource(beats: number): string {
 const events = atBarLines.map((event) => {
   if ('rest' in event) return { line: `r(${beatSource(event.beats)})`, beats: event.beats };
   const shifted = event.octave - commonest;
-  const extra = [event.alter ? `alter: ${event.alter}` : '', shifted ? `octave: ${shifted}` : '']
+  const extra = [
+    event.alter ? `alter: ${event.alter}` : '',
+    shifted ? `octave: ${shifted}` : '',
+    event.offer ? `alsoOctave: ${event.offer}` : '',
+  ]
     .filter(Boolean)
     .join(', ');
   const parts = [extra, event.tied ? 'tied: true' : ''].filter(Boolean).join(', ');

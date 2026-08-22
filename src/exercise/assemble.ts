@@ -60,6 +60,15 @@ export interface AssembleOptions {
   labels?: LabelEvent[];
   /** Where the chosen length ends. Absent means at `totalBeats`: no horizon. */
   chosenBeats?: number;
+  /**
+   * A second notehead for some of the sounded notes — divisi, parallel to
+   * `pitches`, with `null` where a note has only the one head.
+   *
+   * Kept beside `pitches` rather than folded into it because a slot still has
+   * exactly one written pitch: the alternative is an *offer*, printed with the
+   * note and accepted by the judge, not a second note in the music.
+   */
+  alternatives?: readonly (SlotPitch | null)[];
 }
 
 /**
@@ -104,6 +113,10 @@ export function assembleExercise(
         tupletGroup: -1,
         tiedToNext: false,
         showAccidental: false,
+        // The far end of a tie reprints neither head's accidental.
+        ...(head.alternative
+          ? { alternative: { ...head.alternative, showAccidental: false } }
+          : {}),
       });
       continue;
     }
@@ -117,14 +130,42 @@ export function assembleExercise(
     const writtenMidi = typeof given === 'number' ? given : midiOf(given);
     const soundingMidi = soundingFromWritten(writtenMidi, instrument, clef);
     const primary = primaryFingering(soundingMidi, instrument);
+
+    /*
+     * The divisi head, if this slot has one.
+     *
+     * Its fingerings join the note's own `acceptedMasks`, which is the whole
+     * of what makes either head correct — the judge asks that one list and has
+     * never had to know why a mask is in it. Duplicates are dropped, since an
+     * octave pair shares a fingering and would otherwise list it twice.
+     */
+    const offered = options.alternatives?.[pitchIndex - 1] ?? null;
+    let alternative: NoteEvent['alternative'];
+    let accepted = [...fingeringMasks(soundingMidi, instrument)];
+    if (offered !== null && offered !== undefined) {
+      const otherPitch =
+        typeof offered === 'number' ? spellInKey(offered, keyAt(keys, slot.startBeat)) : offered;
+      const otherWritten = typeof offered === 'number' ? offered : midiOf(offered);
+      const otherSounding = soundingFromWritten(otherWritten, instrument, clef);
+      accepted = [...new Set([...accepted, ...fingeringMasks(otherSounding, instrument)])];
+      alternative = {
+        writtenMidi: otherWritten,
+        soundingMidi: otherSounding,
+        pitch: otherPitch,
+        showAccidental: false,
+        primaryMask: primaryFingering(otherSounding, instrument)?.mask ?? 0,
+      };
+    }
+
     notes.push({
       writtenMidi,
       soundingMidi,
       pitch,
       startBeat: slot.startBeat,
       duration: slot.duration,
-      acceptedMasks: [...fingeringMasks(soundingMidi, instrument)],
+      acceptedMasks: accepted,
       primaryMask: primary?.mask ?? 0,
+      ...(alternative ? { alternative } : {}),
       beamGroup: -1,
       tupletGroup: -1,
       tiedToNext: false,

@@ -90,6 +90,8 @@ export interface StitchOptions {
 export interface StitchedPhrases {
   slots: Slot[];
   pitches: SlotPitch[];
+  /** Divisi offers, parallel to `pitches`; `null` where a note has one head. */
+  alternatives: (SlotPitch | null)[];
   keys: KeyChange[];
   totalBeats: number;
   /** Which themes were used, in order. For tests and for the results screen. */
@@ -149,6 +151,7 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
 
   const slots: Slot[] = [];
   const pitches: SlotPitch[] = [];
+  const alternatives: (SlotPitch | null)[] = [];
   const keys: KeyChange[] = [];
   const metres: MetreChange[] = [];
   const used: string[] = [];
@@ -229,6 +232,7 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
 
     slots.push(...realised.slots);
     pitches.push(...realised.pitches);
+    alternatives.push(...realised.alternatives);
     /*
      * Kept only where the signature actually moves, exactly as the keys are
      * below. Every theme is a whole number of its own bars and begins where
@@ -266,6 +270,7 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
   return {
     slots,
     pitches,
+    alternatives,
     keys,
     metres,
     totalBeats: beat,

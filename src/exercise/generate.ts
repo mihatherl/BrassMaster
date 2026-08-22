@@ -473,6 +473,7 @@ export function generateExercise(options: GenerateOptions): Exercise {
           }))
         : [];
       return assembleExercise(stitched.slots, stitched.pitches, {
+        alternatives: stitched.alternatives,
         instrument: options.instrument,
         clef: options.clef,
         keys: stitched.keys,
