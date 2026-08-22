@@ -75,7 +75,13 @@ export interface SessionOptions {
   /**
    * How early to hand every sound to the audio thread, in seconds, so it is
    * heard when the clock says. The output device's latency, calibrated by the
-   * player; zero for the phone's own speaker. See `Transport.audioLead`.
+   * player. See `Transport.audioLead`.
+   *
+   * It is NOT zero for the phone's own speaker, though this said so until
+   * 2026-08-22: a Motorola E32 measures ~330ms on its own speaker against an
+   * iPhone 15's ~20ms. "Zero for the phone's own speaker" was one iPhone
+   * written up as a rule, and it cost every Android player a third of a
+   * second of lateness with no way to correct it. Every output is measured.
    */
   audioLead?: number;
   onJudgement?: (judgement: NoteJudgement) => void;

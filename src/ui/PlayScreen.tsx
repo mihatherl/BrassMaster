@@ -290,7 +290,8 @@ export function PlayScreen({
       brassVoice: voiceRef.current,
       timingTolerance: settings.timingTolerance,
       // The output in the player's ears, and how far behind the clock it is
-      // heard; zero for the phone's own speaker.
+      // heard — measured for every output, the phone's own speaker included,
+      // which is ~330ms on an E32 and ~20ms on an iPhone 15.
       audioLead: audioLeadFor(settings),
       // Fires as the fingers arrive, not when the note is finally judged, so
       // the green reads as confirmation of what was just played.

@@ -320,11 +320,25 @@ export function switchMaterial(settings: Settings, kind: ExerciseKind): Settings
 /**
  * How far sound may be brought forward, in milliseconds.
  *
- * Bluetooth headsets sit between roughly a tenth and a third of a second;
- * the ceiling leaves room for a slow one without letting a mis-tap ask for a
- * lead longer than a beat.
+ * The old ceiling was 500ms and reasoned from the headset alone — Bluetooth
+ * sits between roughly a tenth and a third of a second — on the unstated
+ * assumption that the device itself contributed nothing. It does. Measured
+ * with the calibration screen on 2026-08-22, on one pair of hands:
+ *
+ *     Motorola E32 (Android, own speaker)   ~330 ms
+ *     iPhone 15 (own speaker)                ~20 ms
+ *
+ * Sixteen times the difference, from the handset alone. A headset on the
+ * slower of the two is 330 plus its own 150-250, which the old ceiling
+ * clipped — so the player could not correct what he could now measure.
+ *
+ * The other half of the old reasoning was guarding against a mis-tap asking
+ * for a lead longer than a beat, and there is no tapping any more: a lead is
+ * arrived at by watching a scale meet the strike line, so a wild value does
+ * not survive the screen that sets it. Both halves of the old ceiling's
+ * justification are gone; this one is the measurement plus a slow headset.
  */
-export const AUDIO_LEAD_RANGE = { min: 0, max: 500 } as const;
+export const AUDIO_LEAD_RANGE = { min: 0, max: 750 } as const;
 
 /** The lead in force, in seconds, for the output the player says is in use. */
 export function audioLeadFor(settings: Settings): number {

@@ -311,6 +311,26 @@ questions the whole paid app rests on, and they can be asked today for nothing.
 iOS will differ in the details of the audio session and the local-network
 prompt; what transfers is the design, which is what a spike is for.
 
+**And it must measure input latency, not only output.** Widened 2026-08-22.
+The two are not the same problem and only one of them has a fix:
+
+- **Output latency is correctable.** Schedule the sound earlier. That is what
+  the audio lead does, and calibration now measures it per output — ~330ms on
+  the Motorola E32's own speaker against ~20ms on an iPhone 15.
+- **Input latency is not.** If the handset hands the app a note 300ms after it
+  was played, no amount of scheduling recovers it: the event has already
+  happened. Nothing can be honestly confirmed sooner than the app learns of
+  it, so the only defensible response is to *know the number* and set the
+  confirmation window from it. `v2-design.md` already puts the earliest honest
+  confirmation at about 200ms in microphone mode, and that figure was reasoned
+  on hardware nothing had measured.
+
+**The measurement is one round trip**: play a click and hear it back through
+the phone's own microphone. That gives output plus input in a single number,
+and the output half is already known from calibration, so the input half falls
+out by subtraction. It costs one page and no hardware beyond the handset the
+spike already needs.
+
 **4.2 The Android shell and the Play listing.** `VITE_TARGET=app` inside
 Capacitor, signed and uploaded from Linux.
 
@@ -342,6 +362,14 @@ calibration, which measures the round trip on the actual device rather than
 believing what the device reports about itself. Phase 4.1 should measure the
 spread on at least one real handset, and borrowing a band member's phone for an
 afternoon is the cheapest second data point there will ever be.
+
+**Correction, 2026-08-22: the mitigation named above no longer exists.** The
+tap calibration was removed the same evening, because tapping folded the
+touchscreen's own latency into the answer and then blamed the audio output for
+it. What replaced it measures *output* only — a player judges a scrolling scale
+against what they hear — and output is the half that was already fixable. So
+this risk is currently unmitigated rather than handled, which is precisely why
+4.1 now has to measure the round trip.
 
 **What this costs, stated plainly.** Play does not reserve names the way App
 Store Connect does, so shipping first on Android does not protect the name on
@@ -938,6 +966,16 @@ that engages with the reason recorded here.
   iOS-first means about AU$1,300 spent before the first question is answered,
   and the questions can be answered on Android for US$25 on the machine he
   already has. iOS is not cancelled; it is 4.4 instead of 4.1.
+
+  **The first hard evidence about that platform, 2026-08-22.** Measured with
+  the new calibration screen, on one pair of hands: the Motorola E32 is ~330ms
+  late on its own speaker where an iPhone 15 is ~20ms. Sixteen times, and it
+  cuts both ways. It confirms the Android audio spread this roadmap warns
+  about a few sections up — and it means that before this date *every Android
+  player heard every note a third of a second late with no way to correct it*,
+  because the audio lead was fixed at nought on the strength of one iPhone.
+  Choosing Android first is what surfaced it; choosing iOS first would have
+  shipped it.
 
 ## 7. Open questions, named so they are not forgotten
 
