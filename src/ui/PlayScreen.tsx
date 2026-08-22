@@ -24,7 +24,7 @@ import { keyAt } from '../domain/keys';
 import { instrumentById } from '../domain/instruments';
 import type { Transport } from '../engine/clock';
 import { ValveInput } from '../engine/input';
-import { Session } from '../engine/session';
+import { REACTIVE_SOUND_MAX_LEAD, Session } from '../engine/session';
 import { fingeringHints, type Hints } from '../exercise/hints';
 import { soundingHeads } from '../exercise/ties';
 import { loadStats } from '../storage/stats';
@@ -496,11 +496,17 @@ export function PlayScreen({
         const set = instrumentById(exercise.instrumentId).sampleSet;
         // A soft pad until the fingers are right, the instrument
         // once they are — see `FollowingVoice`. `?voice=plain` is
-        // the instrument alone, for comparing.
-        voiceRef.current =
-          new URLSearchParams(window.location.search).get('voice') === 'plain'
-            ? await Sampler.load(context, set)
-            : await FollowingVoice.load(context, set, settings.cushionLevel);
+        // the instrument alone, for comparing. And plain too on an
+        // output too late for the swap to be honest: the session
+        // would never tell such a voice to swap (its rule, in
+        // `REACTIVE_SOUND_MAX_LEAD`), so building the pad would only
+        // spend audio graph on a sound never heard.
+        const plainVoice =
+          new URLSearchParams(window.location.search).get('voice') === 'plain' ||
+          audioLeadFor(settings) > REACTIVE_SOUND_MAX_LEAD;
+        voiceRef.current = plainVoice
+          ? await Sampler.load(context, set)
+          : await FollowingVoice.load(context, set, settings.cushionLevel);
       } catch {
         // Offline before the samples were ever cached, or a bad
         // response. Synthesis still works, so play on.

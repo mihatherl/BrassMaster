@@ -32,6 +32,28 @@ import {
  */
 export type PlaybackMode = 'off' | 'reference';
 
+/**
+ * The most output latency at which reacting with *sound* is still honest, in
+ * seconds.
+ *
+ * Every scheduled note survives any amount of latency, because the audio lead
+ * hands it to the audio thread early enough to be heard on the beat. A
+ * reaction cannot be handed over before the event it reacts to: the cushion
+ * swapping to the instrument on a right fingering, and the tone dipping on a
+ * wrong one, are gain changes made at audio-thread "now", and "now" on the
+ * audio thread reaches the ear a full output-latency later. On the output
+ * that prompted this — a Moto E32 on headphones, calibrated at 750ms — the
+ * instrument "spoke" most of a bar after the fingering it was confirming,
+ * which is not feedback but noise arriving at a moment that means nothing.
+ *
+ * So above this lead the session keeps its judgements to the screen, whose
+ * own latency is a frame or two, and the reference line simply sounds. The
+ * figure is the player's first guess (2026-08-23, "say, under 100ms") and is
+ * his to tune by ear — note that at 100ms it also withholds the cushion from
+ * an iPhone on headphones, which he measured at ~200ms.
+ */
+export const REACTIVE_SOUND_MAX_LEAD = 0.1;
+
 export interface SessionOptions {
   context: AudioContext;
   exercise: Exercise;
@@ -878,11 +900,24 @@ export class Session {
       now >= this.transport.timeForBeat(notes[next].startBeat) - toleranceFor(this.noteSeconds(next), scale);
     const right = answers(asked) || (nextOpen && answers(next));
     if (right === this.fingersRight) return;
+    // On an output too late for the answer to be honest, the fingers are not
+    // followed at all — see REACTIVE_SOUND_MAX_LEAD. The gate sits above the
+    // tracking on purpose: `fingersRight` exists only to move the tone, so
+    // leaving it pinned at `true` keeps every downstream reader — the halving
+    // in `applyVolume` included — benign without a second guard, and there is
+    // one gate to test instead of two. The screen's own feedback reads the
+    // judge, not this.
+    if (!this.reactiveSoundHonest()) return;
     this.fingersRight = right;
     // A voice that changes its sound on the fingering is told; every other is
     // halved. Not both — the change of sound is the whole of the signal.
     if (this.synth.follow) this.synth.follow(right);
     else this.applyVolume();
+  }
+
+  /** Whether this output is prompt enough for sound to answer the fingers. */
+  private reactiveSoundHonest(): boolean {
+    return (this.options.audioLead ?? 0) <= REACTIVE_SOUND_MAX_LEAD;
   }
 
   /** The head of the tie chain a continuation belongs to. */

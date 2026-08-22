@@ -15,7 +15,9 @@ import { toleranceFor } from '../engine/judge';
 import type { ExerciseKind } from '../exercise/types';
 import { styleName } from '../render/conductor';
 import { RangePicker } from './RangePicker';
+import { REACTIVE_SOUND_MAX_LEAD } from '../engine/session';
 import {
+  audioLeadFor,
   CONDUCTOR_STYLE_RANGE,
   CUSHION_RANGE,
   REGISTERS,
@@ -1131,6 +1133,17 @@ export function SettingsScreen({
               How loud the soft sound behind a note is until you finger it right, against the
               instrument that takes over when you do.
             </p>
+            {/* Silently withholding it would read as a bug; the reason is the
+                output's own lateness, so it is said here where the output was
+                chosen. See REACTIVE_SOUND_MAX_LEAD for the arithmetic. */}
+            {audioLeadFor(settings) > REACTIVE_SOUND_MAX_LEAD && (
+              <p className="field__note muted">
+                Off on this output: its sound arrives{' '}
+                {Math.round(audioLeadFor(settings) * 1000)}ms late, so the instrument taking
+                over would be heard long after the fingering it answers. The judgement shows on
+                the screen instead.
+              </p>
+            )}
           </label>
         )}
 

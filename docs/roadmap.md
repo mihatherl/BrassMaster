@@ -392,6 +392,23 @@ against what they hear — and output is the half that was already fixable. So
 this risk is currently unmitigated rather than handled, which is precisely why
 4.1 now has to measure the round trip.
 
+**A second measurement and a ruling, 2026-08-23.** With headphones the E32
+needs the full 750ms the ceiling then allowed — the player sat exactly on the
+ceiling, so it is now 1000, since a ceiling resting on a measurement hides
+anything past it — and the iPhone about 200ms on headphones. The ruling that
+follows is about honesty, not comfort: **reactive sound is withheld above
+100ms of lead.** A scheduled note survives any latency, because the lead hands
+it to the audio thread early; a reaction — the cushion swapping to the
+instrument on a right fingering, the tone dipping on a wrong one — cannot be
+handed over before the event it reacts to, so it reaches the ear a full
+output-latency late. At 750ms the instrument "spoke" most of a bar after the
+fingering it was confirming, which is not feedback but noise. Above
+`REACTIVE_SOUND_MAX_LEAD` (`engine/session.ts`) the reference simply sounds
+and the judgement stays on the screen, whose own lag is a frame or two; the
+settings screen says so beside the cushion rather than letting the silence
+read as a bug. The 100ms figure is the player's first guess and his to tune —
+at that value an iPhone on headphones loses the cushion too.
+
 **What this costs, stated plainly.** Play does not reserve names the way App
 Store Connect does, so shipping first on Android does not protect the name on
 either store. And Google closes dormant developer accounts — which was an

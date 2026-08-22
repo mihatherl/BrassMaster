@@ -320,25 +320,28 @@ export function switchMaterial(settings: Settings, kind: ExerciseKind): Settings
 /**
  * How far sound may be brought forward, in milliseconds.
  *
- * The old ceiling was 500ms and reasoned from the headset alone — Bluetooth
- * sits between roughly a tenth and a third of a second — on the unstated
- * assumption that the device itself contributed nothing. It does. Measured
- * with the calibration screen on 2026-08-22, on one pair of hands:
+ * The ceiling has been raised twice, both times for the same reason, stated
+ * here so it does not need a third: each was set from an assumption about the
+ * worst hardware, and a real device then measured past it. 500ms reasoned
+ * from Bluetooth alone and assumed the device contributed nothing; the E32's
+ * own speaker then measured ~330ms. 750ms was "the measurement plus a slow
+ * headset"; the same phone on headphones then needed all 750 — the player
+ * sat exactly on the ceiling, so whether the true figure lies past it could
+ * not even be seen. Measured 2026-08-22/23, one pair of hands:
  *
- *     Motorola E32 (Android, own speaker)   ~330 ms
- *     iPhone 15 (own speaker)                ~20 ms
+ *     Motorola E32, own speaker      ~330 ms
+ *     Motorola E32, headphones        750 ms — the whole of the old ceiling
+ *     iPhone 15, own speaker          ~20 ms
+ *     iPhone 15, headphones          ~200 ms
  *
- * Sixteen times the difference, from the handset alone. A headset on the
- * slower of the two is 330 plus its own 150-250, which the old ceiling
- * clipped — so the player could not correct what he could now measure.
- *
- * The other half of the old reasoning was guarding against a mis-tap asking
- * for a lead longer than a beat, and there is no tapping any more: a lead is
- * arrived at by watching a scale meet the strike line, so a wild value does
- * not survive the screen that sets it. Both halves of the old ceiling's
- * justification are gone; this one is the measurement plus a slow headset.
+ * A ceiling that clips a real device hides the very measurement that would
+ * correct it, so this one leaves the worst measured device visible headroom.
+ * The scheduler copes: its horizon is lookahead plus lead, and the count-in
+ * start subtracts the lead. And there is no tapping any more, so a wild value
+ * cannot be mis-tapped in — a lead is arrived at by watching a scale meet the
+ * strike line.
  */
-export const AUDIO_LEAD_RANGE = { min: 0, max: 750 } as const;
+export const AUDIO_LEAD_RANGE = { min: 0, max: 1000 } as const;
 
 /** The lead in force, in seconds, for the output the player says is in use. */
 export function audioLeadFor(settings: Settings): number {

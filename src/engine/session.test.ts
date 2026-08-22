@@ -1447,6 +1447,89 @@ describe('a voice that follows the fingers', () => {
     expect(volumes.every((v) => v === 1)).toBe(true);
     s.stop();
   });
+
+  /**
+   * Reactive sound above REACTIVE_SOUND_MAX_LEAD, and why there is none.
+   *
+   * A scheduled note survives any latency — the lead hands it over early. A
+   * reaction cannot be handed over before the event it reacts to, so on the
+   * output that prompted this (an E32 on headphones, calibrated at 750ms) the
+   * instrument "spoke" most of a bar after the fingering it confirmed. Above
+   * the threshold the session keeps its judgements to the screen: the
+   * following voice is never told, and the plain voice is never halved.
+   */
+  it('never tells the voice on an output too late for the answer to be honest', () => {
+    const told: boolean[] = [];
+    const volumes: number[] = [];
+    const following: Voice = {
+      play: () => {},
+      setVolume: (v) => volumes.push(v),
+      stop: () => {},
+      follow: (right) => told.push(right),
+    };
+    const s = new Session({
+      context,
+      input: valves,
+      exercise: tiedExercise(),
+      tempo: 60,
+      countInBars: 0,
+      metronomeEnabled: false,
+      playbackMode: 'reference',
+      brassVoice: following,
+      audioLead: 0.75,
+    });
+    s.start();
+    // The lead shifts the origin, so run well past the first note both wrong…
+    for (let elapsed = 0; elapsed <= 1.4; elapsed += 0.025) {
+      audioTime = elapsed;
+      vi.advanceTimersByTime(25);
+    }
+    // …and right.
+    valves.pointerDown(1, 1);
+    valves.pointerDown(2, 2);
+    for (let elapsed = 1.4; elapsed <= 1.6; elapsed += 0.025) {
+      audioTime = elapsed;
+      vi.advanceTimersByTime(25);
+    }
+    // One entry, from start(): the voice is reused across runs, so starting
+    // resets it to the instrument. That is setup before anything sounds, not
+    // a reaction, and it is right at any latency. Nothing follows it — the
+    // wrong first note and the fingering coming right both went untold.
+    expect(told).toEqual([true]);
+    expect(volumes.every((v) => v === 1)).toBe(true);
+    s.stop();
+  });
+
+  it('never halves a plain voice for the fingers on such an output either', () => {
+    /* The other reactive channel: with no `follow`, wrong fingers halve the
+       tone — a dip that is just as mistimed at 750ms as the swap it stands in
+       for, so the same threshold withholds it. */
+    const volumes: number[] = [];
+    const plain: Voice = {
+      play: () => {},
+      setVolume: (v) => volumes.push(v),
+      stop: () => {},
+    };
+    const s = new Session({
+      context,
+      input: valves,
+      exercise: tiedExercise(),
+      tempo: 60,
+      countInBars: 0,
+      metronomeEnabled: false,
+      playbackMode: 'reference',
+      brassVoice: plain,
+      audioLead: 0.75,
+    });
+    s.start();
+    // Fingers wrong throughout the first sounding note.
+    for (let elapsed = 0; elapsed <= 1.4; elapsed += 0.025) {
+      audioTime = elapsed;
+      vi.advanceTimersByTime(25);
+    }
+    expect(volumes.every((v) => v === 1), `volumes: ${volumes.join(', ')}`).toBe(true);
+    s.stop();
+  });
 });
 
 /**
