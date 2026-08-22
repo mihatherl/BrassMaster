@@ -95,7 +95,7 @@ paid code, and `npm run check:web` fails the deploy if it ever does. See
 Each is useful on its own and roughly in dependency order. Versions are
 indicative, not promises.
 
-### Phase 1 — Teacher mode, the coach (paid; no Mac needed to build it)
+### Phase 1 — Teacher mode, the coach (paid; no phone or Mac needed to build it)
 
 **Knowing what the player can do, deciding what comes next, and remembering
 between sittings.** This is what turns a practice tool into something worth
@@ -212,7 +212,45 @@ material of the entire product, so that parking is now on the critical path.
 scrolling line, the settings screen overflowing on a 360×740 phone, leaps per
 instrument rather than per difficulty.
 
-### Phase 2 — The microphone (paid; no Mac needed to build it)
+**1.10 Divisi — two noteheads, all the way through.** Ruled 2026-08-22, and
+the Prelude in C is held back until it exists.
+
+A brass band part prints divisi constantly, and the app has never been able to
+hold it: `Exercise` carries one pitch per slot, the renderer draws one
+notehead, and the Import screen's "divisi" is not divisi at all — it is a
+choice of *which line to read*, made once for the whole part and resolved away
+before anything downstream sees it. So the second line is discarded at the
+door, and a player who wants the other one re-imports the file.
+
+What forced it is the Prelude. Its arpeggio starts on two low notes that most
+of the band cannot reach, and the ways round that are all worse than the
+problem: voiced closely it *"looks and sounds strange"*, because the bass has
+been lifted into the middle of the figure; left alone it fits the euphonium and
+the tubas and nobody else. The ask was the ordinary musical answer — print
+both, and let the player take the one their instrument can reach.
+
+The work, in the order it has to happen:
+
+1. **A second pitch per slot** in `exercise/types.ts`, and every producer of
+   an `Exercise` deciding what it means.
+2. **The renderer**, which draws two noteheads on one stem — seconds offset,
+   accidentals stacked, and the stem direction settled by the pair rather than
+   by one note.
+3. **The judge accepts either**, which is the rule that makes it safe. Octave
+   pairs already pass, since the app judges any octave of the right note and
+   octave pairs share a fingering; a divisi third does not, and has to be
+   allowed explicitly.
+4. **The tone and the count**, which need one of the two to sound.
+5. **Themes may then carry it** — `ThemeNote` gains its alternative, the
+   Prelude is written in its true register with the low notes marked, and it
+   comes back to the review sheet.
+
+It reaches the free app, unlike almost everything else here: it is notation,
+and both builds read notation. It also pays for itself twice, since the same
+mechanism is what lets an imported part keep both lines instead of throwing
+one away.
+
+### Phase 2 — The microphone (paid; buildable in the browser, provable only on a device)
 
 The honest version of the exercise: the player plays, the app listens.
 
@@ -241,15 +279,72 @@ prose.
 `Fingering.usesFourth` is true. See `app-store-plan.md`; this is the trap
 most likely to ship quietly wrong.
 
-### Phase 4 — Ship it (Mac and enrolment needed here, and not before)
+### Phase 4 — Ship it, **Android first** (no Mac needed until 4.4)
 
-**4.1 The container spike** — the wrapper, the microphone inside it, and an
-embedded HTTP server proving it can serve a page and take an upload.
+**Reordered 2026-08-22**, and the reason is hardware rather than taste. The
+player owns no Apple device of any kind — no phone, no computer — so the iOS
+path begins with roughly AU$1,300 of Mac mini, second-hand iPhone and
+enrolment before a single question is answered, and the enrolment itself is
+already stuck, most likely because Apple steers individual sign-up through an
+app that only runs on hardware he does not have. Android costs US$25 one-off,
+builds from the Linux machine already in the room, and answers the same
+questions.
 
-**4.2 The native shell**, `VITE_TARGET=app`, App Store submission.
+**Nothing about the product changes.** The paid line is still drawn at build
+time by `VITE_TARGET=app`, one codebase and one version; Android is a second
+store for the same build, not a second product. The free web app stays free at
+brassmaster.net.
+
+**4.0 One cheap Android phone**, second-hand, perhaps AU$150. Established
+2026-08-22 that there is no Android device either, and the emulator will not do
+for this: it answers layout and plumbing questions well and audio questions
+badly, which is exactly backwards for 4.1. See *What the emulator cannot
+answer* below.
+
+**4.1 The container spike, on Android** — the wrapper, the microphone inside it
+*while the reference tone plays*, and an embedded HTTP server proving it can
+serve a page, take an upload, and survive backgrounding. These are the two
+questions the whole paid app rests on, and they can be asked today for nothing.
+iOS will differ in the details of the audio session and the local-network
+prompt; what transfers is the design, which is what a spike is for.
+
+**4.2 The Android shell and the Play listing.** `VITE_TARGET=app` inside
+Capacitor, signed and uploaded from Linux.
 
 **4.3 v3.0 ships with** everything free, plus the microphone, the tuner, and My
 Music as it stands today.
+
+**4.4 iOS, when the hardware exists.** The shell is the same wrapper; what is
+Apple-specific is signing, the audio session, and the App Store listing. Buy
+the Mac mini on the strength of a paid Android app that works, not on the hope
+of one — and note that the bundle id `net.brassmaster.app` still cannot be
+changed once it is on sale, so reserving the name stays worth doing early if
+enrolment ever unblocks.
+
+**What the emulator cannot answer.** It runs the wrapper, the layout, the
+build and the Play upload perfectly well, and it is worth using for all of
+those. But the spike exists to measure *audio*, and an emulator's audio path is
+the host's, not a phone's — its latency figures mean nothing. Nor is its
+network a phone's: the emulator sits behind NAT on 10.0.2.x, so "the laptop
+browses to the URL the phone shows" needs `adb` port forwarding to work at all,
+which is the one thing the HTTP server feature is *for*. Both questions need
+glass.
+
+**And a risk Android brings that iOS does not.** Audio input latency on Android
+varies enormously between devices — it is the platform's oldest sore point —
+where iPhones are consistent. The tuner barely cares, since a held note is
+measured over a window. Microphone mode does care, because it judges an onset
+against a clock. The mitigation already exists and is already trusted: the tap
+calibration, which measures the round trip on the actual device rather than
+believing what the device reports about itself. Phase 4.1 should measure the
+spread on at least one real handset, and borrowing a band member's phone for an
+afternoon is the cheapest second data point there will ever be.
+
+**What this costs, stated plainly.** Play does not reserve names the way App
+Store Connect does, so shipping first on Android does not protect the name on
+either store. And Google closes dormant developer accounts — which was an
+argument against opening one to sit on, and is no argument at all against
+opening one to ship from.
 
 ### Phase 5 — My Music becomes the reason to buy (paid)
 
@@ -317,6 +412,7 @@ Phases 2 to 6 are entirely paid.
 | 1.2–1.7 teacher mode | — | ✓ |
 | 1.8 theme corpus | ✓ | ✓ |
 | 1.9 reading fixes | ✓ | ✓ |
+| 1.10 divisi | ✓ | ✓ |
 | 2 microphone | — | ✓ |
 | 3 tuner | — | ✓ |
 | 5 phone library | — | ✓ |
@@ -552,8 +648,8 @@ Phase 4 is what v3.0.0 *is*, so it earns no minors of its own.
 |---|---|---|
 | `web` | **brassmaster.net**, GitHub Pages, deployed by CI on every push to `main` | everyone |
 | `app` — development | **the tailnet**, served from the desktop | your own devices |
-| `app` — beta | **TestFlight**, from Phase 4 | testers you invite |
-| `app` — release | **the App Store**, from Phase 4 | customers |
+| `app` — beta | **Play internal testing**, from Phase 4; TestFlight from 4.4 | testers you invite |
+| `app` — release | **Google Play**, from Phase 4; the App Store from 4.4 | customers |
 
 **brassmaster.net must never serve the `app` build.** It is not a policy but a
 mechanism: the deploy workflow builds `web` and `npm run check:web` fails it if
@@ -615,18 +711,25 @@ paid-only work redeploys brassmaster.net with nothing a free user can see, and
 `autoUpdate` gives them a quiet reload for it. Cheaper to live with than to
 engineer around.
 
-### Where the iPhone app is built from
+### Where the native shells are built from
 
-**Recommendation, not yet ratified:** the native shell lives in **this
-repository**, in an `ios/` directory, sharing the version, the gate and the
-history. A separate repository would let the shell and the web build it wraps
-drift apart, and they are one product with one version number.
+**Recommendation, not yet ratified:** the shells live in **this repository**,
+in `android/` and later `ios/`, sharing the version, the gate and the history.
+A separate repository would let a shell and the web build it wraps drift apart,
+and they are one product with one version number.
 
-Two consequences to plan for: **signing certificates and provisioning profiles
-must never be committed** — this repository is public, so they belong in GitHub
-Secrets; and macOS runners are free for public repositories, so the release
-build and upload can be automated without owning a Mac, even though developing
-the shell cannot.
+**Android builds from Linux, start to finish** — Gradle, signing and the Play
+upload all run on the machine that is already here, which is most of why Phase
+4 starts there.
+
+Two consequences to plan for. **No signing key of either platform may ever be
+committed**: this repository is public, so the Android keystore and its
+passwords, and later the Apple certificates and provisioning profiles, belong
+in GitHub Secrets — and an Android upload key cannot be replaced without
+Google's help, so it wants a backup somewhere that is not this machine. And
+**macOS runners are free for public repositories**, so when iOS comes the
+release build and upload can be automated without owning a Mac, even though
+developing the shell cannot.
 
 ## 6. Not on the roadmap, and why
 
@@ -698,9 +801,16 @@ that engages with the reason recorded here.
 - **A score reader or navigator.** Import unfolds repeats into a straight read;
   scanning is not this app's problem.
 - **A notation editor.** Correction belongs in MuseScore.
-- **Android natively.** The PWA already serves Android well. See the reasoning
-  recorded 2026-08-19: Google closes dormant accounts, Play does not reserve
-  names, and the free web app is already installable there.
+- **~~Android natively.~~ Moved onto the roadmap 2026-08-22, and it now goes
+  *first* — see Phase 4.** The 2026-08-19 reasoning was that the PWA already
+  serves Android, that Google closes dormant accounts and that Play does not
+  reserve names. All three are still true and none of them was ever an argument
+  about *where the paid app should ship*: they were arguments against opening
+  an account to sit on, at a time when nobody had priced the alternative. The
+  fact that changed the answer is that the player owns no Apple hardware, so
+  iOS-first means about AU$1,300 spent before the first question is answered,
+  and the questions can be answered on Android for US$25 on the machine he
+  already has. iOS is not cancelled; it is 4.4 instead of 4.1.
 
 ## 7. Open questions, named so they are not forgotten
 
