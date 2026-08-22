@@ -25,6 +25,28 @@ export interface LabelEvent {
  * generation time so neither the scheduler nor the judge has to think about
  * instruments.
  */
+/**
+ * The second notehead of a divisi pair — an alternative the player may take
+ * instead of the written one.
+ *
+ * Everything a notehead needs and nothing a note needs: it shares the slot's
+ * start, duration, beam, tie and tuplet, because it *is* the same note in the
+ * music and only the pitch is in question.
+ *
+ * **Its fingerings are folded into the note's `acceptedMasks` rather than kept
+ * here**, which is what leaves the judge untouched: a player who takes either
+ * head is right, and the judge has never had to know why. `primaryMask` is
+ * kept for the hint, which has to name one of them.
+ */
+export interface Divisi {
+  writtenMidi: number;
+  soundingMidi: number;
+  pitch: SpelledPitch;
+  showAccidental: boolean;
+  /** The fingering a player would be taught for *this* head. */
+  primaryMask: number;
+}
+
 export interface NoteEvent {
   writtenMidi: number;
   soundingMidi: number;
@@ -72,6 +94,22 @@ export interface NoteEvent {
    * it depends on the key signature and on what has already occurred in the bar.
    */
   showAccidental: boolean;
+  /**
+   * A second notehead on this slot, which the player may take instead.
+   *
+   * Printed as a divisi pair and judged as either: `acceptedMasks` holds the
+   * fingerings of both heads, so nothing downstream of generation has to know
+   * this field exists in order to be correct about it.
+   *
+   * It exists because a band part prints divisi constantly and because the
+   * Prelude in C cannot be read without it — its arpeggio starts on two notes
+   * most of the band cannot reach, and the musical answer is to print both and
+   * let the player take the one their instrument has. See roadmap § 1.10.
+   *
+   * **The written head is the one the app sounds**, since one of them has to
+   * be, and the written one is the composer's.
+   */
+  alternative?: Divisi;
 }
 
 /**

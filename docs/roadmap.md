@@ -440,6 +440,13 @@ map are built, the importer parses MusicXML. Four things are genuinely open:
   is the first thing on this roadmap that would give it a reason to exist
   beyond one player's convenience.
 
+*Erbarme dich, when it is transcribed, is barred as 6/8 rather than 12/8* —
+each of Bach's bars becoming two, the notes untouched and only the bar lines
+moving. Ruled 2026-08-22: *"i don't think anyone will complain that the 12/8
+becomes a 6/8."* 6/8 is a metre the app offers and 12/8 is not, and adding one
+wants cells written in it or Themes falls back to composed material while
+still calling itself tunes.
+
 **6.2 The other voice — two-line themes, from the corpus.** The app *sounds*
 one line while the player reads the other, and then they swap. Never drawn:
 see the ruling below. Raised 2026-08-20

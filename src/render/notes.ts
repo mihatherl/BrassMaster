@@ -20,6 +20,14 @@ export interface LayoutNote {
   showAccidental: boolean;
   /** Fill colour, used to show judging feedback. */
   colour: string;
+  /**
+   * A second notehead on the same stem — divisi, which a band part prints
+   * constantly and which the player may take instead of the written one.
+   *
+   * Only the pitch and its accidental: everything else about the note is
+   * shared, because it *is* the same note and only the pitch is in question.
+   */
+  alternative?: { pitch: SpelledPitch; showAccidental: boolean };
 }
 
 /** Gap between an accidental and the notehead it belongs to, in stave spaces. */
@@ -129,37 +137,80 @@ export function drawNote(
 ): void {
   const head = noteheadGlyph(note.duration);
   const headWidth = glyphWidth(head) * m.staveSpace;
-  const y = yForStep(m, diatonicStep(note.pitch));
 
   ctx.fillStyle = note.colour;
   ctx.strokeStyle = note.colour;
 
-  drawLedgerLines(ctx, m, note.x, note.pitch, headWidth);
+  /*
+   * The heads on this stem, lowest first — one ordinarily, two for divisi.
+   *
+   * Everything below is written against this list rather than against
+   * `note.pitch`, so the single-note case is the two-note case with one of
+   * them, and there is no second drawing path to keep in step with the first.
+   */
+  const heads = [
+    { pitch: note.pitch, showAccidental: note.showAccidental },
+    ...(note.alternative ? [note.alternative] : []),
+  ].sort((a, b) => diatonicStep(a.pitch) - diatonicStep(b.pitch));
 
-  if (note.showAccidental) {
-    const glyph = accidentalGlyph(note.pitch.alter);
-    if (glyph) {
-      drawGlyph(ctx, glyph, note.x - accidentalRoom(m, note.pitch), y, m.staveSpace);
+  const steps = heads.map((h) => diatonicStep(h.pitch));
+  const middleStep = m.bottomLineStep + 4;
+  /*
+   * Direction is decided by the head furthest from the middle line, which is
+   * the engraving rule for a chord and reduces to `stemUp` for one note. A
+   * pair straddling the middle takes the ordinary rule on its outer head
+   * rather than arguing about the inner one.
+   */
+  const furthest = steps.reduce((far, step) =>
+    Math.abs(step - middleStep) > Math.abs(far - middleStep) ? step : far,
+  );
+  const up = options.forceStemUp ?? furthest < middleStep;
+
+  /*
+   * A second cannot be printed as two heads side by side on one stem — the
+   * ellipses would overlap — so one of them moves to the far side of the
+   * stem. Which one is settled by the stem: reading upward, the head that
+   * breaks the interval goes to the right of an up stem and the left of a
+   * down one, which is where an engraver puts it.
+   */
+  const isSecond = heads.length === 2 && Math.abs(steps[1] - steps[0]) === 1;
+  const offsetIndex = isSecond ? (up ? 1 : 0) : -1;
+  const xOf = (index: number) => note.x + (index === offsetIndex ? headWidth : 0);
+
+  heads.forEach((h, index) => {
+    const headY = yForStep(m, steps[index]);
+    drawLedgerLines(ctx, m, xOf(index), h.pitch, headWidth);
+    if (h.showAccidental) {
+      const glyph = accidentalGlyph(h.pitch.alter);
+      if (glyph) {
+        /* Two accidentals never share a column: the lower one steps further
+           out, which is the same thing an engraver does to a chord. */
+        const stack = index === 0 && heads.length === 2 && heads[1].showAccidental
+          ? accidentalRoom(m, heads[1].pitch)
+          : 0;
+        drawGlyph(ctx, glyph, note.x - accidentalRoom(m, h.pitch) - stack, headY, m.staveSpace);
+      }
     }
-  }
-
-  drawGlyph(ctx, head, note.x, y, m.staveSpace);
-
-  if (note.duration.dotted) {
-    // Dots sit in a space, so a note on a line pushes its dot up to the space above.
-    const dotY = isOnLine(m, diatonicStep(note.pitch)) ? y - m.staveSpace / 2 : y;
-    drawGlyph(ctx, 'augmentationDot', note.x + headWidth + DOT_GAP * m.staveSpace, dotY, m.staveSpace);
-  }
+    drawGlyph(ctx, head, xOf(index), headY, m.staveSpace);
+    if (note.duration.dotted) {
+      // Dots sit in a space, so a note on a line pushes its dot up to the space above.
+      const dotY = isOnLine(m, steps[index]) ? headY - m.staveSpace / 2 : headY;
+      drawGlyph(ctx, 'augmentationDot', note.x + headWidth + DOT_GAP * m.staveSpace, dotY, m.staveSpace);
+    }
+  });
 
   if (note.duration.value === 'whole') return;
 
-  const up = options.forceStemUp ?? stemUp(m, note.pitch);
+  /* The stem stands on the head at its foot and reaches past the one at its
+     head, so a pair is spanned rather than crossed. */
+  const footY = yForStep(m, up ? steps[0] : steps[steps.length - 1]);
+  const farY = yForStep(m, up ? steps[steps.length - 1] : steps[0]);
   const stemX = up ? note.x + headWidth - (STEM_THICKNESS * m.staveSpace) / 2 : note.x + (STEM_THICKNESS * m.staveSpace) / 2;
-  const stemEndY = options.stemEndY ?? y + (up ? -1 : 1) * STEM_LENGTH * m.staveSpace;
+  const stemEndY = options.stemEndY ?? farY + (up ? -1 : 1) * STEM_LENGTH * m.staveSpace;
 
   ctx.lineWidth = STEM_THICKNESS * m.staveSpace;
   ctx.beginPath();
-  ctx.moveTo(stemX, y);
+  ctx.moveTo(stemX, footY);
   ctx.lineTo(stemX, stemEndY);
   ctx.stroke();
 
