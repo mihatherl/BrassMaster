@@ -163,9 +163,60 @@ then restart the preview.
 its own handover. Two data experiments were run at a step count later shown to
 be half of what the model wants, which makes their null results unsafe.
 
+## Start here
+
+Three small things first, in this order, then the spike. All three came out of
+the evening of 2026-08-22 and none is written down anywhere else.
+
+**1. Name the dev build differently on the phone.** Asked for 2026-08-22: the
+tailnet build and the real one are indistinguishable on a home screen, and
+there are now two of them on one device. Something like *Brass Master — Dev* in
+the manifest `name` and `short_name` (`vite.config.ts`), the `<title>` and the
+`apple-mobile-web-app-title` (`index.html`).
+
+**The trap, and it has caught this repository twice already**: `VITE_TARGET=app`
+is *also* the paid production build. Keying the dev name off it would ship
+"Dev" to the Play listing. It needs a signal of its own — a `VITE_CHANNEL`
+injected the way `__HAS_MY_MUSIC__` is, defaulting to production and set only
+by whatever builds the tailnet copy — and `check:web`-style proof that the
+store build never carries it. A build-time rule needs a build-time check.
+
+**2. Raise the audio-lead ceiling, and record the measurement that demands
+it.** The player measured his own devices with the new calibration screen:
+
+    Motorola E32 (Android, own speaker)   ~330 ms
+    iPhone 15 (own speaker)                ~20 ms
+
+Sixteen times, in one pair of hands. `AUDIO_LEAD_RANGE.max` is 500ms and its
+comment reasons from "Bluetooth headsets sit between roughly a tenth and a
+third of a second" — written when the *device* was assumed to contribute
+nothing. A Bluetooth headset on that phone would be 330 plus its own 150–250,
+which clips. The comment's other half justifies the ceiling against "a
+mis-tap", and there is no tapping any more; both halves of the reasoning are
+gone. Raise it to something like 750ms and rewrite the comment around the
+measurement. The scheduler already copes: its horizon is `lookahead +
+audioLead`, and the count-in start subtracts the lead, so a large one is
+delivered rather than merely stored.
+
+Worth recording beside the Android-first ruling in `roadmap.md` too, since it
+is the first hard evidence about the platform that was chosen on cost. And
+worth knowing what it means retrospectively: **before this session an Android
+player on the phone's own speaker heard every note a third of a second late
+with no way to correct it**, because the entry was fixed, unmeasurable and
+hard-coded to nought. That was one iPhone's behaviour written up as a rule.
+
+**3. Widen 4.1 to measure input latency as well.** Output latency is fixable by
+scheduling earlier, which is what the lead does. **Input latency is not**: if
+the phone hands the app a note 300ms after it was played, no instant
+confirmation is honest until the app knows by how much. `v2-design.md` already
+puts the earliest honest confirmation at about 200ms in microphone mode, and on
+this class of hardware it could be much worse. A round trip — play a click,
+hear it back through the microphone — gives output plus input in one number,
+and the 330 above separates them. The spike as written asks only about output.
+
 ## What is left
 
-**Next, and it is the one the paid app rests on: the container spike (roadmap
+**Then the one the paid app rests on: the container spike (roadmap
 4.1).** It was blocked on hardware for weeks and is not any more — there is a
 second-hand Moto E32 in the room. Two questions: the microphone inside the real
 wrapper *while the reference tone plays*, and an embedded HTTP server serving a
