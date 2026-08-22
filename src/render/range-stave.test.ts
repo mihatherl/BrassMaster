@@ -33,10 +33,16 @@ function mockCanvas(calls: RecordedCall[], width = 400) {
     fillText: record('fillText'),
     beginPath: record('beginPath'),
     moveTo: record('moveTo'),
+    arcTo: record('arcTo'),
     lineTo: record('lineTo'),
     quadraticCurveTo: record('quadraticCurveTo'),
     closePath: record('closePath'),
-    roundRect: record('roundRect'),
+    /*
+     * No `roundRect`. It is deliberately absent from every fake context in
+     * this suite, so that a renderer reaching for it fails here rather than on
+     * a phone — see `roundedRect` in `notes.ts`, and the Motorola E32 that
+     * found it in the first place.
+     */
     stroke: record('stroke'),
     fill: record('fill'),
     save: record('save'),
@@ -152,8 +158,10 @@ function inkOf(calls: RecordedCall[]): { glyphs: PlacedGlyph[]; top: number; bot
         // the end point together bound it.
         mark(Math.min(Number(second), Number(fourth)), Math.max(Number(second), Number(fourth)));
         break;
-      case 'roundRect':
-        mark(Number(second), Number(second) + Number(fourth));
+      case 'arcTo':
+        // An arc stays inside the corner it cuts, so its two control points
+        // bound it. See `roundedRect` in notes.ts.
+        mark(Math.min(Number(second), Number(fourth)), Math.max(Number(second), Number(fourth)));
         break;
       case 'fillText':
         // Centred rows inside a capsule, or set on a `bottom` baseline.

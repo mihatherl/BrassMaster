@@ -46,10 +46,16 @@ function mockContext(calls: RecordedCall[]): CanvasRenderingContext2D {
     fillText: record('fillText'),
     beginPath: record('beginPath'),
     moveTo: record('moveTo'),
+    arcTo: record('arcTo'),
     lineTo: record('lineTo'),
     quadraticCurveTo: record('quadraticCurveTo'),
     closePath: record('closePath'),
-    roundRect: record('roundRect'),
+    /*
+     * No `roundRect`. It is deliberately absent from every fake context in
+     * this suite, so that a renderer reaching for it fails here rather than on
+     * a phone — see `roundedRect` in `notes.ts`, and the Motorola E32 that
+     * found it in the first place.
+     */
     stroke: record('stroke'),
     fill: record('fill'),
     save: record('save'),

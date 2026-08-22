@@ -42,10 +42,16 @@ function mockContext(calls: RecordedCall[]): CanvasRenderingContext2D {
     fillText: record('fillText'),
     beginPath: record('beginPath'),
     moveTo: record('moveTo'),
+    arcTo: record('arcTo'),
     lineTo: record('lineTo'),
     quadraticCurveTo: record('quadraticCurveTo'),
     closePath: record('closePath'),
-    roundRect: record('roundRect'),
+    /*
+     * No `roundRect`. It is deliberately absent from every fake context in
+     * this suite, so that a renderer reaching for it fails here rather than on
+     * a phone — see `roundedRect` in `notes.ts`, and the Motorola E32 that
+     * found it in the first place.
+     */
     stroke: record('stroke'),
     fill: record('fill'),
     save: record('save'),
@@ -208,8 +214,12 @@ describe('drawSystem bar numbers', () => {
 
     const number = calls.find((c) => c.method === 'fillText' && c.args[0] === '5');
     const numberBaseline = Number(number?.args[2]);
-    const capsule = calls.find((c) => c.method === 'roundRect');
-    const capsuleBottom = Number(capsule?.args[1]) + Number(capsule?.args[3]);
+    /* The capsule is a path now rather than one call: `roundedRect` moves to
+       its top edge and cuts four corners with `arcTo`, whose control points
+       are the rectangle's own corners. So the arcs bound it. */
+    const arcs = calls.filter((c) => c.method === 'arcTo');
+    const capsule = arcs.length ? arcs[0] : undefined;
+    const capsuleBottom = Math.max(...arcs.map((c) => Number(c.args[3])));
 
     expect(number, 'the number was not drawn').toBeDefined();
     expect(capsule, 'the callout was not drawn').toBeDefined();

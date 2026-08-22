@@ -562,7 +562,7 @@ export function drawFingeringHint(
   // with.
   const radius = Math.min(width, height) / 2;
   ctx.beginPath();
-  ctx.roundRect(centreX - width / 2, top, width, height, radius);
+  roundedRect(ctx, centreX - width / 2, top, width, height, radius);
   ctx.fillStyle = background;
   ctx.fill();
   ctx.lineWidth = Math.max(1, staveSpace * 0.09);
@@ -577,6 +577,40 @@ export function drawFingeringHint(
   });
 
   ctx.restore();
+}
+
+/**
+ * A rounded rectangle, drawn from arcs rather than by `ctx.roundRect`.
+ *
+ * **This is the only reason the app renders on a 2022 phone.** `roundRect`
+ * arrived in Chrome 99 in March 2022, and an Android device whose System
+ * WebView has not been updated is older than that — on a Motorola E32 it threw
+ * `ctx.roundRect is not a function`, which took the whole app down in three
+ * different ways: the play surface's frame loop died mid-run and the notation
+ * froze while the metronome played on, paged mode threw on its first frame and
+ * drew nothing at all, and the results screen's weak-note chart threw into
+ * React and unmounted the tree to a white screen.
+ *
+ * `arcTo` has been in every browser since canvas existed. The lesson is wider
+ * than this method: **the notation path must hold to old APIs**, because it is
+ * the one part of the app that runs every frame and the one whose failure
+ * looks like a bug in the music rather than a bug in the browser.
+ */
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
 }
 
 export function noteheadWidth(m: StaveMetrics, duration: Duration): number {
