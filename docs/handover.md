@@ -85,11 +85,18 @@ is unreachable and Start stays reachable at every size measured. The fix is a
 design choice, recorded in `roadmap.md` § 1.9 and left for you.
 
 **The sister project had a productive night** — see
-`../BrassMXMLGenerator/docs/handover-ml.md` § 14. The headline reaches back
-here only as a caution about metrics: a census of every non-clean bar found
-that **missed barlines cause 2.7% of the damage** while the project had spent
-most of its nights on them. *Measure which population you are in before
-optimising the total.*
+`../BrassMXMLGenerator/docs/handover-ml.md` § 14, and § 14.0 first. Two of its
+lessons are general enough to be worth carrying across the seam:
+
+- **Measure which population you are in before optimising the total.** A census
+  of every non-clean bar found that **missed barlines cause 2.7% of the
+  damage**, and that is what most of that project's nights had gone into.
+- **One run is a sample, not a result.** Two runs of an identical recipe,
+  differing only in which pages were held out, came apart by 5.3 points on the
+  metric being optimised. Several published findings there sit inside that
+  band. The equivalent here is any number that comes from a single measurement
+  on one device — the 330ms above is one pair of hands on one handset, and it
+  is written down as such.
 
 ## The rulings this session added
 
