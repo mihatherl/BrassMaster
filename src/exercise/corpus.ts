@@ -100,6 +100,7 @@ const RECORDED_COLLECTIONS: Readonly<Record<string, string>> = {
   'bach@16': '1a8fa6a2', // and the Air cut anyway, on the ear
   'bach@17': '1ec2e0dd', // the Prelude in its own register, printed as divisi
   'bach@18': '98980442', // and cut at bar 15, where the whole band can take it
+  'bach@19': '98980442', // heard and kept — the same material, now reaching players
 };
 
 /*

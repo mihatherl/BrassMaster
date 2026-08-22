@@ -116,18 +116,20 @@ export const COLLECTIONS: readonly Collection[] = [
       'Bach whole where a brass player can hold it, and in excerpt where they cannot — all six of the Two-Part Inventions complete; the obbligato from Jesu, Joy of Man’s Desiring; the vocal line of Sheep may safely graze; the Air on the G string with its ornaments simplified; the Prelude in C entire, voiced for one instrument; and Petzold’s Menuett in G. Nothing here is cut any more except where the source itself is an excerpt of a longer work. What a complete piece costs is reach rather than notes: it has the range it has, and three of these get as far as the euphonium and the tubas.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 18,
+    revision: 19,
     themes: BORROWED,
     /*
-     * Only the Prelude, and it is not waiting on an ear: it is waiting on
-     * divisi (roadmap 1.10), so that its low arpeggio notes can be printed
-     * with an alternative a player's own instrument can reach.
+     * Empty since 2026-08-22: every Bach theme has been heard and kept, the
+     * Prelude in C last of all — *"happy now with the additional inventions,
+     * and the prelude, and all those that I had previously indicated
+     * satisfaction with."*
      *
-     * Everything else here was heard and kept on 2026-08-22 — including
-     * Inventions 8 and 10, which had never rendered on the review sheet at all
-     * until it learned to draw a theme on an instrument that can take it.
+     * It is the first theme to reach a player as divisi, and the first to have
+     * needed a feature built before it could be judged at all. Kept as a set
+     * rather than removed, because the next theme converted goes in here in the
+     * same edit that adds it.
      */
-    unjudged: new Set(['bwv846-prelude']),
+    unjudged: new Set([]),
   },
 ];
 
