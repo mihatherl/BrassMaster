@@ -229,7 +229,12 @@ export interface Settings {
    * recalibration.
    */
   audioOutputs: AudioOutput[];
-  /** Which of `audioOutputs` is in the ears, or null for the phone's speaker. */
+  /**
+   * Which of `audioOutputs` is in use. Never null after sanitising — the
+   * device's own speaker is an entry in the list rather than the absence of
+   * one — but stored settings from before that change carry null and are
+   * migrated to `DEVICE_OUTPUT_ID`.
+   */
   audioOutputId: string | null;
 }
 
@@ -244,7 +249,40 @@ export interface AudioOutput {
   id: string;
   name: string;
   leadMs: number;
+  /**
+   * How many times this output has been measured.
+   *
+   * Zero is not the same as a lead of zero, and keeping them apart is the
+   * whole reason this exists: a device nobody has measured and a device
+   * measured at nought sound identical to the app and mean opposite things to
+   * a player. Only the first deserves to be asked about before a session.
+   *
+   * Accepting the current offset counts as a measurement — the player has been
+   * asked and has answered, and asking again would be nagging rather than
+   * helping.
+   */
+  calibrations: number;
 }
+
+/**
+ * The device's own speaker, which is an output like any other.
+ *
+ * It used to be a special case: absent from the list, unmeasurable, and
+ * described on screen as needing nothing. That came from one observation on
+ * one iPhone, where the speaker did sound on the beat — and it was written up
+ * as a rule. Android is where it breaks, output latency there being the
+ * platform's oldest sore point and varying wildly by handset, and Android is
+ * the first store this ships to. So the speaker is now measured like anything
+ * else, starting at nought and believed only once somebody has checked.
+ */
+export const DEVICE_OUTPUT_ID = 'device';
+
+export const DEVICE_OUTPUT: AudioOutput = {
+  id: DEVICE_OUTPUT_ID,
+  name: 'This device’s speaker',
+  leadMs: 0,
+  calibrations: 0,
+};
 
 /** The materials that have a key and a difficulty of their own: everything generated. */
 export type Material = Exclude<ExerciseKind, 'imported'>;
@@ -396,8 +434,8 @@ export const DEFAULT_SETTINGS: Settings = {
   // there, so a fresh load and a saved default agree.
   cushionLevel: DEFAULT_CUSHION,
   materials: { phrases: { keySet: [-3], difficultyId: 'easy' } },
-  audioOutputs: [],
-  audioOutputId: null,
+  audioOutputs: [{ ...DEVICE_OUTPUT }],
+  audioOutputId: DEVICE_OUTPUT_ID,
 };
 
 /**
@@ -709,10 +747,20 @@ function sanitiseOutputs(settings: Settings): Pick<Settings, 'audioOutputs' | 'a
       id: o.id,
       name: o.name.trim() || 'Headphones',
       leadMs: Math.round(clamp(o.leadMs, AUDIO_LEAD_RANGE.min, AUDIO_LEAD_RANGE.max)),
+      /* Absent in settings stored before outputs counted their measurements.
+         Read as none, which is true of them: nobody had been asked. */
+      calibrations: Number.isFinite(o.calibrations) ? Math.max(0, Math.round(o.calibrations)) : 0,
     }));
+
+  /* The device's own speaker is always in the list and always first, so that
+     choosing it, measuring it and forgetting the rest all work the same way. */
+  if (!audioOutputs.some((o) => o.id === DEVICE_OUTPUT_ID)) {
+    audioOutputs.unshift({ ...DEVICE_OUTPUT });
+  }
+
   const audioOutputId = audioOutputs.some((o) => o.id === settings.audioOutputId)
     ? settings.audioOutputId
-    : null;
+    : DEVICE_OUTPUT_ID;
   return { audioOutputs, audioOutputId };
 }
 

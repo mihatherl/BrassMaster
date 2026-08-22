@@ -51,6 +51,11 @@ async function tapThroughToPlay(): Promise<void> {
   if (freePlay) fireEvent.click(freePlay);
   fireEvent.click(screen.getByRole('button', { name: 'Start' }));
   fireEvent.click(await screen.findByRole('button', { name: /tap to start/i }));
+  /* A fresh install has never measured its own speaker, so the calibration
+     warning stands between Start and the run. This file is about the audio
+     gate behind it; "Later" is the answer that goes on to the run. */
+  const later = screen.queryByRole('button', { name: 'Later' });
+  if (later) fireEvent.click(later);
 }
 
 describe('the audio gate', () => {

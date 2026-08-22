@@ -245,6 +245,19 @@ export function App() {
              way; Back from there lands on Settings, which is where every
              other door out of a run already leads. */
           onOutputs={() => setScreen('outputs')}
+          /* "Accept current offset": the output in use is settled at the lead
+             it already has, which counts as having been measured and stops the
+             warning returning. See `AudioOutput.calibrations`. */
+          onAcceptOutput={() =>
+            updateSettings({
+              ...chosen,
+              audioOutputs: chosen.audioOutputs.map((output) =>
+                output.id === chosen.audioOutputId
+                  ? { ...output, calibrations: output.calibrations + 1 }
+                  : output,
+              ),
+            })
+          }
           /* A tempo settled on while playing is the tempo to open with next
              time — written back once the run is over, never during it. */
           onTempoSettled={(tempo) => updateSettings({ ...chosen, tempo })}

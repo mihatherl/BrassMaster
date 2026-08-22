@@ -107,7 +107,9 @@ describe('the app', () => {
     expect(valuesOf('Playing')).toBe('Scrolling line · Play the notes · metronome');
     // Advanced says nothing until something in it has been moved off its
     // default, rather than reciting the settings the app came with.
-    expect(valuesOf('Advanced')).toBe('');
+    /* No longer empty: the device's own speaker is an output like any other
+       since 2026-08-22, so Advanced always has one to name. */
+    expect(valuesOf('Advanced')).toContain('speaker');
   });
 
   it('keeps the tempo out of the panels, where it can be reached in one tap', () => {
@@ -504,14 +506,14 @@ describe('headphones and speakers', () => {
     // A headset left chosen after moving to the phone's speaker sends every
     // note early and nothing else says why — so it is said next to Start,
     // and one tap puts the speaker back in charge.
-    stored([{ id: 'z', name: 'Zen Air', leadMs: 231 }], 'z');
+    stored([{ id: 'z', name: 'Zen Air', leadMs: 231, calibrations: 1 }], 'z');
     renderApp();
     expect(screen.getByText(/Sound brought forward 231 ms for Zen Air/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Using the phone speaker' }));
+    fireEvent.click(screen.getByRole('button', { name: /Using this device/ }));
     expect(screen.queryByText(/Sound brought forward/)).toBeNull();
-    expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputId).toBeNull();
-    // The headset is still on the list for next time.
-    expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputs).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputId).toBe('device');
+    // The headset is still on the list for next time, beside the device itself.
+    expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputs).toHaveLength(2);
   });
 
   it('says nothing beside Start for the phone speaker', () => {
@@ -530,14 +532,14 @@ describe('headphones and speakers', () => {
    * the advanced menu.
    */
   it('names the adjustment during a run, and leads to where it was set', () => {
-    stored([{ id: 'z', name: 'Zen Air', leadMs: 250 }], 'z');
+    stored([{ id: 'z', name: 'Zen Air', leadMs: 250, calibrations: 1 }], 'z');
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     const note = screen.getByRole('button', {
       name: /Sound brought forward 250 ms for Zen Air/,
     });
     fireEvent.click(note);
-    expect(screen.getByRole('heading', { name: 'Headphones & speakers' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Outputs' })).toBeTruthy();
   });
 
   it('says nothing during a run when no lead is in force', () => {
@@ -547,30 +549,30 @@ describe('headphones and speakers', () => {
   });
 
   it('is a door in Advanced, saying what is in use', () => {
-    stored([{ id: 'b', name: 'Bose', leadMs: 180 }], 'b');
+    stored([{ id: 'b', name: 'Bose', leadMs: 180, calibrations: 1 }], 'b');
     renderApp();
     fireEvent.click(screen.getByText('Advanced'));
-    const door = screen.getByRole('button', { name: /Headphones & speakers/ });
+    const door = screen.getByRole('button', { name: /Outputs/ });
     expect(door.textContent).toContain('Bose');
     expect(door.textContent).toContain('180 ms');
 
     fireEvent.click(door);
-    expect(screen.getByRole('heading', { name: 'Headphones & speakers' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Outputs' })).toBeTruthy();
   });
 
   it('chooses the phone speaker by default, and lets an output be chosen and forgotten', () => {
     stored(
       [
-        { id: 'b', name: 'Bose', leadMs: 180 },
-        { id: 'z', name: 'Zen', leadMs: 260 },
+        { id: 'b', name: 'Bose', leadMs: 180, calibrations: 1 },
+        { id: 'z', name: 'Zen', leadMs: 260, calibrations: 1 },
       ],
       null,
     );
     renderApp();
     fireEvent.click(screen.getByText('Advanced'));
-    fireEvent.click(screen.getByRole('button', { name: /Headphones & speakers/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Outputs/ }));
 
-    const speaker = screen.getByRole('button', { name: /Phone speaker/ });
+    const speaker = screen.getByRole('button', { name: /^This device/ });
     const zen = screen.getByRole('button', { name: /^Zen/ });
     expect(speaker.getAttribute('aria-pressed')).toBe('true');
     expect(zen.getAttribute('aria-pressed')).toBe('false');
@@ -580,20 +582,19 @@ describe('headphones and speakers', () => {
     expect(zen.getAttribute('aria-pressed')).toBe('true');
     expect(speaker.getAttribute('aria-pressed')).toBe('false');
 
-    // Forgetting the one in use puts the phone speaker back in charge.
+    // Forgetting the one in use puts the device's own speaker back in charge.
     fireEvent.click(screen.getByRole('button', { name: 'Forget Zen' }));
     expect(screen.queryByRole('button', { name: /^Zen/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /Phone speaker/ }).getAttribute('aria-pressed')).toBe(
-      'true',
-    );
+    expect(
+      screen.getByRole('button', { name: /^This device/ }).getAttribute('aria-pressed'),
+    ).toBe('true');
 
     // And the way back lands on settings, with the change kept.
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByText('Advanced'));
-    expect(
-      screen.getByRole('button', { name: /Headphones & speakers/ }).textContent,
-    ).toContain('Phone speaker');
-    expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputs).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Outputs/ }).textContent).toContain('speaker');
+    // Bose and the device itself, which cannot be forgotten.
+    expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputs).toHaveLength(2);
   });
 });
 

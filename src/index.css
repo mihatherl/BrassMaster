@@ -2274,3 +2274,36 @@ input[type='checkbox'] {
 }
 .error-screen__where { font-size: 0.75rem; opacity: 0.8; }
 .error-screen__version { font-size: 0.8rem; opacity: 0.7; }
+
+/*
+ * The calibration warning, and any modal after it.
+ *
+ * Deliberately plain and deliberately not dismissible by tapping away: it asks
+ * a question with three real answers, and a modal that closes on a stray tap
+ * would be answered by accident.
+ */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 20;
+}
+.modal__box {
+  background: var(--surface, #faf9f6);
+  color: inherit;
+  border-radius: 12px;
+  padding: 1.25rem;
+  max-width: 26rem;
+  width: 100%;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+.modal__box h2 { margin-top: 0; }
+.modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}

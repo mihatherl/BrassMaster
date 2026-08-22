@@ -8,6 +8,8 @@ import {
   AUDIO_LEAD_RANGE,
   audioLeadFor,
   DEFAULT_SETTINGS,
+  DEVICE_OUTPUT,
+  DEVICE_OUTPUT_ID,
   PLAYBACK_MODES,
   loadSettings,
   sanitise,
@@ -282,24 +284,48 @@ describe('the fingering setting, which used to be a switch', () => {
 
 describe('the calibrated outputs', () => {
   /*
-   * A list of headsets, each with how far behind the clock it is heard, and
-   * which is in the ears. The phone's speaker is what "none of these" means.
+   * A list of outputs, each with how far behind the clock it is heard, and
+   * which is in use. **The device's own speaker is one of them**, since
+   * 2026-08-22: it used to be what "none of these" meant, unmeasurable and
+   * described as needing nothing, which was one iPhone's behaviour written up
+   * as a rule. Android is where that breaks and Android ships first.
    */
-  const bose = { id: 'a', name: 'Bose', leadMs: 180 };
-  const buds = { id: 'b', name: 'Buds', leadMs: 260 };
+  const bose = { id: 'a', name: 'Bose', leadMs: 180, calibrations: 1 };
+  const buds = { id: 'b', name: 'Buds', leadMs: 260, calibrations: 2 };
+  const device = { ...DEVICE_OUTPUT };
 
   it('keeps a well-formed list and the choice from it', () => {
     const settings = sanitise({ ...DEFAULT_SETTINGS, audioOutputs: [bose, buds], audioOutputId: 'b' });
-    expect(settings.audioOutputs).toEqual([bose, buds]);
+    expect(settings.audioOutputs).toEqual([device, bose, buds]);
     expect(settings.audioOutputId).toBe('b');
     expect(audioLeadFor(settings)).toBeCloseTo(0.26, 9);
   });
 
-  it('means the phone speaker, and no lead, when nothing is chosen or the choice has gone', () => {
-    expect(audioLeadFor(sanitise({ ...DEFAULT_SETTINGS, audioOutputs: [bose] }))).toBe(0);
+  it('always offers the device speaker, and falls back to it', () => {
     const gone = sanitise({ ...DEFAULT_SETTINGS, audioOutputs: [bose], audioOutputId: 'zzz' });
-    expect(gone.audioOutputId).toBeNull();
+    expect(gone.audioOutputId).toBe(DEVICE_OUTPUT_ID);
+    expect(gone.audioOutputs.some((o) => o.id === DEVICE_OUTPUT_ID)).toBe(true);
+    // Nought until somebody measures it — which is now something they can do.
     expect(audioLeadFor(gone)).toBe(0);
+  });
+
+  it('remembers a measured device speaker rather than assuming it needs nothing', () => {
+    const measured = sanitise({
+      ...DEFAULT_SETTINGS,
+      audioOutputs: [{ ...device, leadMs: 120, calibrations: 1 }],
+      audioOutputId: DEVICE_OUTPUT_ID,
+    });
+    expect(audioLeadFor(measured)).toBeCloseTo(0.12, 9);
+  });
+
+  it('counts no measurements for an output that predates counting them', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      audioOutputs: [{ id: 'a', name: 'Bose', leadMs: 180 }] as never,
+    });
+    /* Absent is none, which is true of them: nobody had been asked, and the
+       session warning is right to ask. */
+    expect(settings.audioOutputs.find((o) => o.id === 'a')!.calibrations).toBe(0);
   });
 
   it('drops what is not an output and clamps a lead out of range', () => {
@@ -317,18 +343,19 @@ describe('the calibrated outputs', () => {
       audioOutputId: 'c',
     });
     expect(settings.audioOutputs).toEqual([
+      device,
       bose,
-      { id: 'c', name: 'Slow', leadMs: AUDIO_LEAD_RANGE.max },
-      { id: 'd', name: 'Headphones', leadMs: 50 },
+      { id: 'c', name: 'Slow', leadMs: AUDIO_LEAD_RANGE.max, calibrations: 0 },
+      { id: 'd', name: 'Headphones', leadMs: 50, calibrations: 0 },
     ]);
     expect(settings.audioOutputId).toBe('c');
   });
 
-  it('starts empty for a settings file that predates it', () => {
+  it('gives a settings file that predates outputs the device speaker', () => {
     store({ tempo: 90 });
     const settings = loadSettings();
-    expect(settings.audioOutputs).toEqual([]);
-    expect(settings.audioOutputId).toBeNull();
+    expect(settings.audioOutputs).toEqual([device]);
+    expect(settings.audioOutputId).toBe(DEVICE_OUTPUT_ID);
   });
 });
 

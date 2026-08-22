@@ -21,6 +21,7 @@ import {
   REGISTERS,
   DEFAULT_SETTINGS,
   FINGERING_MODES,
+  DEVICE_OUTPUT_ID,
   MAX_KEYS_IN_PLAY,
   sanitise,
   switchMaterial,
@@ -1180,11 +1181,13 @@ export function SettingsScreen({
           knowing without going through.
         */}
         <button type="button" className="entry" onClick={onOutputs}>
-          <span className="entry__title">Headphones &amp; speakers</span>
+          <span className="entry__title">Outputs</span>
           <span className="entry__detail">
-            {output
-              ? `${output.name} — sound brought forward ${output.leadMs} ms`
-              : 'Phone speaker. Measure a Bluetooth headset so its sound lands on the beat'}
+            {!output
+              ? 'Measure how late your speakers or headphones are, so the sound lands on the beat'
+              : output.calibrations === 0
+                ? `${output.name} — not measured yet`
+                : `${output.name} — sound brought forward ${output.leadMs} ms`}
           </span>
         </button>
       </Panel>
@@ -1251,15 +1254,19 @@ export function SettingsScreen({
           second early, and nothing on the play screen says why. Said here,
           beside Start, only when a headset is chosen, with the way back.
         */}
-        {output && (
+        {/* Only where an adjustment is actually in force. A lead of nought is
+            not news, and this note exists to catch a headset left chosen after
+            the headset came off — which sent every note a fifth of a second
+            early and cost an evening's diagnosis, twice. */}
+        {output && output.leadMs > 0 && (
           <p className="field__note muted output-in-use">
             Sound brought forward {output.leadMs} ms for {output.name}.{' '}
             <button
               type="button"
               className="button button--quiet output-in-use__switch"
-              onClick={() => update('audioOutputId', null)}
+              onClick={() => update('audioOutputId', DEVICE_OUTPUT_ID)}
             >
-              Using the phone speaker
+              Using this device&apos;s speaker
             </button>
           </p>
         )}

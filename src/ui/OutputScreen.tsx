@@ -3,7 +3,12 @@ import { getAudioContext, unlockAudio } from '../audio/context';
 import { Metronome } from '../audio/metronome';
 import { CALIBRATION_BPM, estimateLead, MIN_TAPS } from '../engine/calibrate';
 import { Transport } from '../engine/clock';
-import { AUDIO_LEAD_RANGE, type AudioOutput, type Settings } from '../storage/settings';
+import {
+  AUDIO_LEAD_RANGE,
+  DEVICE_OUTPUT_ID,
+  type AudioOutput,
+  type Settings,
+} from '../storage/settings';
 
 /**
  * Headphones and speakers: which one is in the player's ears, and how late it
@@ -57,11 +62,13 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
 
   const choose = (id: string | null) => onChange({ ...settings, audioOutputId: id });
 
+  /* The device's own speaker cannot be forgotten — it is the one output every
+     player certainly has, and the fallback when another is removed. */
   const forget = (id: string) =>
     onChange({
       ...settings,
       audioOutputs: settings.audioOutputs.filter((o) => o.id !== id),
-      audioOutputId: settings.audioOutputId === id ? null : settings.audioOutputId,
+      audioOutputId: settings.audioOutputId === id ? DEVICE_OUTPUT_ID : settings.audioOutputId,
     });
 
   const begin = (output?: AudioOutput) => {
@@ -76,13 +83,21 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
 
   const save = (result: Calibration) => {
     const id = result.id ?? newId();
+    const existing = settings.audioOutputs.find((o) => o.id === id);
     const saved: AudioOutput = {
       id,
-      name: result.name.trim() || 'Headphones',
+      name: result.name.trim() || existing?.name || 'Headphones',
       leadMs: result.leadMs,
+      /* Every visit here counts, including one that settles on the offset
+         already in force: the player has been asked and has answered. */
+      calibrations: (existing?.calibrations ?? 0) + 1,
     };
     const others = settings.audioOutputs.filter((o) => o.id !== id);
-    onChange({ ...settings, audioOutputs: [...others, saved], audioOutputId: id });
+    onChange({
+      ...settings,
+      audioOutputs: id === DEVICE_OUTPUT_ID ? [saved, ...others] : [...others, saved],
+      audioOutputId: id,
+    });
     setCalibrating(null);
   };
 
@@ -99,26 +114,16 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
   return (
     <div className="screen">
       <header className="masthead">
-        <h1>Headphones &amp; speakers</h1>
+        <h1>Outputs</h1>
         <p>
-          Bluetooth headphones hear the sound a little after the phone sends it, and each pair by
-          a different amount. Measure yours once, and the app brings the sound forward by that much
-          whenever they are chosen. The phone&apos;s own speaker needs nothing.
+          Every way of hearing the app is a little behind it, and each one by a different amount —
+          Bluetooth headphones by a lot, wired ones by less, and this device&apos;s own speaker by
+          whatever its hardware costs. Measure each one once, and the app brings the sound forward
+          by that much whenever it is chosen.
         </p>
       </header>
 
       <ul className="library">
-        <li className="library__item">
-          <button
-            type="button"
-            className={`library__open ${settings.audioOutputId === null ? 'is-selected' : ''}`}
-            aria-pressed={settings.audioOutputId === null}
-            onClick={() => choose(null)}
-          >
-            <span className="library__title">Phone speaker</span>
-            <span className="library__detail">On the beat as it is</span>
-          </button>
-        </li>
         {settings.audioOutputs.map((output) => (
           <li key={output.id} className="library__item">
             <button
@@ -128,24 +133,32 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
               onClick={() => choose(output.id)}
             >
               <span className="library__title">{output.name}</span>
-              <span className="library__detail">Sound brought forward {output.leadMs} ms</span>
+              <span className="library__detail">
+                {output.calibrations === 0
+                  ? 'Not measured yet'
+                  : `Sound brought forward ${output.leadMs} ms`}
+              </span>
             </button>
             <button
               type="button"
               className="button button--quiet library__forget"
               onClick={() => begin(output)}
-              aria-label={`Measure ${output.name} again`}
+              aria-label={`Measure ${output.name}${output.calibrations === 0 ? '' : ' again'}`}
             >
               Measure
             </button>
-            <button
-              type="button"
-              className="button button--quiet library__forget"
-              onClick={() => forget(output.id)}
-              aria-label={`Forget ${output.name}`}
-            >
-              Forget
-            </button>
+            {/* The device's own speaker is the one output every player
+                certainly has, and where the app falls back to. */}
+            {output.id !== DEVICE_OUTPUT_ID && (
+              <button
+                type="button"
+                className="button button--quiet library__forget"
+                onClick={() => forget(output.id)}
+                aria-label={`Forget ${output.name}`}
+              >
+                Forget
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -156,7 +169,7 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
           className="button button--primary button--large"
           onClick={() => begin()}
         >
-          Add headphones
+          Add an output
         </button>
         <button type="button" className="button button--quiet" onClick={onBack}>
           Back
@@ -264,16 +277,32 @@ function CalibrationScreen({ initial, onSave, onCancel }: CalibrationScreenProps
   return (
     <div className="screen">
       <header className="masthead">
-        <h1>{initial.id ? `Measure ${initial.name}` : 'Add headphones'}</h1>
+        <h1>{initial.id ? `Measure ${initial.name}` : 'Add an output'}</h1>
+        {/*
+          * What the screen is doing, said once and plainly. "How does this
+          * work" was the first question asked of it, and it had no answer on
+          * it anywhere.
+          */}
         <p>
-          Put them on. A click sounds once a second — tap the button in time with what you{' '}
-          <em>hear</em>, not with the dot. After a few taps the app will say how late the sound is,
-          and bring it forward to match; the dot and the click should then land together.
+          The app cannot hear itself, so you are the measurement. A click sounds once a second.
+          Listen through the output you want to measure and tap the button in time with what you{' '}
+          <em>hear</em> — each tap lands as late as the sound does, and the app takes the middle of
+          them.
         </p>
       </header>
 
       <div className="calibrate">
-        <div className={`calibrate__pulse ${pulsing ? 'is-on' : ''}`} aria-hidden="true" />
+        {/*
+          * The dot is the clock: it flashes on the beat the sound is *aiming*
+          * at. So it belongs to the checking, not to the tapping — tap along
+          * with it and you measure your own eyes rather than the device, which
+          * is why the screen used to say "not with the dot" while a note
+          * further down said to use it. One job at a time: it appears once
+          * there is a reading to check.
+          */}
+        {estimate !== null && (
+          <div className={`calibrate__pulse ${pulsing ? 'is-on' : ''}`} aria-hidden="true" />
+        )}
 
         <button type="button" className="calibrate__tap" onPointerDown={tap}>
           Tap with the click
@@ -285,7 +314,8 @@ function CalibrationScreen({ initial, onSave, onCancel }: CalibrationScreenProps
               ? 'Waiting for your first tap.'
               : `${taps.length} of ${MIN_TAPS} taps…`
             : inTime
-              ? `In time — your taps land within ${IN_TIME_MS} ms of the click.`
+              ? `In time — your taps land within ${IN_TIME_MS} ms of the click. ` +
+              `The dot and the click should now land together.`
               : offsetMs! > 0
                 ? `Your taps land ${offsetMs} ms after the click.`
                 : `Your taps land ${-offsetMs!} ms before the click.`}
@@ -314,7 +344,7 @@ function CalibrationScreen({ initial, onSave, onCancel }: CalibrationScreenProps
             onChange={(event) => setLeadMs(Number(event.target.value))}
           />
           <p className="field__note muted">
-            The dot shows where the beat is. Nudge this until the click lands on it.
+            The dot flashes where the beat is. Nudge this until the click lands on it.
           </p>
           {/* Guidance only, never applied by itself: for one evening the app
               floored the lead at this figure, and on real hardware the report

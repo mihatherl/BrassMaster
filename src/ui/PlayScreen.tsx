@@ -80,6 +80,14 @@ interface PlayScreenProps {
    * the advanced menu.
    */
   onOutputs?: () => void;
+  /**
+   * Records that the player has settled the output in use at the lead it
+   * already has — the "accept" answer to the calibration warning.
+   *
+   * A separate prop rather than a settings write from here, because this
+   * screen holds a copy of the settings and does not own them.
+   */
+  onAcceptOutput?: () => void;
 }
 
 export function PlayScreen({
@@ -91,6 +99,7 @@ export function PlayScreen({
   inKey,
   onKeySettled,
   onOutputs,
+  onAcceptOutput,
 }: PlayScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
@@ -112,6 +121,9 @@ export function PlayScreen({
   const [started, setStarted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stalled, setStalled] = useState(false);
+  /** Whether the calibration warning is on screen, and whether it has been. */
+  const [asking, setAsking] = useState(false);
+  const [asked, setAsked] = useState(false);
   /**
    * Which go at starting this is. Bumped by "Try again", so the play surface
    * is torn down and built again against a context that has been replaced —
@@ -542,9 +554,82 @@ export function PlayScreen({
       </button>
     ) : null;
 
+  /*
+   * The warning before a first session on an output nobody has measured.
+   *
+   * Zero measurements is not the same as a lead of zero: the first is a player
+   * who has never been asked, and until they are, every note the app plays is
+   * as late as their hardware happens to be. Asked at the gate rather than in
+   * settings, because this is the moment it costs something — and asked once,
+   * since a warning that returns after "Later" is a nag rather than a warning.
+   */
+  const needsCalibration = activeOutput !== undefined && activeOutput.calibrations === 0;
+  const start = () => {
+    if (needsCalibration && !asked) {
+      setAsked(true);
+      setAsking(true);
+      return;
+    }
+    beginRun();
+  };
+
   if (!started) {
     return (
       <div className="screen screen--centred">
+        {asking && (
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calibration-warning"
+          >
+            <div className="modal__box">
+              <h2 id="calibration-warning">Calibration Required</h2>
+              <p>Calibrate your speakers or headphones with the beat for best user experience.</p>
+              <p className="muted">
+                You can measure {activeOutput?.name ?? 'an output'} at any time from{' '}
+                <strong>Outputs</strong>, in the Advanced menu.
+              </p>
+              <div className="modal__actions">
+                {onOutputs && (
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => {
+                      setAsking(false);
+                      onOutputs();
+                    }}
+                  >
+                    Calibrate Now
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => {
+                    setAsking(false);
+                    beginRun();
+                  }}
+                >
+                  Later
+                </button>
+                {/* Accepting counts as a measurement, so it is not asked again:
+                    the player has been asked and has answered. */}
+                <button
+                  type="button"
+                  className="button button--quiet"
+                  onClick={() => {
+                    setAsking(false);
+                    onAcceptOutput?.();
+                    beginRun();
+                  }}
+                >
+                  Accept current offset ({activeOutput?.leadMs ?? 0}ms)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="start-gate">
           <h2>Ready</h2>
           <p className="muted">
@@ -570,7 +655,7 @@ export function PlayScreen({
             type="button"
             className="button button--primary button--large"
             disabled={loading}
-            onClick={beginRun}
+            onClick={start}
           >
             {loading ? 'Loading instrument…' : 'Tap to start'}
           </button>
