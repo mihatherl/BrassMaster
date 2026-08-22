@@ -10,10 +10,81 @@
  * iPhone's behaviour written up as a rule, on the eve of shipping to Android.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { renderApp } from './render-app';
 import { DEVICE_OUTPUT_ID } from '../storage/settings';
+
+/*
+ * A deliberately stupid `AudioContext`, because these tests go past the gate
+ * that every other UI test stops at.
+ *
+ * `App.test.tsx` says it "stops at the Tap to start gate — everything past
+ * that needs a real AudioContext", and this file does not stop there: the
+ * warning is answered and the session starts. happy-dom has no Web Audio, so
+ * the start path threw inside a promise nobody awaits — which does not fail an
+ * assertion, because the dialog under test had already been drawn. It failed
+ * the *suite*: five unhandled rejections, `npm test` exiting 1 with 1,340
+ * tests passing, and a gate that reads red for a reason no test names.
+ *
+ * So this answers every call and means none of it. It is not a model of Web
+ * Audio and must not be used to test sound — `src/audio/context.test.ts` has a
+ * fake with a clock and a state machine for that. This one exists so that
+ * starting a run is *possible* in a DOM test, and nothing here should ever be
+ * asserted on.
+ */
+const param = () => ({
+  value: 0,
+  setValueAtTime() {},
+  linearRampToValueAtTime() {},
+  exponentialRampToValueAtTime() {},
+  setTargetAtTime() {},
+  cancelScheduledValues() {},
+});
+
+const node = () => ({
+  connect() {},
+  disconnect() {},
+  start() {},
+  stop() {},
+  gain: param(),
+  frequency: param(),
+  detune: param(),
+  Q: param(),
+  type: 'sine',
+  buffer: null as unknown,
+  onended: null as unknown,
+});
+
+class SilentContext {
+  state = 'running';
+  currentTime = 0;
+  sampleRate = 48000;
+  destination = node();
+  addEventListener() {}
+  removeEventListener() {}
+  async resume() {}
+  async close() {}
+  createGain() { return node(); }
+  createOscillator() { return node(); }
+  createBufferSource() { return node(); }
+  createBiquadFilter() { return node(); }
+  createBuffer() { return { getChannelData: () => new Float32Array(1) }; }
+  async decodeAudioData() { return { duration: 0, getChannelData: () => new Float32Array(1) }; }
+}
+
+/*
+ * Installed once for the file and never taken away, which matters more than it
+ * looks. `beginRun` awaits `unlockAudio()`, so the construction can land on a
+ * timer *after* the test that started it has finished; unstubbing between
+ * tests put the global back to undefined underneath that pending call and the
+ * rejection came back — intermittently, in three runs out of five, which is
+ * the worst way for a gate to fail. Vitest isolates globals per file, so
+ * leaving it in place leaks nothing.
+ */
+beforeAll(() => {
+  vi.stubGlobal('AudioContext', SilentContext);
+});
 
 const stored = (outputs: unknown[], chosen: string) =>
   localStorage.setItem(
