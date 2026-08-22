@@ -100,24 +100,29 @@ export const COLLECTIONS: readonly Collection[] = [
       'Nursery songs, rounds and singalongs, written as degrees so they transpose to any key. They double as a calibration for the ear: nobody has to adjudicate whether Twinkle is a melody, so what they settle is what the written themes’ own "deliberately plain" actually costs.',
     provenance: 'traditional',
     status: 'accepted',
-    revision: 2,
+    revision: 3,
     themes: TRADITIONAL,
     /*
-     * The eight added 2026-08-21, aimed at the levels and metres the corpus was
-     * thinnest in. Written from common knowledge like the twelve before them,
-     * which is what makes them cheap and also what makes them risky: Old
-     * MacDonald shipped a fifth above where it should have fallen a fourth
-     * below, and no validator could have known.
+     * The four re-sourced on 2026-08-22, and what they cost to learn.
+     *
+     * The verdicts that day cut five of these tunes, and four of the five came
+     * with the same instruction: *"what i'm really asking for most of the time
+     * is a review of the source material."* Every one had been written from
+     * memory, and every one was wrong in a way no validator could see — a
+     * phrase that "sounds a little bit like it, but not quite", a figure with
+     * a note too many, an octave the source does not jump.
+     *
+     * So all four are now **derived**: Old MacDonald and Three Blind Mice from
+     * public-domain and CC0 files on Wikimedia Commons, the Saints from the ABC
+     * in a Wikipedia article, Baa Baa from the LilyPond in another. None was
+     * typed from memory, and the rule this file has followed for borrowed music
+     * since 2026-08-20 now covers the nursery tunes too.
      */
     unjudged: new Set([
+      'trad-old-macdonald',
       'trad-saints',
-      'trad-michael-row',
-      'trad-happy-birthday',
-      'trad-yankee-doodle',
-      'trad-oh-susanna',
-      'trad-this-old-man',
+      'trad-baa-baa',
       'trad-three-blind-mice',
-      'trad-alouette',
     ]),
   },
   {
@@ -127,36 +132,26 @@ export const COLLECTIONS: readonly Collection[] = [
       'Bach whole where a brass player can hold it, and in excerpt where they cannot — all six of the Two-Part Inventions complete; the obbligato from Jesu, Joy of Man’s Desiring; the vocal line of Sheep may safely graze; the Air on the G string with its ornaments simplified; the Prelude in C entire, voiced for one instrument; and Petzold’s Menuett in G. Nothing here is cut any more except where the source itself is an excerpt of a longer work. What a complete piece costs is reach rather than notes: it has the range it has, and three of these get as far as the euphonium and the tubas.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 14,
+    revision: 15,
     themes: BORROWED,
     /*
-     * All of it, and after 2026-08-21 for one reason rather than two.
+     * What is left after the verdicts of 2026-08-22, which kept six of them.
      *
-     * The two fugue subjects that used to sit here — the Art of Fugue's and
-     * the Musical Offering's royal theme — are gone from the collection
-     * entirely, withdrawn on the player's verdict. They were the last two
-     * written from memory rather than measured, which is a fair summary of
-     * why they went.
+     * Two of these were never judged at all, and the reason is worth keeping:
+     * Inventions 8 and 10 carry `allowWideRange`, neither fits an E flat bass
+     * in C, and the review sheet printed "would not fit the instrument" and no
+     * music. **Material that cannot be heard cannot be judged.** The sheet now
+     * draws such a theme on an instrument that can take it and says which, so
+     * the next verdict covers them.
      *
-     * What remains is either new or newly *complete*, and complete is the
-     * point: four of these were excerpts cut where a converter said a cut
-     * would validate, and *"some are just artlessly cut off without
-     * resolution."* A piece that now runs to its own ending is a different
-     * piece from the eight bars that stood in for it, so `bwv779-invention`
-     * comes back here having once been approved — the old verdict was about
-     * six bars and cannot cover thirty-four.
+     * The Air is here because it was re-read from a different edition; the
+     * Prelude because it is under redesign rather than under review.
      */
     unjudged: new Set([
-      'bwv776-invention',
-      'bwv782-invention',
       'bwv779-invention',
-      'bwv784-invention',
-      'bwv786-invention',
       'bwv781-invention',
-      'bwv208-sheep',
-      'bwv1068-air',
       'bwv846-prelude',
-      'bwv-anh114-menuett',
+      'bwv1068-air',
     ]),
   },
 ];

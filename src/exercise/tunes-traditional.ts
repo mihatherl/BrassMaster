@@ -132,26 +132,42 @@ export const TRADITIONAL: readonly Theme[] = [
   {
     id: 'trad-baa-baa',
     name: 'Baa, baa, black sheep',
-    difficulty: 'easy',
-    metres: [[4, 4]],
-    bars: 8,
     /*
-     * The same contour as Twinkle with the words pulling the rhythm about —
-     * four quavers where Twinkle has two crotchets, because "have you any
-     * wool" has more syllables than "twinkle twinkle". Worth keeping both:
-     * side by side they show what a *rhythmic* variation does to a tune that
-     * is otherwise identical, which is the kind that stays recognisable.
+     * **Read from the score in Wikipedia's article, not remembered** — the
+     * third attempt at this one, and the first that is derived. The LilyPond
+     * source there was parsed for its melody alone, converted to a file, and
+     * run through `tools/midi-to-theme.mts` like everything borrowed.
+     *
+     * Two things the memory versions got wrong, and the source settles both:
+     * the "wool" figure is four quavers rising to the upper tonic and back to
+     * the sixth, not five notes; and the middle section descends in threes —
+     * a crotchet and two quavers on each of 5, 4, 3 — where the corpus had it
+     * as repeated quavers on 4 and 2.
+     *
+     * The tune is *Ah! vous dirai-je, maman*, which Twinkle also uses. Keeping
+     * both is deliberate: same contour, different rhythmic setting, and the
+     * pair is the corpus's own evidence for what a variation may safely change.
      */
+    difficulty: 'easy',
+    metres: [[2, 4]],
+    bars: 16,
     events: [
-      n(1, 1), n(1, 1), n(5, 1), n(5, 1),
-      // "have you a-ny wool" is A B C B A, not four repeated A's.
-      n(6, 0.5), n(7, 0.5), n(1, 0.5, { octave: 1 }), n(7, 0.5), n(6, 2),
-      n(4, 1), n(4, 1), n(3, 1), n(3, 1),
-      n(2, 1), n(2, 1), n(1, 2),
-      n(4, 0.5), n(4, 0.5), n(4, 0.5), n(4, 0.5), n(3, 1), n(3, 1),
-      n(2, 0.5), n(2, 0.5), n(2, 0.5), n(2, 0.5), n(1, 2),
-      n(1, 1), n(1, 1), n(5, 1), n(5, 1),
-      n(6, 1), n(6, 1), n(5, 2),
+      n(1, 1), n(1, 1),
+      n(5, 1), n(5, 1),
+      n(6, 1 / 2), n(7, 1 / 2), n(1, 1 / 2, { octave: 1 }), n(6, 1 / 2),
+      n(5, 2),
+      n(4, 1), n(4, 1),
+      n(3, 1), n(3, 1),
+      n(2, 1), n(2, 1),
+      n(1, 2),
+      n(5, 1), n(5, 1 / 2), n(5, 1 / 2),
+      n(4, 1), n(4, 1 / 2), n(4, 1 / 2),
+      n(3, 1), n(3, 1 / 2), n(3, 1 / 2),
+      n(2, 3 / 2), n(2, 1 / 2),
+      n(5, 1), n(5, 1 / 2), n(5, 1 / 2),
+      n(4, 1 / 2), n(5, 1 / 2), n(6, 1 / 2), n(4, 1 / 2),
+      n(3, 1), n(2, 1 / 2), n(2, 1 / 2),
+      n(1, 2),
     ],
   },
   {
@@ -174,26 +190,43 @@ export const TRADITIONAL: readonly Theme[] = [
   {
     id: 'trad-old-macdonald',
     name: 'Old MacDonald had a farm',
-    difficulty: 'beginner',
-    metres: [[4, 4]],
-    bars: 8,
     /*
-     * Cut on first review — "almost Old MacDonald" — and the diagnosis was in
-     * the note: G G G D E E D. The D is the fourth *below* the tonic, not the
-     * fifth above it, so "Old Mac-Don-ald" falls away and climbs back rather
-     * than leaping up. Same degrees either way, which is why it stayed
-     * recognisable while being wrong, and why an ear caught what the validator
-     * never could.
+     * **Read from a file, not remembered — and it is the third attempt.**
+     * Source: a CC0 MIDI on Wikimedia Commons, converted by
+     * `tools/midi-to-theme.mts` and read in G. The tune is 19th-century
+     * American folk and long out of copyright; only the notes are taken, and
+     * no words, which the corpus has never carried.
+     *
+     * The first version leapt a fifth up where the tune falls a fourth down.
+     * The second was written from memory again and stopped before the refrain.
+     * Asked for on 2026-08-22: *"can you try this again, with the second
+     * verse"* — so this is sixteen bars: the verse, the verse again, the
+     * refrain on its repeated note, and the verse to close.
+     *
+     * Easy rather than beginner, and the refrain is why: it is quavers on one
+     * note where everything around it is crotchets, and Beginner reads neither
+     * quavers nor rests.
      */
+    difficulty: 'easy',
+    metres: [[4, 4]],
+    bars: 16,
     events: [
-      n(1, 1), n(1, 1), n(1, 1), n(5, 1, { octave: -1 }),
-      n(6, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(5, 2, { octave: -1 }),
-      n(3, 1), n(3, 1), n(2, 1), n(2, 1),
-      n(1, 4),
-      n(1, 1), n(1, 1), n(1, 1), n(5, 1, { octave: -1 }),
-      n(6, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(5, 2, { octave: -1 }),
-      n(3, 1), n(3, 1), n(2, 1), n(2, 1),
-      n(1, 4),
+      r(2), n(1, 1), n(1, 1),
+      n(1, 1), n(5, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(6, 1, { octave: -1 }),
+      n(5, 2, { octave: -1 }), n(3, 1), n(3, 1),
+      n(2, 1), n(2, 1), n(1, 2),
+      r(1), n(5, 1, { octave: -1 }), n(1, 1), n(1, 1),
+      n(1, 1), n(5, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(6, 1, { octave: -1 }),
+      n(5, 2, { octave: -1 }), n(3, 1), n(3, 1),
+      n(2, 1), n(2, 1), n(1, 2),
+      r(1), n(5, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(1, 1), n(1, 1),
+      n(1, 1), n(5, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(1, 1), n(1, 1),
+      n(1, 2), n(1, 1 / 2), n(1, 1 / 2), n(1, 1),
+      n(1, 1 / 2), n(1, 1 / 2), n(1, 1), n(1, 1 / 2), n(1, 1 / 2), n(1, 1 / 2), n(1, 1 / 2),
+      n(1, 1), n(1, 1), n(1, 1), n(1, 1),
+      n(1, 1), n(5, 1, { octave: -1 }), n(6, 1, { octave: -1 }), n(6, 1, { octave: -1 }),
+      n(5, 2, { octave: -1 }), n(3, 1), n(3, 1),
+      n(2, 1), n(2, 1), n(1, 2),
     ],
   },
   {
@@ -334,22 +367,40 @@ export const TRADITIONAL: readonly Theme[] = [
   },
   {
     id: 'trad-saints',
-    name: 'When the saints go marching in',
-    /* Crotchets and minims throughout, which makes it the rarest thing in the
-       corpus: a tune everybody knows that a beginner can actually read. Every
-       brass band on earth plays it. */
-    difficulty: 'beginner',
-    metres: [[4, 4]],
-    bars: 8,
+    name: 'When the Saints Go Marching In',
+    /*
+     * **Read from a published setting, not remembered.** Source: the ABC in
+     * the German Wikipedia's article, parsed and converted rather than typed.
+     * The verdict of 2026-08-22 was *"look up the music for this if you can,
+     * your memory transcription is incorrect, sounds a little bit like it, but
+     * not quite"* — which is exactly the failure mode the converter exists to
+     * stop, and this file is the last place in the corpus still writing from
+     * memory.
+     *
+     * Sixteen bars of 2/4, and it never leaves the first five degrees: the
+     * whole tune sits inside a fifth, which makes it one of the plainest
+     * things here to pitch and the fastest to read.
+     */
+    difficulty: 'easy',
+    metres: [[2, 4]],
+    bars: 16,
     events: [
-      n(1, 1), n(3, 1), n(4, 1), n(5, 1),
-      n(5, 4),
-      n(1, 1), n(3, 1), n(4, 1), n(5, 1),
-      n(5, 4),
-      n(1, 1), n(3, 1), n(4, 1), n(5, 1),
-      n(3, 2), n(1, 2),
-      n(3, 2), n(2, 2),
-      n(1, 4),
+      r(1 / 2), n(1, 1 / 2), n(3, 1 / 2), n(4, 1 / 2),
+      n(5, 2),
+      r(1 / 2), n(1, 1 / 2), n(3, 1 / 2), n(4, 1 / 2),
+      n(5, 2),
+      r(1 / 2), n(1, 1 / 2), n(3, 1 / 2), n(4, 1 / 2),
+      n(5, 1), n(3, 1),
+      n(1, 1), n(3, 1),
+      n(2, 2),
+      r(1 / 2), n(3, 1 / 2), n(3, 1 / 2), n(2, 1 / 2),
+      n(1, 2),
+      n(3, 1), n(5, 1),
+      n(5, 1 / 2), n(4, 3 / 2),
+      r(1), n(3, 1 / 2), n(4, 1 / 2),
+      n(5, 1), n(3, 1),
+      n(1, 1), n(2, 1),
+      n(1, 2),
     ],
   },
   {
@@ -445,42 +496,33 @@ export const TRADITIONAL: readonly Theme[] = [
     ],
   },
   {
-    id: 'trad-this-old-man',
-    name: 'This old man',
-    /* Climbs the whole octave in its third and fourth bars, which is further
-       than anything else at this level here reaches. */
-    difficulty: 'easy',
-    metres: [[4, 4]],
-    bars: 8,
-    events: [
-      n(5, 1), n(3, 1), n(5, 2),
-      n(5, 1), n(3, 1), n(5, 2),
-      n(6, 1), n(5, 1), n(4, 1), n(5, 1),
-      n(6, 1), n(7, 1), n(1, 2, { octave: 1 }),
-      n(1, 1, { octave: 1 }), n(1, 1, { octave: 1 }), n(5, 1), n(5, 1),
-      n(6, 1), n(6, 1), n(5, 2),
-      n(4, 1), n(4, 1), n(3, 1), n(2, 1),
-      n(1, 4),
-    ],
-  },
-  {
     id: 'trad-three-blind-mice',
-    name: 'Three blind mice',
-    /* The second tune here in six-eight, where there was one. A round, like
-       Frère Jacques — so it is also a candidate for the play-along idea, where
-       the app takes one entry and the player the other. */
+    name: 'Three Blind Mice',
+    /*
+     * **Unfolded from a round.** The only public-domain file to be had is the
+     * round as it is sung, three voices entering six beats apart, so one voice
+     * had to be recovered before it could be a theme: each six-beat window
+     * holds the new voice plus the earlier ones replaying what they have
+     * already played, and subtracting the known ones leaves the line. The
+     * result is monophonic all the way through, which is the check that the
+     * unfolding worked.
+     *
+     * Eight bars of 6/8 in D, and the climbing third phrase reaches the upper
+     * tonic — which is the tune and not an error. The version this replaces
+     * jumped an octave where the source does not, judged 2026-08-22.
+     */
     difficulty: 'easy',
     metres: [[6, 8]],
     bars: 8,
     events: [
-      n(3, 1), n(2, 1), n(1, 1),
-      n(3, 1), n(2, 1), n(1, 1),
-      n(5, 1), n(4, 0.5), n(4, 0.5), n(5, 1),
-      n(5, 1), n(4, 0.5), n(4, 0.5), n(5, 1),
-      n(5, 0.5), n(1, 1, { octave: 1 }), n(7, 0.5), n(1, 1, { octave: 1 }),
-      n(5, 0.5), n(1, 1, { octave: 1 }), n(7, 0.5), n(1, 1, { octave: 1 }),
-      n(5, 1), n(4, 1), n(3, 1),
-      n(1, 3),
+      n(3, 3 / 2), n(2, 3 / 2),
+      n(1, 2), r(1),
+      n(5, 3 / 2), n(4, 1 / 2), r(1 / 2), n(4, 1 / 2),
+      n(3, 1), r(1), n(5, 1),
+      n(1, 1, { octave: 1 }), n(1, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(6, 1 / 2), n(7, 1 / 2),
+      n(1, 1, { octave: 1 }), n(5, 1 / 2), n(5, 1), n(5, 1 / 2),
+      n(1, 1 / 2, { octave: 1 }), n(1, 1 / 2, { octave: 1 }), n(1, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(6, 1 / 2), n(7, 1 / 2),
+      n(1, 1, { octave: 1 }), n(5, 1 / 2), n(5, 1), n(5, 1 / 2),
     ],
   },
   {

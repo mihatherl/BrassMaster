@@ -24,7 +24,7 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import { instrumentById } from '../src/domain/instruments.ts';
+import { INSTRUMENTS, instrumentById, supportsClef } from '../src/domain/instruments.ts';
 import { metreFor } from '../src/domain/metre.ts';
 import { DIFFICULTIES, difficultyById } from '../src/exercise/difficulty.ts';
 import { exerciseFromTheme, validateTheme, type Theme } from '../src/exercise/theme.ts';
@@ -43,6 +43,9 @@ const fifths = Number(arg('fifths', '0'));
 const width = Number(arg('width', '760'));
 const tempo = Number(arg('tempo', '84'));
 const onlyLevel = arg('level', '');
+
+/** Keys tried when a theme will not fit the instrument the sheet opened on. */
+const FIFTHS = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
 
 /**
  * What a tune actually asks of a reader, beside what its level says it should.
@@ -142,15 +145,44 @@ function panel(theme: Theme): string {
   const exercise = exerciseFromTheme(theme, { instrument, clef, fifths, metre });
   const problems = validateTheme(theme);
 
-  if (!exercise) {
+  /*
+   * A theme the chosen instrument cannot take is drawn on one that can, and
+   * says so — rather than printing "would not fit" and no music at all.
+   *
+   * Found 2026-08-22 in the verdicts: Inventions 8 and 10 came back with no
+   * judgement of any kind, because both carry `allowWideRange` and neither
+   * fits an E flat bass in C, so the sheet showed a caption and nothing else.
+   * **Material that cannot be heard cannot be judged**, and a review tool that
+   * silently withholds a candidate keeps it unheard for ever.
+   */
+  let shown = exercise;
+  let borrowed = '';
+  if (!shown) {
+    for (const other of INSTRUMENTS) {
+      for (const otherFifths of [fifths, ...FIFTHS]) {
+        if (!supportsClef(other, clef)) continue;
+        const attempt = exerciseFromTheme(theme, {
+          instrument: other, clef, fifths: otherFifths, metre,
+        });
+        if (attempt) {
+          shown = attempt;
+          borrowed = `${other.name}${otherFifths === fifths ? '' : `, ${otherFifths} sharps/flats`}`;
+          break;
+        }
+      }
+      if (shown) break;
+    }
+  }
+
+  if (!shown) {
     return `<figure data-theme="${theme.id}" data-tempo="${theme.tempo ?? tempo}" data-sourced="${theme.tempo ? '1' : ''}"><figcaption><code>${theme.id}</code> <b>${theme.name}</b>${unjudgedIds.has(theme.id) ? ' <span class="unheard">not yet heard</span>' : ''}</figcaption>
-      <p class="none">would not fit the instrument</p></figure>`;
+      <p class="none">fits no instrument in the band, in any key</p></figure>`;
   }
 
   const level = DIFFICULTIES.some((d) => d.id === theme.difficulty)
     ? difficultyById(theme.difficulty)
     : null;
-  const m = measure(exercise);
+  const m = measure(shown);
   const cell = (actual: string, target: string, off: boolean) =>
     `<td class="${off ? 'off' : ''}">${actual}<span>${target}</span></td>`;
 
@@ -168,12 +200,12 @@ function panel(theme: Theme): string {
     : '';
 
   return `<figure data-theme="${theme.id}" data-tempo="${theme.tempo ?? tempo}" data-sourced="${theme.tempo ? '1' : ''}">
-  <figcaption><code>${theme.id}</code> <b>${theme.name}</b> <span>${theme.difficulty} · ${metreSpec[0]}/${metreSpec[1]} · ${theme.bars} bars</span>${unjudgedIds.has(theme.id) ? '<span class="unheard">not yet heard</span>' : ''}</figcaption>
+  <figcaption><code>${theme.id}</code> <b>${theme.name}</b> <span>${theme.difficulty} · ${metreSpec[0]}/${metreSpec[1]} · ${theme.bars} bars</span>${unjudgedIds.has(theme.id) ? '<span class="unheard">not yet heard</span>' : ''}${borrowed ? `<span class="borrowed">drawn on ${borrowed} — ${instrument.name} cannot take it</span>` : ''}</figcaption>
   ${problems.length ? `<p class="none">${problems.join('; ')}</p>` : ''}
-  ${exerciseToSvg(exercise, width)}
+  ${exerciseToSvg(shown, width)}
   ${table}
   <div class="verdict">
-    <button type="button" data-play='${JSON.stringify(voice(exercise))}'>Play</button>
+    <button type="button" data-play='${JSON.stringify(voice(shown))}'>Play</button>
     <label class="tempo">♩=<input type="number" class="tempo__input" min="30" max="220" step="1"
       value="${theme.tempo ?? tempo}" aria-label="tempo for ${theme.name}"><span class="tempo__rate"></span></label>
     <button type="button" data-verdict="keep">Keep</button>
@@ -220,6 +252,7 @@ const html = `<!doctype html>
   .tempo__input { width: 3.4rem; font: inherit; padding: 0.1rem 0.2rem; }
   .tempo__rate { color: #999; }
   .meta { color: #888; font-size: 0.78rem; margin: 0.2rem 0 0; text-transform: lowercase; letter-spacing: 0.02em; }
+  .borrowed { background: #fdf2d0; color: #6b4f00; border-radius: 3px; padding: 0 0.3rem; margin-left: 0.4rem; font-size: 0.75rem; }
   .unheard { background: #fde68a; color: #713f12; font-size: 0.7rem; padding: 0.1rem 0.35rem; border-radius: 3px; margin-left: 0.4rem; }
   .count { color: #999; font-weight: 400; }
   figure { margin: 1.25rem 0; padding: 0.75rem; border: 1px solid #eee; border-radius: 8px; }

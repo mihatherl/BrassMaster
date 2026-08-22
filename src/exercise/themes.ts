@@ -1304,7 +1304,12 @@ const CUT: ReadonlySet<string> = new Set([
  * Not yet reached by a review — the verdict file was truncated before these
  * two. They are here, unjudged, and should go back on the sheet.
  */
-export const UNJUDGED: ReadonlySet<string> = new Set(['plain-answer', 'six-eight-flight']);
+/*
+ * Empty since 2026-08-22: every written theme has now been heard and kept,
+ * `plain-answer` and `six-eight-flight` last of all. Kept as a set rather than
+ * removed, because the next theme written goes in here in the same edit.
+ */
+export const UNJUDGED: ReadonlySet<string> = new Set([]);
 
 const ALL: readonly Theme[] = [
   ...FIRST_BATCH,
