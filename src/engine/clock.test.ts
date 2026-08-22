@@ -82,9 +82,78 @@ describe('the visual clock', () => {
     t.visualBeat();
 
     perfTime = 5000; // five seconds with no audio progress at all
-    // Capped at 100ms ahead, so a suspended context freezes the display rather
-    // than sending it sliding off into the distance.
-    expect(t.visualBeat()).toBeCloseTo((1.0 + 0.1) / 0.5, 6);
+    // Capped at half a second ahead, so a suspended context freezes the
+    // display rather than sending it sliding off into the distance. The cap
+    // was 100ms until 2026-08-23, reasoned from "any realistic audio buffer";
+    // a Moto E32's clock ticks in lumps larger than that, and a cap inside the
+    // lump turns every quantum into extrapolate-stall-leap — the jerky
+    // Android scrolling, with the iPhone unchanged. Half a second bridges the
+    // lump; a dead clock still reads as dead almost at once.
+    expect(t.visualBeat()).toBeCloseTo((1.0 + 0.5) / 0.5, 6);
+  });
+
+  /**
+   * The E32's clock, modelled: `currentTime` advances only every 200ms, in
+   * 200ms lumps, while frames arrive every 16ms. Before 2026-08-23 this
+   * produced extrapolate-to-the-cap, stall for the rest of the lump, then leap
+   * — visible as extremely jerky scrolling on exactly one class of device.
+   *
+   * The display must neither stall (every frame moves) nor leap (no frame
+   * moves further than CATCH_UP_RATE allows). Mutation-tested both ways: the
+   * old 0.1 cap fails the stall half, and snapping to the raw clock on tick
+   * fails the leap half.
+   */
+  it('scrolls smoothly against an audio clock that ticks in 200ms lumps', () => {
+    const t = transport();
+    const seen: number[] = [];
+
+    for (let frame = 0; frame <= 60; frame++) {
+      perfTime = frame * 16;
+      audioTime = Math.floor(perfTime / 200) * 0.2;
+      seen.push(t.visualBeat());
+    }
+
+    const deltas = seen.slice(2).map((beat, i) => beat - seen[i + 1]);
+    // One frame is 16ms = 0.032 beats at this tempo. Catch-up may run at
+    // 1.5x; nothing may run faster, and nothing may stand still.
+    const stalls = deltas.filter((d) => d <= 0);
+    const leaps = deltas.filter((d) => d > 0.032 * 1.5 + 1e-9);
+    expect(stalls, `stalled on ${stalls.length} frames: ${deltas.join(', ')}`).toEqual([]);
+    expect(leaps, `leapt on ${leaps.length} frames: ${deltas.join(', ')}`).toEqual([]);
+  });
+
+  /**
+   * The other failure the slew exists for, in the scenario where it actually
+   * engages: a stall *longer* than the extrapolation cap, then the clock
+   * returning in one lump. The 200ms-lump test above never arms the slew,
+   * because the raised cap bridges its gaps entirely — found by mutation
+   * testing, when removing the rate limit failed nothing.
+   *
+   * Here the display legitimately freezes at the cap (a stalled clock must
+   * read as stalled), so stalls are allowed; what is forbidden is the leap
+   * when the clock comes back — the 700ms of backlog must be walked down at
+   * CATCH_UP_RATE, never jumped.
+   */
+  it('walks down the backlog after a long stall rather than leaping', () => {
+    const t = transport();
+    const seen: number[] = [];
+
+    for (let frame = 0; frame <= 150; frame++) {
+      perfTime = frame * 16;
+      // The clock tracks wall time, starves completely for 700ms — beyond the
+      // 500ms cap — and then catches up to wall time in a single tick, which
+      // is how a starved context behaves when the audio thread resumes.
+      audioTime =
+        perfTime < 500 ? perfTime / 1000 : perfTime < 1200 ? 0.5 : perfTime / 1000;
+      seen.push(t.visualBeat());
+    }
+
+    const deltas = seen.slice(1).map((beat, i) => beat - seen[i]);
+    const leaps = deltas.filter((d) => d > 0.032 * 1.5 + 1e-9);
+    expect(leaps, `leapt on ${leaps.length} frames: ${leaps.join(', ')}`).toEqual([]);
+    // And it must actually converge rather than trail for ever: by the end the
+    // display has closed the whole backlog.
+    expect(seen[150]).toBeCloseTo(t.currentBeat(), 1);
   });
 
   /**

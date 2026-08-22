@@ -32,10 +32,38 @@ const TICK_MS = 25;
 
 /**
  * Ceiling on how far the visual clock may run ahead of the last audio update.
- * Comfortably longer than any realistic audio buffer, but short enough that a
- * genuinely stalled context freezes the display rather than sliding away from it.
+ *
+ * This was 0.1, justified as "comfortably longer than any realistic audio
+ * buffer" — which was one class of device written up as a rule, the same
+ * mistake the audio-lead ceiling made. On a Moto E32 the audio clock can sit
+ * still for several frames and then move in one lump; with a cap shorter than
+ * that lump the display extrapolates, hits the cap, *freezes*, and then leaps
+ * when the clock finally ticks. Move, stall, leap, every quantum — reported as
+ * extremely jerky scrolling on Android with the iPhone unchanged, because an
+ * iPhone's clock ticks every few milliseconds and never comes near the cap.
+ *
+ * Half a second bridges any buffering yet seen while still freezing a
+ * genuinely stalled context — a dead clock reads as dead within half a second
+ * rather than sliding away for good. See CATCH_UP_RATE for the other half of
+ * the fix.
  */
-const MAX_EXTRAPOLATION_SECONDS = 0.1;
+const MAX_EXTRAPOLATION_SECONDS = 0.5;
+
+/**
+ * How much faster than real time the displayed position may move while making
+ * up ground.
+ *
+ * The audio clock does not advance smoothly — it can deliver two quanta in one
+ * lump after a busy stretch, and on a slow device the lump is large. Snapping
+ * to it re-introduces exactly the jump the extrapolation exists to hide, so
+ * the displayed clock is slewed instead: it may run at most this multiple of
+ * wall time until it has caught up. At 1.5x, a lump is absorbed as a briefly
+ * faster scroll over twice the lump's width — beneath notice — where a snap of
+ * the same size is a visible jolt. Chosen over a smoothing constant because
+ * its worst case is easy to state: the display is never further behind the
+ * truth than the largest lump, and closes at half a lump per lump-width.
+ */
+const CATCH_UP_RATE = 1.5;
 
 /**
  * Earliest beat a tempo change may be placed at.
@@ -96,6 +124,15 @@ export class Transport {
   /** NaN so the first comparison always misses and anchors afresh. */
   private anchorAudioTime = Number.NaN;
   private anchorPerfTime = 0;
+  /**
+   * The smoothed audio-time estimate the display actually reads, and when it
+   * was last advanced. This is what `visualBeat` slews toward the raw estimate
+   * at no more than CATCH_UP_RATE; NaN whenever the transport has moved the
+   * position on purpose, so the next reading starts fresh rather than chasing
+   * across the discontinuity at a walking pace.
+   */
+  private visualTime = Number.NaN;
+  private visualPerfTime = 0;
   /**
    * The furthest the smoothed position has reached, which it never goes back
    * behind on its own. Dropped only where the transport genuinely moves the
@@ -222,6 +259,7 @@ export class Transport {
     // Held slightly behind wherever the display had extrapolated to, and the
     // held position is the true one.
     this.visualFloor = -Infinity;
+    this.visualTime = Number.NaN;
   }
 
   /** Moves the frozen position, for a rewind made while paused. */
@@ -231,6 +269,7 @@ export class Transport {
     // A rewind made while paused, which is the display moving backwards on
     // purpose — the one thing the high-water mark must not stand in the way of.
     this.visualFloor = -Infinity;
+    this.visualTime = Number.NaN;
   }
 
   /**
@@ -309,19 +348,33 @@ export class Transport {
     const audioTime = this.context.currentTime;
     const perfNow = performance.now() / 1000;
 
-    let beat: number;
     if (audioTime !== this.anchorAudioTime) {
       this.anchorAudioTime = audioTime;
       this.anchorPerfTime = perfNow;
-      beat = this.beatForTime(audioTime);
-    } else {
-      const elapsed = Math.min(
-        Math.max(perfNow - this.anchorPerfTime, 0),
-        MAX_EXTRAPOLATION_SECONDS,
-      );
-      beat = this.beatForTime(audioTime + elapsed);
     }
+    // The raw estimate: the last audio reading plus the wall time since it,
+    // capped so a stalled context freezes. This is the old behaviour entire —
+    // including its sawtooth, since a fresh tick can land behind or ahead of
+    // where extrapolation had reached.
+    const elapsed = Math.min(
+      Math.max(perfNow - this.anchorPerfTime, 0),
+      MAX_EXTRAPOLATION_SECONDS,
+    );
+    const target = audioTime + elapsed;
 
+    // The slew: the displayed time may gain on the raw estimate at no more
+    // than CATCH_UP_RATE times wall speed, and holds still when the estimate
+    // is momentarily behind it — the truth passes it within a tick, and the
+    // beat-space floor below keeps state readers honest meanwhile.
+    if (Number.isNaN(this.visualTime)) {
+      this.visualTime = target;
+    } else if (target > this.visualTime) {
+      const dt = Math.max(perfNow - this.visualPerfTime, 0);
+      this.visualTime = Math.min(target, this.visualTime + dt * CATCH_UP_RATE);
+    }
+    this.visualPerfTime = perfNow;
+
+    const beat = this.beatForTime(this.visualTime);
     if (beat < this.visualFloor) return this.visualFloor;
     this.visualFloor = beat;
     return beat;
@@ -341,6 +394,7 @@ export class Transport {
     // The position is about to be re-anchored, so how far the display had got
     // under the old origin says nothing about where it may go under this one.
     this.visualFloor = -Infinity;
+    this.visualTime = Number.NaN;
     this.onWindow = onWindow;
     // A small offset gives the first scheduling pass room to run before the
     // origin passes, so the very first note is never late — and the lead on

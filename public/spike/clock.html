@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Clock spike — Brass Master</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfaf7; --surface: #fff; --text: #16150f;
+        --muted: #6b6960; --border: #ddd9d0; --accent: #2f6fd0;
+        --good: #1a7f4b; --bad: #c02b2b;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16171b; --surface: #1e2026; --text: #f2f1ec;
+          --muted: #9a9ba3; --border: #333640; --accent: #63a1ff;
+          --good: #4ade80; --bad: #f87171;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 1rem; background: var(--bg); color: var(--text);
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      h1 { font-size: 1.2rem; margin: 0 0 0.25rem; }
+      p.explain { color: var(--muted); margin: 0 0 1rem; font-size: 0.9rem; }
+      button {
+        font: inherit; padding: 0.75rem 1.5rem; border-radius: 0.5rem;
+        border: 1px solid var(--border); background: var(--accent); color: #fff;
+        width: 100%;
+      }
+      canvas { width: 100%; height: 80px; border: 1px solid var(--border); border-radius: 0.5rem; }
+      table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-variant-numeric: tabular-nums; }
+      td, th { text-align: left; padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--border); }
+      td:last-child { text-align: right; }
+      .verdict { font-weight: 600; }
+      .good { color: var(--good); } .bad { color: var(--bad); }
+    </style>
+  </head>
+  <body>
+    <h1>Clock spike</h1>
+    <p class="explain">
+      Separates the two possible causes of jerky scrolling: an audio clock that
+      ticks in lumps (the display has nothing smooth to follow) against frames
+      that are themselves late (the display cannot keep up). The bar below is
+      driven exactly the way the play surface is — audio clock plus
+      extrapolation — so if the bar is smooth here, the app's scroll can be.
+      Tap start and watch for ten seconds.
+    </p>
+    <button id="go">Start the 10-second measurement</button>
+    <canvas id="bar"></canvas>
+    <div id="out"></div>
+
+    <script type="module">
+      const btn = document.getElementById('go');
+      const out = document.getElementById('out');
+      const canvas = document.getElementById('bar');
+
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Measuring…';
+
+        // The audio context is only honest once running, which needs a gesture.
+        const ctx = new AudioContext({ latencyHint: 'interactive' });
+        await ctx.resume();
+        // A silent oscillator keeps the context genuinely processing; an idle
+        // context's clock may behave better than a working one's.
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0.0001;
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(80 * dpr);
+        const g = canvas.getContext('2d');
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const frames = [];       // perf ms per rAF
+        const audioSteps = [];   // nonzero currentTime advances, seconds
+        let lastPerf = performance.now();
+        let lastAudio = ctx.currentTime;
+        let anchorAudio = lastAudio;
+        let anchorPerf = lastPerf;
+        const t0 = lastPerf;
+
+        const loop = () => {
+          const now = performance.now();
+          const audio = ctx.currentTime;
+          frames.push(now - lastPerf);
+          lastPerf = now;
+          if (audio !== lastAudio) {
+            audioSteps.push(audio - lastAudio);
+            lastAudio = audio;
+            anchorAudio = audio;
+            anchorPerf = now;
+          }
+
+          // The play surface's own recipe: audio time plus wall time since the
+          // last tick. If THIS bar is smooth, the clock is followable.
+          const est = anchorAudio + Math.min((now - anchorPerf) / 1000, 0.5);
+          const w = rect.width;
+          const x = ((est * 120) % w + w) % w; // 120 px/s, wrapped
+          g.fillStyle = getComputedStyle(document.body).backgroundColor;
+          g.fillRect(0, 0, w, 80);
+          g.fillStyle = getComputedStyle(document.body).color;
+          g.fillRect(x - 2, 8, 4, 64);
+
+          if (now - t0 < 10_000) requestAnimationFrame(loop);
+          else finish();
+        };
+        requestAnimationFrame(loop);
+
+        function pct(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))]; }
+
+        function finish() {
+          osc.stop(); ctx.close();
+          const f = [...frames].sort((a, b) => a - b);
+          const a = [...audioSteps].sort((x, y) => x - y);
+          const frameMedian = pct(f, 0.5);
+          const frame99 = pct(f, 0.99);
+          const stepMedian = a.length ? pct(a, 0.5) * 1000 : NaN;
+          const stepMax = a.length ? a[a.length - 1] * 1000 : NaN;
+          const dropped = frames.filter((ms) => ms > frameMedian * 1.6).length;
+
+          // Which disease is it? Coarse clock: currentTime advancing in steps
+          // several frames wide. Late frames: rAF intervals well past the
+          // display's own period.
+          const coarseClock = stepMedian > frameMedian * 2.5;
+          const jankyFrames = dropped > frames.length * 0.05;
+
+          out.innerHTML = `
+            <table>
+              <tr><th colspan="2">Frames (${frames.length} in 10s)</th></tr>
+              <tr><td>median interval</td><td>${frameMedian.toFixed(1)} ms</td></tr>
+              <tr><td>99th percentile</td><td>${frame99.toFixed(1)} ms</td></tr>
+              <tr><td>late frames (&gt;1.6× median)</td><td>${dropped} (${(100 * dropped / frames.length).toFixed(1)}%)</td></tr>
+              <tr><th colspan="2">Audio clock (${audioSteps.length} ticks)</th></tr>
+              <tr><td>median step</td><td>${stepMedian.toFixed(1)} ms</td></tr>
+              <tr><td>largest step</td><td>${stepMax.toFixed(1)} ms</td></tr>
+              <tr><th colspan="2">Device</th></tr>
+              <tr><td>devicePixelRatio</td><td>${dpr}</td></tr>
+              <tr><td>output latency</td><td>${((ctx.outputLatency ?? 0) * 1000).toFixed(0)} ms reported</td></tr>
+            </table>
+            <p class="verdict ${coarseClock || jankyFrames ? 'bad' : 'good'}">
+              ${coarseClock ? `The audio clock is coarse: it ticks every ${stepMedian.toFixed(0)}ms while frames arrive every ${frameMedian.toFixed(0)}ms. The app's extrapolation has to bridge that, and before v2.34.0 its cap was 100ms — smaller than the lump on some devices, which is the stall-and-leap. ` : ''}
+              ${jankyFrames ? `Frames themselves are late ${(100 * dropped / frames.length).toFixed(0)}% of the time, so drawing is missing the display's beat — that part is paint cost, not the clock. ` : ''}
+              ${!coarseClock && !jankyFrames ? 'Both clock and frames look healthy here. If the app still stutters, the cost is in what it draws per frame, not in either clock.' : ''}
+            </p>
+            <p class="explain">Was the moving bar above smooth? If yes, the clock can be followed
+            smoothly on this device and the app's scroll should match it from v2.34.0.
+            If the bar itself stuttered, the numbers above say which half is at fault.</p>`;
+          btn.textContent = 'Run again';
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
