@@ -490,60 +490,6 @@ export const BORROWED: readonly Theme[] = [
     ],
   },
   {
-    id: 'bwv1068-air',
-    name: 'Air on the G string',
-    /*
-     * **Re-read from a different edition on 2026-08-22, and the old one was
-     * simply in the wrong place.** The verdict was *"i think we're jumping up
-     * and down octaves everywhere"*, and the measurement agrees with the ear:
-     * the version this replaces spanned twenty semitones where this one spans
-     * fifteen, and reached only some of the band. This one fits **every
-     * instrument in every key**.
-     *
-     * The four leaps of an octave or more that remain are Bach's. They are in
-     * both readings, and in the printed violin part: this is a line that
-     * leaps, and it was never the leaps that were wrong.
-     *
-     * **Still an arrangement, and it still says so.** The Air is thirteen per
-     * cent demisemiquavers — the texture, not an ornament — so no level admits
-     * it whole and there is to be no level above hard. `--simplify 0.25`
-     * collapses twenty-seven notes in thirteen runs, each run becoming its own
-     * first pitch held for the run's length, which is what a band arrangement
-     * of the Air does and what a teaching edition does.
-     *
-     * **A licensing note worth keeping.** Mutopia holds three editions of this
-     * movement and they do not agree: `bach-air` is CC BY-SA 3.0 and unusable
-     * in a sold app, while `bach_air_bmv_1068` and `air-tromb` are plain
-     * Public Domain. This is read from the second. Check the `.rdf` of the
-     * exact directory, never of the work.
-     */
-    difficulty: 'hard',
-    metres: [[4, 4]],
-    bars: 19,
-    tempo: 72,
-    events: [
-      n(3, 4, { tied: true }),
-      n(3, 1 / 2), n(6, 1 / 4), n(4, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(7, 1, { octave: -1 }), n(5, 1, { octave: -1 }),
-      n(5, 2, { tied: true }), n(5, 1 / 4), n(3, 1 / 4), n(7, 1 / 4, { alter: -1, octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(1, 1 / 4, { alter: 1 }), n(5, 1 / 4), n(4, 1 / 4),
-      n(4, 2, { tied: true }), n(4, 1 / 4), n(2, 1 / 4), n(6, 1 / 4, { octave: -1 }), n(5, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(4, 1 / 4), n(3, 1 / 4),
-      n(3, 3 / 2), n(4, 1 / 4, { alter: 1 }), n(5, 1 / 4), n(1, 1 / 2), n(1, 1 / 4), n(3, 1 / 2), n(2, 1 / 4), n(2, 1 / 4), n(1, 1 / 4),
-      n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 3 / 4), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(5, 2, { octave: -1 }),
-      n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(1, 3 / 4), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(5, 2, { octave: -1 }),
-      n(7, 1, { octave: -1, tied: true }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 2), n(5, 1 / 4, { octave: -1 }), n(5, 3 / 2), n(7, 1 / 2, { alter: -1, octave: -1 }),
-      n(6, 1 / 2, { octave: -1 }), n(6, 3 / 4), n(5, 1 / 4), n(4, 1 / 4), n(3, 1 / 4), n(4, 1, { tied: true }), n(4, 1 / 8), n(3, 3 / 8), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }),
-      n(5, 1 / 4, { alter: 1, octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(7, 3 / 4, { octave: -1 }), n(1, 1 / 4), n(2, 3 / 4), n(3, 1 / 4), n(4, 1), n(3, 1 / 2),
-      n(2, 1 / 4), n(1, 1 / 4), n(7, 1 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(1, 1 / 2), n(6, 2, { octave: -1 }),
-      n(1, 1, { tied: true }), n(1, 1 / 4), n(3, 1 / 4), n(2, 1 / 4), n(1, 1 / 4), n(6, 3 / 2), n(5, 1 / 4), n(4, 1 / 4, { alter: 1 }),
-      n(3, 1 / 4), n(5, 1 / 4), n(5, 1 / 2, { octave: -1 }), n(6, 3 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(7, 3 / 4, { octave: -1 }), n(6, 1 / 4, { octave: -1 }), n(5, 1, { octave: -1 }),
-      n(1, 3 / 2), n(3, 1 / 4), n(2, 1 / 4), n(2, 3 / 2), n(4, 1 / 4), n(3, 1 / 4),
-      n(3, 3 / 2), n(5, 1 / 4), n(4, 1 / 4), n(4, 2),
-      n(5, 1, { octave: -1, tied: true }), n(5, 1 / 4, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(4, 1 / 4), n(4, 1 / 4), n(2, 1 / 4), n(3, 1, { tied: true }), n(3, 1 / 4), n(4, 1 / 4),
-      n(1, 1, { tied: true }), n(1, 1 / 4), n(3, 1 / 4), n(5, 1 / 4), n(7, 1 / 4, { alter: -1 }), n(6, 3 / 2), n(1, 1 / 2),
-      n(7, 1 / 4, { octave: -1 }), n(2, 1 / 4), n(4, 1), n(6, 1 / 2, { octave: -1 }), n(5, 1 / 2, { octave: -1 }), n(2, 3 / 8), n(4, 3 / 8), n(3, 1 / 2), n(2, 1 / 4),
-      n(1, 1 / 4), n(6, 1 / 2, { octave: -1 }), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 2), n(7, 1 / 4, { octave: -1 }), n(1, 1 / 4), n(1, 2),
-    ],
-  },
-  {
     id: 'bwv846-prelude',
     name: 'Prelude in C',
     /*

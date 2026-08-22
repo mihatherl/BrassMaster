@@ -100,30 +100,14 @@ export const COLLECTIONS: readonly Collection[] = [
       'Nursery songs, rounds and singalongs, written as degrees so they transpose to any key. They double as a calibration for the ear: nobody has to adjudicate whether Twinkle is a melody, so what they settle is what the written themes’ own "deliberately plain" actually costs.',
     provenance: 'traditional',
     status: 'accepted',
-    revision: 3,
+    revision: 4,
     themes: TRADITIONAL,
     /*
-     * The four re-sourced on 2026-08-22, and what they cost to learn.
-     *
-     * The verdicts that day cut five of these tunes, and four of the five came
-     * with the same instruction: *"what i'm really asking for most of the time
-     * is a review of the source material."* Every one had been written from
-     * memory, and every one was wrong in a way no validator could see — a
-     * phrase that "sounds a little bit like it, but not quite", a figure with
-     * a note too many, an octave the source does not jump.
-     *
-     * So all four are now **derived**: Old MacDonald and Three Blind Mice from
-     * public-domain and CC0 files on Wikimedia Commons, the Saints from the ABC
-     * in a Wikipedia article, Baa Baa from the LilyPond in another. None was
-     * typed from memory, and the rule this file has followed for borrowed music
-     * since 2026-08-20 now covers the nursery tunes too.
+     * Empty: the nursery tunes re-read from sources on 2026-08-22 were heard
+     * the same day and kept, and the one that was not — Three Blind Mice — was
+     * cut rather than kept unheard.
      */
-    unjudged: new Set([
-      'trad-old-macdonald',
-      'trad-saints',
-      'trad-baa-baa',
-      'trad-three-blind-mice',
-    ]),
+    unjudged: new Set([]),
   },
   {
     id: 'bach',
@@ -132,27 +116,18 @@ export const COLLECTIONS: readonly Collection[] = [
       'Bach whole where a brass player can hold it, and in excerpt where they cannot — all six of the Two-Part Inventions complete; the obbligato from Jesu, Joy of Man’s Desiring; the vocal line of Sheep may safely graze; the Air on the G string with its ornaments simplified; the Prelude in C entire, voiced for one instrument; and Petzold’s Menuett in G. Nothing here is cut any more except where the source itself is an excerpt of a longer work. What a complete piece costs is reach rather than notes: it has the range it has, and three of these get as far as the euphonium and the tubas.',
     provenance: 'public-domain',
     status: 'accepted',
-    revision: 15,
+    revision: 16,
     themes: BORROWED,
     /*
-     * What is left after the verdicts of 2026-08-22, which kept six of them.
+     * Only the Prelude, and it is not waiting on an ear: it is waiting on
+     * divisi (roadmap 1.10), so that its low arpeggio notes can be printed
+     * with an alternative a player's own instrument can reach.
      *
-     * Two of these were never judged at all, and the reason is worth keeping:
-     * Inventions 8 and 10 carry `allowWideRange`, neither fits an E flat bass
-     * in C, and the review sheet printed "would not fit the instrument" and no
-     * music. **Material that cannot be heard cannot be judged.** The sheet now
-     * draws such a theme on an instrument that can take it and says which, so
-     * the next verdict covers them.
-     *
-     * The Air is here because it was re-read from a different edition; the
-     * Prelude because it is under redesign rather than under review.
+     * Everything else here was heard and kept on 2026-08-22 — including
+     * Inventions 8 and 10, which had never rendered on the review sheet at all
+     * until it learned to draw a theme on an instrument that can take it.
      */
-    unjudged: new Set([
-      'bwv779-invention',
-      'bwv781-invention',
-      'bwv846-prelude',
-      'bwv1068-air',
-    ]),
+    unjudged: new Set(['bwv846-prelude']),
   },
 ];
 

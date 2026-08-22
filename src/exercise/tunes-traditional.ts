@@ -496,36 +496,6 @@ export const TRADITIONAL: readonly Theme[] = [
     ],
   },
   {
-    id: 'trad-three-blind-mice',
-    name: 'Three Blind Mice',
-    /*
-     * **Unfolded from a round.** The only public-domain file to be had is the
-     * round as it is sung, three voices entering six beats apart, so one voice
-     * had to be recovered before it could be a theme: each six-beat window
-     * holds the new voice plus the earlier ones replaying what they have
-     * already played, and subtracting the known ones leaves the line. The
-     * result is monophonic all the way through, which is the check that the
-     * unfolding worked.
-     *
-     * Eight bars of 6/8 in D, and the climbing third phrase reaches the upper
-     * tonic — which is the tune and not an error. The version this replaces
-     * jumped an octave where the source does not, judged 2026-08-22.
-     */
-    difficulty: 'easy',
-    metres: [[6, 8]],
-    bars: 8,
-    events: [
-      n(3, 3 / 2), n(2, 3 / 2),
-      n(1, 2), r(1),
-      n(5, 3 / 2), n(4, 1 / 2), r(1 / 2), n(4, 1 / 2),
-      n(3, 1), r(1), n(5, 1),
-      n(1, 1, { octave: 1 }), n(1, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(6, 1 / 2), n(7, 1 / 2),
-      n(1, 1, { octave: 1 }), n(5, 1 / 2), n(5, 1), n(5, 1 / 2),
-      n(1, 1 / 2, { octave: 1 }), n(1, 1 / 2, { octave: 1 }), n(1, 1 / 2, { octave: 1 }), n(7, 1 / 2), n(6, 1 / 2), n(7, 1 / 2),
-      n(1, 1, { octave: 1 }), n(5, 1 / 2), n(5, 1), n(5, 1 / 2),
-    ],
-  },
-  {
     id: 'trad-alouette',
     name: 'Alouette',
     /* Plain crotchets for two bars and then a stepwise climb, which makes it a
