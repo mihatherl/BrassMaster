@@ -212,8 +212,11 @@ material of the entire product, so that parking is now on the critical path.
 scrolling line, the settings screen overflowing on a 360×740 phone, leaps per
 instrument rather than per difficulty.
 
-**1.10 Divisi — two noteheads, all the way through.** Ruled 2026-08-22, and
-the Prelude in C is held back until it exists.
+**1.10 Divisi — two noteheads, all the way through.** ~~To build~~ — **built
+2026-08-22, v2.29.0–v2.30.0.** A note may carry a second head, either
+fingering is accepted, and placement needs only one of the two inside the
+compass. The Prelude in C ships on it, in Bach's own register, reaching the
+whole band. What follows is why it was needed.
 
 A brass band part prints divisi constantly, and the app has never been able to
 hold it: `Exercise` carries one pitch per slot, the renderer draws one
