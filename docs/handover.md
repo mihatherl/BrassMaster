@@ -1,4 +1,4 @@
-# Handover — 2026-08-21/22, the session that finished the corpus and built divisi
+# Handover — 2026-08-22/23, an unattended night on both halves
 
 You are picking up **one half** of a two-app product, from a parent folder
 holding both this repository and its sister. This half is *Brass Master*: the
@@ -11,16 +11,23 @@ front of you. Nothing else, until you need it.** The failure mode of a
 two-repository session is reading both test suites into context and having no
 room left to think.
 
-The previous handovers are `handover-2026-08-20.md` (the corpus pipeline) and
-`handover-2026-08-19.md` (the free/paid split and the fork). Read them only for
-the *why* of something this file assumes.
+The previous handovers are `handover-2026-08-22.md` (the corpus, divisi and the
+calibration redesign), `handover-2026-08-20.md` and `handover-2026-08-19.md`.
+Read them only for the *why* of something this file assumes.
+
+**This session ran unattended and both halves were worked.** That is unusual
+and it shapes what is here: everything below was either named in the previous
+handover as the next thing to do, or is a measurement. **No musical material
+was added, no feature was designed, and nothing was decided that wanted the
+player's ear** — see *What I did not do, and why* before assuming an omission
+was an oversight.
 
 ## What to read, and what to leave alone
 
 | | Lines | When |
 |---|---|---|
-| `handover.md` — this file | ~300 | Now, all of it |
-| **`roadmap.md`** | 1,070 | **Now, and before proposing any feature.** What the product is, what is deliberately not on it, and the phases |
+| `handover.md` — this file | ~250 | Now, all of it |
+| **`roadmap.md`** | 1,100 | **Now, and before proposing any feature.** What the product is, what is deliberately not on it, and the phases |
 | `../CLAUDE.md` | ~60 | Now. The seam, and which remote is which |
 | `difficulty-model-plan.md` | 145 | Before touching a level, a tempo or `difficulty.ts` |
 | `app-store-plan.md` | 295 | Before version 3 |
@@ -35,239 +42,186 @@ note"`. Its headings are a map: `grep -n "^## " docs/v2-design.md`.
 
 ## Where this stands
 
-**v2.32.0, pushed, deployed and green.** 1,340 tests across 68 files.
+**v2.33.0, pushed, deployed and green.** 1,340 tests across 67 files.
+brassmaster.net was confirmed serving 2.33.0 rather than assumed to be.
 
 The gate before any push is `npm test && npm run build && npm run lint`, all
-three, plus `npm run check:web` when anything touches the build split.
+three, plus `npm run check:web` **and now `npm run check:channel`** when
+anything touches the build split.
 
 **`npx tsc --noEmit` checks nothing.** The root `tsconfig.json` is
 `{ "files": [], "references": [...] }`, so that command silently passes on a
 broken tree. Use **`npx tsc -b`**, which is what `npm run build` runs.
 
-**The corpus is 64 of 64 heard**, for the first time since the rule was
-written. Nothing is held back. Every nursery tune is now *derived from a
-source* rather than written from memory, which closes the last place in the
-repository that was still doing that.
-
 ## What this session did
 
-**The Bach is whole.** All six Two-Part Inventions and the Prelude in C run to
-their own endings, where they used to stop wherever the converter said a cut
-would validate — *"some are just artlessly cut off without resolution."* Two
-themes left the corpus entirely: the Art of Fugue's subject and the Musical
-Offering's royal theme, withdrawn on the ear.
+**All three "start here" items from the previous handover are done**, and one
+of them turned out to be blocked behind a broken gate that nobody had noticed.
 
-**The nursery tunes were re-read from sources.** Five were cut on the ear and
-four of the five came with the same instruction — *"what i'm really asking for
-most of the time is a review of the source material."* Old MacDonald and Three
-Blind Mice from public-domain and CC0 files on Wikimedia Commons, the Saints
-from the ABC in a Wikipedia article, Baa Baa from the LilyPond in another. Two
-were then cut anyway: the Air on the G string on the ear, and Three Blind Mice
-because no score of it exists anywhere reachable.
+**The dev build says so.** `VITE_CHANNEL=dev` names the tailnet copy *Brass
+Master — Dev*, with `BM Dev` as the home-screen label, in the manifest, the
+`<title>` and the iOS tag. `npm run build:dev` builds it, `npm run
+check:channel` proves it both ways, and CI runs the release direction. **The
+tailnet preview on 4173 is now serving it** — that was done and verified, not
+merely made possible.
 
-**Divisi, roadmap 1.10, built.** A note may carry a second head; either
-fingering is accepted; placement needs only one of the two inside the compass.
-The Prelude in C ships on it — fifteen bars, in Bach's own register, reaching
-the whole band.
+**The audio lead reaches 750ms**, rewritten around the measurement that demands
+it, and "zero for the phone's own speaker" is gone from all three places that
+said it.
 
-**Calibration was redesigned twice.** First the device's own speaker became an
-output like any other, with a warning before a session on one nobody has
-measured. Then the whole method changed: tapping is gone, and a player now
-judges a scrolling scale against what they hear.
+**Phase 4.1 now has to measure input latency**, with the round-trip method
+written down, and the paragraph that named the tap calibration as the
+mitigation for Android's input spread is corrected — that calibration was
+removed the same evening it was cited.
 
-**The roadmap gained two rulings**: Android ships before iOS, and orchestration
-is two items rather than one.
+**The suite's gate was red and flaky, and is now green.** See *Where I went
+wrong* — it is the most useful thing in this file.
 
-**And a phone found a bug that had broken the app on every un-updated
-WebView.** See *Where I went wrong*.
+**The settings overflow is diagnosed and not fixed**, deliberately. `npm run
+shots` gained a `phone-small` viewport (360×740, the Moto E32 in the room) and
+the fault is plain in the photograph: `.actions--sticky` is drawn over the tail
+of the list, slicing the Advanced panel and covering both credit lines. Nothing
+is unreachable and Start stays reachable at every size measured. The fix is a
+design choice, recorded in `roadmap.md` § 1.9 and left for you.
+
+**The sister project had a productive night** — see
+`../BrassMXMLGenerator/docs/handover-ml.md` § 14. The headline reaches back
+here only as a caution about metrics: a census of every non-clean bar found
+that **missed barlines cause 2.7% of the damage** while the project had spent
+most of its nights on them. *Measure which population you are in before
+optimising the total.*
 
 ## The rulings this session added
 
-**A complete piece has the range it has.** `allowWideRange` waives a level's
-`rangeSemitones` for one theme, on a person's say-so — the sibling of
-`allowWideLeaps`, and for the same reason. What is never waived is the compass:
-`realiseTheme` still declines an instrument the theme will not fit, so a wide
-piece reaches fewer of the band and the material count says so.
+**The channel is not the target, and the default must be the safe one.**
+`VITE_TARGET=app` is the tailnet copy's target *and* the paid release's, so a
+dev name keyed off it would ship "Dev" to the Play listing. `VITE_CHANNEL` is a
+signal of its own and defaults to production, exactly as `VITE_TARGET` defaults
+to the free product: in both cases forgetting the variable gives the answer
+that is embarrassing rather than the one that is expensive.
 
-**Divisi is at the octave, and only the octave.** Letting the app take
-whichever octave fitted reached one more instrument and printed pairs nearly
-three octaves apart, ledger lines running off both ends of the stave. That is a
-range check pretending to be notation. Where one octave will not do, the honest
-answers are a different instrument or a shorter piece — which is why the
-Prelude is fifteen bars and not thirty-five.
+**A build-time check should read both ways.** `check:channel` fails a release
+build carrying the dev mark — the guard — *and* fails a dev build that has lost
+it. Without the second half the check passes for ever the day the rename
+quietly stops firing, and two identically named icons come back with a green
+tick over them. Both directions were mutation-tested by running each against
+the other's build.
 
-**Material that cannot be heard cannot be judged.** Inventions 8 and 10 came
-back from a review with no verdict of any kind, because both carry
-`allowWideRange`, neither fits an E flat bass in C, and the review sheet
-printed "would not fit the instrument" and no music at all. The sheet now draws
-such a theme on an instrument that can take it and says which.
+**An intermittently red gate is worse than a red one**, because it teaches you
+to run it again. See below.
 
-**The notation path must hold to old APIs.** It is the one part of the app that
-runs every frame and the one whose failure looks like a bug in the music rather
-than in the browser. Every fake canvas context in the suite is deliberately
-missing `roundRect` so a renderer reaching for a modern method fails there
-rather than on somebody's phone.
-
-**Calibration measures a coincidence, not a reaction.** Tapping folded the
-touchscreen's own latency into the answer and blamed the audio output for it —
-tens of milliseconds on a budget handset, all in one direction. A player now
-watches a scale cross the strike line and moves the sound until the two land
-together. The display's own lag *cancels*, because the app is not chasing a
-physical truth: it is making what you see and what you hear arrive together on
-the screen you will be reading from.
-
-**Android before iOS.** Not taste — hardware. There is no Apple device here at
-all, so iOS-first spends about AU$1,300 before the first question is answered,
-where Android costs US$25 and builds from the Linux machine in the room. iOS is
-Phase 4.4 rather than cancelled.
-
-**Orchestration is two things.** 6.1 is other people's parts arriving as a file
-— a rehearsal tool, and the one item that would give the parked sister project
-a reason to exist. 6.2 is the corpus: the app sounds one line while the player
-reads the other. 6.2 is much the smaller and its material already exists.
+**A measurement outranks a comment that reasons from an assumption.** The
+500ms ceiling and "zero for the phone's own speaker" were both written before
+anyone had measured a handset; one iPhone had become a rule, and it cost every
+Android player a third of a second with no way to correct it.
 
 ## Where I went wrong, so you need not
 
-**One missing canvas method took the app down in three ways that looked like
-three bugs.** `ctx.roundRect` arrived in Chrome 99; a 2022 Motorola whose
-System WebView is older throws on it, and the notation renderer used it to draw
-the fingering hint's capsule. So the play surface's frame loop died mid-run
-while the metronome played on, paged mode drew nothing at all, and the results
-screen's chart threw into React and — with no error boundary anywhere —
-unmounted the tree to a white screen. **The suite could not have caught it,
-because every fake context in it provided `roundRect`.** There is now an error
-boundary at the root, because "it went white" is not a bug report and a line of
-stack is.
+**The gate was already red at HEAD and I nearly pushed on top of it.** `npm
+test` was exiting 1 while reporting 1,340 tests passing and naming no failure —
+`Errors 5`, and nothing else. `calibration-warning.test.tsx` is the first UI
+test to click *past* the "Tap to start" gate that `App.test.tsx` explicitly
+stops at ("everything past that needs a real AudioContext"), happy-dom has no
+Web Audio, and `beginRun` threw inside a promise nobody awaits — long after the
+dialog under test had been drawn and asserted on. **Nothing failed; the suite
+did.**
 
-**I wired one of two construction sites and shipped it.** `LayoutNote` is built
-in `render/surface.ts` *and* in `render/system.ts`; the first is the play
-screen, the second is the review sheet, the SVG renderer and the engraving
-snapshots. Divisi went into the first only, so the reviewer opened the sheet and
-saw the Prelude in its true register with none of its offers — the piece at its
-least readable. Grep for the type before assuming there is one place.
+Worse, it was **intermittent**: three runs in five. My first fix stubbed
+`AudioContext` per test and unstubbed it in `afterEach`, which made it *more*
+intermittent — `unlockAudio` is awaited, so the construction lands on a timer
+after the test that started it has finished, and the global had been taken away
+underneath a call already in flight. Stubbing once for the file fixed it; eight
+consecutive runs are green.
 
-**I unfolded a round and it ate the repeats.** Recovering one voice from a
-three-voice round works by subtracting what the earlier voices are replaying —
-and where a phrase *repeats*, voice 1's repeat and voice 2's first statement are
-the same notes at the same instant, so the file cannot say there were two. Three
-Blind Mice came out with its stutter removed. It sounded almost right, which is
-the worst way to be wrong.
+**Two lessons.** A test that passes is not a suite that passes — check the exit
+code, not the summary line. And when a fix makes a flake *less* frequent rather
+than absent, it is the wrong fix.
 
-**I killed the dev server and did not notice for hours.** A Playwright script I
-wrote to reproduce a bug spawns `npm run dev` and kills it on the way out; the
-tailnet's `:8450` proxies to a Vite *preview* on 4173, and it went dark. If the
-dev site 502s, that is why. It serves a **built** bundle: `npm run build:app`
-then restart the preview.
+**I served the free build to the phone for half an hour without noticing.** The
+tailnet preview on 4173 serves whatever is sitting in `dist/`, and every `npm
+run build` in the gate overwrites it with a *web* build. So the dev app on the
+phone silently lost My Music. **Run `npm run build:dev` after any gate run**,
+or the tailnet copy is whatever the last command left behind. This is the same
+family as the previous session's "I killed the dev server and did not notice
+for hours".
 
-**And a conclusion I drew about the sister project was measured wrongly** — see
-its own handover. Two data experiments were run at a step count later shown to
-be half of what the model wants, which makes their null results unsafe.
+**I could not reproduce the settings overflow for half an hour** because I was
+looking for horizontal overflow and measuring the collapsed screen. It is
+vertical, it needs a font scale or a shorter viewport to appear at all, and it
+was invisible in every number until the screenshot. **Look at the picture** —
+that is now three sessions running.
+
+## What I did not do, and why
+
+**6.2, two-voice themes, was not started.** The previous handover lists it as
+ready and needing no hardware, and it is the obvious next feature. It was left
+alone on purpose:
+
+- its material must be **heard** before it ships, and nobody was here to hear it;
+- it is **paid**, so it needs a build-time flag and `check:web` needles of its
+  own, which is scope the roadmap entry does not mention;
+- it carries genuine **UI decisions** — how the sounding voice is offered, what
+  the app says when the player's own instrument cannot reach the line, how the
+  swap announces which half it can offer — and those are the player's taste,
+  not mine;
+- and `realiseTheme` is exactly the code the previous session got wrong twice
+  by wiring one of two construction sites.
+
+Half-built, it would be worse than not built. It is still the right next thing
+**with the player in the room**.
+
+**The difficulty reclassification was not applied**, for the reason
+`difficulty-model-plan.md` already gives: cross-rhythm is on no axis, and
+adding one is a musical judgement.
+
+**The `Session` refactor** — pulling `followFingers` and `applyVolume` out —
+was not done. It is worth doing *before building on top*, and nothing was being
+built on top; it is 945 lines of the most timing-sensitive code in the app and
+the suite cannot see the screen it drives.
 
 ## Start here
 
-Three small things first, in this order, then the spike. All three came out of
-the evening of 2026-08-22 and none is written down anywhere else.
+**1. The settings strip.** The fault is photographed and diagnosed; only the
+choice is open. `npm run shots -- --viewport phone-small --screen settings`,
+then decide whether the strip shortens, stops sticking once the content
+overflows, or the screen becomes a grid with the list and the strip as separate
+rows.
 
-**1. Name the dev build differently on the phone.** Asked for 2026-08-22: the
-tailnet build and the real one are indistinguishable on a home screen, and
-there are now two of them on one device. Something like *Brass Master — Dev* in
-the manifest `name` and `short_name` (`vite.config.ts`), the `<title>` and the
-`apple-mobile-web-app-title` (`index.html`).
+**2. Then 6.2, with the player.** Everything above.
 
-**The trap, and it has caught this repository twice already**: `VITE_TARGET=app`
-is *also* the paid production build. Keying the dev name off it would ship
-"Dev" to the Play listing. It needs a signal of its own — a `VITE_CHANNEL`
-injected the way `__HAS_MY_MUSIC__` is, defaulting to production and set only
-by whatever builds the tailnet copy — and `check:web`-style proof that the
-store build never carries it. A build-time rule needs a build-time check.
-
-**2. Raise the audio-lead ceiling, and record the measurement that demands
-it.** The player measured his own devices with the new calibration screen:
-
-    Motorola E32 (Android, own speaker)   ~330 ms
-    iPhone 15 (own speaker)                ~20 ms
-
-Sixteen times, in one pair of hands. `AUDIO_LEAD_RANGE.max` is 500ms and its
-comment reasons from "Bluetooth headsets sit between roughly a tenth and a
-third of a second" — written when the *device* was assumed to contribute
-nothing. A Bluetooth headset on that phone would be 330 plus its own 150–250,
-which clips. The comment's other half justifies the ceiling against "a
-mis-tap", and there is no tapping any more; both halves of the reasoning are
-gone. Raise it to something like 750ms and rewrite the comment around the
-measurement. The scheduler already copes: its horizon is `lookahead +
-audioLead`, and the count-in start subtracts the lead, so a large one is
-delivered rather than merely stored.
-
-Worth recording beside the Android-first ruling in `roadmap.md` too, since it
-is the first hard evidence about the platform that was chosen on cost. And
-worth knowing what it means retrospectively: **before this session an Android
-player on the phone's own speaker heard every note a third of a second late
-with no way to correct it**, because the entry was fixed, unmeasurable and
-hard-coded to nought. That was one iPhone's behaviour written up as a rule.
-
-**3. Widen 4.1 to measure input latency as well.** Output latency is fixable by
-scheduling earlier, which is what the lead does. **Input latency is not**: if
-the phone hands the app a note 300ms after it was played, no instant
-confirmation is honest until the app knows by how much. `v2-design.md` already
-puts the earliest honest confirmation at about 200ms in microphone mode, and on
-this class of hardware it could be much worse. A round trip — play a click,
-hear it back through the microphone — gives output plus input in one number,
-and the 330 above separates them. The spike as written asks only about output.
-
-## What is left
-
-**Then the one the paid app rests on: the container spike (roadmap
-4.1).** It was blocked on hardware for weeks and is not any more — there is a
+**3. And the container spike (roadmap 4.1)**, which is unblocked — there is a
 second-hand Moto E32 in the room. Two questions: the microphone inside the real
 wrapper *while the reference tone plays*, and an embedded HTTP server serving a
-page, taking an upload, and surviving backgrounding. Everything from Phase 2 on
-is built on assumptions it tests. **Put Tailscale on the phone first** — the
-tailnet is how the dev site and the builds reach it, and the serve is
-tailnet-only.
+page, taking an upload, and surviving backgrounding. **It now has a third**:
+the input-latency round trip. **Put Tailscale on the phone first.**
 
-**Ready and needing no hardware: 6.2, two-voice themes.** The shape is settled
-— a second voice on one theme, heard and never drawn, the sounding voice chosen
-from what `SAMPLE_MANIFEST` can actually reach. The material is already here:
-all six inventions are two voices in two tracks in their sources and only the
-upper was ever taken, so the second line is one converter run against track 2.
-*Erbarme dich* waits on this, and is to be barred as 6/8 rather than 12/8.
-
-**The reclassification is run and not applied.** `npx tsx
-tools/difficulty-dry-run.mts` prints the whole corpus, old level against new.
-Seconds beat beats — Invention 10's quavers at 140 and Invention 13's
-semiquavers at 70 are the same 4.67 notes a second. What stops it being applied
-is in `difficulty-model-plan.md`: rate alone moves a fifth of the corpus and
-gets a dozen wrong, and **cross-rhythm is on no axis at all** although six of
-Medium's themes are made of nothing else.
-
-**Still open, and each recorded where it will be met:**
+## What is left
 
 - The Prelude's two waivers measure the **written** line; taking its offers, no
   leap exceeds an octave. The difficulty model measures the page, and a divisi
   page is not what one player performs.
 - Run length still counts four themes rather than following the material: four
   of the Bach collection is 130 bars where four of the written corpus is 48.
-- The settings screen overflows on a 360×740 phone — **now reproducible**, on
-  the device that will be doing the spike.
 - Most written themes carry no tempo, so for them seconds and beats are the
   same number in different units.
+- The reclassification is run and not applied: `npx tsx
+  tools/difficulty-dry-run.mts`.
 
 ## How to work here
 
-Small, complete changes. Run the gate. Write the reasoning into the code where
-the next person will meet it — this codebase explains itself in comments that
-say *why*, including what was tried and abandoned, and that is deliberate.
+Small, complete changes. Run the gate — **and check its exit code**. Write the
+reasoning into the code where the next person will meet it; this codebase
+explains itself in comments that say *why*, including what was tried and
+abandoned, and that is deliberate.
 
 **Mutation-test anything that guards.** Change the rule, watch the test fail,
-put it back. Everything added this session was: the range waiver, the key-reach
-floor, the divisi drawing, the fingering union, the placement rule, the
-calibration count, and the movable audio lead.
+put it back. `check:channel` was tested in both directions this way, and so was
+the AudioContext stub.
 
-**Look at the picture.** `npm run themes-sheet` builds the review sheet,
-`npm run svg` renders an exercise, `npm run shots` photographs the app at five
-viewports. Two of this session's worst faults were invisible to every
-assertion and obvious in a screenshot — and one of them was found by the player
-looking at the sheet, not by me.
+**Look at the picture.** `npm run themes-sheet` builds the review sheet, `npm
+run svg` renders an exercise, `npm run shots` photographs the app at six
+viewports — `phone-small` is the new one and it is the one that found tonight's
+fault.
 
 **Push without asking** once the gate is green — standing permission since
 2026-08-10 — then confirm the deploy rather than assuming it. **Push `origin`,
@@ -275,5 +229,4 @@ never `legacy`.** Tag every version and push with `--follow-tags`.
 
 **Nothing ships to a player unheard.** A theme goes into its collection's
 `unjudged` set in the same edit that adds it, and comes out when somebody has
-heard it. Completing or re-sourcing a piece makes it a *different* piece: it
-goes back in, because a verdict on six bars cannot cover thirty-four.
+heard it.
