@@ -40,6 +40,13 @@ import { chromium, type Browser } from 'playwright-core';
  * There is deliberately nothing near 32rem: the CSS says a phone sideways tops
  * out around 27rem and the smallest tablet has 46rem, so the line sits in open
  * country and a viewport placed on it would be testing a case no device is in.
+ *
+ * `phone-small` is the one entry that comes from a device rather than a
+ * breakpoint, and it earns the exception: it is the Moto E32 that is now in the
+ * room and will be doing the container spike, the settings screen is reported
+ * to overflow on it, and "a case no device is in" is exactly what this one is
+ * not. 360x740 is also the narrowest Android worth caring about, so it is the
+ * floor for every screen and not only the one that failed.
  */
 const VIEWPORTS: ReadonlyArray<{
   name: string;
@@ -48,6 +55,7 @@ const VIEWPORTS: ReadonlyArray<{
   touch: boolean;
   why: string;
 }> = [
+  { name: 'phone-small', width: 360, height: 740, touch: true, why: 'The Moto E32 in the room: the narrowest screen the app has to fit, and where settings overflowed.' },
   { name: 'phone-portrait', width: 390, height: 844, touch: true, why: 'The common case, and where the conductor is allowed.' },
   { name: 'phone-landscape', width: 844, height: 390, touch: true, why: 'Sideways and short: the stave is sized by height and the conductor is off.' },
   { name: 'tablet-portrait', width: 820, height: 1180, touch: true, why: 'Room for everything.' },

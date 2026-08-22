@@ -212,6 +212,27 @@ material of the entire product, so that parking is now on the critical path.
 scrolling line, the settings screen overflowing on a 360×740 phone, leaps per
 instrument rather than per difficulty.
 
+**The settings overflow, diagnosed 2026-08-22 — and it is not lost content.**
+At 360×740 with the default font the screen fits *exactly*: content 740 in 740,
+no slack at all. Any increase — Android's display-size setting, the browser's
+URL bar taking height — pushes it over, and at 115% it is 80pt over, which is
+the "70 points" first reported.
+
+What then goes wrong is `.actions--sticky`: it is the last child of the
+scroller with `position: sticky; bottom: 0`, so once the content overflows it
+is pulled up off its natural place and drawn *over* the tail of the list. At
+rest on a 360×640 viewport it covers the Advanced panel from its midpoint down
+and both credit lines entirely, leaving the version line poking out below the
+Start button. Every one of those is still reachable — scroll to the bottom and
+the strip returns to its natural position — so this is a fault in what the
+screen *looks like* at rest, not in what it can reach, and Start stays
+reachable at every size and font scale measured.
+
+The fix is a design choice and is deliberately not made here: shorten the
+strip, stop it sticking once the content overflows, or make the screen a grid
+with the list and the strip as separate rows. `npm run shots -- --viewport
+phone-small` now photographs it, which is how it was found.
+
 **1.10 Divisi — two noteheads, all the way through.** ~~To build~~ — **built
 2026-08-22, v2.29.0–v2.30.0.** A note may carry a second head, either
 fingering is accepted, and placement needs only one of the two inside the
