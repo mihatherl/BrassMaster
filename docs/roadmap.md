@@ -384,20 +384,101 @@ a handset first. Mockups of both, drawn against the real tokens, exist from
 **5.3 Multi-part import**, which the importer does not do today and which
 everything below needs.
 
-### Phase 6 — Orchestration, and the band around you (paid)
+### Phase 6 — Orchestration, in two variants (paid)
 
-**6.1 Play along with the rest of the score.** Import a full score, choose your
-part, and the app plays the others while you read yours. The player's own
-idea and probably the most compelling thing on this roadmap: it turns
-reading practice into playing music, which is the difference between a
-drill and a rehearsal.
+Split into two on 2026-08-22, because they had been one item and are not one
+problem: *"someone may want to scan multiple parts and play them together,
+which could be genuinely useful as a rehearsal mechanism. But the two-part
+inventions and themes could also benefit from an extra dimension."*
 
-Most of it exists already — the sampler covers four brass voices, the clock
-and tempo map are built, the importer parses MusicXML. The genuine work is
-multi-part parsing, mixing, and deciding what happens when the player's
-part and the accompaniment disagree about where they are.
+They share a mechanism — the app sounding a line the player is not reading —
+and almost nothing else. One is about *other people's parts*, arrives as a
+file, and is a rehearsal tool. The other is about *the corpus*, needs no
+import at all, and is a way of practising counterpoint. **6.2 is much the
+smaller and its material already exists**, which is not the order the numbers
+suggest.
 
-## 5. Releases, and where things run
+Neither comes before **1.10 divisi**, ruled 2026-08-22. Divisi is smaller,
+already decided, and unblocks a piece already asked for; nothing here depends
+on it either way.
+
+**6.1 The band around you — many parts, from a file.** Import a full score,
+choose your part, and the app plays the others while you read yours. The
+player's own idea and probably the most compelling thing on this roadmap: it
+turns reading practice into playing music, which is the difference between a
+drill and a rehearsal. It is also what would make a bandroom's own repertoire
+usable, since the parts a player wants to rehearse are the ones on their own
+stand.
+
+Most of it exists — the sampler covers four brass voices, the clock and tempo
+map are built, the importer parses MusicXML. Four things are genuinely open:
+
+- **Multi-part parsing.** `import/` reads one part and resolves divisi to one
+  line at the door. Reading all of them, and letting the player pick, is the
+  same shape of change as 1.10 and wants doing after it rather than beside it.
+- **`<transpose>`, which the output contract currently forbids.** This is the
+  one that bites, and it is a seam between the two repositories. The importer
+  ignores transposition entirely — the word does not appear anywhere in
+  `import/` — because the app re-fingers *written* pitches for whichever
+  instrument the player holds, and that is exactly right for reading one part.
+  It is wrong for playing the others: a B flat cornet part written in C sounds
+  a tone lower, an E flat bass part a major sixth lower again, so a score
+  played from written pitch would come out in several keys at once.
+  **Multi-part playback needs sounding pitch, which means the parts must carry
+  their transposition and the importer must read it.**
+  `prompts/schema-profile.md` in the sister repository states the opposite and
+  would have to change with it.
+- **Whether the app follows the player, or the player follows the app.** A
+  backing track that keeps its own time is a metronome with better manners,
+  and it is buildable today. Something that *waits* for a player who has
+  slowed down is a different instrument altogether, and it needs the
+  microphone — Phase 2 — to know where they are. Worth deciding which is being
+  sold before either is built.
+- **Where the parts come from.** MusicXML out of a notation editor works now.
+  Photographing a stand's worth of parts is `BrassMXMLGenerator`, which is
+  **parked by ruling** and stays parked; this item does not unpark it, but it
+  is the first thing on this roadmap that would give it a reason to exist
+  beyond one player's convenience.
+
+**6.2 The other voice — two-line themes, from the corpus.** The app plays one
+line while the player reads the other, and then they swap. Raised 2026-08-20
+as an open question and promoted here on 2026-08-22: *"i think it is best as a
+duet if anything."*
+
+It is better material than 6.1 rather than lesser, and the reason was recorded
+when it was first raised: **an accompaniment part is dull to play where a
+countersubject is not.** Fugues, the Two-Part Inventions and *Erbarme dich*
+are two independent lines of equal interest, so both halves are worth reading
+and swapping is worth doing.
+
+**The material is already here.** All six inventions are complete in the
+corpus and every one of their sources is two voices in two tracks; only the
+upper voice was ever taken. The second line is one more run of the same
+converter against track 2.
+
+**The decision to make first, before any more counterpoint is transcribed** —
+a `Theme` is one voice, and it can stop being one in two ways:
+
+- **Two linked themes**, each valid on its own, joined by an id. Keeps `Theme`
+  as it is and puts the burden on validation: the pair must agree about bars,
+  metre and key, and the rule that themes abut applies to the pair rather than
+  to each.
+- **A second voice on one theme.** Every consumer of a `Theme` learns that
+  voices exist, which is the wider change, but the alignment is true by
+  construction rather than by a check.
+
+**And an asymmetry that makes either cheaper than it looks:** the voice the
+app sounds is not played by anybody, so it is not bound by the player's
+compass, by what a valve can reach, or by the fingering rules at all. Only the
+line being read has to fit. `realiseTheme` therefore places one voice and
+merely sounds the other, and the judge is untouched — it judges the read line
+and has never known about anything else.
+
+Open beside that: whether the unread line is drawn at all. Playing it and not
+printing it is the play-along behaviour and the simpler build; printing both
+staves is a score, and a different reading exercise.
+
+## 5. Releases, and where things run## 5. Releases, and where things run
 
 ### What the free app actually gets
 
@@ -416,7 +497,8 @@ Phases 2 to 6 are entirely paid.
 | 2 microphone | — | ✓ |
 | 3 tuner | — | ✓ |
 | 5 phone library | — | ✓ |
-| 6 orchestration | — | ✓ |
+| 6.1 many parts from a file | — | ✓ |
+| 6.2 two-line themes | — | ✓ |
 
 That is a deliberate consequence of the free/paid line in § 3, but it means the
 free app stands still for a long time while the paid one grows. It is the same
@@ -437,7 +519,7 @@ should not be "fixed".
 |---|---|
 | **v2.x** | now until the App Store. Paid features land here as **minors** — the codebase gained a feature even though only one build exposes it. Free-app work lands here too. |
 | **v3.0.0** | **the App Store launch.** A major, on the repository's own rule that majors mark a change of category: one product becomes two, and one of them is sold. |
-| **v3.x** | after launch — the phone-hosted library (Phase 5), then orchestration (Phase 6). |
+| **v3.x** | after launch — the phone-hosted library (Phase 5), then orchestration (Phase 6), whose two halves may well ship apart: 6.2 needs no import and its material already exists. |
 
 #### The corpus has its own number
 
@@ -847,14 +929,11 @@ that engages with the reason recorded here.
   measured as quantities; chromaticism alone is not, and it is the thing that
   actually makes that subject hard to read. Wants an accidental *rate* beside
   the others.
-- **Two-part counterpoint is the play-along material, and the format cannot
-  hold it.** Raised 2026-08-20: fugues and the Two-Part Inventions are two
-  independent lines of equal interest, so the app could play one while the
-  player takes the other, and then swap. That is Phase 6's orchestration
-  arriving from a completely different direction — and better than it, because
-  an accompaniment part is dull to play where a countersubject is not. A
-  `Theme` is one voice; this needs either two linked themes or a second voice
-  on one, and the decision wants making before any counterpoint is transcribed.
+- **~~Two-part counterpoint is the play-along material, and the format cannot
+  hold it.~~ Promoted to Phase 6.2 on 2026-08-22**, where the decision it was
+  waiting for — two linked themes, or a second voice on one — is written down
+  as the thing to settle before any more counterpoint is transcribed. It was
+  raised 2026-08-20 and is still the better half of orchestration.
 - **~~The Two-Part Inventions need a converter, not a transcriber.~~** Built
   2026-08-20 as `tools/midi-to-theme.mts`: reads a public-domain MIDI, spells it
   with the app's own `spellInKey`, and emits `Theme` degrees. It refuses to
