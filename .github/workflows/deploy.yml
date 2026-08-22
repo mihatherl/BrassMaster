@@ -61,6 +61,13 @@ jobs:
       # it if this broke, and it has broken twice already — see the script.
       - run: npm run check:web
 
+      # And it must not carry the tailnet copy's name. CI never sets
+      # VITE_CHANNEL, so this is the release direction of the check: it proves
+      # that what is about to be published is called "Brass Master" and not
+      # "Brass Master — Dev". The dev direction is proved by whoever builds the
+      # tailnet copy, which is the only thing that sets the variable.
+      - run: npm run check:channel
+
       # Creates the Pages site on first run, so a fresh repository needs no
       # manual "enable Pages" step — only the custom domain is set by hand.
       - uses: actions/configure-pages@v5

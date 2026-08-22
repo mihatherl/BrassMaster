@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { channelOf, namesFor } from './tools/channel.mjs';
 
 /**
  * The app makes no network requests at runtime — the synth is generated, the
@@ -52,6 +53,17 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 const target = process.env.VITE_TARGET === 'app' ? 'app' : 'web';
 
 /**
+ * The other axis, and it is not this one. See `tools/channel.mjs`: `app` is
+ * the paid *release*, so the tailnet copy's name has to come from a signal of
+ * its own or "Dev" ends up on the Play listing.
+ */
+const channel = channelOf();
+const names = namesFor();
+// Said out loud, because the whole point is that the two builds are otherwise
+// indistinguishable — including in the terminal that made them.
+if (channel === 'dev') console.log(`building the DEV copy: "${names.name}"`);
+
+/**
  * Where the app will be served from.
  *
  * `VITE_BASE` states it outright and wins when set — the domain cutover to
@@ -89,6 +101,25 @@ export default defineConfig({
   preview: { allowedHosts: [TAILNET] },
   plugins: [
     react(),
+    {
+      /*
+       * `index.html` is static, so the channel's name is put into it here.
+       * Both tags matter and for different reasons: `<title>` is the browser
+       * tab and what a bookmark takes its name from, and
+       * `apple-mobile-web-app-title` is what iOS puts under the icon when a
+       * page is added to the home screen — which is the very screen holding
+       * two indistinguishable copies today.
+       */
+      name: 'app-name-for-channel',
+      transformIndexHtml(html: string) {
+        return html
+          .replace(/<title>[^<]*<\/title>/, `<title>${names.name}</title>`)
+          .replace(
+            /(<meta name="apple-mobile-web-app-title" content=")[^"]*(")/,
+            `$1${names.name}$2`,
+          );
+      },
+    },
     VitePWA({
       registerType: 'autoUpdate',
       // Registered by src/update.ts instead, which also reloads the page when a
@@ -112,8 +143,8 @@ export default defineConfig({
         navigateFallbackDenylist: [/\/spike\//],
       },
       manifest: {
-        name: 'Brass Master',
-        short_name: 'Brass Master',
+        name: names.name,
+        short_name: names.short,
         description:
           'Practise brass valve fingerings against scrolling notation, on any instrument in either clef.',
         theme_color: '#c48a2c',
