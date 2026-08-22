@@ -2307,3 +2307,21 @@ input[type='checkbox'] {
   gap: 0.5rem;
   margin-top: 1rem;
 }
+
+/*
+ * The calibration stave.
+ *
+ * Sized like the play surface's, because that is what it stands in for: the
+ * player is judging the same scroll past the same line they will read against.
+ */
+.calibrate__stave {
+  width: 100%;
+  height: 9rem;
+  display: block;
+}
+.calibrate__nudges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}

@@ -441,4 +441,28 @@ describe('the audio lead', () => {
     expect(t.audioTimeForBeat(2)).toBe(t.timeForBeat(2));
     t.stop();
   });
+
+  /*
+   * Moving it while running, which the calibration screen turns into a dial.
+   *
+   * The property that makes that safe: the clock does not move with it. A
+   * player adjusting until what they see and what they hear coincide must not
+   * have the notation shift under them at every step — only sound not yet
+   * handed over lands anywhere new.
+   */
+  it('may be moved while running, and moves nothing but the handover', () => {
+    const t = new Transport(context, 120, [], 1, 0.2);
+    t.start(() => {});
+    const clockTimes = [0, 1, 7.5].map((beat) => t.timeForBeat(beat));
+
+    t.audioLead = 0.35;
+
+    for (const [index, beat] of [0, 1, 7.5].entries()) {
+      // The sound is handed over earlier by exactly the change...
+      expect(t.audioTimeForBeat(beat)).toBeCloseTo(clockTimes[index] - 0.35, 9);
+      // ...and the beat it is aimed at has not moved at all.
+      expect(t.timeForBeat(beat)).toBeCloseTo(clockTimes[index], 9);
+    }
+    t.stop();
+  });
 });

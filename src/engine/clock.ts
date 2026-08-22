@@ -129,8 +129,16 @@ export class Transport {
    * the clock to fix one writer of sound.
    *
    * See `audioTimeForBeat`, which is the only place the lead is applied.
+   *
+   * **Movable while running, since 2026-08-22, and nothing else moves with
+   * it.** The clock, the notation and the judge never see it; only sound not
+   * yet handed to the audio thread lands anywhere new, so a change takes hold
+   * within a note or two and disturbs nothing already scheduled. That is what
+   * the calibration screen needs: a player turning a dial until what they see
+   * and what they hear coincide cannot be asked to sit through a restart at
+   * every step.
    */
-  readonly audioLead: number;
+  audioLead: number;
 
   /**
    * `tempo` and every event count the **conducted** beat; `crotchetsPerBeat`
