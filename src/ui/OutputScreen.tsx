@@ -27,6 +27,26 @@ import {
  * Its own screen rather than a slider in Advanced, because a number of
  * milliseconds is not something a player can set by looking at it. The click
  * has to be running while it is set.
+ *
+ * **What this screen is not, and cannot be: a routing picker.** Reported
+ * 2026-08-23 — a player chose the device's speaker while wearing headphones
+ * and the sound stayed in the headphones, which read as a bug. It is the
+ * platform: `AudioContext.setSinkId` exists on desktop Chrome and nowhere the
+ * app actually runs — not Android Chrome, not any WebView, not iOS — so the
+ * phone alone decides where sound goes, and this list only declares which
+ * output is in the player's ears so the right lead is in force. The copy
+ * below now says so outright, because a selectable list of device names looks
+ * exactly like the routing pickers every phone has, and the reader will
+ * assume routing until told otherwise.
+ *
+ * Nor can the names be filled in for the player: `enumerateDevices` hides
+ * labels until the microphone permission is granted (a paid feature this
+ * build may not even contain), and Android Chrome does not list audio
+ * *outputs* at all. The native shell can read the connected route's name from
+ * the OS — recorded in the roadmap under Phase 4, along with the better prize
+ * it unlocks: switching the profile automatically when the route changes,
+ * which retires the "forgot to switch" failure entirely rather than
+ * documenting it.
  */
 interface OutputScreenProps {
   settings: Settings;
@@ -104,6 +124,12 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
           Bluetooth headphones by a lot, wired ones by less, and this device&apos;s own speaker by
           whatever its hardware costs. Measure each one once, and the app brings the sound forward
           by that much whenever it is chosen.
+        </p>
+        <p>
+          Choosing here does not move the sound. Your phone decides where it plays — plug in
+          headphones and it plays through them, whatever is selected below. The choice tells the
+          app which output is actually in your ears, so the right correction is in force; when you
+          switch to another, say so here, because the app cannot notice on its own.
         </p>
       </header>
 

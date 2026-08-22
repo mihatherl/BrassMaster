@@ -355,6 +355,19 @@ spike already needs.
 **4.2 The Android shell and the Play listing.** `VITE_TARGET=app` inside
 Capacitor, signed and uploaded from Linux.
 
+**And the shell should read the audio route.** Found 2026-08-23: a player
+chose the speaker while wearing headphones and heard no change, because no
+browser the app runs on can route audio (`setSinkId` is desktop-only) — the
+outputs screen declares what is in the ears rather than choosing it, and now
+says so. The web app also cannot *name* the connected device: output labels
+need the microphone permission and Android Chrome lists no outputs at all.
+The native shell can do both, from the OS's own knowledge of the route
+(`AudioDeviceInfo` on Android): prefill the name box when an output is added,
+and — the better prize — notice the route changing and switch the calibration
+profile with it, which retires the "forgot to switch, played a whole session
+330ms late" failure instead of documenting it. Small, high-value, and only
+possible in the shell; it belongs in the same pass as 4.2.
+
 **4.3 v3.0 ships with** everything free, plus the microphone, the tuner, and My
 Music as it stands today.
 
