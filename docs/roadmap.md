@@ -572,7 +572,7 @@ a piece can be readable in one direction and not the other. Half a duet is
 better than none, and it must say which half it is offering.
 
 
-## 5. Releases, and where things run## 5. Releases, and where things run
+## 5. Releases, and where things run
 
 ### What the free app actually gets
 
