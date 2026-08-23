@@ -391,10 +391,21 @@ yes: the microphone runs while the reference tone plays, and the tone bleeds
 into the microphone as a constant baseline, which is a design input for the
 Phase 2 detector.
 
-**4.2 The Android shell and the Play listing.** `VITE_TARGET=app` inside
-Capacitor, signed and uploaded from Linux. Planned in detail in
-`android-shell-plan.md` (2026-08-23), which also ratifies § 5's
-shells-in-this-repository recommendation.
+**4.2 The Android shell and the Play listing.** ~~To build~~ — **built
+2026-08-23, v2.46.1, plan to Play in one evening.** `android/` in this
+repository per `android-shell-plan.md` (which also ratified § 5's
+shells-in-this-repository recommendation): Capacitor 8.5 wrapping the
+`VITE_TARGET=app` build, versionCode derived from the package version, the
+audio-route capability wired end to end (plugin with change events, one seam
+module reading the bridge off `window` so the web bundle stays clean, name
+prefill, and the calibration profile following the route), upload keystore
+generated and the signed bundle verified, the Play developer account opened
+and the app created — **Paid**, AU$14.99 placeholder, `net.brassmaster.app`
+— and v2.46.1 installed on the E32 *from the internal testing track*.
+Outstanding: the route auto-switch verified with the QC45s on glass, the
+keystore backup off the machine, and the finish-setting-up console tasks
+(content rating, data safety "no data collected", target audience 13+) that
+retire the placeholder listing name.
 
 **And the shell should read the audio route.** Found 2026-08-23: a player
 chose the speaker while wearing headphones and heard no change, because no
