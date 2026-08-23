@@ -705,6 +705,23 @@ body {
 
 /* Title and instrument chip share the row: the chip is identity, worn beside
    the name rather than filed in a panel. */
+/*
+ * The band behind the iPhone's status bar, painted solid so scrolled content
+ * passes behind it rather than through the clock. Fixed, above the tabs'
+ * z-index; zero-height wherever the inset is zero, so only notched phones
+ * ever see it.
+ */
+.screen--settings::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background: var(--bg);
+  z-index: 3;
+}
+
 /* Room for the pinned strip: the page's own end, so the last control can
    always scroll fully into the clear. And no top padding of its own — the
    masthead carries it instead, so the sticky tabs seal against the true top
@@ -747,7 +764,11 @@ body {
   z-index: 2;
   max-width: 44rem;
   margin-inline: auto;
-  padding: 0.75rem calc(1.25rem + var(--safe-right)) calc(1rem + var(--safe-bottom))
+  /* The home-indicator inset stays whole (it is the phone's, not ours); the
+     discretionary padding under the version line is trimmed, which is the
+     "wasted space" the player saw beneath it. The measured clearance follows
+     the strip's height automatically. */
+  padding: 0.625rem calc(1.25rem + var(--safe-right)) calc(0.375rem + var(--safe-bottom))
     calc(1.25rem + var(--safe-left));
   background: var(--bg);
   border-top: 1px solid var(--border);
@@ -811,7 +832,11 @@ body {
  */
 .mode-tabs {
   position: sticky;
-  top: 0;
+  /* Below the phone's own bar, not under it: top 0 is the viewport's top,
+     which on an iPhone is the clock and the battery — the tabs slid beneath
+     them once scrolled (the player, 2026-08-23 night). Android's inset is
+     zero, so nothing moves there. */
+  top: var(--safe-top);
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
