@@ -340,10 +340,12 @@ body {
   grid-area: aside;
   display: flex;
   align-items: stretch;
-  /* Centred as a pair, so a gesture narrower than its cap sits in from the
-     edge rather than against it. */
-  justify-content: center;
   gap: 0.5rem;
+  /* The bar's own inset, so the wheel starts under Stop rather than flush
+     with the glass, and the key dial ends short of the right edge. The old
+     `justify-content: center` did nothing while the tempo box grew, and its
+     "centred as a pair" promise was never what the screen showed. */
+  padding-inline: 0.5rem;
   min-width: 0;
   /*
    * Measured in the notation's own unit, not in one of its own.
@@ -413,7 +415,16 @@ body {
   flex: 1 1 auto;
   min-width: 0;
   display: grid;
-  justify-items: center;
+  /*
+   * The wheel anchors left, under the Stop button, which is the placement the
+   * comment above promises — a thumb finds it without aiming. It was
+   * `center`, which looked the same only while the key dial happened to be
+   * beside it: the box is a grower, so whenever the dial is absent (themes
+   * and drills never draw one — see `canRekeyKind`) the box was the whole
+   * band and the wheel sat mid-screen, which is what the player saw on the
+   * iPhone and read as broken.
+   */
+  justify-items: start;
   align-content: center;
   height: var(--aside-size);
 }
@@ -2354,6 +2365,9 @@ input[type='checkbox'] {
     width: 100%;
     height: auto;
     padding: 0;
+    /* Centred in the side column, where there is no Stop button to sit
+       under — the left anchor is the phone band's rule, not this one's. */
+    justify-items: center;
   }
 }
 
