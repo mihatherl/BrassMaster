@@ -13,13 +13,10 @@ import type { ExerciseKind } from '../exercise/types';
 import { RangePicker } from './RangePicker';
 import {
   REGISTERS,
-  DEFAULT_SETTINGS,
   DEVICE_OUTPUT_ID,
   MAX_KEYS_IN_PLAY,
   sanitise,
   switchMaterial,
-  PLAYBACK_MODES,
-  READING_MODES,
   TIME_SIGNATURES,
   type Settings,
 } from '../storage/settings';
@@ -33,34 +30,6 @@ import {
  * operation, the right roles for a screen reader and browser find-in-page
  * already working.
  */
-interface PanelProps {
-  id: string;
-  title: string;
-  /** What is currently chosen, shown only while the section is shut. */
-  values: string;
-  open: boolean;
-  onToggle: (id: string, open: boolean) => void;
-  children: ReactNode;
-}
-
-function Panel({ id, title, values, open, onToggle, children }: PanelProps) {
-  return (
-    <details
-      className="panel"
-      id={`panel-${id}`}
-      open={open}
-      onToggle={(event) => onToggle(id, event.currentTarget.open)}
-    >
-      <summary className="panel__summary">
-        <span className="panel__heading">
-          <span className="panel__title">{title}</span>
-          <span className="panel__values">{values}</span>
-        </span>
-      </summary>
-      {children}
-    </details>
-  );
-}
 
 /**
  * Keys to a row, which decides what the window opens on.
@@ -77,10 +46,6 @@ const KEY_ROWS = Array.from(
   (_, row) => MAJOR_KEYS.slice(row * KEYS_PER_ROW, row * KEYS_PER_ROW + KEYS_PER_ROW),
 );
 
-/** Joins the parts of a collapsed section's summary line. */
-function summarise(...parts: Array<string | undefined>): string {
-  return parts.filter(Boolean).join(' · ');
-}
 
 /**
  * A key's accidentals as a symbol and a count: `3♭`, `2♯`, or nothing for C.
@@ -325,85 +290,11 @@ export function SettingsScreen({
     ? fitsOf(picks.map((id) => themeById(id)).filter((t): t is Theme => t !== undefined))
     : fitsOf(themesOf(chosenIds), settings.difficultyId);
 
-  // Enough of each section to see at a glance what is set, without reproducing
-  // the whole screen in miniature — the long sections show only what matters.
-  const keySignature = MAJOR_KEYS.find((k) => k.fifths === settings.fifths);
-  const material = EXERCISE_KINDS.find((k) => k.id === settings.kind);
-  const reading = READING_MODES.find((m) => m.id === settings.readingMode);
-  const sound = PLAYBACK_MODES.find((m) => m.id === settings.playbackMode);
+  // The one summary the screen still writes itself: which output the strip's
+  // note names. Everything else announces itself in place now — the chip, the
+  // open material box, the gate's accordion lines.
   const output = settings.audioOutputs.find((o) => o.id === settings.audioOutputId);
 
-  const panelValues = {
-    exercise: summarise(
-      // Every key in play, opening one first, since a summary that named only
-      // the first would hide the whole of a modulating exercise.
-      settings.keySet.length > 1
-        ? orderByCloseness(settings.fifths, settings.keySet)
-            .map((f) => keyName(f, true))
-            .filter(Boolean)
-            .join(' → ')
-        : keySignature && keyName(settings.fifths),
-      // The drill's name says more than the box's: "Dominant 7th" is what will
-      // be practised, where "Drills" only says where to look for it.
-      patternKind ? drill.name : material?.name,
-      // Which music, when the player has said: the collection, and how much of
-      // it they narrowed to. The same reason the drill's name is worth more
-      // than "Drills" — a summary should recite the choices, not the defaults.
-      settings.kind === 'themes' && chosenIds.length > 0
-        ? summarise(
-            COLLECTIONS.filter((c) => chosenIds.includes(c.id))
-              .map((c) => c.name)
-              .join(' + '),
-            defined ? `${picks.length} chosen` : undefined,
-          )
-        : undefined,
-      patternKind ? difficulty.patterns.label : difficulty.name,
-      // Only when it has been asked for. Left to the difficulty it is not a
-      // choice the player made, and a summary should not recite the defaults.
-      !patternKind && settings.kind !== 'themes' && settings.range
-        ? `${formatPitch(spellInKey(settings.range.low, settings.fifths))}–${formatPitch(
-            spellInKey(settings.range.high, settings.fifths),
-          )}`
-        : undefined,
-    ),
-    playing: summarise(
-      // The tempo leads, because it left the Start strip (see the note at the
-      // strip) and this line is what keeps it one glance away regardless.
-      `${settings.tempo} bpm`,
-      reading?.name,
-      sound?.name,
-      settings.conductorEnabled ? 'conductor' : settings.metronomeEnabled ? 'metronome' : undefined,
-    ),
-    // Only what has been moved off its default, so a section nobody has opened
-    // says nothing rather than reciting the settings it came with.
-    advanced: summarise(
-      settings.variableTempo ? 'variable tempo' : undefined,
-      settings.countInBars !== DEFAULT_SETTINGS.countInBars
-        ? settings.countInBars === 0
-          ? 'no count-in'
-          : `${settings.countInBars}-bar count-in`
-        : undefined,
-      settings.timingTolerance !== DEFAULT_SETTINGS.timingTolerance ? 'timing' : undefined,
-      settings.scrollSpeed !== DEFAULT_SETTINGS.scrollSpeed ? 'scroll speed' : undefined,
-      settings.conductorStyle !== DEFAULT_SETTINGS.conductorStyle ? 'conductor style' : undefined,
-      settings.cushionLevel !== DEFAULT_SETTINGS.cushionLevel ? 'cushion' : undefined,
-      settings.weakNoteDrilling !== DEFAULT_SETTINGS.weakNoteDrilling ? 'weak notes' : undefined,
-      // The phone's own speaker is the default and says nothing; a headset in
-      // use is worth a word, since it changes when every sound is sent.
-      output ? output.name : undefined,
-    ),
-  };
-
-  /*
-   * Every section shut on arrival, every time.
-   *
-   * The state used to be remembered, which meant coming back from a run to
-   * whatever had been left open — usually everything, since opening a section
-   * is how you change anything. Shut, the whole screen is six lines saying
-   * what is set and a Start button, which is what someone returning for
-   * another go actually wants to see.
-   */
-  const [openPanels, setOpenPanels] = useState<string[]>([]);
 
   /*
    * Whether the screen's content overflows its viewport, which decides if the
@@ -427,29 +318,6 @@ export function SettingsScreen({
       el.removeEventListener('toggle', measure, true);
     };
   });
-  const isOpen = (id: string) => openPanels.includes(id);
-  const setOpen = (id: string, open: boolean) => {
-    setOpenPanels((current) =>
-      open ? [...new Set([...current, id])] : current.filter((panel) => panel !== id),
-    );
-    /*
-     * An opened section comes to the top of the screen.
-     *
-     * Without it, opening *Exercise* leaves its contents starting most of a
-     * screen down — behind the title, My Music, the instrument and two collapsed
-     * material boxes — so a section that fits the window comfortably still
-     * cannot be seen in it. The player's report is that people get lost in here,
-     * and being shown the top half of a thing you have just asked for is most of
-     * how that happens.
-     *
-     * After a frame, because the section has to have grown before there is
-     * anything to scroll to.
-     */
-    if (!open) return;
-    requestAnimationFrame(() => {
-      document.getElementById(`panel-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    });
-  };
 
   /*
    * Which row of keys the window rests on.
@@ -470,12 +338,13 @@ export function SettingsScreen({
    * its children outright, and an element with no box has no scroll to set.
    */
   const keysWindow = useRef<HTMLDivElement>(null);
-  const exerciseOpen = isOpen('exercise');
   const startingKey = settings.keySet[0];
 
   useEffect(() => {
+    // The materials sit at the top level now, so the window exists whenever
+    // the chosen box draws it; its presence is the only gate needed.
     const window_ = keysWindow.current;
-    if (!window_ || !exerciseOpen) return;
+    if (!window_) return;
     const row = window_.children[
       Math.floor(MAJOR_KEYS.findIndex((k) => k.fifths === startingKey) / KEYS_PER_ROW)
     ] as HTMLElement | undefined;
@@ -484,7 +353,7 @@ export function SettingsScreen({
     // the page to bring the window itself into view — and the player has just
     // opened the section, so the page is already where they put it.
     window_.scrollTop = row.offsetTop - (window_.clientHeight - row.offsetHeight) / 2;
-  }, [exerciseOpen, startingKey]);
+  }, [startingKey]);
 
   /*
    * The drill window, kept the same way as the keys above and for the same
@@ -495,7 +364,7 @@ export function SettingsScreen({
    * done without a scrollbar.
    */
   const drillsWindow = useRef<HTMLDivElement>(null);
-  const drillChosen = isOpen('exercise') && patternKind;
+  const drillChosen = Boolean(patternKind);
   const chosenDrillId = drill.id;
 
   useEffect(() => {
@@ -581,7 +450,13 @@ export function SettingsScreen({
       </div>
       {settings.keySet.length > 1 && (
         <p className="field__note muted">
-          Starts in {keyName(settings.keySet[0], true)}, and changes key as it goes.
+          {/* The whole route, ordered for playing by closeness from the
+              opening key — this used to live on the panel's summary line, and
+              when the panel went (2026-08-23) it was the one thing the summary
+              said that nothing else did. */}
+          Plays {orderByCloseness(settings.fifths, settings.keySet)
+            .map((f) => keyName(f, true))
+            .join(' → ')}, changing key as it goes.
         </p>
       )}
       {naturalForDoubleSharp && (
@@ -924,7 +799,13 @@ export function SettingsScreen({
       {mode === 'free' && (
         <>
 
-      <Panel id="exercise" title="Exercise" values={panelValues.exercise} open={isOpen('exercise')} onToggle={setOpen}>
+      {/*
+        No Exercise panel around the materials any more (the player,
+        2026-08-23 evening): once Playing, Advanced and the instrument had
+        moved out, the panel was one accordion wrapping another — a box of
+        boxes. The material boxes ARE the accordion now, at the top level,
+        with the open one showing what is chosen.
+      */}
 
         {/*
           One box per material, and the open one is the material.
@@ -1031,7 +912,7 @@ export function SettingsScreen({
             );
           })}
         </div>
-      </Panel>
+      
 
       {/*
         No Playing panel and no Advanced panel, since 2026-08-23. This screen

@@ -95,30 +95,20 @@ describe('the app', () => {
      * whatever happened to be open when you left, which was usually all of it.
      */
     renderApp();
-    const panels = [...document.querySelectorAll<HTMLDetailsElement>('details.panel')];
-
-    // One panel since 2026-08-23: the how-it-goes panels moved to the Ready
-    // gate and the instrument became the chip beside the title, so what
-    // remains of the home screen's panels is the exercise itself.
-    expect(panels.length).toBe(1);
-    expect(panels.filter((panel) => panel.open)).toHaveLength(0);
+    // No accordion wrapper is left on the home at all (2026-08-23 evening):
+    // the material boxes sit at the top level, and exactly one — the chosen
+    // material — stands open. That box is the whole answer to "what is set".
+    expect(document.querySelectorAll('details.panel')).toHaveLength(0);
+    expect(document.querySelectorAll('.mode.is-open')).toHaveLength(1);
   });
 
   it('says what is selected in each collapsed section', () => {
     renderApp();
-    const valuesOf = (title: string) =>
-      [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
-        .find((panel) => panel.querySelector('.panel__title')?.textContent === title)
-        ?.querySelector('.panel__values')?.textContent;
-
-    // The defaults: Eb bass in treble on the chip, the exercise on its panel.
+    // Everything announces itself in place now: the instrument on the chip,
+    // the material as the open box, and how-the-run-goes on the Ready gate's
+    // own lines (asserted with the gate's tests).
     expect(screen.getByRole('button', { name: 'Eb Bass · Treble' })).toBeTruthy();
-    expect(valuesOf('Instrument')).toBeUndefined();
-    expect(valuesOf('Exercise')).toBe('Eb major · Sight-reading · Easy');
-    // No Playing and no Advanced since 2026-08-23: how the run goes is chosen
-    // on the Ready gate, where every run already passes.
-    expect(valuesOf('Playing')).toBeUndefined();
-    expect(valuesOf('Advanced')).toBeUndefined();
+    expect(document.querySelector('.mode.is-open strong')?.textContent).toBe('Sight-reading');
   });
 
   it('keeps the tempo on the Ready gate, where the run it sets is about to start', () => {
@@ -169,13 +159,14 @@ describe('the app', () => {
     expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).cushionLevel).toBe(0.25);
   });
 
-  it('keeps the summary in step with what is chosen', () => {
+  it('relabels keys and difficulties as the drill changes', () => {
+    /*
+     * These assertions used to run through the Exercise panel's summary line;
+     * the panel is gone (2026-08-23 evening) and the behaviours it witnessed
+     * are asserted on the controls themselves, which is where a player reads
+     * them anyway.
+     */
     renderApp();
-    const exerciseValues = () =>
-      [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
-        .find((panel) => panel.querySelector('.panel__title')?.textContent === 'Exercise')
-        ?.querySelector('.panel__values')?.textContent;
-
     fireEvent.click(screen.getByRole('button', { name: /Drills/ }));
 
     // Choosing drills relabels the difficulty buttons by how far the pattern
@@ -183,28 +174,18 @@ describe('the app', () => {
     expect(screen.queryByRole('button', { name: 'Hard' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '2 oct · mixed' }));
 
-    // And the summary has to follow suit, or it contradicts the button above
-    // it — naming the drill, which says more than the box's name does.
-    expect(exerciseValues()).toBe('Eb major · Major scale · 2 oct · mixed');
-
-    // A different drill, and the summary names that one instead.
-    fireEvent.click(screen.getByRole('button', { name: 'Dominant 7th' }));
-    expect(exerciseValues()).toBe('Eb major · Dominant 7th · 2 oct · mixed');
-
     /*
      * A minor drill is chosen the way a book prints it — C minor, not E flat
-     * major with the relative minor — so the keys relabel to the minors and
-     * the summary follows. The signature underneath is the same three flats.
+     * major with the relative minor — so the keys relabel to the minors. The
+     * signature underneath is the same three flats.
      */
     fireEvent.click(screen.getByRole('button', { name: 'Harmonic minor scale' }));
     expect(screen.getByRole('button', { name: 'C minor, 3 flats' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Eb major, 3 flats' })).toBeNull();
-    expect(exerciseValues()).toBe('C minor · Harmonic minor scale · 2 oct · mixed');
 
     // And back to majors for a major drill.
     fireEvent.click(screen.getByRole('button', { name: 'Major scale' }));
     expect(screen.getByRole('button', { name: 'Eb major, 3 flats' })).toBeTruthy();
-    expect(exerciseValues()).toBe('Eb major · Major scale · 2 oct · mixed');
   });
 
   it('gives each material its own key and difficulty', () => {
@@ -212,41 +193,45 @@ describe('the app', () => {
      * Asked for on 2026-08-15: a player drilling scales in D at two octaves
      * and reading themes in B flat at Beginner should not have to reset both
      * every time they swap. Each box brings its own pair back with it.
+     *
+     * Witnessed in the store since the panel summary went (2026-08-23): the
+     * pair is captured after each box is set up, and swapping must hand back
+     * exactly the captured pair — which asserts the behaviour without naming
+     * any difficulty id.
      */
-    const exerciseValues = () =>
-      [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
-        .find((panel) => panel.querySelector('.panel__title')?.textContent === 'Exercise')
-        ?.querySelector('.panel__values')?.textContent;
+    const pair = () => {
+      const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
+      return { keySet: stored.keySet, difficultyId: stored.difficultyId };
+    };
     const first = renderApp();
-    fireEvent.click(screen.getByText('Exercise'));
 
     fireEvent.click(screen.getByRole('button', { name: /Drills/ }));
     fireEvent.click(screen.getByRole('button', { name: 'D major, 2 sharps' }));
     fireEvent.click(screen.getByRole('button', { name: 'Eb major, 3 flats' }));
     fireEvent.click(screen.getByRole('button', { name: '2 oct · mixed' }));
-    expect(exerciseValues()).toBe('D major · Major scale · 2 oct · mixed');
+    const drillsPair = pair();
 
     // Themes carries the pair over the first time, and is then given its own.
     fireEvent.click(screen.getByRole('button', { name: /Themes/ }));
-    expect(exerciseValues()).toBe('D major · Themes · Hard');
+    expect(pair()).toEqual(drillsPair);
     fireEvent.click(screen.getByRole('button', { name: 'Bb major, 2 flats' }));
     fireEvent.click(screen.getByRole('button', { name: 'D major, 2 sharps' }));
     fireEvent.click(screen.getByRole('button', { name: 'Beginner' }));
-    expect(exerciseValues()).toBe('Bb major · Themes · Beginner');
+    const themesPair = pair();
+    expect(themesPair).not.toEqual(drillsPair);
 
-    // Back to Drills: D and two octaves, exactly as left.
+    // Back to Drills: D and two octaves, exactly as left; and Themes keeps its own.
     fireEvent.click(screen.getByRole('button', { name: /Drills/ }));
-    expect(exerciseValues()).toBe('D major · Major scale · 2 oct · mixed');
+    expect(pair()).toEqual(drillsPair);
     fireEvent.click(screen.getByRole('button', { name: /Themes/ }));
-    expect(exerciseValues()).toBe('Bb major · Themes · Beginner');
+    expect(pair()).toEqual(themesPair);
 
     // And it survives a reload.
     first.unmount();
     renderApp();
-    fireEvent.click(screen.getByText('Exercise'));
-    expect(exerciseValues()).toBe('Bb major · Themes · Beginner');
+    expect(pair()).toEqual(themesPair);
     fireEvent.click(screen.getByRole('button', { name: /Drills/ }));
-    expect(exerciseValues()).toBe('D major · Major scale · 2 oct · mixed');
+    expect(pair()).toEqual(drillsPair);
   });
 
   it('keeps collapsed sections reachable to assistive technology and search', () => {
@@ -319,7 +304,6 @@ describe('the app', () => {
 
     it('opens exactly one box, and it is the material chosen', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
 
       expect(openBox(), 'the stored default').toBe('Sight-reading');
       expect(document.querySelectorAll('.mode__body')).toHaveLength(1);
@@ -331,7 +315,6 @@ describe('the app', () => {
 
     it('will not close the open box, since an exercise has to be made of something', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
 
       choose(/Drills/);
       expect(openBox()).toBe('Drills');
@@ -342,7 +325,6 @@ describe('the app', () => {
 
     it('shows a material only the settings that apply to it', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
 
       // A drill is a shape played against a click, so it has no metre to choose
       // and no pool to be drawn from — it asks which shape, and where on the
@@ -368,7 +350,6 @@ describe('the app', () => {
 
     it('says which box is open to anyone not looking at it', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
       choose(/Themes/);
 
       const themes = screen.getByRole('button', { name: /Themes/ });
@@ -389,10 +370,6 @@ describe('the app', () => {
      * `keySet[0]` is the starting key and always was.
      */
     const key = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name} major`) });
-    const exerciseValues = () =>
-      [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
-        .find((panel) => panel.querySelector('.panel__title')?.textContent === 'Exercise')
-        ?.querySelector('.panel__values')?.textContent;
 
     /**
      * Three rows of five in a window two rows tall, so one row shows whole with
@@ -405,7 +382,6 @@ describe('the app', () => {
      */
     it('lays the keys out five to a row, with the common five in the middle', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
 
       const rows = [...document.querySelectorAll('.keys__row')].map((row) =>
         [...row.querySelectorAll('.key__name')].map((name) => name.textContent),
@@ -420,16 +396,16 @@ describe('the app', () => {
 
     it('starts in the first key chosen, and says the whole route', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
 
-      // Eb is the default and the only one selected, so it is the start.
-      expect(exerciseValues()).toContain('Eb major');
+      // One key: no route to speak of, and none spoken.
+      expect(screen.queryByText(/changing key as it goes/)).toBeNull();
 
       fireEvent.click(key('Bb'));
       fireEvent.click(key('F'));
       // Ordered for playing by closeness from the opening key, not by the order
       // they were tapped — but Eb still leads, because it was chosen first.
-      expect(exerciseValues()).toContain('Eb → Bb → F');
+      // Said under the grid since the panel summary went (2026-08-23).
+      expect(screen.getByText(/Eb → Bb → F/)).toBeTruthy();
     });
 
     it('will not let the last key be turned off', () => {
@@ -437,7 +413,6 @@ describe('the app', () => {
       // deselect, which is the whole of the rule — no separate starting key to
       // protect, as there was when two controls had to be kept agreeing.
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
       expect(key('Eb')).toHaveProperty('disabled', true);
 
       fireEvent.click(key('Bb'));
@@ -446,18 +421,18 @@ describe('the app', () => {
 
     it('hands the start to the next key when the first is dropped', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
 
       fireEvent.click(key('Bb'));
       fireEvent.click(key('Eb'));
-      expect(exerciseValues()).toContain('Bb major');
+      // Witnessed in the store since the panel summary went: the head of the
+      // key set is the starting key, and always was.
+      expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).keySet[0]).toBe(-2);
     });
 
     it('stops at four keys, and lets them be swapped', () => {
       // The cap is real: the scrolling header is sized for the widest key in
       // the set and holds that width for the whole exercise.
       renderApp();
-      fireEvent.click(screen.getByText('Exercise'));
 
       for (const name of ['Bb', 'F', 'Ab']) fireEvent.click(key(name));
       expect(key('C')).toHaveProperty('disabled', true);
@@ -641,7 +616,6 @@ describe('headphones and speakers', () => {
 describe('choosing tunes', () => {
   const openThemes = () => {
     renderApp();
-    fireEvent.click(screen.getByText('Exercise'));
     fireEvent.click(screen.getByRole('button', { name: /Themes/ }));
   };
 
