@@ -649,30 +649,16 @@ export function PlayScreen({
         )}
         <div className="start-gate">
           <h2>Ready</h2>
-          {/* How this run will go, editable at the door — see ReadyControls
-              for the admission rule that keeps this face short. */}
-          {onSettings && (
-            <ReadyControls settings={settings} onChange={onSettings} onOutputs={onOutputs} />
-          )}
-          <p className="muted">
-            {settings.readingMode === 'paged'
-              ? `Hold the valve buttons — or keys 1, 2 and 3 — for each note, counting with the ${
-                  settings.conductorEnabled && !settings.metronomeEnabled
-                    ? 'conductor'
-                    : 'metronome'
-                }. Nothing in the music will tell you when to play.`
-              : 'Hold the valve buttons — or keys 1, 2 and 3 — so the right combination is down as each note crosses the line.'}
-          </p>
-          {/* Only when there is genuinely nothing keeping time. The conductor
-              does that job as well as the metronome. */}
-          {settings.readingMode === 'paged' &&
-            !settings.metronomeEnabled &&
-            !settings.conductorEnabled && (
-              <p className="muted">
-                The metronome and the conductor are both off, so you will have nothing at all to
-                count against.
-              </p>
-            )}
+          {/*
+           * Start first, settings under it (asked for by the player,
+           * 2026-08-23): the returning player who changes nothing should meet
+           * the button where their thumb already is, and the sections below
+           * are for the run that wants something different. The two
+           * paragraphs of how-to-play prose that used to sit here went the
+           * same day — the accordion summaries say the same things in five
+           * short lines, and "Nothing keeps time" on the Beat line carries
+           * the one warning the prose existed for.
+           */}
           <button
             type="button"
             className="button button--primary button--large"
@@ -681,13 +667,19 @@ export function PlayScreen({
           >
             {loading ? 'Loading instrument…' : 'Tap to start'}
           </button>
+          {/* How this run will go, editable at the door — see ReadyControls
+              for the admission rule that keeps this face short. */}
+          {onSettings && (
+            <ReadyControls settings={settings} onChange={onSettings} onOutputs={onOutputs} />
+          )}
           <button
             type="button"
             className="button button--quiet"
             disabled={loading}
             onClick={onExit}
           >
-            Back to settings
+            {/* Not "Back to settings" any more: these are the settings. */}
+            Back
           </button>
           {/* The lead note used to sit here too; the ReadyControls status line
               says the same thing with the unmeasured case besides. It remains
@@ -716,7 +708,7 @@ export function PlayScreen({
             {loading ? 'Starting…' : 'Try again'}
           </button>
           <button type="button" className="button button--quiet" onClick={onExit}>
-            Back to settings
+            Back
           </button>
         </div>
       </div>

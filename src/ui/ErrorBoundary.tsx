@@ -74,7 +74,7 @@ export class ErrorBoundary extends Component<Props, State> {
             this.props.onReset?.();
           }}
         >
-          Back to settings
+          Back to the start
         </button>
       </div>
     );

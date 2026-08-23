@@ -145,7 +145,7 @@ describe('the app', () => {
     // speed behind its cog.
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    fireEvent.click(screen.getByRole('button', { name: /Preferences/ }));
+    fireEvent.click(screen.getByText('Preferences'));
     expect(screen.getByLabelText(/^Scroll speed/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Read the page/ }));
@@ -155,7 +155,7 @@ describe('the app', () => {
   it('offers the cushion behind the gate cog, and keeps what is set there', () => {
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    fireEvent.click(screen.getByRole('button', { name: /Preferences/ }));
+    fireEvent.click(screen.getByText('Preferences'));
     const slider = screen.getByLabelText<HTMLInputElement>(/^Cushion/);
     expect(slider.value).toBe('50');
     fireEvent.change(slider, { target: { value: '25' } });
@@ -274,10 +274,11 @@ describe('the app', () => {
    */
   describe('the ready screen', () => {
     const cardsIn = (label: string) => {
-      const field = [...document.querySelectorAll('.ready-controls .field')].find(
-        (f) => f.querySelector('.field__label')?.textContent === label,
+      // Each question is an accordion section now; the cards live in its body.
+      const section = [...document.querySelectorAll('.ready-controls details.panel')].find(
+        (panel) => panel.querySelector('.panel__title')?.textContent === label,
       );
-      return [...(field?.querySelectorAll('.card strong') ?? [])].map((c) => c.textContent);
+      return [...(section?.querySelectorAll('.card strong') ?? [])].map((c) => c.textContent);
     };
 
     it('offers the fingering modes two up, with Every note on its own row', () => {
@@ -468,7 +469,7 @@ describe('the app', () => {
   it('lets the player back out of an exercise', () => {
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    fireEvent.click(screen.getByRole('button', { name: /back to settings/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
   });
 
@@ -507,7 +508,7 @@ describe('the app', () => {
           screen.getByRole('button', { name: /tap to start/i }),
           `${id} failed to generate`,
         ).toBeTruthy();
-        fireEvent.click(screen.getByRole('button', { name: /back to settings/i }));
+        fireEvent.click(screen.getByRole('button', { name: 'Back' }));
       }
     }
   });

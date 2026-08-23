@@ -28,7 +28,7 @@ describe('when a screen throws', () => {
     /* The real fault this was written for, quoted back: a player who can read
        this line to somebody has reported the bug. */
     expect(screen.getByText(/ctx\.roundRect is not a function/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /back to settings/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /back to the start/i })).toBeTruthy();
   });
 
   it('stays out of the way when nothing throws', () => {
