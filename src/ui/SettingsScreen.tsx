@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
 import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
 import { formatPitch } from '../domain/pitch';
@@ -302,10 +302,29 @@ export function SettingsScreen({
 
 
   /*
-   * The strip is unconditionally sticky again — see its comment below — so
-   * the overflow measurement that used to decide its stickiness retired with
-   * the condition (2026-08-23 evening).
+   * The clearance under the content follows the strip's measured height,
+   * because the strip's height is not a constant: it carries the
+   * output-lead note only when a lead is in force, and it grows with the
+   * device's font scale. A guessed clearance was 50px short on the E32 —
+   * whose strip holds a two-line "brought forward 750 ms" note that no
+   * desktop test browser ever has — and the last drills controls could not
+   * scroll out from under it, found by measuring the live phone over CDP.
+   * Re-measured every render (the note comes and goes with settings) and on
+   * resize.
    */
+  const stripRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const strip = stripRef.current;
+    const screen = strip?.closest('.screen--settings');
+    if (!strip || !(screen instanceof HTMLElement)) return;
+    const set = () =>
+      screen.style.setProperty('--strip-clearance', `${strip.offsetHeight + 12}px`);
+    set();
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(set) : null;
+    observer?.observe(strip);
+    return () => observer?.disconnect();
+  });
 
   /*
    * No windows over the keys or the drills any more (the player, 2026-08-23
@@ -875,7 +894,7 @@ export function SettingsScreen({
         so a stale cached copy announces itself on the first screen; the full
         credits stay behind the gate's Preferences.
       */}
-      <div className="actions actions--pinned">
+      <div className="actions actions--pinned" ref={stripRef}>
         {/*
           Which output the sound is being sent early for, where it cannot be
           missed. The choice does not follow the device — the browser cannot

@@ -726,7 +726,11 @@ body {
 .screen--settings::after {
   content: '';
   display: block;
-  height: calc(7.5rem + var(--safe-bottom));
+  /* Set from the strip's measured height (see SettingsScreen): the strip
+     grows with the output note and the font scale, so a guessed constant was
+     50px short on exactly the phone whose note is longest. The fallback is
+     only for the first paint before the measurement lands. */
+  height: var(--strip-clearance, calc(7.5rem + var(--safe-bottom)));
 }
 
 /*
