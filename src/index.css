@@ -711,7 +711,27 @@ body {
    of the scroller rather than leaving a strip the content ghosts through. */
 .screen--settings {
   padding-top: 0;
-  padding-bottom: 6.5rem;
+  padding-bottom: calc(7.5rem + var(--safe-bottom));
+}
+
+/*
+ * The Start strip, fixed to the viewport bottom — not sticky, which never
+ * leaves the flow and so let the page scroll out beneath it. It wears the
+ * screen's own column (44rem, centred) and its safe-area insets, since it no
+ * longer inherits them from the screen it floats over.
+ */
+.actions--pinned {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  max-width: 44rem;
+  margin-inline: auto;
+  padding: 0.75rem calc(1.25rem + var(--safe-right)) calc(1rem + var(--safe-bottom))
+    calc(1.25rem + var(--safe-left));
+  background: var(--bg);
+  border-top: 1px solid var(--border);
 }
 
 .screen--settings > .masthead--home {

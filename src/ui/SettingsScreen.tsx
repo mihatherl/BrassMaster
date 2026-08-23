@@ -864,11 +864,18 @@ export function SettingsScreen({
         it. The overlap lie is cured structurally rather than conditionally,
         and the conditional machinery went with it.
 
+        Fixed, not sticky, after the first build of this frame: sticky never
+        leaves the flow, so the scroll clearance meant for the content ended
+        up *beneath* the strip, and at full scroll the page slid out under it
+        — "coming out the other end" (the player, same evening). Fixed takes
+        the strip out of the flow entirely; the clearance on the screen is
+        then genuinely the end of the page.
+
         The version and corpus line rides with Start (asked for, same evening)
         so a stale cached copy announces itself on the first screen; the full
         credits stay behind the gate's Preferences.
       */}
-      <div className="actions actions--sticky">
+      <div className="actions actions--pinned">
         {/*
           Which output the sound is being sent early for, where it cannot be
           missed. The choice does not follow the device — the browser cannot
