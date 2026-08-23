@@ -43,27 +43,27 @@ describe('the build without My Music', () => {
   it('still offers everything else, so nothing is gated by accident', () => {
     render(<SettingsScreen {...props} />);
     expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Eb Bass · Treble/ }));
     expect(screen.getByLabelText('Instrument')).toBeTruthy();
   });
 });
 
-describe('the two front doors', () => {
+describe('the unified home', () => {
   /*
-   * The paid build opens on a choice; the free build opens on the settings
-   * screen as it always did. `renderApp` papers over the difference for every
-   * other test, so this is the one place the difference itself is asserted.
+   * One home since 2026-08-23: the interstitial with two doors is gone, and
+   * the two ways in sit side by side as segments — the §1.4 ruling ("neither
+   * door is the poor relation") honoured as literal equal billing. The free
+   * build has no switch at all and simply is the free side, which `renderApp`
+   * papers over for every other test; this is the one place the difference
+   * itself is asserted.
    */
-  it('opens on a choice of doors in the build that has two', () => {
+  it('opens with both ways in, side by side, the free side showing', () => {
     render(<App />);
-    expect(screen.getByRole('button', { name: /practice/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /free play/i })).toBeTruthy();
-  });
-
-  it('leads to the settings screen, unchanged, through free play', () => {
-    render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /free play/i }));
+    expect(screen.getByRole('button', { name: 'Structured Learning' })).toBeTruthy();
+    const free = screen.getByRole('button', { name: 'Free play' });
+    expect(free.getAttribute('aria-pressed')).toBe('true');
+    // And the free side is the settings screen as it always was.
     expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
-    expect(screen.getByLabelText('Instrument')).toBeTruthy();
   });
 
   /*
@@ -75,19 +75,22 @@ describe('the two front doors', () => {
   it('never writes a course’s settings back over the player’s own', () => {
     saveSettings({ ...DEFAULT_SETTINGS, tempo: 132 });
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /practice/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Structured Learning' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(loadSettings().tempo).toBe(132);
   });
 
-  it('leads to the course through practice, and back again', () => {
+  it('switches to the course and back, remembering which side was chosen', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /practice/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Structured Learning' }));
     // Asserted on the screen's own furniture rather than a level name, which
     // follows whatever difficulty the settings happen to default to.
     expect(screen.getByRole('heading', { name: /to move on/i })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(screen.getByRole('button', { name: /free play/i })).toBeTruthy();
+    // The choice is the player's and persists like any other setting.
+    expect(loadSettings().homeMode).toBe('structured');
+    fireEvent.click(screen.getByRole('button', { name: 'Free play' }));
+    expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy();
+    expect(loadSettings().homeMode).toBe('free');
   });
 });
 

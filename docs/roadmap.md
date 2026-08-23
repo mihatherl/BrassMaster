@@ -162,6 +162,18 @@ is something to calibrate.
 
 **1.4 Two front doors.** ~~To build~~ — **built 2026-08-19, v2.26.0**: `HomeScreen` and `PracticeScreen`, behind `__HAS_TEACHER__`. The course now actually drives a run and records the result. Ruling in `v2-design.md` § *Two doors, and a screen that shows its working*.
 
+**Reshaped 2026-08-23, in the settings redesign settled with the player.** The
+doors stopped being a screen: the interstitial cost every player a tap per
+session to answer a question most answer once, so the two ways in became
+segments on one home — *Structured Learning* and *Free play*, side by side,
+which honours "neither door is the poor relation" more literally than two
+doors on a screen nobody wanted to be on. The choice is remembered
+(`homeMode`), so each kind of returning player opens one tap from Start. The
+same redesign moved everything about *how a run goes* to the Ready gate (see
+`ReadyControls` and v2.37.0's commit), made the instrument a chip beside the
+title, and filed "favour notes I get wrong" under Sight-reading where it
+always belonged.
+
 A guided path and the current free-driving app, given
 equal billing on the way in.
 

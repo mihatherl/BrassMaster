@@ -701,6 +701,67 @@ body {
   font-size: 2rem;
 }
 
+/* --- The unified home (see SettingsScreen.tsx) --------------------------- */
+
+/* Title and instrument chip share the row: the chip is identity, worn beside
+   the name rather than filed in a panel. */
+.masthead--home {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* The title cedes size rather than wrapping: a two-line app name over the
+   segments read as clutter, and the name is furniture here — the chip beside
+   it is the information. */
+.masthead--home h1 {
+  font-size: 1.4rem;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.instrument-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-mode {
+  margin-bottom: 1rem;
+}
+
+/* The segments must survive "Structured Learning" on a 360-wide phone. */
+.home-mode .segmented__option {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.5rem;
+}
+
+.instrument-sheet {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* The course inside the shell: its own spacing, no screen chrome. */
+.practice-embedded {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.practice__level {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
 /* --- The Ready screen's controls (see ReadyControls.tsx) ----------------- */
 
 /*

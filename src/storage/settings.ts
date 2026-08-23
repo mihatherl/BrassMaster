@@ -64,6 +64,14 @@ export interface Settings {
    * should not start taking liberties with the beat because it updated.
    */
   variableTempo: boolean;
+  /**
+   * Which side of the unified home screen the player was last on — the course
+   * (Structured Learning) or their own choices (Free play). Remembered so a
+   * course player opens one tap from Start and a free player opens where the
+   * free app has always opened; only the build with teacher mode ever shows
+   * the switch, and the free build simply never reads it off 'free'.
+   */
+  homeMode: 'structured' | 'free';
   difficultyId: string;
   kind: ExerciseKind;
   /**
@@ -424,6 +432,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keySet: [-3],
   tempo: 80,
   variableTempo: false,
+  homeMode: 'free',
   difficultyId: 'easy',
   kind: 'phrases',
   drillId: 'major-scale',
@@ -691,6 +700,7 @@ export function sanitise(settings: Settings): Settings {
       ? settings.readingMode
       : DEFAULT_SETTINGS.readingMode,
     fingerings: fingeringModeOf(settings),
+    homeMode: settings.homeMode === 'structured' ? 'structured' : 'free',
     playbackMode: PLAYBACK_MODES.some((m) => m.id === settings.playbackMode)
       ? settings.playbackMode
       : DEFAULT_SETTINGS.playbackMode,

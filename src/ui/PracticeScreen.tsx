@@ -72,7 +72,14 @@ interface PracticeScreenProps {
   /** Plain data on purpose — see the note above about the seam. */
   onStart: (from: { difficultyId: string; tempo: number; levelId: string }) => void;
   onProgress: () => void;
-  onBack: () => void;
+  /**
+   * Inside the unified home since 2026-08-23: the shell owns the masthead and
+   * there is nothing above to go back to, so both are the shell's business.
+   * Standalone rendering (with its own masthead and a Back) survives for the
+   * tests and for any future screen that wants the course whole.
+   */
+  embedded?: boolean;
+  onBack?: () => void;
 }
 
 export function PracticeScreen({
@@ -83,6 +90,7 @@ export function PracticeScreen({
   onAccuracyApplied,
   onStart,
   onProgress,
+  embedded = false,
   onBack,
 }: PracticeScreenProps) {
   const [progress, setProgress] = useState(() => loadProgress(instrumentId, clef, fallback));
@@ -150,11 +158,16 @@ export function PracticeScreen({
   const met = recent.filter((accuracy) => accuracy >= mastery.promoteAbove).length;
   const atTop = nextRung(progress.rung) === null;
 
-  return (
-    <div className="screen">
-      <header className="masthead">
-        <p className="practice__course">{ladder.name}</p>
-        <h1>{level.name}</h1>
+  const body = (
+    <>
+      <header className={embedded ? 'practice__head' : 'masthead'}>
+        {/* Standalone, the course announces itself; inside the shell the
+            masthead above already carries the name, and saying it twice reads
+            as a stutter. */}
+        {!embedded && <p className="practice__course">{ladder.name}</p>}
+        {/* The level name stays a heading either way; what the shell owns is
+            the app's own masthead, not the course's. */}
+        {embedded ? <h2 className="practice__level">{level.name}</h2> : <h1>{level.name}</h1>}
       </header>
 
       {previous && (
@@ -271,9 +284,13 @@ export function PracticeScreen({
         <span className="entry__detail">What has improved, and what to work on</span>
       </button>
 
-      <button type="button" className="button button--quiet" onClick={onBack}>
-        Back
-      </button>
-    </div>
+      {!embedded && onBack && (
+        <button type="button" className="button button--quiet" onClick={onBack}>
+          Back
+        </button>
+      )}
+    </>
   );
+
+  return embedded ? <div className="practice-embedded">{body}</div> : <div className="screen">{body}</div>;
 }

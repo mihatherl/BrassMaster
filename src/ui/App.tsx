@@ -15,7 +15,6 @@ import { OutputScreen } from './OutputScreen';
 import { PlayScreen } from './PlayScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { SettingsScreen } from './SettingsScreen';
-import { HomeScreen } from './HomeScreen';
 import { recordRun } from '../storage/sessions';
 import { PracticeScreen } from './PracticeScreen';
 import { ProgressScreen } from './ProgressScreen';
@@ -42,7 +41,7 @@ const ImportScreen = __HAS_MY_MUSIC__
   : null;
 
 
-type Screen = 'home' | 'practice' | 'progress' | 'settings' | 'play' | 'results' | 'import' | 'outputs';
+type Screen = 'progress' | 'settings' | 'play' | 'results' | 'import' | 'outputs';
 
 interface Finished {
   summary: SessionSummary;
@@ -52,7 +51,9 @@ interface Finished {
 
 export function App() {
   const [chosen, setChosen] = useState<Settings>(loadSettings);
-  const [screen, setScreen] = useState<Screen>(__HAS_TEACHER__ ? 'home' : 'settings');
+  // One home since 2026-08-23: the interstitial with two doors is gone, and
+  // which side shows is `settings.homeMode`, remembered across launches.
+  const [screen, setScreen] = useState<Screen>('settings');
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [finished, setFinished] = useState<Finished | null>(null);
   /*
@@ -330,43 +331,12 @@ export function App() {
       );
     }
 
-    if (__HAS_TEACHER__ && screen === 'home') {
-      return (
-        <>
-          <HomeScreen
-            practising="Follow a course, at the level it has you on"
-            onPractice={() => setScreen('practice')}
-            onFreePlay={() => setScreen('settings')}
-          />
-        </>
-      );
-    }
-
-    if (__HAS_TEACHER__ && screen === 'practice') {
-      return (
-        <>
-          <PracticeScreen
-            instrumentId={chosen.instrumentId}
-            clef={chosen.clef}
-            /* Where a first session opens: what the player already practises,
-               rather than the bottom of the ladder. */
-            fallback={{ difficultyId: chosen.difficultyId, tempo: chosen.tempo }}
-            pendingAccuracy={courseAccuracy}
-            onAccuracyApplied={() => setCourseAccuracy(null)}
-            onStart={startCourse}
-            onProgress={() => setScreen('progress')}
-            onBack={() => setScreen('home')}
-          />
-        </>
-      );
-    }
-
     if (__HAS_TEACHER__ && screen === 'progress') {
       return (
         <ProgressScreen
           instrumentId={chosen.instrumentId}
           clef={chosen.clef}
-          onBack={() => setScreen('practice')}
+          onBack={() => setScreen('settings')}
         />
       );
     }
@@ -379,7 +349,7 @@ export function App() {
           stats={finished.stats}
           onRepeat={repeat}
           onNext={startNew}
-          onSettings={() => setScreen(fromCourse ? 'practice' : 'settings')}
+          onSettings={() => setScreen('settings')}
         />
       );
     }
@@ -392,7 +362,26 @@ export function App() {
         /* Absent rather than disabled in the free build: a door to a screen
            that build has not got is not a door. */
         onImport={__HAS_MY_MUSIC__ ? () => setScreen('import') : undefined}
-        onBack={__HAS_TEACHER__ ? () => setScreen('home') : undefined}
+        mode={__HAS_TEACHER__ ? chosen.homeMode : 'free'}
+        onMode={
+          __HAS_TEACHER__ ? (homeMode) => updateSettings({ ...chosen, homeMode }) : undefined
+        }
+        structured={
+          __HAS_TEACHER__ ? (
+            <PracticeScreen
+              embedded
+              instrumentId={chosen.instrumentId}
+              clef={chosen.clef}
+              /* Where a first session opens: what the player already
+                 practises, rather than the bottom of the ladder. */
+              fallback={{ difficultyId: chosen.difficultyId, tempo: chosen.tempo }}
+              pendingAccuracy={courseAccuracy}
+              onAccuracyApplied={() => setCourseAccuracy(null)}
+              onStart={startCourse}
+              onProgress={() => setScreen('progress')}
+            />
+          ) : undefined
+        }
       />
     );
   }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse]);

@@ -34,8 +34,12 @@ describe('the app', () => {
     expect(screen.getByRole('button', { name: /tap to start/i })).toBeTruthy();
   });
 
+  /** The chip wears the current instrument's name; clicking it opens the sheet. */
+  const openInstrument = () => fireEvent.click(screen.getByRole('button', { name: /Tuba|Cornet|Horn|Baritone|Euphonium|Trombone|Bass/ }));
+
   it('offers bass clef only for the instruments that read it', () => {
     renderApp();
+    openInstrument();
     const instrument = screen.getByLabelText<HTMLSelectElement>('Instrument');
 
     fireEvent.change(instrument, { target: { value: 'cornet' } });
@@ -50,6 +54,7 @@ describe('the app', () => {
 
   it('shows a written range that follows the instrument and clef', () => {
     renderApp();
+    openInstrument();
     const instrument = screen.getByLabelText<HTMLSelectElement>('Instrument');
 
     fireEvent.change(instrument, { target: { value: 'cornet' } });
@@ -69,6 +74,7 @@ describe('the app', () => {
 
   it('remembers settings across a reload', () => {
     const first = renderApp();
+    openInstrument();
     fireEvent.change(screen.getByLabelText<HTMLSelectElement>('Instrument'), {
       target: { value: 'cornet' },
     });
@@ -76,6 +82,7 @@ describe('the app', () => {
     first.unmount();
 
     renderApp();
+    openInstrument();
     expect(screen.getByLabelText<HTMLSelectElement>('Instrument').value).toBe('cornet');
     expect(screen.getByRole('button', { name: 'Hard' }).className).toContain('is-selected');
   });
@@ -90,9 +97,10 @@ describe('the app', () => {
     renderApp();
     const panels = [...document.querySelectorAll<HTMLDetailsElement>('details.panel')];
 
-    // Two panels since 2026-08-23: this screen answers what-to-play, and the
-    // how-it-goes panels moved to the Ready gate (see ReadyControls).
-    expect(panels.length).toBeGreaterThan(1);
+    // One panel since 2026-08-23: the how-it-goes panels moved to the Ready
+    // gate and the instrument became the chip beside the title, so what
+    // remains of the home screen's panels is the exercise itself.
+    expect(panels.length).toBe(1);
     expect(panels.filter((panel) => panel.open)).toHaveLength(0);
   });
 
@@ -103,8 +111,9 @@ describe('the app', () => {
         .find((panel) => panel.querySelector('.panel__title')?.textContent === title)
         ?.querySelector('.panel__values')?.textContent;
 
-    // The defaults: Eb bass in treble, Eb major, sight-reading, Easy.
-    expect(valuesOf('Instrument')).toBe('Eb Bass (Tuba) · Treble');
+    // The defaults: Eb bass in treble on the chip, the exercise on its panel.
+    expect(screen.getByRole('button', { name: 'Eb Bass · Treble' })).toBeTruthy();
+    expect(valuesOf('Instrument')).toBeUndefined();
     expect(valuesOf('Exercise')).toBe('Eb major · Sight-reading · Easy');
     // No Playing and no Advanced since 2026-08-23: how the run goes is chosen
     // on the Ready gate, where every run already passes.
@@ -240,7 +249,8 @@ describe('the app', () => {
     // `<details>` keeps its contents in the document, which is why the controls
     // below are still found even while their section is shut.
     renderApp();
-    expect(screen.getByLabelText('Instrument')).toBeTruthy();
+    // The chip reads out as what it is: the instrument in force.
+    expect(screen.getByRole('button', { name: /Eb Bass · Treble/ })).toBeTruthy();
     // Inside the shut Exercise panel, but still in the document.
     expect(screen.getByText(/Favour notes I get wrong/)).toBeTruthy();
   });
@@ -464,18 +474,30 @@ describe('the app', () => {
 
   it('generates an exercise for every instrument and clef it offers', () => {
     renderApp();
-    const instrument = screen.getByLabelText<HTMLSelectElement>('Instrument');
-    const ids = [...instrument.options].map((option) => option.value);
+    // Coming back from a run remounts the screen, which closes the instrument
+    // sheet and detaches the select — so both are (re)acquired per pass. The
+    // chip is the one button whose name ends in the clef.
+    const ensureSheet = () => {
+      if (!screen.queryByText('Clef'))
+        fireEvent.click(screen.getByRole('button', { name: / · (Treble|Bass)$/ }));
+    };
+    const instrumentSelect = () => {
+      ensureSheet();
+      return screen.getByLabelText<HTMLSelectElement>('Instrument');
+    };
+    const ids = [...instrumentSelect().options].map((option) => option.value);
     expect(ids.length).toBeGreaterThan(4);
 
     for (const id of ids) {
-      fireEvent.change(instrument, { target: { value: id } });
+      fireEvent.change(instrumentSelect(), { target: { value: id } });
 
       const clefGroup = screen.getByText('Clef').parentElement!;
       const clefButtons = within(clefGroup).getAllByRole('button');
 
       for (let i = 0; i < clefButtons.length; i++) {
-        // Re-query, since selecting a clef re-renders the group.
+        // Re-query, since selecting a clef re-renders the group — and reopen
+        // the sheet, since coming back from the run below closed it.
+        ensureSheet();
         const buttons = within(screen.getByText('Clef').parentElement!).getAllByRole('button');
         fireEvent.click(buttons[i]);
 

@@ -231,13 +231,15 @@ interface SettingsScreenProps {
    */
   onImport?: () => void;
   /**
-   * Back to the two doors, in the build that has them.
-   *
-   * Absent in the free app, which opens here and has nowhere above it — the
-   * same arrangement as `onImport`, and for the same reason: the screen is told
-   * what exists rather than which build it is in.
+   * The other side of the unified home: the course, rendered by the owner of
+   * course state and slotted in here so this screen stays ignorant of ladder
+   * logic. Present only in the build with teacher mode — the screen is told
+   * what exists rather than which build it is in, as with `onImport`.
    */
-  onBack?: () => void;
+  structured?: ReactNode;
+  /** Which side is showing, and the switch. Absent hides the segments. */
+  mode?: 'structured' | 'free';
+  onMode?: (mode: 'structured' | 'free') => void;
 }
 
 export function SettingsScreen({
@@ -245,9 +247,12 @@ export function SettingsScreen({
   onChange,
   onStart,
   onImport,
-  onBack,
+  structured,
+  mode = 'free',
+  onMode,
 }: SettingsScreenProps) {
   const instrument = instrumentById(settings.instrumentId);
+  const [showInstrument, setShowInstrument] = useState(false);
   const clefs = availableClefs(instrument);
   const [low, high] = writtenRange(instrument, settings.clef);
   const difficulty = DIFFICULTIES.find((d) => d.id === settings.difficultyId)!;
@@ -329,7 +334,6 @@ export function SettingsScreen({
   const output = settings.audioOutputs.find((o) => o.id === settings.audioOutputId);
 
   const panelValues = {
-    instrument: summarise(instrument.name, settings.clef === 'treble' ? 'Treble' : 'Bass'),
     exercise: summarise(
       // Every key in play, opening one first, since a summary that named only
       // the first would hide the whole of a modulating exercise.
@@ -821,14 +825,104 @@ export function SettingsScreen({
           onClose={() => setPicking(false)}
         />
       )}
-      <header className="masthead">
-        {onBack && (
-          <button type="button" className="button button--quiet" onClick={onBack}>
-            Back
-          </button>
-        )}
+      <header className="masthead masthead--home">
         <h1>Brass Master</h1>
+        {/*
+          The instrument as identity, not a panel: chosen once — the player
+          owns a tuba — and true in both modes, so it lives beside the title
+          as a chip that says what you are and opens where to change it
+          (ruled by the player, 2026-08-23).
+        */}
+        <button
+          type="button"
+          className="button button--quiet instrument-chip"
+          aria-expanded={showInstrument}
+          onClick={() => setShowInstrument((open) => !open)}
+        >
+          {/* Without the parenthetical: the chip is identity, and on a
+              360-wide phone "Eb Bass (Tuba) · Treble" truncated mid-word,
+              which read worse than saying less. The full name is one tap
+              away, on the sheet this opens. */}
+          {instrument.name.replace(/\s*\(.*\)/, '')} ·{' '}
+          {settings.clef === 'treble' ? 'Treble' : 'Bass'}
+        </button>
       </header>
+
+      {/* The two ways in, side by side with literally equal billing — the
+          §1.4 ruling honoured harder than two doors on an interstitial
+          nobody wanted to be on. The choice is remembered, so each kind of
+          returning player opens one tap from Start. */}
+      {onMode && (
+        <div className="segmented home-mode">
+          <button
+            type="button"
+            className={`segmented__option ${mode === 'structured' ? 'is-selected' : ''}`}
+            aria-pressed={mode === 'structured'}
+            onClick={() => onMode('structured')}
+          >
+            Structured Learning
+          </button>
+          <button
+            type="button"
+            className={`segmented__option ${mode === 'free' ? 'is-selected' : ''}`}
+            aria-pressed={mode === 'free'}
+            onClick={() => onMode('free')}
+          >
+            Free play
+          </button>
+        </div>
+      )}
+
+      {showInstrument && (
+        <div className="instrument-sheet">
+          <label className="field">
+            <span className="field__label">Instrument</span>
+            <select
+              value={settings.instrumentId}
+              onChange={(event) => {
+                const next = instrumentById(event.target.value);
+                const clef = availableClefs(next).includes(settings.clef)
+                  ? settings.clef
+                  : availableClefs(next)[0];
+                onChange({ ...settings, instrumentId: next.id, clef });
+              }}
+            >
+              {INSTRUMENTS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="field">
+            <span className="field__label">Clef</span>
+            <div className="segmented">
+              {clefs.map((clef) => (
+                <button
+                  key={clef}
+                  type="button"
+                  className={`segmented__option ${settings.clef === clef ? 'is-selected' : ''}`}
+                  onClick={() => update('clef', clef)}
+                >
+                  {clef === 'treble' ? 'Treble' : 'Bass'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="field__note muted">
+            Written range {formatPitch(spellInKey(low, settings.fifths))} to{' '}
+            {formatPitch(spellInKey(high, settings.fifths))}
+            {settings.clef === 'bass' ? ' (concert pitch)' : ''}.
+          </p>
+        </div>
+      )}
+
+      {mode === 'structured' && structured}
+
+      {mode === 'free' && (
+        <>
 
       {/*
         My Music sits at the top, beside the settings rather than under them.
@@ -844,51 +938,6 @@ export function SettingsScreen({
           <span className="entry__detail">Open a part you have imported, or add one</span>
         </button>
       )}
-
-      <Panel id="instrument" title="Instrument" values={panelValues.instrument} open={isOpen('instrument')} onToggle={setOpen}>
-
-        <label className="field">
-          <span className="field__label">Instrument</span>
-          <select
-            value={settings.instrumentId}
-            onChange={(event) => {
-              const next = instrumentById(event.target.value);
-              const clef = availableClefs(next).includes(settings.clef)
-                ? settings.clef
-                : availableClefs(next)[0];
-              onChange({ ...settings, instrumentId: next.id, clef });
-            }}
-          >
-            {INSTRUMENTS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="field">
-          <span className="field__label">Clef</span>
-          <div className="segmented">
-            {clefs.map((clef) => (
-              <button
-                key={clef}
-                type="button"
-                className={`segmented__option ${settings.clef === clef ? 'is-selected' : ''}`}
-                onClick={() => update('clef', clef)}
-              >
-                {clef === 'treble' ? 'Treble' : 'Bass'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <p className="field__note muted">
-          Written range {formatPitch(spellInKey(low, settings.fifths))} to{' '}
-          {formatPitch(spellInKey(high, settings.fifths))}
-          {settings.clef === 'bass' ? ' (concert pitch)' : ''}.
-        </p>
-      </Panel>
 
       <Panel id="exercise" title="Exercise" values={panelValues.exercise} open={isOpen('exercise')} onToggle={setOpen}>
 
@@ -1036,6 +1085,8 @@ export function SettingsScreen({
           Start
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
