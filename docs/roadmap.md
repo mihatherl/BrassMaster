@@ -325,7 +325,21 @@ for this: it answers layout and plumbing questions well and audio questions
 badly, which is exactly backwards for 4.1. See *What the emulator cannot
 answer* below.
 
-**4.1 The container spike, on Android** — the wrapper, the microphone inside it
+**4.1 The container spike, on Android** — ~~to run~~ **run, 2026-08-23, and
+every question answered on glass in one day.** The full record is
+`../container-spike/FINDINGS.md`; the wrapper itself is that folder, Capacitor
+8 with two small native plugins, built and installed from this machine over
+adb. In brief: the microphone runs while the reference tone plays (and the
+tone bleeds into the mic — a Phase 2 design input); the round trip is 470ms
+dead stable, so input latency is ~100–140ms and calibratable; the in-process
+HTTP server serves and takes uploads over the tailnet, is frozen — not killed
+— about 7–8 minutes after the phone comes off charge, and thaws intact on
+wake, so Phase 5's foreground service exists to survive the screen timeout
+and nothing grander; and the OS names the player's own headphones ("Bose
+QC45") and signals their connection, which proves the 4.2 outputs-screen
+capability. Everything below stands on measurements now, not assumptions.
+
+The spike as originally scoped: the wrapper, the microphone inside it
 *while the reference tone plays*, and an embedded HTTP server proving it can
 serve a page, take an upload, and survive backgrounding. These are the two
 questions the whole paid app rests on, and they can be asked today for nothing.
@@ -351,6 +365,19 @@ the phone's own microphone. That gives output plus input in a single number,
 and the output half is already known from calibration, so the input half falls
 out by subtraction. It costs one page and no hardware beyond the handset the
 spike already needs.
+
+**Measured, 2026-08-23, in the real wrapper on the E32: 470ms round trip,
+quartiles 470–470.** So input is roughly 100–140ms — and *stable*, which is
+the finding that matters: deterministic buffering can be calibrated out of the
+judge the way the audio lead is calibrated out of the schedule, where jitter
+could not have been. Earliest honest confirmation lands at ~200ms on this
+hardware, which is what `v2-design.md` guessed before any hardware existed.
+Also measured: `outputLatency` reports **0ms** on this device — the API is
+absent in practice, not merely imprecise. The full record is
+`../container-spike/FINDINGS.md`, along with 4.1's first question answered
+yes: the microphone runs while the reference tone plays, and the tone bleeds
+into the microphone as a constant baseline, which is a design input for the
+Phase 2 detector.
 
 **4.2 The Android shell and the Play listing.** `VITE_TARGET=app` inside
 Capacitor, signed and uploaded from Linux.
