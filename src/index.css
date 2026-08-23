@@ -113,7 +113,20 @@ body {
  */
 .screen--play {
   display: grid;
-  grid-template-columns: 1fr;
+  /*
+   * `minmax(0, 1fr)`, never a bare `1fr`: a `1fr` track's *minimum* is auto,
+   * so the widest row's controls set the width of every row. The play bar is
+   * that row — Stop, the transport, the stats, and on a calibrated device the
+   * output-lead note — and at 360px its minimum ran to 369px, so the whole
+   * grid quietly widened and the key dial hung off the right edge with the
+   * tempo dial seemingly centred. Worse on the real E32, whose bar carries
+   * the two-line "brought forward 750 ms" note that no desktop browser ever
+   * has: the same class of fault as the settings strip — state that only real
+   * devices accumulate makes layouts that only real devices break. Capping the
+   * track at the viewport makes the bar wrap (see `.play-bar`) instead of
+   * making every other row pay for it.
+   */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto 1fr auto;
   grid-template-areas:
     'bar'
@@ -148,6 +161,15 @@ body {
   /* Tight, because there are four controls in here now and a phone held
      upright is the narrowest they have to fit in. */
   gap: 0.4rem;
+  /*
+   * Allowed to wrap, because its track no longer grows to hold it (see
+   * `.screen--play`). On a screen too narrow for one row the stats — and the
+   * lead note, when an output carries one — drop to a second line, which
+   * costs a thin row of stave exactly where the alternative was pushing the
+   * key dial off the screen. On anything wider than ~370px nothing wraps and
+   * nothing changes.
+   */
+  flex-wrap: wrap;
   padding: 0.15rem 0.5rem;
   border-bottom: 1px solid var(--border);
 }
@@ -2080,7 +2102,9 @@ input[type='checkbox'] {
  */
 @media (orientation: landscape) and (max-height: 32rem) {
   .screen--play {
-    grid-template-columns: 1fr auto 1fr;
+    /* Capped for the same reason as the portrait grid: a bare 1fr would let
+       the bar's minimum widen every row. */
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     grid-template-rows: auto 1fr auto;
     grid-template-areas:
       'bar bar bar'
@@ -2174,8 +2198,9 @@ input[type='checkbox'] {
   .screen--play {
     /* The column is a share of the width with a floor under it, so the tempo
        and the conductor stay usable on a modest window without eating a wide
-       one. */
-    grid-template-columns: 1fr minmax(11rem, 20%);
+       one. The stave's share is capped at 0 minimum for the same reason as
+       the portrait grid: a bare 1fr grows to the bar's minimum. */
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, 20%);
     grid-template-rows: auto 1fr auto;
     grid-template-areas:
       'bar bar'
