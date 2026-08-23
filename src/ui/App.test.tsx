@@ -136,6 +136,10 @@ describe('the app', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     const tempo = screen.getByLabelText(/^Tempo/);
     expect(tempo.closest('.ready-controls')).not.toBeNull();
+    // Its fourth move (2026-08-23 evening): out of the gate's accordion onto
+    // the face, directly under Start — every other setting is occasional, the
+    // tempo is every session.
+    expect(tempo.closest('details.panel')).toBeNull();
   });
 
   it('hides the scroll speed in the mode where it does nothing', () => {

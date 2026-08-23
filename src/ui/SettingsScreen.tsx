@@ -924,21 +924,6 @@ export function SettingsScreen({
       {mode === 'free' && (
         <>
 
-      {/*
-        My Music sits at the top, beside the settings rather than under them.
-        It was in the footer beneath the licence credits to begin with, where
-        the player who asked for it could not find it — credits read as the end
-        of a page, so anything below them reads as furniture. This is not a
-        setting for the exercise about to be generated; it is the other door out
-        of this screen, and it belongs where a door goes.
-      */}
-      {onImport && (
-        <button type="button" className="entry" onClick={onImport}>
-          <span className="entry__title">My Music</span>
-          <span className="entry__detail">Open a part you have imported, or add one</span>
-        </button>
-      )}
-
       <Panel id="exercise" title="Exercise" values={panelValues.exercise} open={isOpen('exercise')} onToggle={setOpen}>
 
         {/*
@@ -965,6 +950,23 @@ export function SettingsScreen({
           true of it and neither implies the other to a screen reader.
         */}
         <div className="modes">
+          {/*
+            My Music's third home, each move the player's ruling: the footer
+            (buried under credits), the top of the screen (a door where a door
+            goes), and now here — "just another exercise mode" (2026-08-23),
+            which is what it is: one more answer to what-am-I-playing, beside
+            the generated kinds. It stays a *door*, because a part is opened
+            from a library rather than configured in place, so unlike its
+            siblings it never holds the open state.
+          */}
+          {onImport && (
+            <div className="mode">
+              <button type="button" className="mode__summary" onClick={onImport}>
+                <strong>My Music</strong>
+                <span className="muted">Open a part you have imported, or add one</span>
+              </button>
+            </div>
+          )}
           {EXERCISE_KINDS.map((kind) => {
             const chosen = settings.kind === kind.id;
             const bodyId = `mode-${kind.id}`;

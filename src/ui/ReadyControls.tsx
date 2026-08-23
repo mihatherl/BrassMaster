@@ -46,11 +46,6 @@ interface ReadyControlsProps {
   onOutputs?: () => void;
 }
 
-/** Joins the parts of a collapsed section's summary line. */
-function summarise(...parts: Array<string | undefined>): string {
-  return parts.filter(Boolean).join(' · ');
-}
-
 /**
  * The home screen's accordion, uncontrolled: each section closed until asked,
  * its summary line reciting what is chosen — so the face of the gate is five
@@ -96,6 +91,34 @@ export function ReadyControls({ settings, onChange, onOutputs }: ReadyControlsPr
 
   return (
     <div className="ready-controls">
+      {/*
+       * The tempo's fourth home, and each move has been the player's ruling:
+       * beside Start (2026-08-12), into the Playing panel, onto the gate, and
+       * now OUT of the gate's accordion onto its face, directly under Start —
+       * "that is one control that needs elevating" (2026-08-23). The pattern
+       * across all four: every other setting is occasional, and the tempo is
+       * every session, so wherever the Start button lives, the tempo belongs
+       * in its shadow.
+       */}
+      <label className="field tempo">
+        <span className="field__label">
+          Tempo <strong>{settings.tempo}</strong> bpm
+        </span>
+        <input
+          type="range"
+          min={TEMPO_RANGE.min}
+          max={TEMPO_RANGE.max}
+          step={1}
+          value={settings.tempo}
+          onChange={(event) => update('tempo', Number(event.target.value))}
+        />
+        {metre.isCompound && (
+          <p className="field__note muted">
+            Dotted crotchets — {metre.pulsesPerBar} to the bar, the beat you count.
+          </p>
+        )}
+      </label>
+
       <Section
         title="Reading"
         values={READING_MODES.find((m) => m.id === settings.readingMode)?.name ?? ''}
@@ -178,28 +201,7 @@ export function ReadyControls({ settings, onChange, onOutputs }: ReadyControlsPr
         </div>
       </Section>
 
-      <Section
-        title="Tempo"
-        values={summarise(`${settings.tempo} bpm`, settings.variableTempo ? 'variable' : undefined)}
-      >
-        <label className="field tempo">
-          <span className="field__label">
-            Tempo <strong>{settings.tempo}</strong> bpm
-          </span>
-          <input
-            type="range"
-            min={TEMPO_RANGE.min}
-            max={TEMPO_RANGE.max}
-            step={1}
-            value={settings.tempo}
-            onChange={(event) => update('tempo', Number(event.target.value))}
-          />
-          {metre.isCompound && (
-            <p className="field__note muted">
-              Dotted crotchets — {metre.pulsesPerBar} to the bar, the beat you count.
-            </p>
-          )}
-        </label>
+      <Section title="Preferences" values="">
         <label className="field field--inline">
           <input
             type="checkbox"
@@ -208,9 +210,7 @@ export function ReadyControls({ settings, onChange, onOutputs }: ReadyControlsPr
           />
           <span>Variable tempo</span>
         </label>
-      </Section>
 
-      <Section title="Preferences" values="">
         {settings.readingMode === 'scrolling' && (
           <label className="field">
             <span className="field__label">
