@@ -392,7 +392,9 @@ into the microphone as a constant baseline, which is a design input for the
 Phase 2 detector.
 
 **4.2 The Android shell and the Play listing.** `VITE_TARGET=app` inside
-Capacitor, signed and uploaded from Linux.
+Capacitor, signed and uploaded from Linux. Planned in detail in
+`android-shell-plan.md` (2026-08-23), which also ratifies § 5's
+shells-in-this-repository recommendation.
 
 **And the shell should read the audio route.** Found 2026-08-23: a player
 chose the speaker while wearing headphones and heard no change, because no
