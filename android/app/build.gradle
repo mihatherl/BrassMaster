@@ -26,10 +26,39 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    /*
+     * The upload key, read from outside the repository — this repo is public
+     * and no signing material may ever enter it (docs/android-shell-plan.md).
+     * The properties file names the keystore, and both live in
+     * ~/keystores/brassmaster/ on the machine that releases; a machine
+     * without it (CI, a fresh clone) still builds, producing an unsigned
+     * release bundle, which is exactly what it should be able to do and no
+     * more. Play App Signing holds the app key; this one only uploads.
+     */
+    def keystoreProperties = new Properties()
+    def keystorePropertiesFile = file("${System.properties['user.home']}/keystores/brassmaster/keystore.properties")
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+    }
+
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
