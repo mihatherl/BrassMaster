@@ -1082,44 +1082,28 @@ input[type='checkbox'] {
   position: relative;
   display: grid;
   gap: var(--key-gap);
-  /* A row and a half of chips, plus the box's own padding and border. */
-  height: calc(1.5 * var(--key-h) + var(--key-gap) + 2 * var(--keys-pad) + 2px);
   /*
-   * Hand-sized wherever it is shown. It is a thumb control — a row is swiped —
-   * and five chips stretched across a desktop panel are both ugly and further
-   * apart than one hand can work, which the wrapping row it replaced never was.
+   * All three rows, no window. The scroll pane earned its keep when this sat
+   * among five panels and every pixel was rationed; on the flattened home the
+   * page itself scrolls, and a pane inside a scrolling page is
+   * double-scrolling — a swipe that sometimes moves the page and sometimes
+   * the box (the player, 2026-08-23 evening). Showing the fifteen costs one
+   * row of height and ends the guessing. The 5-a-row arrangement is the
+   * musical point and is untouched.
+   */
+  /*
+   * Hand-sized wherever it is shown: five chips stretched across a desktop
+   * panel are further apart than one hand can work.
    */
   max-width: 22rem;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
-  /* A swipe should land on a row, never between two. */
-  overscroll-behavior-y: contain;
-  /*
-   * A box, and a thin scrollbar in it: the player's ask, on 2026-08-16. The
-   * window used to be borderless with its scrollbar hidden, and read as a
-   * row of chips that happened to be cut off rather than as a thing that
-   * scrolls. The border says where the window is; the bar says there is more.
-   */
   padding: var(--keys-pad);
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
-  scrollbar-width: thin;
-  scrollbar-color: var(--text-muted) transparent;
 }
 
-.keys::-webkit-scrollbar {
-  width: 4px;
-}
 
-.keys::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-radius: 2px;
-}
 
-.keys::-webkit-scrollbar-track {
-  background: transparent;
-}
 
 .keys__row {
   display: grid;
@@ -1342,45 +1326,30 @@ input[type='checkbox'] {
 }
 
 .drills {
-  --drill-h: 2.25rem;
   --drill-gap: 0.375rem;
   --drills-pad: 0.375rem;
-  /* So a row's `offsetTop` is measured from this box; see `.keys`. */
-  position: relative;
+  /*
+   * Two to a row, labels free to wrap, nothing hidden. The window this
+   * replaces showed three and a half of eight and asked for a swipe inside a
+   * scrolling page (see `.keys` for the full reasoning — the player,
+   * 2026-08-23 evening). Eight drills two-up is four rows: taller than the
+   * window by about eighty pixels, shorter than a flat column by a hundred,
+   * and every drill is readable at once, which is what a chooser is for.
+   */
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: var(--drill-gap);
-  height: calc(3.5 * var(--drill-h) + 3 * var(--drill-gap) + 2 * var(--drills-pad) + 2px);
   max-width: 22rem;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
-  overscroll-behavior-y: contain;
-  /* The same box and bar as the keys, for the same reason. */
   padding: var(--drills-pad);
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
-  scrollbar-width: thin;
-  scrollbar-color: var(--text-muted) transparent;
-}
-
-.drills::-webkit-scrollbar {
-  width: 4px;
-}
-
-.drills::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-radius: 2px;
-}
-
-.drills::-webkit-scrollbar-track {
-  background: transparent;
 }
 
 .drill {
   display: grid;
   align-content: center;
-  height: var(--drill-h);
-  scroll-snap-align: center;
+  min-height: 2.25rem;
 }
 
 .cards {

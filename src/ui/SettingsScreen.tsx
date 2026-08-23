@@ -320,62 +320,13 @@ export function SettingsScreen({
   });
 
   /*
-   * Which row of keys the window rests on.
-   *
-   * The window is two rows tall and the rows are three, so it shows one row
-   * whole with half of a row above and below — enough to say *there is more this
-   * way* without a scrollbar having to say it, and enough that a thumb knows
-   * which way to move.
-   *
-   * It opens on the row holding the key the exercise starts in, rather than
-   * always on the middle one. Nearly always they are the same row: two flats to
-   * two sharps is the middle five by construction, and that is where brass band
-   * reading lives. When they are not — an Eb player, which is the default — a
-   * control that opened with the current choice half out of sight would be
-   * hiding the one thing it most has to say.
-   *
-   * Set when the section opens rather than on mount: a shut `<details>` hides
-   * its children outright, and an element with no box has no scroll to set.
+   * No windows over the keys or the drills any more (the player, 2026-08-23
+   * evening): both lists show whole on the flattened home — the page scrolls
+   * as itself, and a pane inside a scrolling page was double-scrolling. The
+   * refs and the scroll-centring that used to bring the chosen row into a
+   * half-open box went with the boxes; see `.keys` and `.drills` in
+   * index.css for the arithmetic of what the flattening costs and buys.
    */
-  const keysWindow = useRef<HTMLDivElement>(null);
-  const startingKey = settings.keySet[0];
-
-  useEffect(() => {
-    // The materials sit at the top level now, so the window exists whenever
-    // the chosen box draws it; its presence is the only gate needed.
-    const window_ = keysWindow.current;
-    if (!window_) return;
-    const row = window_.children[
-      Math.floor(MAJOR_KEYS.findIndex((k) => k.fifths === startingKey) / KEYS_PER_ROW)
-    ] as HTMLElement | undefined;
-    if (!row) return;
-    // Centred by hand rather than by `scrollIntoView`, which would also scroll
-    // the page to bring the window itself into view — and the player has just
-    // opened the section, so the page is already where they put it.
-    window_.scrollTop = row.offsetTop - (window_.clientHeight - row.offsetHeight) / 2;
-  }, [startingKey]);
-
-  /*
-   * The drill window, kept the same way as the keys above and for the same
-   * reason: it is a window onto a longer list — six entries now, ten once the
-   * named minors land, which is what ruled out a row of chips — and the one
-   * thing it most has to say is which drill is chosen. Centring on the choice
-   * also shows half a row of what lies beyond, which is the scrollbar's job
-   * done without a scrollbar.
-   */
-  const drillsWindow = useRef<HTMLDivElement>(null);
-  const drillChosen = Boolean(patternKind);
-  const chosenDrillId = drill.id;
-
-  useEffect(() => {
-    const window_ = drillsWindow.current;
-    if (!window_ || !drillChosen) return;
-    const row = window_.children[DRILLS.findIndex((d) => d.id === chosenDrillId)] as
-      | HTMLElement
-      | undefined;
-    if (!row) return;
-    window_.scrollTop = row.offsetTop - (window_.clientHeight - row.offsetHeight) / 2;
-  }, [drillChosen, chosenDrillId]);
 
 
   /*
@@ -407,7 +358,7 @@ export function SettingsScreen({
         opens; the collapsed summary spells the whole route out, so the order is
         never a secret you have to remember choosing.
       */}
-      <div className="keys" ref={keysWindow}>
+      <div className="keys">
         {KEY_ROWS.map((row) => (
           <div className="keys__row" key={row[0].fifths}>
             {row.map((key) => {
@@ -471,7 +422,7 @@ export function SettingsScreen({
   const drillField = (
     <div className="field">
       <span className="field__label">Drill</span>
-      <div className="drills" ref={drillsWindow}>
+      <div className="drills">
         {DRILLS.map((option) => (
           <button
             key={option.id}
