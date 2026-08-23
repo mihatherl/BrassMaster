@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Brass Master</string>
+    <string name="title_activity_main">Brass Master</string>
+    <string name="package_name">net.brassmaster.app</string>
+    <string name="custom_url_scheme">net.brassmaster.app</string>
+</resources>

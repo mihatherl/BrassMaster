@@ -15,6 +15,9 @@
     "preview": "vite preview",
     "test": "VITE_TARGET=app vitest run",
     "test:watch": "VITE_TARGET=app vitest",
+    "android:sync": "npm run build:app && npx cap sync android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:install": "npm run android:apk && ~/Android/Sdk/platform-tools/adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
     "svg": "tsx tools/stave-to-svg.mts",
     "shots": "tsx tools/shots.mts",
     "tunes": "tsx tools/tune-sheet.mts",
@@ -27,6 +30,9 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.13.3",
