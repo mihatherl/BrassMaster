@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { renderApp } from './render-app';
 
@@ -689,6 +689,26 @@ describe('choosing tunes', () => {
     const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
     expect(stored.themeSteps).toEqual([]);
     expect(stored.selection).toBe('medley');
+  });
+
+  /*
+   * The picker sheet heals the window scroll on the way in and the way out.
+   * On the installed iPhone app its lists could leave the window scrolled —
+   * the whole app a status-bar too high, a dead band under it, only a
+   * relaunch curing it (the player, 2026-08-23 evening). The reset is a
+   * guard, so it is pinned by a test rather than trusted.
+   */
+  it('puts the window scroll back when the picker opens and closes', () => {
+    const scrolled = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    openThemes();
+    fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Defined/ }));
+    expect(scrolled).toHaveBeenCalledWith(0, 0);
+
+    scrolled.mockClear();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Done' }));
+    expect(scrolled).toHaveBeenCalledWith(0, 0);
+    scrolled.mockRestore();
   });
 
   it('forgets the playlist when its library is deselected', () => {

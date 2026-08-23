@@ -1382,6 +1382,14 @@ input[type='checkbox'] {
   display: flex;
   flex-direction: column;
   background: var(--surface);
+  /*
+   * The phone's own bands. `inset: 0` is the physical screen on a notched
+   * iPhone — the clock at the top, the home indicator at the bottom — so the
+   * sheet pads by the insets or its head opens underneath the clock. Zero on
+   * every device without them, exactly like the screens' own padding.
+   */
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
 }
 
 .sheet__body {
@@ -1426,6 +1434,16 @@ input[type='checkbox'] {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /*
+   * The scroll stops here. Without this, reaching either end of the list
+   * hands the gesture to the window behind the fixed sheet, and iOS
+   * rubber-bands the whole app — which, in the installed PWA, can be *left*
+   * scrolled: everything a status-bar too high, a dead band at the bottom,
+   * and only a relaunch putting it back (the player's iPhone, 2026-08-23
+   * evening, traced to this sheet). `DefinedPicker` also resets the window
+   * scroll when the sheet closes, for whatever slips past this.
+   */
+  overscroll-behavior: contain;
   padding: 0.4rem;
 }
 

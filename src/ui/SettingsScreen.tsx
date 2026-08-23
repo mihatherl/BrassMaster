@@ -186,6 +186,21 @@ function DefinedPicker({
      key chips live, and two open rows are two questions at once. */
   const [openId, setOpenId] = useState<string | null>(null);
 
+  /*
+   * Put the window's scroll back when the sheet opens and when it closes.
+   *
+   * On the installed iPhone app, scrolling this sheet's lists could leave the
+   * *window* scrolled — the whole app a status-bar too high, a dead band at
+   * the bottom, and only a relaunch curing it. `overscroll-behavior` on the
+   * lists stops the cause (see `.picker__list`); this heals whatever slips
+   * past it, and heals a shift that was already in force when the sheet
+   * opened. A no-op everywhere the window is where it belongs.
+   */
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    return () => window.scrollTo(0, 0);
+  }, []);
+
   const detail = (theme: Theme) =>
     `${theme.bars} bars · ${theme.difficulty} · ${theme.metres.map(([n, d]) => `${n}/${d}`).join(', ')}`;
 
