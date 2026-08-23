@@ -383,6 +383,9 @@ export function SettingsScreen({
         : undefined,
     ),
     playing: summarise(
+      // The tempo leads, because it left the Start strip (see the note at the
+      // strip) and this line is what keeps it one glance away regardless.
+      `${settings.tempo} bpm`,
       reading?.name,
       sound?.name,
       settings.conductorEnabled ? 'conductor' : settings.metronomeEnabled ? 'metronome' : undefined,
@@ -417,6 +420,29 @@ export function SettingsScreen({
    * another go actually wants to see.
    */
   const [openPanels, setOpenPanels] = useState<string[]>([]);
+
+  /*
+   * Whether the screen's content overflows its viewport, which decides if the
+   * Start strip may stick. Re-measured on every render (settings change what
+   * is drawn), on resize (the observer), and on a panel opening or closing —
+   * `toggle` does not bubble, so it is caught in the capture phase.
+   */
+  const screenRef = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const el = screenRef.current;
+    if (!el) return;
+    const measure = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    observer?.observe(el);
+    el.addEventListener('toggle', measure, true);
+    return () => {
+      observer?.disconnect();
+      el.removeEventListener('toggle', measure, true);
+    };
+  });
   const isOpen = (id: string) => openPanels.includes(id);
   const setOpen = (id: string, open: boolean) => {
     setOpenPanels((current) =>
@@ -796,7 +822,7 @@ export function SettingsScreen({
   );
 
   return (
-    <div className="screen screen--settings">
+    <div className="screen screen--settings" ref={screenRef}>
       {/* Over the screen rather than inside the panel: choosing a run's tunes
           wants the whole width, and the panel it is launched from is a column
           on a phone. Closing it settles the mode — a list left empty is a
@@ -964,6 +990,29 @@ export function SettingsScreen({
       </Panel>
 
       <Panel id="playing" title="Playing" values={panelValues.playing} open={isOpen('playing')} onToggle={setOpen}>
+
+        <label className="field tempo">
+          <span className="field__label">
+            Tempo <strong>{settings.tempo}</strong> bpm
+          </span>
+          <input
+            type="range"
+            min={TEMPO_RANGE.min}
+            max={TEMPO_RANGE.max}
+            step={1}
+            value={settings.tempo}
+            onChange={(event) => update('tempo', Number(event.target.value))}
+          />
+          {/* Said out loud only where it is not obvious. In 4/4 the beat is
+              the crotchet and nobody needs telling; in 6/8 the number counts
+              dotted crotchets, two to the bar, which is the beat conducted
+              and the one a march is quoted in. */}
+          {metre.isCompound && (
+            <p className="field__note muted">
+              Dotted crotchets — {metre.pulsesPerBar} to the bar, the beat you count.
+            </p>
+          )}
+        </label>
 
         <div className="field">
           <div className="cards cards--two">
@@ -1227,38 +1276,21 @@ export function SettingsScreen({
       </p>
 
       {/*
-        Tempo sits with Start rather than inside a panel.
+        Start stands alone, and only sticks where the whole screen fits.
 
-        It is the one setting a player reaches for every single time — the same
-        exercise slower is most of what practice *is* — and it was two taps down
-        inside a collapsed section, beneath things that get chosen once and left
-        alone. Nothing else on this screen has that pattern of use, so nothing
-        else joins it here.
+        The tempo lived here from 2026-08-12 to 2026-08-23, on the ruling that
+        it is the one setting a player reaches for every single time and must
+        not be two taps down. The ruling was reversed by the player when the
+        strip's height became the visible fault on a 360-wide phone: sticky
+        pins the strip over the tail of the list the moment the content
+        overflows, and the taller the strip, the more it buries — the Advanced
+        panel sliced in half, the credits gone. The tempo now leads the Playing
+        panel and its summary line, so it stays one glance away collapsed; and
+        the strip stops sticking at all when the content overflows, because a
+        strip drawn over fields it pretends are not there is a lie, where
+        "scroll to Start" is merely how every long form on a phone behaves.
       */}
-      <div className="actions actions--sticky">
-        <label className="field tempo">
-          <span className="field__label">
-            Tempo <strong>{settings.tempo}</strong> bpm
-          </span>
-          <input
-            type="range"
-            min={TEMPO_RANGE.min}
-            max={TEMPO_RANGE.max}
-            step={1}
-            value={settings.tempo}
-            onChange={(event) => update('tempo', Number(event.target.value))}
-          />
-          {/* Said out loud only where it is not obvious. In 4/4 the beat is
-              the crotchet and nobody needs telling; in 6/8 the number counts
-              dotted crotchets, two to the bar, which is the beat conducted
-              and the one a march is quoted in. */}
-          {metre.isCompound && (
-            <p className="field__note muted">
-              Dotted crotchets — {metre.pulsesPerBar} to the bar, the beat you count.
-            </p>
-          )}
-        </label>
-
+      <div className={`actions${overflowing ? '' : ' actions--sticky'}`}>
         {/*
           Which output the sound is being sent early for, where it cannot be
           missed. The choice does not follow the device — the browser cannot

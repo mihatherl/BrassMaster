@@ -1652,10 +1652,10 @@ input[type='checkbox'] {
  *
  * The gradient behind it fades to transparent at the top, which is fine behind
  * a button and not behind a line of text — whatever is scrolling underneath
- * shows straight through it. The tempo and its label on the settings screen,
- * and the picker's line saying which bars are chosen, both sit in that band.
+ * shows straight through it. The picker's line saying which bars are chosen
+ * sits in that band. (The tempo used to as well; it moved into the Playing
+ * panel on 2026-08-23 — see the note at the settings screen's strip.)
  */
-.actions--sticky:has(.tempo),
 .actions--sticky:has(.picker__status) {
   background: var(--bg);
   border-top: 1px solid var(--border);
@@ -1664,11 +1664,10 @@ input[type='checkbox'] {
 /*
  * Label and slider on one row.
  *
- * Stacked, as every other field on the screen is, this strip stood twice the
- * height of the Start button it sits above — and it is fixed to the bottom, so
- * that height is taken from the music-setting panels on every screen and most
- * of them on a phone held sideways, where the whole viewport is 27rem. Sideways
- * showed My Music and one panel before the strip began.
+ * The compactness was earned when this lived on the fixed bottom strip, where
+ * every line of height was taken from the panels above; it now lives inside
+ * the Playing panel (2026-08-23) and keeps the one-row shape because it reads
+ * well anywhere.
  *
  * The note beneath — the dotted-crotchet reminder in compound time — spans both
  * columns, so it appears under the pair rather than squeezing the slider.

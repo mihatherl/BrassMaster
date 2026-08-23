@@ -104,7 +104,7 @@ describe('the app', () => {
     // The defaults: Eb bass in treble, Eb major, sight-reading, Easy.
     expect(valuesOf('Instrument')).toBe('Eb Bass (Tuba) · Treble');
     expect(valuesOf('Exercise')).toBe('Eb major · Sight-reading · Easy');
-    expect(valuesOf('Playing')).toBe('Scrolling line · Play the notes · metronome');
+    expect(valuesOf('Playing')).toBe('80 bpm · Scrolling line · Play the notes · metronome');
     // Advanced says nothing until something in it has been moved off its
     // default, rather than reciting the settings the app came with.
     /* No longer empty: the device's own speaker is an output like any other
@@ -112,16 +112,20 @@ describe('the app', () => {
     expect(valuesOf('Advanced')).toContain('speaker');
   });
 
-  it('keeps the tempo out of the panels, where it can be reached in one tap', () => {
+  it('keeps the tempo at the head of the Playing panel, with the bpm on its summary', () => {
     /*
-     * The one setting a player changes every single time — the same exercise
-     * slower is most of what practice is — and it used to be two taps down
-     * inside a collapsed section, beneath things chosen once and left alone.
+     * This ruling has reversed once, and the test pins whichever stands. From
+     * 2026-08-12 the tempo sat beside Start — the one setting reached for
+     * every time must not be two taps down. On 2026-08-23 the player reversed
+     * it: the strip's height was burying the list on a 360-wide phone, and a
+     * shorter strip buries less. The tempo now leads the Playing panel, and
+     * the panel's summary carries the bpm so it stays one glance away
+     * collapsed.
      */
     renderApp();
     const tempo = screen.getByLabelText(/^Tempo/);
-    expect(tempo.closest('details.panel')).toBeNull();
-    expect(tempo.closest('.actions--sticky')).not.toBeNull();
+    expect(tempo.closest('details.panel')).not.toBeNull();
+    expect(tempo.closest('.actions')).toBeNull();
   });
 
   it('hides the scroll speed in the mode where it does nothing', () => {
