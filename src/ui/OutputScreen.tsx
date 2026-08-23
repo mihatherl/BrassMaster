@@ -52,6 +52,15 @@ interface OutputScreenProps {
   settings: Settings;
   onChange: (settings: Settings) => void;
   onBack: () => void;
+  /**
+   * The OS's name for whatever external hardware the sound is going to, or
+   * null when it stays in the handset — provided only where the native shell
+   * can read the route, absent on the web, in the same composition-root style
+   * as every capability. It prefills the name of a new output (a prefill,
+   * never a lock) and is recorded on the output as `routeName`, which is what
+   * the automatic profile switch later matches against.
+   */
+  routeName?: string | null;
 }
 
 function newId(): string {
@@ -60,7 +69,7 @@ function newId(): string {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) {
+export function OutputScreen({ settings, onChange, onBack, routeName }: OutputScreenProps) {
   const [calibrating, setCalibrating] = useState<Calibration | null>(null);
 
   const choose = (id: string | null) => onChange({ ...settings, audioOutputId: id });
@@ -80,7 +89,10 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
     setCalibrating(
       output
         ? { id: output.id, name: output.name, leadMs: output.leadMs }
-        : { id: null, name: '', leadMs: 0 },
+        : /* The shell knows what is in the ears and offers its name; the box
+             stays the player's to edit. On the web the name starts empty, as
+             it always has. */
+          { id: null, name: routeName ?? '', leadMs: 0 },
     );
   };
 
@@ -94,6 +106,15 @@ export function OutputScreen({ settings, onChange, onBack }: OutputScreenProps) 
       /* Every visit here counts, including one that settles on the offset
          already in force: the player has been asked and has answered. */
       calibrations: (existing?.calibrations ?? 0) + 1,
+      /* The hardware the measurement was made against, where the shell can
+         name it. Kept from before when the route has since fallen back to
+         the handset: recalibrating an output does not unlink it from the
+         device it exists for. Never on the device's own speaker — it is
+         matched by its id, and linking it to whatever headphones happened to
+         be attached would teach the auto-switch exactly the wrong thing. */
+      ...(id !== DEVICE_OUTPUT_ID && (routeName || existing?.routeName)
+        ? { routeName: routeName ?? existing?.routeName }
+        : {}),
     };
     const others = settings.audioOutputs.filter((o) => o.id !== id);
     onChange({

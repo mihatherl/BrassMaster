@@ -318,6 +318,22 @@ describe('the calibrated outputs', () => {
     expect(audioLeadFor(measured)).toBeCloseTo(0.12, 9);
   });
 
+  /* The route link is what the shell's automatic profile switch matches
+     against, so it must survive storage — and junk must not, because a
+     non-name would be matched against real hardware. */
+  it('keeps a route name and drops one that is not a name', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      audioOutputs: [
+        { ...bose, routeName: 'Bose QC45' },
+        { ...buds, routeName: '' as never },
+      ],
+      audioOutputId: 'a',
+    });
+    expect(settings.audioOutputs.find((o) => o.id === 'a')?.routeName).toBe('Bose QC45');
+    expect('routeName' in settings.audioOutputs.find((o) => o.id === 'b')!).toBe(false);
+  });
+
   it('counts no measurements for an output that predates counting them', () => {
     const settings = sanitise({
       ...DEFAULT_SETTINGS,

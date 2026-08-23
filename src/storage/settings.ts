@@ -282,6 +282,17 @@ export interface AudioOutput {
   name: string;
   leadMs: number;
   /**
+   * The OS's name for the hardware this output was calibrated against —
+   * "Bose QC45" — recorded only where the native shell can read the route
+   * (`src/platform/audio-route.ts`), absent on the web, harmless either way.
+   *
+   * It is what lets the shell switch the calibration profile automatically
+   * when the route changes, which retires the "forgot to switch, played a
+   * whole session 330ms late" failure. The device's own speaker needs none:
+   * it is matched by its id when the route falls back to the handset.
+   */
+  routeName?: string;
+  /**
    * How many times this output has been measured.
    *
    * Zero is not the same as a lead of zero, and keeping them apart is the
@@ -834,6 +845,11 @@ function sanitiseOutputs(settings: Settings): Pick<Settings, 'audioOutputs' | 'a
       /* Absent in settings stored before outputs counted their measurements.
          Read as none, which is true of them: nobody had been asked. */
       calibrations: Number.isFinite(o.calibrations) ? Math.max(0, Math.round(o.calibrations)) : 0,
+      /* The route link survives only as a non-empty string; anything else is
+         nobody's hardware and is dropped rather than matched against. */
+      ...(typeof o.routeName === 'string' && o.routeName.length > 0
+        ? { routeName: o.routeName }
+        : {}),
     }));
 
   /* The device's own speaker is always in the list and always first, so that

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { instrumentById } from '../domain/instruments';
 import { difficultyById } from '../exercise/difficulty';
 import { metreFor } from '../domain/metre';
@@ -8,6 +8,7 @@ import { randomSeed } from '../exercise/rng';
 import type { Exercise } from '../exercise/types';
 import type { SessionSummary } from '../engine/judge';
 import { loadSettings, saveSettings, type Settings } from '../storage/settings';
+import { audioRouteCapability, outputForRoute, routeDeviceName } from '../platform/audio-route';
 import { loadStats, noteWeights, recordSession, type NoteStats } from '../storage/stats';
 import { attributesFor } from '../exercise/attributes';
 import { recordSkills, tallySession } from '../storage/skills';
@@ -192,6 +193,51 @@ export function App() {
     saveSettings(next);
   }, []);
 
+  /*
+   * The audio route, where the shell provides it (roadmap 4.2). One
+   * subscription for the app's lifetime doing the capability's two jobs:
+   * remembering the current external device's name so the outputs screen can
+   * prefill it, and switching the calibration profile when the route changes
+   * — a stored output that names this hardware is chosen, the handset's bare
+   * route falls back to the device speaker's own entry, and an unknown
+   * device changes nothing, because switching to a profile that does not
+   * exist would be inventing a measurement.
+   *
+   * `chosenRef` rather than a dependency on `chosen`: the listener must read
+   * the settings in force *when the route changes*, and resubscribing to the
+   * OS on every settings write would be churn with a failure mode (a change
+   * arriving between teardown and resubscribe is simply lost).
+   *
+   * Mid-run, the switch lands in the store and takes effect at the next
+   * gate: nothing in the engine re-reads the output during a run, which is
+   * honest — the run is judged under the calibration it started with.
+   */
+  const chosenRef = useRef(chosen);
+  chosenRef.current = chosen;
+  const [routeName, setRouteName] = useState<string | null>(null);
+  useEffect(() => {
+    const route = audioRouteCapability();
+    if (!route) return;
+    let disposed = false;
+    const apply = (snapshot: Parameters<typeof routeDeviceName>[0]) => {
+      if (disposed) return;
+      setRouteName(routeDeviceName(snapshot));
+      const current = chosenRef.current;
+      const id = outputForRoute(snapshot, current.audioOutputs);
+      if (id !== null && id !== current.audioOutputId) {
+        updateSettings({ ...current, audioOutputId: id });
+      }
+    };
+    /* The initial read syncs too, not only changes: an app *opened* with the
+       headphones already on has missed every event there will ever be. */
+    void route.outputs().then(apply);
+    const off = route.onChange(apply);
+    return () => {
+      disposed = true;
+      off();
+    };
+  }, [updateSettings]);
+
   const onFinish = useCallback(
     (summary: SessionSummary) => {
       if (!exercise) return;
@@ -328,6 +374,7 @@ export function App() {
           settings={chosen}
           onChange={updateSettings}
           onBack={() => setScreen('settings')}
+          routeName={routeName}
         />
       );
     }
@@ -399,7 +446,7 @@ export function App() {
         }
       />
     );
-  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse]);
+  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse, routeName]);
 
   return <div className="app">{content}</div>;
 }
