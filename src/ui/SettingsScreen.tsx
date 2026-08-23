@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
 import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
 import { COLLECTIONS, themeById, themesOf } from '../exercise/collections';
+import { corpusSummary } from '../exercise/corpus';
 import { themesFor } from '../exercise/phrases';
 import type { Theme } from '../exercise/theme';
 import { DIFFICULTIES } from '../exercise/difficulty';
@@ -207,6 +208,8 @@ interface SettingsScreenProps {
   onMode?: (mode: 'structured' | 'free') => void;
 }
 
+const CORPUS = corpusSummary();
+
 export function SettingsScreen({
   settings,
   onChange,
@@ -290,6 +293,8 @@ export function SettingsScreen({
     ? fitsOf(picks.map((id) => themeById(id)).filter((t): t is Theme => t !== undefined))
     : fitsOf(themesOf(chosenIds), settings.difficultyId);
 
+  // What the chosen tab is, for the blurb line beneath the tabs.
+  const material = EXERCISE_KINDS.find((k) => k.id === settings.kind)!;
   // The one summary the screen still writes itself: which output the strip's
   // note names. Everything else announces itself in place now — the chip, the
   // open material box, the gate's accordion lines.
@@ -297,27 +302,10 @@ export function SettingsScreen({
 
 
   /*
-   * Whether the screen's content overflows its viewport, which decides if the
-   * Start strip may stick. Re-measured on every render (settings change what
-   * is drawn), on resize (the observer), and on a panel opening or closing —
-   * `toggle` does not bubble, so it is caught in the capture phase.
+   * The strip is unconditionally sticky again — see its comment below — so
+   * the overflow measurement that used to decide its stickiness retired with
+   * the condition (2026-08-23 evening).
    */
-  const screenRef = useRef<HTMLDivElement>(null);
-  const [overflowing, setOverflowing] = useState(false);
-  useEffect(() => {
-    const el = screenRef.current;
-    if (!el) return;
-    const measure = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
-    measure();
-    const observer =
-      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-    observer?.observe(el);
-    el.addEventListener('toggle', measure, true);
-    return () => {
-      observer?.disconnect();
-      el.removeEventListener('toggle', measure, true);
-    };
-  });
 
   /*
    * No windows over the keys or the drills any more (the player, 2026-08-23
@@ -632,7 +620,7 @@ export function SettingsScreen({
   );
 
   return (
-    <div className="screen screen--settings" ref={screenRef}>
+    <div className="screen screen--settings">
       {/* Over the screen rather than inside the panel: choosing a run's tunes
           wants the whole width, and the panel it is launched from is a column
           on a phone. Closing it settles the mode — a list left empty is a
@@ -781,89 +769,78 @@ export function SettingsScreen({
           button carries both `aria-pressed` and `aria-expanded` because both are
           true of it and neither implies the other to a screen reader.
         */}
-        <div className="modes">
-          {/*
-            My Music's third home, each move the player's ruling: the footer
-            (buried under credits), the top of the screen (a door where a door
-            goes), and now here — "just another exercise mode" (2026-08-23),
-            which is what it is: one more answer to what-am-I-playing, beside
-            the generated kinds. It stays a *door*, because a part is opened
-            from a library rather than configured in place, so unlike its
-            siblings it never holds the open state.
-          */}
+        {/*
+          Four modes, four tabs, always in view (the player, 2026-08-23
+          evening): the accordion said "there are others" only at its edges,
+          and someone deep in the drills grid had no edges on screen. The tabs
+          are sticky, so however far the page scrolls, the four answers to
+          what-am-I-playing stay one glance and one tap away.
+
+          My Music keeps its door nature — a part is opened from a library,
+          not configured in place — so its tab navigates rather than selects,
+          and never shows as the current one.
+        */}
+        <div className="mode-tabs">
           {onImport && (
-            <div className="mode">
-              <button type="button" className="mode__summary" onClick={onImport}>
-                <strong>My Music</strong>
-                <span className="muted">Open a part you have imported, or add one</span>
-              </button>
-            </div>
+            <button type="button" className="mode-tab" onClick={onImport}>
+              <strong>My Music</strong>
+            </button>
           )}
-          {EXERCISE_KINDS.map((kind) => {
-            const chosen = settings.kind === kind.id;
-            const bodyId = `mode-${kind.id}`;
-            return (
-              <div
-                key={kind.id}
-                className={`mode ${chosen ? 'is-open' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="mode__summary"
-                  aria-pressed={chosen}
-                  aria-expanded={chosen}
-                  aria-controls={bodyId}
-                  // Each material brings its own key and difficulty with it;
-                  // see `switchMaterial`.
-                  onClick={() => onChange(switchMaterial(settings, kind.id as ExerciseKind))}
-                >
-                  <strong>{kind.name}</strong>
-                  <span className="muted">{kind.blurb}</span>
-                </button>
-                {chosen && (
-                  <div className="mode__body" id={bodyId}>
-                    {/* Which shape, before which key: the drill is what the
-                        box *is*, and everything under it qualifies it. */}
-                    {isPattern(kind.id) && drillField}
-                    {/* Where the tunes come from is what this box *is*, so it
-                        sits where the drill does and above what qualifies it. */}
-                    {kind.id === 'themes' && sourceField}
-                    {keysField}
-                    {difficultyField}
-                    {/* A scale is a shape played against a click rather than a
-                        piece with a metre, so it is always four-four and asks
-                        instead which end of the horn to sit at. A collection
-                        asks nothing: each tune plays in its own signature, and
-                        the control it gets instead is which tunes. */}
-                    {isPattern(kind.id)
-                      ? registerField
-                      : kind.id === 'themes' && chosenIds.length > 0
-                        ? selectionField
-                        : timeSignatureField}
-                    {/* The pool free material is drawn from. A pattern is placed
-                        by its tonic and a theme is written already, so neither
-                        has a pool to ask about. */}
-                    {kind.id === 'phrases' && rangeField}
-                    {/* Moved from Advanced, 2026-08-23: it biases what the
-                        generator writes, so it belongs with the material it
-                        biases — and it only ever applied to sight-reading. */}
-                    {kind.id === 'phrases' && (
-                      <label className="field field--inline">
-                        <input
-                          type="checkbox"
-                          checked={settings.weakNoteDrilling}
-                          onChange={(event) => update('weakNoteDrilling', event.target.checked)}
-                        />
-                        <span>Favour notes I get wrong</span>
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {EXERCISE_KINDS.map((kind) => (
+            <button
+              key={kind.id}
+              type="button"
+              className={`mode-tab ${settings.kind === kind.id ? 'is-selected' : ''}`}
+              aria-pressed={settings.kind === kind.id}
+              // Each material brings its own key and difficulty with it;
+              // see `switchMaterial`.
+              onClick={() => onChange(switchMaterial(settings, kind.id as ExerciseKind))}
+            >
+              <strong>{kind.name}</strong>
+            </button>
+          ))}
         </div>
-      
+
+        <p className="muted mode-blurb">{material.blurb}</p>
+
+        <div className="mode__body">
+          {/* Which shape, before which key: the drill is what the tab *is*,
+              and everything under it qualifies it. */}
+          {isPattern(settings.kind) && drillField}
+          {/* Where the tunes come from is what this tab *is*, so it sits
+              where the drill does and above what qualifies it. */}
+          {settings.kind === 'themes' && sourceField}
+          {keysField}
+          {difficultyField}
+          {/* A scale is a shape played against a click rather than a piece
+              with a metre, so it is always four-four and asks instead which
+              end of the horn to sit at. A collection asks nothing: each tune
+              plays in its own signature, and the control it gets instead is
+              which tunes. */}
+          {isPattern(settings.kind)
+            ? registerField
+            : settings.kind === 'themes' && chosenIds.length > 0
+              ? selectionField
+              : timeSignatureField}
+          {/* The pool free material is drawn from. A pattern is placed by its
+              tonic and a theme is written already, so neither has a pool to
+              ask about. */}
+          {settings.kind === 'phrases' && rangeField}
+          {/* Moved from Advanced, 2026-08-23: it biases what the generator
+              writes, so it belongs with the material it biases — and it only
+              ever applied to sight-reading. */}
+          {settings.kind === 'phrases' && (
+            <label className="field field--inline">
+              <input
+                type="checkbox"
+                checked={settings.weakNoteDrilling}
+                onChange={(event) => update('weakNoteDrilling', event.target.checked)}
+              />
+              <span>Favour notes I get wrong</span>
+            </label>
+          )}
+        </div>
+
 
       {/*
         No Playing panel and no Advanced panel, since 2026-08-23. This screen
@@ -875,21 +852,23 @@ export function SettingsScreen({
       */}
 
       {/*
-        Start stands alone, and only sticks where the whole screen fits.
+        Start, pinned again — the third ruling on this strip, and each one
+        answered a different disease. It sat over the list translucent and
+        tall (tempo, output note and all) and buried the panels on a 360-wide
+        phone; then it unstuck when content overflowed, which cured the lie
+        but let Start wander off-screen. What changed tonight (the player,
+        2026-08-23 evening) is the frame around it: the mode tabs stick to the
+        top, the strip sticks to the bottom, and between them the one page
+        scrolls — so the strip is now short (Start and a version line), solid,
+        and the content below gets clearance to scroll fully out from under
+        it. The overlap lie is cured structurally rather than conditionally,
+        and the conditional machinery went with it.
 
-        The tempo lived here from 2026-08-12 to 2026-08-23, on the ruling that
-        it is the one setting a player reaches for every single time and must
-        not be two taps down. The ruling was reversed by the player when the
-        strip's height became the visible fault on a 360-wide phone: sticky
-        pins the strip over the tail of the list the moment the content
-        overflows, and the taller the strip, the more it buries — the Advanced
-        panel sliced in half, the credits gone. The tempo now leads the Playing
-        panel and its summary line, so it stays one glance away collapsed; and
-        the strip stops sticking at all when the content overflows, because a
-        strip drawn over fields it pretends are not there is a lie, where
-        "scroll to Start" is merely how every long form on a phone behaves.
+        The version and corpus line rides with Start (asked for, same evening)
+        so a stale cached copy announces itself on the first screen; the full
+        credits stay behind the gate's Preferences.
       */}
-      <div className={`actions${overflowing ? '' : ' actions--sticky'}`}>
+      <div className="actions actions--sticky">
         {/*
           Which output the sound is being sent early for, where it cannot be
           missed. The choice does not follow the device — the browser cannot
@@ -918,6 +897,9 @@ export function SettingsScreen({
         <button type="button" className="button button--primary button--large" onClick={onStart}>
           Start
         </button>
+        <p className="field__note muted strip-version">
+          v{__APP_VERSION__} · corpus {CORPUS.revision} ({CORPUS.cells} cells)
+        </p>
       </div>
         </>
       )}

@@ -95,11 +95,11 @@ describe('the app', () => {
      * whatever happened to be open when you left, which was usually all of it.
      */
     renderApp();
-    // No accordion wrapper is left on the home at all (2026-08-23 evening):
-    // the material boxes sit at the top level, and exactly one — the chosen
-    // material — stands open. That box is the whole answer to "what is set".
+    // The home is a frame now (2026-08-23 evening): mode tabs pinned at the
+    // top, Start pinned at the bottom, and exactly one tab marked — the
+    // chosen material, whose controls are the page between.
     expect(document.querySelectorAll('details.panel')).toHaveLength(0);
-    expect(document.querySelectorAll('.mode.is-open')).toHaveLength(1);
+    expect(document.querySelectorAll('.mode-tab.is-selected')).toHaveLength(1);
   });
 
   it('says what is selected in each collapsed section', () => {
@@ -108,7 +108,10 @@ describe('the app', () => {
     // the material as the open box, and how-the-run-goes on the Ready gate's
     // own lines (asserted with the gate's tests).
     expect(screen.getByRole('button', { name: 'Eb Bass · Treble' })).toBeTruthy();
-    expect(document.querySelector('.mode.is-open strong')?.textContent).toBe('Sight-reading');
+    expect(document.querySelector('.mode-tab.is-selected strong')?.textContent).toBe('Sight-reading');
+    // And the pinned strip carries the version, so a stale cached copy
+    // announces itself on the first screen.
+    expect(screen.getByText(/corpus \d+/)).toBeTruthy();
   });
 
   it('keeps the tempo on the Ready gate, where the run it sets is about to start', () => {
@@ -291,36 +294,42 @@ describe('the app', () => {
     });
   });
 
-  describe('the material boxes', () => {
-    const openBox = () => document.querySelector('.mode.is-open .mode__summary strong')?.textContent;
+  describe('the mode tabs', () => {
+    /*
+     * The boxes became tabs on 2026-08-23 evening: four modes always in view,
+     * sticky at the top, with the chosen one's controls as the page beneath.
+     * What the accordion promised the tests still hold the tabs to — one
+     * choice, never none, only the fields that apply.
+     */
+    const chosenTab = () => document.querySelector('.mode-tab.is-selected strong')?.textContent;
     const fieldsShown = () =>
-      Array.from(document.querySelectorAll('.mode.is-open .mode__body .field__label')).map(
+      Array.from(document.querySelectorAll('.mode__body > .field .field__label, .mode__body > label.field .field__label')).map(
         (label) => label.textContent?.trim(),
       );
     const hasRange = () =>
-      document.querySelectorAll('.mode.is-open .mode__body input[type=checkbox]').length > 0;
+      document.querySelectorAll('.mode__body input[type=checkbox]').length > 0;
 
     const choose = (name: RegExp) => fireEvent.click(screen.getByRole('button', { name }));
 
-    it('opens exactly one box, and it is the material chosen', () => {
+    it('marks exactly one tab, and it is the material chosen', () => {
       renderApp();
 
-      expect(openBox(), 'the stored default').toBe('Sight-reading');
-      expect(document.querySelectorAll('.mode__body')).toHaveLength(1);
+      expect(chosenTab(), 'the stored default').toBe('Sight-reading');
+      expect(document.querySelectorAll('.mode-tab.is-selected')).toHaveLength(1);
 
       choose(/Themes/);
-      expect(openBox()).toBe('Themes');
-      expect(document.querySelectorAll('.mode__body'), 'the last one closed').toHaveLength(1);
+      expect(chosenTab()).toBe('Themes');
+      expect(document.querySelectorAll('.mode-tab.is-selected'), 'the last one unmarked').toHaveLength(1);
     });
 
-    it('will not close the open box, since an exercise has to be made of something', () => {
+    it('will not unmark the chosen tab, since an exercise has to be made of something', () => {
       renderApp();
 
       choose(/Drills/);
-      expect(openBox()).toBe('Drills');
-      // Pressing the open one again is not a way to choose nothing.
+      expect(chosenTab()).toBe('Drills');
+      // Pressing the chosen one again is not a way to choose nothing.
       choose(/Drills/);
-      expect(openBox()).toBe('Drills');
+      expect(chosenTab()).toBe('Drills');
     });
 
     it('shows a material only the settings that apply to it', () => {
@@ -340,26 +349,21 @@ describe('the app', () => {
       expect(hasRange(), 'and it is the only one that asks').toBe(true);
 
       // A theme is written already: neither a register nor a range to ask
-      // about. It does ask where the tunes come from — composed on the spot, or
-      // one of the named collections — which is what the box *is*, so it leads
-      // the way the drill does.
+      // about. It does ask where the tunes come from, which is what the tab
+      // *is*, so it leads the way the drill does.
       choose(/Themes/);
       expect(fieldsShown()).toEqual(['Tunes from', 'Keys', 'Difficulty', 'Time signature']);
       expect(hasRange()).toBe(false);
     });
 
-    it('says which box is open to anyone not looking at it', () => {
+    it('says which tab is chosen to anyone not looking at it', () => {
       renderApp();
       choose(/Themes/);
 
       const themes = screen.getByRole('button', { name: /Themes/ });
       const drills = screen.getByRole('button', { name: /Drills/ });
-      // Both are true of it and neither implies the other: it is the pressed
-      // one, and it is the expanded one.
       expect(themes.getAttribute('aria-pressed')).toBe('true');
-      expect(themes.getAttribute('aria-expanded')).toBe('true');
       expect(drills.getAttribute('aria-pressed')).toBe('false');
-      expect(drills.getAttribute('aria-expanded')).toBe('false');
     });
   });
 

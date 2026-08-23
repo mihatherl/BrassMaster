@@ -273,10 +273,9 @@ export const EXERCISE_KINDS: ReadonlyArray<{ id: ExerciseKind; name: string; blu
   {
     id: 'themes',
     name: 'Themes',
-    // Composed from cells for every run, at the level's range, accidentals
-    // and rests — see `compose.ts` — so a tune is new each time and as hard
-    // as the sight-reading beside it. It used to say "written tunes", when
-    // forty-seven of them were.
-    blurb: 'Tunes with a shape you can see coming — a phrase and its answer, new every time.',
+    // The player's own words (2026-08-23), chosen knowing the caveat: some of
+    // the corpus is written in-house rather than known, and "we'll be
+    // forgiven that". The claim is warmth, not inventory.
+    blurb: 'Musical melodies you know and enjoy.',
   },
 ];
