@@ -451,14 +451,18 @@ describe('the cushion', () => {
 });
 
 describe('picked tunes', () => {
-  it('keeps only ids the chosen collections hold', () => {
+  /* The default key set is [-3], so a step in E flat is one every filter
+     below lets through — what each test then varies is the thing it is about. */
+  const step = (id: string, fifths = -3) => ({ id, fifths });
+
+  it('keeps only steps whose tune the chosen collections hold', () => {
     const settings = sanitise({
       ...DEFAULT_SETTINGS,
       collectionIds: ['bach'],
       selection: 'defined',
-      themeIds: ['jesu-joy', 'trad-twinkle', 'retired-tune'],
+      themeSteps: [step('jesu-joy'), step('trad-twinkle'), step('retired-tune')],
     });
-    expect(settings.themeIds).toEqual(['jesu-joy']);
+    expect(settings.themeSteps).toEqual([step('jesu-joy')]);
   });
 
   /* A playlist is ordered and may repeat: both are the player's decision, and
@@ -469,14 +473,14 @@ describe('picked tunes', () => {
        the sanitiser is right to drop it — which broke this test rather than the
        code, twice. */
     const heard = COLLECTIONS.flatMap((collection) => [...playableThemes(collection)]);
-    const ids = [heard[0].id, heard[1].id, heard[0].id];
+    const steps = [step(heard[0].id), step(heard[1].id), step(heard[0].id)];
     const settings = sanitise({
       ...DEFAULT_SETTINGS,
       collectionIds: [...new Set(COLLECTIONS.filter((c) => playableThemes(c).length).map((c) => c.id))],
       selection: 'defined',
-      themeIds: ids,
+      themeSteps: steps,
     });
-    expect(settings.themeIds).toEqual(ids);
+    expect(settings.themeSteps).toEqual(steps);
   });
 
   it('draws from every chosen collection at once', () => {
@@ -484,9 +488,9 @@ describe('picked tunes', () => {
       ...DEFAULT_SETTINGS,
       collectionIds: ['bach', 'traditional'],
       selection: 'defined',
-      themeIds: ['jesu-joy', 'trad-twinkle'],
+      themeSteps: [step('jesu-joy'), step('trad-twinkle')],
     });
-    expect(settings.themeIds).toEqual(['jesu-joy', 'trad-twinkle']);
+    expect(settings.themeSteps).toEqual([step('jesu-joy'), step('trad-twinkle')]);
   });
 
   it('drops every pick when the collections go', () => {
@@ -494,11 +498,53 @@ describe('picked tunes', () => {
       ...DEFAULT_SETTINGS,
       collectionIds: [],
       selection: 'defined',
-      themeIds: ['jesu-joy'],
+      themeSteps: [step('jesu-joy')],
     });
-    expect(settings.themeIds).toEqual([]);
+    expect(settings.themeSteps).toEqual([]);
     // And a defined run with nothing in it is a medley in all but name.
     expect(settings.selection).toBe('medley');
+  });
+
+  /* Steps live and die with their keys, exactly as picks live and die with
+     their collections: the picker offers only nominated keys, so a key
+     deselected takes its steps with it. */
+  it('drops a step whose key has left the set', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      collectionIds: ['bach'],
+      keySet: [0, 1],
+      selection: 'defined',
+      themeSteps: [step('jesu-joy', 0), step('jesu-joy', -3), step('jesu-joy', 1)],
+    });
+    expect(settings.themeSteps).toEqual([step('jesu-joy', 0), step('jesu-joy', 1)]);
+  });
+
+  /* A step built on one instrument can name a placement another does not
+     have: Invention 13 spans thirty semitones and fits a cornet in exactly
+     one key, which is the fact that forced steps to carry keys at all. */
+  it('drops a step the instrument cannot hold in that key', () => {
+    const settings = sanitise({
+      ...DEFAULT_SETTINGS,
+      instrumentId: 'cornet',
+      collectionIds: ['bach'],
+      keySet: [0, 1],
+      selection: 'defined',
+      themeSteps: [step('bwv784-invention', 0), step('bwv784-invention', 1)],
+    });
+    expect(settings.themeSteps).toEqual([step('bwv784-invention', 0)]);
+  });
+
+  /* A settings file from before steps carried keys holds `themeIds`; each
+     becomes a step in the opening key, which is where the old tour began. */
+  it('migrates a stored themeIds list to steps in the opening key', () => {
+    store({
+      collectionIds: ['bach'],
+      selection: 'defined',
+      themeIds: ['jesu-joy', 'jesu-joy'],
+    });
+    const settings = loadSettings();
+    expect(settings.themeSteps).toEqual([step('jesu-joy'), step('jesu-joy')]);
+    expect(settings.selection).toBe('defined');
   });
 
   it('forgets a collection that no longer exists', () => {

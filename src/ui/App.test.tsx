@@ -647,36 +647,47 @@ describe('choosing tunes', () => {
     );
   });
 
-  it('builds a playlist that keeps its order and its repeats', () => {
+  /*
+   * A step is a tune *and* a key, chosen together: tapping a tune expands it
+   * to chips for the nominated keys its placement holds, and the chip is what
+   * adds. The default set is E flat alone, so each tune offers one chip.
+   */
+  const addStep = (dialog: HTMLElement, name: RegExp, chip: RegExp) => {
+    fireEvent.click(within(dialog).getAllByRole('button', { name })[0]);
+    fireEvent.click(within(dialog).getByRole('button', { name: chip }));
+  };
+
+  it('builds a playlist of steps that keeps its order and its repeats', () => {
     openThemes();
     fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Defined/ }));
 
-    // The dialog lists what is available; tapping adds to the right column.
     const dialog = screen.getByRole('dialog');
-    const add = (name: RegExp) =>
-      fireEvent.click(within(dialog).getAllByRole('button', { name })[0]);
-    add(/Invention 8/);
-    add(/Jesu/);
-    add(/Invention 8/);
+    addStep(dialog, /Invention 8/, /Add Invention 8 in Eb major/);
+    addStep(dialog, /Jesu/, /Add Jesu, Joy of Man's Desiring in Eb major/);
+    addStep(dialog, /Invention 8/, /Add Invention 8 in Eb major/);
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
     const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
-    expect(stored.themeIds).toEqual(['bwv779-invention', 'jesu-joy', 'bwv779-invention']);
+    expect(stored.themeSteps).toEqual([
+      { id: 'bwv779-invention', fifths: -3 },
+      { id: 'jesu-joy', fifths: -3 },
+      { id: 'bwv779-invention', fifths: -3 },
+    ]);
     expect(stored.selection).toBe('defined');
   });
 
-  it('drops back to a medley when the last tune is taken out', () => {
+  it('drops back to a medley when the last step is taken out', () => {
     openThemes();
     fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Defined/ }));
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getAllByRole('button', { name: /Jesu/ })[0]);
+    addStep(dialog, /Jesu/, /Add Jesu, Joy of Man's Desiring in Eb major/);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Clear' }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
 
     const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
-    expect(stored.themeIds).toEqual([]);
+    expect(stored.themeSteps).toEqual([]);
     expect(stored.selection).toBe('medley');
   });
 
@@ -685,12 +696,12 @@ describe('choosing tunes', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Defined/ }));
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getAllByRole('button', { name: /Jesu/ })[0]);
+    addStep(dialog, /Jesu/, /Add Jesu, Joy of Man's Desiring in Eb major/);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
     fireEvent.click(screen.getByRole('button', { name: /^Bach/ }));
 
     const stored = JSON.parse(localStorage.getItem('brass-trainer:settings')!);
     expect(stored.collectionIds).toEqual([]);
-    expect(stored.themeIds).toEqual([]);
+    expect(stored.themeSteps).toEqual([]);
   });
 });

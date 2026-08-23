@@ -11,6 +11,8 @@ import { INSTRUMENTS, availableClefs, writtenRange, type Clef, type Instrument }
 import type { ReadingMode } from '../render/surface';
 import type { PlaybackMode } from '../engine/session';
 import { COLLECTIONS, themesOf } from '../exercise/collections';
+import { realiseTheme } from '../exercise/theme';
+import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { EXERCISE_KINDS } from '../exercise/types';
 import { MAJOR_KEYS } from '../domain/keys';
@@ -27,6 +29,12 @@ export { TEMPO_RANGE };
 // The same arrangement for the conductor's style: `render/conductor.ts` decides
 // what the number means, and this is where it gets stored.
 export { CONDUCTOR_STYLE_RANGE };
+
+/** One step of a defined run: a tune, in the key it will be played in. */
+export interface ThemeStep {
+  id: string;
+  fifths: number;
+}
 
 export interface Settings {
   instrumentId: string;
@@ -101,19 +109,35 @@ export interface Settings {
    *
    * `medley` is the default and asks nothing more of the player: whatever is
    * in the chosen collections, at the chosen level, in an order the seed
-   * decides. `defined` plays `themeIds` exactly.
+   * decides. `defined` plays `themeSteps` exactly.
    */
   selection: 'medley' | 'defined';
   /**
-   * The defined run's tunes, in order, by id — a playlist, not a set.
+   * The defined run's steps, in order — each a tune *in a key*.
    *
-   * Order is the player's and duplicates are deliberate: putting a tune in
-   * twice is how somebody drills the one that is giving them trouble, and a
-   * list that quietly collapsed it to one occurrence would be overruling them.
-   * Only read when `selection` is `defined`; `sanitise` drops any id the
-   * chosen collections do not hold, keeping the rest in place.
+   * A playlist, not a set: order is the player's, and duplicates are
+   * deliberate — the same tune in two keys, or twice in one, is somebody
+   * drilling the thing that is giving them trouble, and a list that quietly
+   * collapsed it would be overruling them.
+   *
+   * **The key is part of the step, not toured over it.** This replaced
+   * `themeIds` plus the key set on 2026-08-23, after the player met the
+   * failure the split invited: Invention 13 spans thirty semitones, fits
+   * seven signatures on an E♭ bass and exactly one on a cornet, and a key
+   * chosen independently of the tune produced runs that silently truncated
+   * or fell back to composed material — *"just filling the gap with composed
+   * tunes will make them think there is a bug (as I did — and I helped
+   * design it!)"*. The picker now offers, per tune, only the nominated keys
+   * whose placement actually holds it, so a step that can be built is a step
+   * that will play.
+   *
+   * Only read when `selection` is `defined`. `sanitise` drops a step whose
+   * tune the chosen collections no longer hold, whose key has left `keySet`
+   * — steps live and die with their keys, exactly as picks live and die
+   * with their collections — or whose placement no longer fits after an
+   * instrument or clef change.
    */
-  themeIds: string[];
+  themeSteps: ThemeStep[];
   /*
    * How long a run is, is no longer here.
    *
@@ -438,7 +462,7 @@ export const DEFAULT_SETTINGS: Settings = {
   drillId: 'major-scale',
   collectionIds: [],
   selection: 'medley',
-  themeIds: [],
+  themeSteps: [],
   register: 'middle',
   // Left to the difficulty, which is what the app has always done.
   range: null,
@@ -623,25 +647,6 @@ export function sanitise(settings: Settings): Settings {
   ).map((collection) => collection.id);
 
   /*
-   * Picks live and die with their collections. Each id must name a tune the
-   * chosen collections actually hold — a pick left over from a collection
-   * since deselected, or a tune since retired, names nothing and is dropped
-   * rather than kept to misfire later.
-   *
-   * **Filtered, never deduplicated**: a tune listed twice is a player drilling
-   * it twice, and position in the list is theirs to decide.
-   */
-  const available = new Set(themesOf(collectionIds).map((theme) => theme.id));
-  const themeIds = (Array.isArray(settings.themeIds) ? settings.themeIds : []).filter((id) =>
-    available.has(id),
-  );
-
-  /* A defined run with nothing left in its list is a medley in all but name,
-     and saying so keeps the screen from offering an empty playlist. */
-  const selection: Settings['selection'] =
-    settings.selection === 'defined' && themeIds.length > 0 ? 'defined' : 'medley';
-
-  /*
    * The set decides, and the starting key follows it.
    *
    * The other way round while there were two controls: the screen named a
@@ -667,6 +672,58 @@ export function sanitise(settings: Settings): Settings {
   const keySet = chosen.length > 0 ? chosen : [stated];
   const fifths = keySet[0];
 
+  /*
+   * Steps live and die with what made them buildable, exactly as picks live
+   * and die with their collections. Each step must name a tune the chosen
+   * collections actually hold, a key still in the set — the picker offers
+   * only nominated keys, so a key deselected takes its steps with it — and a
+   * placement the instrument's compass still holds, since a step built on a
+   * euphonium can be unplayable on the cornet the file wakes up on. Anything
+   * else is dropped rather than kept to misfire later.
+   *
+   * **Filtered, never deduplicated**: a tune listed twice is a player
+   * drilling it twice, and position in the list is theirs to decide.
+   *
+   * A file from before steps carried keys holds `themeIds`; each becomes a
+   * step in the opening key, and the fit filter then keeps what it keeps —
+   * the old behaviour opened in that key too, so nothing the player could
+   * actually hear is lost in the translation.
+   */
+  /* The empty-steps check matters: `loadSettings` merges over the defaults,
+     so `themeSteps` is always at least `[]` and an old file's list would
+     otherwise be shadowed by it. */
+  const legacy = settings as Partial<Settings> & { themeIds?: unknown };
+  const stored: unknown[] =
+    Array.isArray(settings.themeSteps) && settings.themeSteps.length > 0
+      ? settings.themeSteps
+      : Array.isArray(legacy.themeIds)
+        ? legacy.themeIds.map((id) => ({ id, fifths }))
+        : [];
+  const holds = new Map(themesOf(collectionIds).map((theme) => [theme.id, theme]));
+  const themeSteps = stored
+    .filter(
+      (step): step is ThemeStep =>
+        typeof step === 'object' &&
+        step !== null &&
+        typeof (step as ThemeStep).id === 'string' &&
+        typeof (step as ThemeStep).fifths === 'number',
+    )
+    .filter((step) => holds.has(step.id) && keySet.includes(step.fifths))
+    .filter((step) => {
+      const theme = holds.get(step.id)!;
+      const [n, d] = theme.metres[0];
+      return (
+        realiseTheme(theme, { instrument, clef, fifths: step.fifths, metre: metreFor(n, d) }) !==
+        null
+      );
+    })
+    .map((step) => ({ id: step.id, fifths: step.fifths }));
+
+  /* A defined run with nothing left in its list is a medley in all but name,
+     and saying so keeps the screen from offering an empty playlist. */
+  const selection: Settings['selection'] =
+    settings.selection === 'defined' && themeSteps.length > 0 ? 'defined' : 'medley';
+
   const timeSignature =
     TIME_SIGNATURES.find(
       (t) => t.beatsPerBar === settings.beatsPerBar && t.beatUnit === settings.beatUnit,
@@ -688,7 +745,7 @@ export function sanitise(settings: Settings): Settings {
     ...drillsOf(settings),
     collectionIds,
     selection,
-    themeIds,
+    themeSteps,
     materials: sanitiseMaterials(settings, keySet, difficulty),
     register: REGISTERS.some((r) => r.id === settings.register)
       ? settings.register

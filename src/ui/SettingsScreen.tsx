@@ -6,7 +6,8 @@ import { spellInKey } from '../domain/keys';
 import { COLLECTIONS, themeById, themesOf } from '../exercise/collections';
 import { corpusSummary } from '../exercise/corpus';
 import { themesFor } from '../exercise/phrases';
-import type { Theme } from '../exercise/theme';
+import { realiseTheme, type Theme } from '../exercise/theme';
+import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
@@ -70,15 +71,85 @@ function describeSpan(semitones: number): string {
 }
 
 /**
- * Building a defined run: what is available on the left, what will play on the
- * right.
+ * The key set as chips, three rows of five — one grid, drawn wherever keys
+ * are nominated: on the home for medleys and free material, and at the top of
+ * the defined picker, where the keys chosen are what every tune below offers.
+ *
+ * Pick keys in the order you want them. The first is where the exercise
+ * opens; beyond the cap only what is already chosen can be undone, and the
+ * last one standing cannot be — an exercise has to be in some key.
+ */
+function KeysGrid({
+  keySet,
+  keyName,
+  onChange,
+}: {
+  keySet: readonly number[];
+  keyName: (fifths: number, short?: boolean) => string;
+  onChange: (next: number[]) => void;
+}) {
+  return (
+    <div className="keys">
+      {KEY_ROWS.map((row) => (
+        <div className="keys__row" key={row[0].fifths}>
+          {row.map((key) => {
+            const chosen = keySet.includes(key.fifths);
+            const start = keySet[0] === key.fifths;
+            const full = keySet.length >= MAX_KEYS_IN_PLAY;
+            const only = chosen && keySet.length === 1;
+            return (
+              <button
+                key={key.fifths}
+                type="button"
+                disabled={only || (!chosen && full)}
+                aria-pressed={chosen}
+                // The accidentals are shown as "3♭" beside the name, which a
+                // screen reader would spell out as a number and a symbol.
+                aria-label={`${keyName(key.fifths)}, ${describeFifths(key.fifths)}`}
+                className={`segmented__option key ${chosen ? 'is-selected' : ''} ${
+                  start ? 'is-start' : ''
+                }`}
+                onClick={() => {
+                  const next = chosen
+                    ? keySet.filter((f) => f !== key.fifths)
+                    : [...keySet, key.fifths];
+                  if (next.length === 0) return;
+                  onChange(next);
+                }}
+              >
+                <span className="key__name">{keyName(key.fifths, true)}</span>
+                <span className="key__accidentals muted">{accidentalCount(key.fifths)}</span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Building a defined run: keys nominated at the top, what is available on the
+ * left, what will play on the right.
  *
  * Two columns rather than a list of toggles, because a playlist is an ordered
  * thing with repeats and a toggle list is a set — and the difference is the
- * whole feature. Tapping a tune on the left appends it to the right; tapping
- * one on the right takes that copy out. The same tune may be added as often as
- * the player likes, which is how somebody drills the one that is giving them
- * trouble.
+ * whole feature. The same tune may be added as often as the player likes, in
+ * as many keys as it fits, which is how somebody drills the one that is
+ * giving them trouble.
+ *
+ * **A tune and its key are chosen together, and only real combinations are
+ * offered.** Redesigned with the player on 2026-08-23, the day Invention 13
+ * exposed the old shape: a key set toured over a playlist could name
+ * placements that do not exist — the invention spans thirty semitones and
+ * fits one signature on a cornet — and the run then silently truncated or
+ * fell back to composed material, *"which will make them think there is a bug
+ * (as I did — and I helped design it!)"*. Now the keys are nominated on this
+ * sheet, each tune expands (one at a time, the player's call) to chips for
+ * exactly the nominated keys whose placement holds it, and a tune that fits
+ * none of them is greyed rather than hidden — seeing it disabled is how a
+ * player learns the keys are why. Every step built here is a step that will
+ * play.
  *
  * The left column is grouped by library only when more than one is in play:
  * one library needs no heading, and a heading over every list makes the
@@ -91,29 +162,68 @@ function describeSpan(semitones: number): string {
  * built, and all three are properties of the music rather than of the app.
  */
 function DefinedPicker({
-  collectionIds,
-  picks,
+  settings,
+  keyName,
   onChange,
   onClose,
 }: {
-  collectionIds: readonly string[];
-  picks: readonly string[];
-  onChange: (picks: string[]) => void;
+  settings: Settings;
+  keyName: (fifths: number, short?: boolean) => string;
+  onChange: (settings: Settings) => void;
   onClose: () => void;
 }) {
-  const groups = COLLECTIONS.filter((collection) => collectionIds.includes(collection.id)).map(
-    (collection) => ({
-      collection,
-      themes: [...collection.themes].sort((a, b) => a.name.localeCompare(b.name)),
-    }),
-  );
+  const instrument = instrumentById(settings.instrumentId);
+  const steps = settings.themeSteps;
+  const groups = COLLECTIONS.filter((collection) =>
+    settings.collectionIds.includes(collection.id),
+  ).map((collection) => ({
+    collection,
+    themes: [...collection.themes].sort((a, b) => a.name.localeCompare(b.name)),
+  }));
   const named = groups.length > 1;
+
+  /* One tune open at a time (the player's ruling): the open row is where the
+     key chips live, and two open rows are two questions at once. */
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const detail = (theme: Theme) =>
     `${theme.bars} bars · ${theme.difficulty} · ${theme.metres.map(([n, d]) => `${n}/${d}`).join(', ')}`;
 
+  /* Which of the nominated keys hold this tune, asked of the real placement —
+     the same question `sanitise` asks of every stored step, so a chip offered
+     here is a step that survives being stored. */
+  const fitsFor = (theme: Theme) =>
+    settings.keySet.filter((fifths) => {
+      const [n, d] = theme.metres[0];
+      return (
+        realiseTheme(theme, {
+          instrument,
+          clef: settings.clef,
+          fifths,
+          metre: metreFor(n, d),
+        }) !== null
+      );
+    });
+
+  /* Every edit goes through `sanitise`, which is what keeps the sheet honest
+     as it is used: deselecting a key up top takes its steps out of the right
+     column in the same render, because steps live and die with their keys. */
+  const edit = (changes: Partial<Settings>) => onChange(sanitise({ ...settings, ...changes }));
+
   return (
-    <div className="sheet" role="dialog" aria-modal="true" aria-label="Choose the tunes to play">
+    <div className="sheet" role="dialog" aria-modal="true" aria-label="Choose tunes and keys">
+      <div className="picker__head">
+        <p className="field__note muted">
+          Not every tune fits every key on every instrument. Nominate keys here, and each tune
+          below offers the ones it can play on {instrument.name}.
+        </p>
+        <KeysGrid
+          keySet={settings.keySet}
+          keyName={keyName}
+          onChange={(next) => edit({ keySet: next })}
+        />
+      </div>
+
       <div className="sheet__body picker">
         <div className="picker__column">
           <h3 className="picker__heading">Available</h3>
@@ -121,17 +231,65 @@ function DefinedPicker({
             {groups.map(({ collection, themes }) => (
               <div key={collection.id}>
                 {named && <p className="picker__group">{collection.name}</p>}
-                {themes.map((theme) => (
-                  <button
-                    key={theme.id}
-                    type="button"
-                    className="picker__tune"
-                    onClick={() => onChange([...picks, theme.id])}
-                  >
-                    <span className="picker__name">{theme.name}</span>
-                    <span className="picker__detail">{detail(theme)}</span>
-                  </button>
-                ))}
+                {themes.map((theme) => {
+                  const fits = fitsFor(theme);
+                  if (fits.length === 0) {
+                    /* Present and plainly unavailable, never hidden: a player
+                       who can see the tune greyed can see that the keys are
+                       why, where a missing row is just a mystery. */
+                    return (
+                      <div key={theme.id} className="picker__tune picker__tune--unfit">
+                        <span className="picker__name">{theme.name}</span>
+                        <span className="picker__detail">{detail(theme)}</span>
+                        <span className="picker__detail">
+                          Doesn&apos;t fit{' '}
+                          {settings.keySet.map((f) => keyName(f, true)).join(' or ')} on{' '}
+                          {instrument.name}
+                        </span>
+                      </div>
+                    );
+                  }
+                  const open = openId === theme.id;
+                  return (
+                    <div
+                      key={theme.id}
+                      className={`picker__tune ${open ? 'picker__tune--open' : ''}`}
+                    >
+                      <button
+                        type="button"
+                        className="picker__toggle"
+                        aria-expanded={open}
+                        onClick={() => setOpenId(open ? null : theme.id)}
+                      >
+                        <span className="picker__name">{theme.name}</span>
+                        <span className="picker__detail">{detail(theme)}</span>
+                      </button>
+                      {open && (
+                        <span className="picker__keys">
+                          {fits.map((fifths) => (
+                            <button
+                              key={fifths}
+                              type="button"
+                              className="picker__key"
+                              aria-label={`Add ${theme.name} in ${keyName(fifths)}`}
+                              onClick={() =>
+                                edit({
+                                  selection: 'defined',
+                                  themeSteps: [...steps, { id: theme.id, fifths }],
+                                })
+                              }
+                            >
+                              <span className="key__name">{keyName(fifths, true)}</span>
+                              <span className="key__accidentals muted">
+                                {accidentalCount(fifths)}
+                              </span>
+                            </button>
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
@@ -139,28 +297,32 @@ function DefinedPicker({
 
         <div className="picker__column">
           <h3 className="picker__heading">
-            Playing {picks.length > 0 && <span className="chip__count">{picks.length}</span>}
+            Playing {steps.length > 0 && <span className="chip__count">{steps.length}</span>}
           </h3>
           <div className="picker__list">
-            {picks.length === 0 && (
+            {steps.length === 0 && (
               <p className="field__note muted">
-                Tap a tune on the left to add it. Add one twice to play it twice.
+                Tap a tune, then one of its keys, to add a step. The same tune may go in twice —
+                in two keys, or the same one.
               </p>
             )}
-            {picks.map((id, at) => {
-              const theme = themeById(id);
+            {steps.map((step, at) => {
+              const theme = themeById(step.id);
               if (!theme) return null;
               return (
                 <button
                   /* Position, not id: the same tune may be here more than once,
                      and removing the third copy must not remove the first. */
-                  key={`${id}-${at}`}
+                  key={`${step.id}-${step.fifths}-${at}`}
                   type="button"
                   className="picker__tune picker__tune--chosen"
-                  onClick={() => onChange(picks.filter((_, i) => i !== at))}
+                  onClick={() =>
+                    edit({ themeSteps: steps.filter((_, i) => i !== at) })
+                  }
                 >
                   <span className="picker__name">
-                    {at + 1}. {theme.name}
+                    {at + 1}. {theme.name}{' '}
+                    <span className="picker__inkey">· in {keyName(step.fifths, true)}</span>
                   </span>
                   <span className="picker__detail">{detail(theme)}</span>
                 </button>
@@ -171,7 +333,11 @@ function DefinedPicker({
       </div>
 
       <div className="sheet__actions">
-        <button type="button" className="button button--quiet" onClick={() => onChange([])}>
+        <button
+          type="button"
+          className="button button--quiet"
+          onClick={() => edit({ themeSteps: [] })}
+        >
           Clear
         </button>
         <button type="button" className="button button--primary" onClick={onClose}>
@@ -272,12 +438,12 @@ export function SettingsScreen({
    *
    * No metre in the question, because a collection plays each tune in its own
    * time signature: what can fit is a fact about the level, the key and the
-   * compass alone. With tunes picked by hand the level stops filtering too —
-   * naming the tunes has already answered that question — so what remains is
-   * only whether the picks fit the instrument at all.
+   * compass alone. A defined run needs no such question asked at all: its
+   * steps were built in the picker against the real placement and `sanitise`
+   * keeps them true, so every step counts.
    */
   const chosenIds = settings.collectionIds;
-  const picks = settings.themeIds;
+  const steps = settings.themeSteps;
   const defined = settings.selection === 'defined';
   const fitsOf = (corpus: readonly Theme[], level?: string) =>
     themesFor({
@@ -287,11 +453,7 @@ export function SettingsScreen({
       difficulty: level,
       corpus,
     }).length;
-  /* What a run would actually be handed, which is what the note has to report:
-     a playlist ignores the level, a medley does not. */
-  const playable = defined
-    ? fitsOf(picks.map((id) => themeById(id)).filter((t): t is Theme => t !== undefined))
-    : fitsOf(themesOf(chosenIds), settings.difficultyId);
+  const playable = defined ? steps.length : fitsOf(themesOf(chosenIds), settings.difficultyId);
 
   // What the chosen tab is, for the blurb line beneath the tabs.
   const material = EXERCISE_KINDS.find((k) => k.id === settings.kind)!;
@@ -365,47 +527,11 @@ export function SettingsScreen({
         opens; the collapsed summary spells the whole route out, so the order is
         never a secret you have to remember choosing.
       */}
-      <div className="keys">
-        {KEY_ROWS.map((row) => (
-          <div className="keys__row" key={row[0].fifths}>
-            {row.map((key) => {
-              const chosen = settings.keySet.includes(key.fifths);
-              const start = settings.keySet[0] === key.fifths;
-              const full = settings.keySet.length >= MAX_KEYS_IN_PLAY;
-              const only = chosen && settings.keySet.length === 1;
-              return (
-                <button
-                  key={key.fifths}
-                  type="button"
-                  /*
-                   * Beyond the cap only what is already chosen can be undone,
-                   * and the last one standing cannot be — an exercise has to be
-                   * in some key.
-                   */
-                  disabled={only || (!chosen && full)}
-                  aria-pressed={chosen}
-                  // The accidentals are shown as "3♭" beside the name, which a
-                  // screen reader would spell out as a number and a symbol.
-                  aria-label={`${keyName(key.fifths)}, ${describeFifths(key.fifths)}`}
-                  className={`segmented__option key ${chosen ? 'is-selected' : ''} ${
-                    start ? 'is-start' : ''
-                  }`}
-                  onClick={() => {
-                    const next = chosen
-                      ? settings.keySet.filter((f) => f !== key.fifths)
-                      : [...settings.keySet, key.fifths];
-                    if (next.length === 0) return;
-                    onChange(sanitise({ ...settings, keySet: next }));
-                  }}
-                >
-                  <span className="key__name">{keyName(key.fifths, true)}</span>
-                  <span className="key__accidentals muted">{accidentalCount(key.fifths)}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      <KeysGrid
+        keySet={settings.keySet}
+        keyName={keyName}
+        onChange={(next) => onChange(sanitise({ ...settings, keySet: next }))}
+      />
       {settings.keySet.length > 1 && (
         <p className="field__note muted">
           {/* The whole route, ordered for playing by closeness from the
@@ -471,7 +597,7 @@ export function SettingsScreen({
     /* Picks are dropped with the collection that held them; `sanitise` would
        do it anyway, and doing it here keeps the modal's list honest as it is
        being edited. */
-    onChange({ ...settings, collectionIds: next, themeIds: [], selection: 'medley' });
+    onChange({ ...settings, collectionIds: next, themeSteps: [], selection: 'medley' });
   };
 
   const sourceField = (
@@ -483,7 +609,7 @@ export function SettingsScreen({
           aria-pressed={chosenIds.length === 0}
           className={`chip ${chosenIds.length === 0 ? 'is-selected' : ''}`}
           onClick={() =>
-            onChange({ ...settings, collectionIds: [], themeIds: [], selection: 'medley' })
+            onChange({ ...settings, collectionIds: [], themeSteps: [], selection: 'medley' })
           }
         >
           Composed
@@ -510,11 +636,13 @@ export function SettingsScreen({
           instead.
         </p>
       ) : (
+        /* Only the medley can come up empty here — a defined run with no
+           steps left is a medley again by `sanitise`'s rule, and a step
+           cannot be built that will not play. */
         playable === 0 && (
           <p className="field__note muted">
-            {defined
-              ? 'None of the tunes you chose fit this instrument in this key, so composed tunes will play instead.'
-              : 'Nothing here is written at this level, so composed tunes will play instead. Try another level.'}
+            Nothing here is written at this level, so composed tunes will play instead. Try
+            another level.
           </p>
         )
       )}
@@ -548,12 +676,12 @@ export function SettingsScreen({
           onClick={() => setPicking(true)}
         >
           Defined
-          {picks.length > 0 && <span className="chip__count">{picks.length}</span>}
+          {steps.length > 0 && <span className="chip__count">{steps.length}</span>}
         </button>
       </div>
       <p className="field__note muted">
         {defined
-          ? `Playing ${picks.length} ${picks.length === 1 ? 'tune' : 'tunes'} in the order you set them.`
+          ? `Playing ${steps.length} ${steps.length === 1 ? 'step' : 'steps'} in the order you set them, each in its own key.`
           : 'Whatever is in the chosen libraries, at the chosen level.'}
       </p>
     </div>
@@ -642,20 +770,20 @@ export function SettingsScreen({
     <div className="screen screen--settings">
       {/* Over the screen rather than inside the panel: choosing a run's tunes
           wants the whole width, and the panel it is launched from is a column
-          on a phone. Closing it settles the mode — a list left empty is a
-          medley, which `sanitise` also enforces. */}
+          on a phone. Closing it settles the mode — steps in the list mean a
+          defined run, a list left empty is a medley, and `sanitise` enforces
+          the empty half of that rule everywhere else too. */}
       {picking && (
         <DefinedPicker
-          collectionIds={chosenIds}
-          picks={picks}
-          onChange={(next) =>
-            onChange({
-              ...settings,
-              themeIds: next,
-              selection: next.length > 0 ? 'defined' : 'medley',
-            })
-          }
-          onClose={() => setPicking(false)}
+          settings={settings}
+          keyName={keyName}
+          onChange={onChange}
+          onClose={() => {
+            setPicking(false);
+            if (settings.themeSteps.length > 0 && !defined) {
+              onChange(sanitise({ ...settings, selection: 'defined' }));
+            }
+          }}
         />
       )}
       <header className="masthead masthead--home">
@@ -829,7 +957,12 @@ export function SettingsScreen({
           {/* Where the tunes come from is what this tab *is*, so it sits
               where the drill does and above what qualifies it. */}
           {settings.kind === 'themes' && sourceField}
-          {keysField}
+          {/* A defined run's keys live on its steps, nominated in the picker
+              tune by tune — the grid here would be a second control saying
+              less than the first. The same statement the missing
+              time-signature control makes for a collection: the material has
+              already answered. */}
+          {!(settings.kind === 'themes' && defined) && keysField}
           {difficultyField}
           {/* A scale is a shape played against a click rather than a piece
               with a metre, so it is always four-four and asks instead which

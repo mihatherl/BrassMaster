@@ -45,7 +45,8 @@ function run(
     tempo: 96,
     variableTempo: false,
     collectionIds,
-    themeIds,
+    // The run opens in C, so a step per id in C is the old playlist exactly.
+    themeSteps: themeIds.map((id) => ({ id, fifths: 0 })),
     selection: themeIds.length > 0 ? ('defined' as const) : ('medley' as const),
   });
   return { exercise, bars: exercise.totalBeats / m.barBeats };
@@ -248,6 +249,76 @@ describe('choosing where the tunes come from', () => {
   it('ignores the level for a defined list, as naming the tunes settles it', () => {
     // Jesu Joy is medium; asked for under an easy setting it still plays.
     const { exercise } = run(['bach'], 'easy', [4, 4], 4, ['jesu-joy']);
+    expect(exercise.labels.every((label) => label.text.startsWith('Jesu'))).toBe(true);
+  });
+
+  /*
+   * Each step names its own key, and the run honours it — the whole point of
+   * a step being a tune-and-key pair rather than an id under a toured set.
+   * The change lands at the join, which is the only place a key may change.
+   */
+  it('plays each step in the key it names', () => {
+    const m = metreFor(4, 4);
+    const exercise = generateExercise({
+      instrument: instrumentById('eb-bass'),
+      clef: 'treble',
+      fifths: 0,
+      keySet: [0],
+      difficulty: difficultyById('medium'),
+      kind: 'themes',
+      drillId: 'major-scale',
+      bars: 16,
+      themeCount: 2,
+      cycles: 4,
+      register: 'middle',
+      metre: m,
+      seed: 9,
+      tempo: 96,
+      variableTempo: false,
+      collectionIds: ['bach'],
+      themeSteps: [
+        { id: 'jesu-joy', fifths: 0 },
+        { id: 'jesu-joy', fifths: 1 },
+      ],
+      selection: 'defined',
+    });
+    expect(exercise.keys.map((key) => key.fifths)).toEqual([0, 1]);
+    // The second signature arrives exactly where the second step begins.
+    expect(exercise.keys[1].fromBeat).toBe(exercise.labels[1].atBeat);
+  });
+
+  /*
+   * A step whose placement does not hold — a list stored on one instrument,
+   * woken on another before `sanitise` has run — is skipped, not the end of
+   * the run: Invention 13 fits a cornet in C and nowhere else, so its G step
+   * plays nothing and the C steps around it still play.
+   */
+  it('skips a step the instrument cannot hold and plays the rest', () => {
+    const m = metreFor(4, 4);
+    const exercise = generateExercise({
+      instrument: instrumentById('cornet'),
+      clef: 'treble',
+      fifths: 0,
+      keySet: [0],
+      difficulty: difficultyById('hard'),
+      kind: 'themes',
+      drillId: 'major-scale',
+      bars: 16,
+      themeCount: 2,
+      cycles: 4,
+      register: 'middle',
+      metre: m,
+      seed: 9,
+      tempo: 96,
+      variableTempo: false,
+      collectionIds: ['bach'],
+      themeSteps: [
+        { id: 'bwv784-invention', fifths: 1 },
+        { id: 'jesu-joy', fifths: 0 },
+      ],
+      selection: 'defined',
+    });
+    expect(exercise.labels.length).toBeGreaterThan(0);
     expect(exercise.labels.every((label) => label.text.startsWith('Jesu'))).toBe(true);
   });
 

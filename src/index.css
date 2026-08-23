@@ -1473,6 +1473,99 @@ input[type='checkbox'] {
   color: var(--text-muted);
 }
 
+/*
+ * The sheet's head: the guidance line and the nominated keys, spanning both
+ * columns. The keys live on the sheet itself (the player, 2026-08-23 — "make
+ * them choose first… the key selector… on the same popup screen"), because
+ * they are what every tune below offers its chips from.
+ */
+.picker__head {
+  flex: 0 0 auto;
+  padding: 0.5rem 0.7rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.picker__head .field__note {
+  margin: 0 0 0.45rem;
+}
+
+/* The same grid as the home draws, a size down: on the sheet it shares the
+   screen with two working columns, and the home's hand-sized cap would push
+   them below the fold on a phone. */
+.picker__head .keys {
+  --key-h: 2.4rem;
+  max-width: none;
+}
+
+/*
+ * A tune's row opens in place to offer its keys — the row is a container now,
+ * with the name as the toggle inside it, because the key chips are buttons and
+ * a button cannot hold buttons.
+ */
+.picker__toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker__tune--open {
+  border-color: var(--accent);
+}
+
+/* The nominated keys this tune fits, at most the cap's four. Offered only
+   where the placement holds, which is the picker's whole promise. */
+.picker__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+
+.picker__key {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0;
+  min-width: 2.1rem;
+  padding: 0.15rem 0.3rem;
+  line-height: 1.1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.picker__key .key__accidentals {
+  font-size: 0.62rem;
+  min-height: 1em;
+}
+
+/*
+ * A tune none of the nominated keys can hold: present, and plainly not
+ * available. Greyed rather than hidden, because seeing it disabled is how a
+ * player learns the keys are why — a missing row is just a mystery.
+ */
+.picker__tune--unfit {
+  opacity: 0.45;
+}
+
+/* The step's key, said quietly on the step itself. */
+.picker__inkey {
+  color: var(--text-muted);
+}
+
 .drills {
   --drill-gap: 0.375rem;
   --drills-pad: 0.375rem;

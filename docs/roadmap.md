@@ -671,6 +671,22 @@ letting something across the line. **Anything built for the free app should be
 recorded here as it is decided**, or the answer to "what did the free app gain
 this year" will be "nothing" without anyone having chosen that.
 
+**Gained 2026-08-23, v2.45.0: a defined run chooses tune and key together.**
+A step is now a tune *in a key*, built in a picker that nominates keys at the
+top of the sheet and offers, per tune, only the nominated keys whose placement
+holds it on the current instrument — a tune fitting none is greyed with the
+reason, never hidden. What forced it: Invention 13 spans thirty semitones,
+fits seven signatures on an E♭ bass and one on a cornet, and the old
+independent key-and-tune selectors let a player ask for placements that do not
+exist, which surfaced as runs silently truncating or falling back to composed
+material. The player's ruling, recorded at `DefinedPicker`: guided selection
+for defined runs, while *"simply choose a random melody in a key"* — medleys
+and composed material — keeps the plain key grid untouched. Medleys can still
+in principle meet a key nothing fits (rare on the current corpus: no Bach key
+is empty on any low-brass instrument at any level) and still truncate there;
+that residue is accepted for now and noted here so it is a choice, not an
+accident.
+
 ### Versions
 
 **One codebase, one version number, both builds carrying it.** The version

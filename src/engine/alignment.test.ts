@@ -82,7 +82,8 @@ function themesRun(options: {
     tempo: 96,
     variableTempo: options.variableTempo ?? false,
     collectionIds: options.collectionIds,
-    themeIds: options.themeIds,
+    // The run opens in C, so a step per id in C is the old playlist exactly.
+    themeSteps: options.themeIds?.map((id) => ({ id, fifths: 0 })),
     selection: options.themeIds?.length ? ('defined' as const) : ('medley' as const),
   });
 }

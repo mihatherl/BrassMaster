@@ -25,7 +25,7 @@ import { metreFor, type Metre, type MetreChange } from '../domain/metre';
 import { snapBeat } from '../domain/rhythm';
 import type { Slot, SlotPitch } from './assemble';
 import type { Rng } from './rng';
-import { realiseTheme, type Theme } from './theme';
+import { realiseTheme, type RealisedTheme, type Theme } from './theme';
 
 export interface StitchOptions {
   instrument: Instrument;
@@ -76,15 +76,25 @@ export interface StitchOptions {
    */
   corpus: readonly Theme[];
   /**
-   * How the corpus is drawn from: at random, or straight through in order.
+   * A defined run: these exact tunes in these exact keys, in this order,
+   * cycling back to the top if the run outlasts them.
    *
-   * `given` is a player's own playlist and takes the corpus literally — its
-   * order, its repeats, cycling back to the top if the run outlasts it. The
-   * no-repeat rule is suspended with it: declining to play the same tune
-   * twice running is right when the app is choosing and wrong when somebody
-   * has deliberately asked for it twice.
+   * When present, the corpus, the key set and the difficulty are not
+   * consulted — every step carries the whole answer, because the picker
+   * built it against the real placement and refused to offer a combination
+   * the compass will not hold. This replaced touring the key set over a list
+   * of ids on 2026-08-23: a key chosen independently of a tune could name a
+   * placement that does not exist (Invention 13 fits one key on a cornet),
+   * and the run then truncated silently or fell back to composed material,
+   * both of which read as bugs to the player who designed the feature.
+   *
+   * The no-repeat rule is suspended: declining to play the same tune twice
+   * running is right when the app is choosing and wrong when somebody has
+   * deliberately asked for it twice. A step whose placement no longer holds
+   * (a list stored on one instrument, woken on another, before `sanitise`
+   * has run) is skipped rather than ending the run.
    */
-  order?: 'random' | 'given';
+  steps?: ReadonlyArray<{ theme: Theme; fifths: number }>;
 }
 
 export interface StitchedPhrases {
@@ -146,8 +156,9 @@ export function themesFor(options: Omit<StitchOptions, 'rng' | 'count' | 'keys'>
  * fit the instrument does.
  */
 export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
-  const available = themesFor(options);
-  if (available.length === 0) return null;
+  const steps = options.steps;
+  const available = steps ? [] : themesFor(options);
+  if (steps ? steps.length === 0 : available.length === 0) return null;
 
   const slots: Slot[] = [];
   const pitches: SlotPitch[] = [];
@@ -163,6 +174,10 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
   let fifths = options.fifths;
   let last: string | undefined;
   let chosenBeats: number | undefined;
+  /* The defined run's place in its own list. Its own counter rather than
+     `played`, so a skipped step advances the list without spending one of the
+     themes asked for. */
+  let cursor = 0;
 
   for (
     let played = 0;
@@ -172,20 +187,6 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
   ) {
     // The white ends where the chosen count did; the grey stitches on.
     if (played === options.count) chosenBeats = beat;
-    /*
-     * Which key this theme is played in.
-     *
-     * Dealt across the themes in contiguous blocks, exactly as a pattern deals
-     * its keys across cycles: a key is finished with before the next is taken
-     * up, and a set too large for the exercise simply uses fewer of its keys
-     * rather than hurrying through them. A theme is where a key change may
-     * land, and a theme is the only place — the tune is a whole thought, and
-     * changing key inside one that was not written to would be a change of
-     * signature laid over somebody else's phrase.
-     */
-    // The set toured across the themes asked for, and round again for as
-    // long as the player keeps playing; see `tourKey`.
-    fifths = tourKey(set, played, options.count);
 
     // In the imposed metre where there is one, or the theme's own where the
     // metre follows the material — a join is then also where a signature may
@@ -199,36 +200,63 @@ export function stitchThemes(options: StitchOptions): StitchedPhrases | null {
         fromBeat: beat,
       });
 
-    /*
-     * Only themes that fit *this* key. The list was built against the key the
-     * exercise opens in, and a later key can put a wide theme out of reach —
-     * so it is asked again rather than assumed, and a theme that will not go is
-     * never picked instead of being picked and skipped, which would quietly
-     * spend one of the themes asked for.
-     */
-    const fitting = available.filter((theme) => place(theme) !== null);
-    if (fitting.length === 0) break;
-
-    /*
-     * Not the same theme twice running where there is a choice. Repetition
-     * inside a theme is the point of the material; repetition *of* a theme is
-     * how eight bars of practice becomes the same eight bars again, and the
-     * player stops reading and starts remembering.
-     */
-    /*
-     * A playlist steps through what it was given, in order, cycling once it
-     * runs out; a medley draws. `played` counts themes laid down, so the
-     * cycling is over the material that actually fits — a tune the compass
-     * will not hold drops out of the rotation rather than leaving a gap.
-     */
     let theme: Theme;
-    if (options.order === 'given') {
-      theme = fitting[played % fitting.length];
+    let realised: RealisedTheme;
+    if (steps) {
+      /*
+       * The next step whose placement holds. Every step names its own key, so
+       * there is no tour and nothing to filter — only the safety net for a
+       * list that predates the current instrument, which skips rather than
+       * ends the run. One full cycle finding nothing is the honest stop.
+       */
+      let placed: RealisedTheme | null = null;
+      let stepped: Theme | undefined;
+      for (let tries = 0; tries < steps.length && !placed; tries++) {
+        const step = steps[cursor % steps.length];
+        cursor++;
+        fifths = step.fifths;
+        placed = place(step.theme);
+        if (placed) stepped = step.theme;
+      }
+      if (!placed) break;
+      theme = stepped!;
+      realised = placed;
     } else {
+      /*
+       * Which key this theme is played in.
+       *
+       * Dealt across the themes in contiguous blocks, exactly as a pattern
+       * deals its keys across cycles: a key is finished with before the next
+       * is taken up, and a set too large for the exercise simply uses fewer of
+       * its keys rather than hurrying through them. A theme is where a key
+       * change may land, and a theme is the only place — the tune is a whole
+       * thought, and changing key inside one that was not written to would be
+       * a change of signature laid over somebody else's phrase.
+       */
+      // The set toured across the themes asked for, and round again for as
+      // long as the player keeps playing; see `tourKey`.
+      fifths = tourKey(set, played, options.count);
+
+      /*
+       * Only themes that fit *this* key. The list was built against the key
+       * the exercise opens in, and a later key can put a wide theme out of
+       * reach — so it is asked again rather than assumed, and a theme that
+       * will not go is never picked instead of being picked and skipped, which
+       * would quietly spend one of the themes asked for.
+       */
+      const fitting = available.filter((t) => place(t) !== null);
+      if (fitting.length === 0) break;
+
+      /*
+       * Not the same theme twice running where there is a choice. Repetition
+       * inside a theme is the point of the material; repetition *of* a theme
+       * is how eight bars of practice becomes the same eight bars again, and
+       * the player stops reading and starts remembering.
+       */
       const choices = fitting.length > 1 ? fitting.filter((t) => t.id !== last) : fitting;
       theme = options.rng.pick(choices);
+      realised = place(theme)!;
     }
-    const realised = place(theme)!;
 
     slots.push(...realised.slots);
     pitches.push(...realised.pitches);

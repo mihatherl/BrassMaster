@@ -163,14 +163,15 @@ export interface GenerateOptions {
    */
   collectionIds?: readonly string[];
   /**
-   * A named playlist, in order, with duplicates honoured.
+   * A named playlist, in order, with duplicates honoured — each step a tune
+   * *in a key*, because the two are chosen together: the picker offers only
+   * keys whose placement holds the tune, so a step that exists is playable.
    *
-   * Read only when `selection` is `defined`. Every id must name a tune in the
-   * chosen collections; anything else is ignored, which is what a stale pick
-   * deserves.
+   * Read only when `selection` is `defined`. A step naming a tune outside the
+   * chosen collections is ignored, which is what a stale pick deserves.
    */
-  themeIds?: readonly string[];
-  /** Whether to draw at random from the collections, or play `themeIds`. */
+  themeSteps?: ReadonlyArray<{ id: string; fifths: number }>;
+  /** Whether to draw at random from the collections, or play `themeSteps`. */
   selection?: 'medley' | 'defined';
   /**
    * Times a scale or arpeggio is played through, up and back down.
@@ -394,28 +395,31 @@ export function generateExercise(options: GenerateOptions): Exercise {
     const fromCollections = themesOf(options.collectionIds ?? []);
     const playing = fromCollections.length > 0;
     /*
-     * A defined run is a playlist: the ids in the order given, duplicates and
-     * all, rather than a filter over the collection. Mapping rather than
+     * A defined run is a playlist of steps: the tunes in the order given,
+     * duplicates and all, each in the key its step names. Mapping rather than
      * filtering is the whole difference — a filter returns corpus order and
      * one copy of each, which would quietly overrule both of the things a
      * player says by building a list by hand.
      *
      * It also turns the level filter off, because somebody who has named the
-     * tunes has already answered the question the level exists to answer.
+     * tunes has already answered the question the level exists to answer —
+     * and the key set with it, because every step carries its own key, chosen
+     * from the ones the tune actually fits. See `StitchOptions.steps`.
      */
     const playlist =
-      playing && options.selection === 'defined' && options.themeIds?.length
-        ? options.themeIds
-            .map((id) => themeById(id))
-            .filter((theme): theme is Theme => theme !== undefined && fromCollections.includes(theme))
+      playing && options.selection === 'defined' && options.themeSteps?.length
+        ? options.themeSteps
+            .map(({ id, fifths }) => ({ theme: themeById(id), fifths }))
+            .filter(
+              (step): step is { theme: Theme; fifths: number } =>
+                step.theme !== undefined && fromCollections.includes(step.theme),
+            )
         : undefined;
-    const corpus =
-      playlist ??
-      (playing
-        ? fromCollections
-        : Array.from({ length: wanted }, (_, i) =>
-            composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
-          ).filter((tune): tune is Theme => tune !== null));
+    const corpus = playing
+      ? fromCollections
+      : Array.from({ length: wanted }, (_, i) =>
+          composeTune({ difficulty: options.difficulty, metre, rng, id: `tune-${i + 1}` }),
+        ).filter((tune): tune is Theme => tune !== null);
 
     /*
      * **A collection is played in its tunes' own time signatures**, changing
@@ -436,7 +440,7 @@ export function generateExercise(options: GenerateOptions): Exercise {
       rng,
       corpus,
       // A playlist is played through in order; a medley is drawn from.
-      order: playlist ? 'given' : 'random',
+      steps: playlist,
     });
     if (stitched) {
       /*

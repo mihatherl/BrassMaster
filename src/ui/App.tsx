@@ -118,7 +118,7 @@ export function App() {
         bars: length.bars,
         themeCount: length.themeCount,
         collectionIds: settings.collectionIds,
-        themeIds: settings.themeIds,
+        themeSteps: settings.themeSteps,
         selection: settings.selection,
         cycles: length.cycles,
         register: settings.register,
@@ -292,9 +292,24 @@ export function App() {
            * A fresh seed each time, deliberately: a new key played to the same
            * random walk would be the same exercise transposed, which is not
            * what a player turning to a new key is asking to practise.
+           *
+           * And not for a defined run. Its steps each name their key, chosen
+           * in the picker from the ones the tune actually fits — a dial that
+           * offers every key would offer placements that do not exist, and
+           * rewriting the set underneath the steps would sanitise them away.
+           * The absence of the dial is the same statement the absence of the
+           * time-signature control makes for a collection: the material has
+           * already answered.
            */
           inKey={
-            canRekeyKind(exercise.kind) ? (fifths) => build(randomSeed(), fifths) : undefined
+            canRekeyKind(exercise.kind) &&
+            !(
+              chosen.kind === 'themes' &&
+              chosen.selection === 'defined' &&
+              chosen.collectionIds.length > 0
+            )
+              ? (fifths) => build(randomSeed(), fifths)
+              : undefined
           }
           /*
            * And the key they settled in, the same way — as the set, not just the
