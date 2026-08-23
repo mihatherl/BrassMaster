@@ -1364,39 +1364,33 @@ describe('what the Drills box promises', () => {
   const blurb = EXERCISE_KINDS.find((k) => k.id === 'drills')!.blurb.toLowerCase();
 
   /*
-   * Each drill's claim, as a pattern rather than a substring, because the
-   * words nest: "dominant" sits inside both "subdominant" and "dominant 7th".
+   * The sentence shortened on 2026-08-23 (the player): with every drill
+   * visible in the chooser below it, the inventory said twice what the
+   * buttons say once. The 2026-08-15 rule — nothing claims what it does not
+   * deliver — still holds, one level up: the blurb claims two categories,
+   * and every drill must belong to one of them.
    *
-   * Typed over the whole of `DrillId`, which is the forward half of the guard:
-   * adding a drill without adding its claim — and so without asking whether
-   * the sentence owns it — refuses to compile.
+   * Typed over the whole of `DrillId`, which keeps the forward half of the
+   * guard: a drill that is neither a scale nor an arpeggio — long tones, one
+   * day — refuses to compile until the sentence widens to own it.
    */
-  const CLAIMS: Record<DrillId, RegExp> = {
-    'major-scale': /\bmajor\b/,
-    'harmonic-minor-scale': /harmonic minor/,
-    'melodic-minor-scale': /melodic minor/,
-    'tonic-arpeggio': /tonic/,
-    'subdominant-arpeggio': /subdominant/,
-    'dominant-arpeggio': /(?<!sub)dominant(?! 7)/,
-    'dominant-7th': /dominant 7th/,
-    'relative-minor-arpeggio': /minor arpeggio/,
+  const CATEGORY: Record<DrillId, 'scales' | 'arpeggios'> = {
+    'major-scale': 'scales',
+    'harmonic-minor-scale': 'scales',
+    'melodic-minor-scale': 'scales',
+    'tonic-arpeggio': 'arpeggios',
+    'subdominant-arpeggio': 'arpeggios',
+    'dominant-arpeggio': 'arpeggios',
+    'dominant-7th': 'arpeggios',
+    'relative-minor-arpeggio': 'arpeggios',
   };
 
-  it('promises every drill it plays', () => {
+  it('claims each category it plays, and nothing beyond them', () => {
     for (const drill of DRILLS) {
-      expect(blurb, `does not own up to ${drill.name}`).toMatch(CLAIMS[drill.id]);
+      expect(blurb, `does not own the category of ${drill.name}`).toContain(CATEGORY[drill.id]);
     }
-  });
-
-  it('promises nothing it does not play', () => {
-    // The backward half: a claim whose drill has gone must leave the sentence.
-    for (const [id, claim] of Object.entries(CLAIMS)) {
-      if (!DRILLS.some((d) => d.id === id)) {
-        expect(blurb, `still promises ${id}`).not.toMatch(claim);
-      }
-    }
-    // And nothing beyond the list: no shape a future step might bring.
-    expect(blurb, 'promises a scale it cannot play').not.toMatch(/chromatic|whole.tone|blues/);
+    // No shape a future step might bring, exactly as before.
+    expect(blurb, 'promises a shape it cannot play').not.toMatch(/chromatic|whole.tone|blues|long tone/);
   });
 });
 

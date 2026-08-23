@@ -264,9 +264,10 @@ export const EXERCISE_KINDS: ReadonlyArray<{ id: ExerciseKind; name: string; blu
      * months while the generator played one), and a drill may not be added
      * without the sentence widening to own it.
      */
-    blurb:
-      'Major, harmonic minor and melodic minor scales; tonic, subdominant, dominant, ' +
-      'dominant 7th and minor arpeggios.',
+    // Shortened from the full inventory (the player, 2026-08-23): with every
+    // drill visible in the chooser below, the blurb reciting all eight was
+    // saying twice what the buttons say once.
+    blurb: 'Scales and arpeggios.',
   },
   { id: 'phrases', name: 'Sight-reading', blurb: 'Musical phrases with contour, leaps and rests.' },
   {

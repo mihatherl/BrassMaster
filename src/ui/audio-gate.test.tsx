@@ -72,6 +72,41 @@ describe('the audio gate', () => {
     expect(screen.queryByRole('button', { name: /valve 1/i })).toBeNull();
   });
 
+  it('returns to the gate when the screen goes dark, and says why', async () => {
+    /*
+     * Reported from the E32 on 2026-08-23: the sound — and the judging —
+     * carried on after the power button. A run with no reader is the
+     * metronome marching on while the judge fails every note in the dark, so
+     * hiding the page ends the run and the gate says what happened.
+     *
+     * Driven through the stalled screen because it is the one started state
+     * this harness can reach without a ticking context; the listener is the
+     * same one the live run installs, gated on `started` alone.
+     */
+    ensureRunning.mockResolvedValue(false);
+    await tapThroughToPlay();
+    await screen.findByRole('heading', { name: /audio didn’t start/i });
+
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    });
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(await screen.findByRole('button', { name: /tap to start/i })).toBeTruthy();
+    expect(screen.getByText(/stopped when the screen went dark/i)).toBeTruthy();
+
+    // And starting again clears the notice rather than leaving a stale alarm.
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      configurable: true,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /tap to start/i }));
+    await waitFor(() =>
+      expect(screen.queryByText(/stopped when the screen went dark/i)).toBeNull(),
+    );
+  });
+
   it('offers the way out from a gesture, so a fresh context can be brought up', async () => {
     ensureRunning.mockResolvedValue(false);
     await tapThroughToPlay();

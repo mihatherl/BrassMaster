@@ -129,6 +129,8 @@ export function PlayScreen({
   const headsRef = useRef<number[]>([]);
 
   const [started, setStarted] = useState(false);
+  /** Why the gate is being shown again; see the visibility effect below. */
+  const [lockStopped, setLockStopped] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stalled, setStalled] = useState(false);
   /** Whether the calibration warning is on screen, and whether it has been. */
@@ -210,6 +212,32 @@ export function PlayScreen({
     }, 200);
     return () => window.clearInterval(id);
   }, [transport, exercise]);
+
+  /*
+   * The screen going dark ends the run (reported from the E32, 2026-08-23):
+   * the app judges what is played against a screen being read, so a run with
+   * no reader is the metronome marching on while the judge fails every note
+   * in the dark. The wake lock keeps the screen from dozing off on its own;
+   * this handles the deliberate power button, and app-switching with it.
+   *
+   * Stopped rather than paused, deliberately. Resuming audio after a lock
+   * needs a fresh gesture on most of these platforms anyway, and a player
+   * mid-exercise has lost their place the moment the page vanished — the
+   * honest offer is the gate, with a line saying why it is being offered.
+   * Dropping `started` runs the same teardown as leaving the screen: session
+   * stopped, renderer stopped, wake lock released.
+   */
+  useEffect(() => {
+    if (!started) return;
+    const onVisibility = () => {
+      if (document.visibilityState !== 'hidden') return;
+      setLockStopped(true);
+      setStalled(false);
+      setStarted(false);
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [started]);
 
   useEffect(() => {
     if (!started) return;
@@ -497,6 +525,7 @@ export function PlayScreen({
    * against the moving clock.
    */
   const beginRun = () => {
+    setLockStopped(false);
     setLoading(true);
     void (async () => {
       const context = await unlockAudio();
@@ -649,6 +678,11 @@ export function PlayScreen({
         )}
         <div className="start-gate">
           <h2>Ready</h2>
+          {lockStopped && (
+            <p className="muted">
+              The run stopped when the screen went dark — nothing is judged unseen.
+            </p>
+          )}
           {/*
            * Start first, settings under it (asked for by the player,
            * 2026-08-23): the returning player who changes nothing should meet
