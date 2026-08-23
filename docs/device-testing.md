@@ -9,7 +9,11 @@ phone, and the phone is right.
 
 ## Open
 
-### My Music does not import — E32, Play build v2.46.1 (2026-08-23) — **cause found, fix built, awaiting the device**
+*(none)*
+
+## Closed
+
+### My Music does not import — E32, Play build v2.46.1 (2026-08-23) — **closed 2026-08-23, verified on the E32**
 
 Diagnosed the same night, live over CDP: the player pinned the symptom to
 "hangs on Reading… after choosing the file", and the WebView answered the
