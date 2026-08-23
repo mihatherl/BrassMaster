@@ -711,7 +711,22 @@ body {
    of the scroller rather than leaving a strip the content ghosts through. */
 .screen--settings {
   padding-top: 0;
-  padding-bottom: calc(7.5rem + var(--safe-bottom));
+  padding-bottom: 0;
+}
+
+/*
+ * The clearance is a spacer element, not padding, for the E32's sake: older
+ * engines (its WebView 94 among them) do not extend a scroll container's
+ * range for its own bottom padding, so on that phone the last controls could
+ * never scroll out from under the fixed strip — while every modern browser,
+ * the iPhone included, looked fine. Content counts everywhere; padding does
+ * not. The same lesson as `roundRect`: the notation path is not the only
+ * path that has to hold to old APIs.
+ */
+.screen--settings::after {
+  content: '';
+  display: block;
+  height: calc(7.5rem + var(--safe-bottom));
 }
 
 /*
