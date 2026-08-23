@@ -701,6 +701,47 @@ body {
   font-size: 2rem;
 }
 
+/* --- The Ready screen's controls (see ReadyControls.tsx) ----------------- */
+
+/*
+ * Left-aligned inside a centred gate: these are form fields, and centred
+ * sliders and checkboxes read as decoration rather than controls.
+ */
+.ready-controls {
+  display: grid;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+/* The gate's cards carry no blurbs — the face must be readable in the three
+   seconds before a run — so they shed the panel cards' height. */
+.card--compact {
+  padding: 0.5rem 0.75rem;
+}
+
+.ready-output {
+  margin: 0;
+}
+
+.ready-output__link {
+  padding: 0.125rem 0.5rem;
+  font-size: inherit;
+  text-decoration: underline;
+  color: var(--accent);
+}
+
+.ready-prefs__toggle {
+  justify-self: start;
+  padding-left: 0;
+}
+
+.ready-prefs {
+  display: grid;
+  gap: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
 /* --- Panels and forms --------------------------------------------------- */
 
 .masthead {

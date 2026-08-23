@@ -1,43 +1,30 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
 import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
-import { metreFor } from '../domain/metre';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
 import { COLLECTIONS, themeById, themesOf } from '../exercise/collections';
-import { corpusSummary } from '../exercise/corpus';
 import { themesFor } from '../exercise/phrases';
 import type { Theme } from '../exercise/theme';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
-import { toleranceFor } from '../engine/judge';
 import type { ExerciseKind } from '../exercise/types';
-import { styleName } from '../render/conductor';
 import { RangePicker } from './RangePicker';
-import { REACTIVE_SOUND_MAX_LEAD } from '../engine/session';
 import {
-  audioLeadFor,
-  CONDUCTOR_STYLE_RANGE,
-  CUSHION_RANGE,
   REGISTERS,
   DEFAULT_SETTINGS,
-  FINGERING_MODES,
   DEVICE_OUTPUT_ID,
   MAX_KEYS_IN_PLAY,
   sanitise,
   switchMaterial,
-  SCROLL_SPEED_RANGE,
   PLAYBACK_MODES,
   READING_MODES,
-  TEMPO_RANGE,
-  TIMING_TOLERANCE_RANGE,
   TIME_SIGNATURES,
   type Settings,
 } from '../storage/settings';
 
 /* Fixed for a build, so it is read once rather than on every render. */
-const CORPUS = corpusSummary();
 
 /**
  * A collapsible settings section.
@@ -243,8 +230,6 @@ interface SettingsScreenProps {
    * also makes both sides testable in one run; see `target.test.tsx`.
    */
   onImport?: () => void;
-  /** Opens the headphones screen, where an output is chosen and measured. */
-  onOutputs: () => void;
   /**
    * Back to the two doors, in the build that has them.
    *
@@ -260,17 +245,12 @@ export function SettingsScreen({
   onChange,
   onStart,
   onImport,
-  onOutputs,
   onBack,
 }: SettingsScreenProps) {
   const instrument = instrumentById(settings.instrumentId);
   const clefs = availableClefs(instrument);
   const [low, high] = writtenRange(instrument, settings.clef);
   const difficulty = DIFFICULTIES.find((d) => d.id === settings.difficultyId)!;
-
-  // What the tempo number counts, among other things: the beat is the pulse,
-  // which is not the crotchet in compound time.
-  const metre = metreFor(settings.beatsPerBar, settings.beatUnit);
 
   // Scales and arpeggios are described by their reach rather than by a level
   // name, and that reach depends on whether the drill's root leaves room for it.
@@ -981,6 +961,19 @@ export function SettingsScreen({
                         by its tonic and a theme is written already, so neither
                         has a pool to ask about. */}
                     {kind.id === 'phrases' && rangeField}
+                    {/* Moved from Advanced, 2026-08-23: it biases what the
+                        generator writes, so it belongs with the material it
+                        biases — and it only ever applied to sight-reading. */}
+                    {kind.id === 'phrases' && (
+                      <label className="field field--inline">
+                        <input
+                          type="checkbox"
+                          checked={settings.weakNoteDrilling}
+                          onChange={(event) => update('weakNoteDrilling', event.target.checked)}
+                        />
+                        <span>Favour notes I get wrong</span>
+                      </label>
+                    )}
                   </div>
                 )}
               </div>
@@ -989,291 +982,14 @@ export function SettingsScreen({
         </div>
       </Panel>
 
-      <Panel id="playing" title="Playing" values={panelValues.playing} open={isOpen('playing')} onToggle={setOpen}>
-
-        <label className="field tempo">
-          <span className="field__label">
-            Tempo <strong>{settings.tempo}</strong> bpm
-          </span>
-          <input
-            type="range"
-            min={TEMPO_RANGE.min}
-            max={TEMPO_RANGE.max}
-            step={1}
-            value={settings.tempo}
-            onChange={(event) => update('tempo', Number(event.target.value))}
-          />
-          {/* Said out loud only where it is not obvious. In 4/4 the beat is
-              the crotchet and nobody needs telling; in 6/8 the number counts
-              dotted crotchets, two to the bar, which is the beat conducted
-              and the one a march is quoted in. */}
-          {metre.isCompound && (
-            <p className="field__note muted">
-              Dotted crotchets — {metre.pulsesPerBar} to the bar, the beat you count.
-            </p>
-          )}
-        </label>
-
-        <div className="field">
-          <div className="cards cards--two">
-            {READING_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                className={`card ${settings.readingMode === mode.id ? 'is-selected' : ''}`}
-                onClick={() => update('readingMode', mode.id)}
-              >
-                <strong>{mode.name}</strong>
-                {mode.blurb && <span className="muted">{mode.blurb}</span>}
-              </button>
-            ))}
-          </div>
-          {/* Nothing on the page marks the beat in this mode, so something
-              else has to — either will do, and the conductor is the better
-              teacher of the two. */}
-          {settings.readingMode === 'paged' &&
-            !settings.metronomeEnabled &&
-            !settings.conductorEnabled && (
-              <p className="field__note muted">
-                Turn on the metronome or the conductor below — in this mode nothing on the page
-                keeps time for you.
-              </p>
-            )}
-        </div>
-
-        {/* Two switches, one line. Neither needs a column of its own, and the
-            pair is the answer to the same question — what keeps time. */}
-        <div className="field field-row">
-          <label className="field field--inline">
-            <input
-              type="checkbox"
-              checked={settings.metronomeEnabled}
-              onChange={(event) => update('metronomeEnabled', event.target.checked)}
-            />
-            <span>Metronome</span>
-          </label>
-
-          <label className="field field--inline">
-            <input
-              type="checkbox"
-              checked={settings.conductorEnabled}
-              onChange={(event) => update('conductorEnabled', event.target.checked)}
-            />
-            <span>Conductor</span>
-          </label>
-        </div>
-
-        <div className="field">
-          <span className="field__label">Sound</span>
-          <div className="cards cards--two">
-            {PLAYBACK_MODES.map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                className={`card ${settings.playbackMode === mode.id ? 'is-selected' : ''}`}
-                onClick={() => update('playbackMode', mode.id)}
-              >
-                <strong>{mode.name}</strong>
-                {mode.blurb && <span className="muted">{mode.blurb}</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="field">
-          <span className="field__label">Fingerings</span>
-          <div className="cards cards--two">
-            {FINGERING_MODES.map((choice) => (
-              <button
-                key={choice.id}
-                type="button"
-                className={`card ${settings.fingerings === choice.id ? 'is-selected' : ''}`}
-                onClick={() => update('fingerings', choice.id)}
-              >
-                <strong>{choice.name}</strong>
-                {choice.blurb && <span className="muted">{choice.blurb}</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Panel>
-
       {/*
-        Everything with a sensible answer already in it.
-
-        Not lesser settings — the conductor's liveliness is a difficulty axis
-        and the timing tolerance decides what counts as right. But every one of
-        them is abstract until you have played a few exercises, and a beginner
-        meeting "Scroll speed 110" on the way to their first note has been asked
-        a question they have no way to answer. The defaults are what the app
-        would have used anyway; this is where to go once the number means
-        something to you.
+        No Playing panel and no Advanced panel, since 2026-08-23. This screen
+        answers *what to play*; how the run will go — reading mode, the beat,
+        the sound, fingerings, the tempo — is chosen on the Ready screen, the
+        gate every run already passes through, with the rarer preferences
+        behind its cog. See `ReadyControls` for the admission rule. The
+        credits and the version stamp travelled with them.
       */}
-      <Panel id="advanced" title="Advanced" values={panelValues.advanced} open={isOpen('advanced')} onToggle={setOpen}>
-
-        <label className="field field--inline">
-          <input
-            type="checkbox"
-            checked={settings.variableTempo}
-            onChange={(event) => update('variableTempo', event.target.checked)}
-          />
-          <span>Variable tempo</span>
-        </label>
-
-        {/* Only where it does something. Paged reading holds the music still
-            and engraves it; `layout` returns before this is ever read, so in
-            that mode the slider was a control that moved nothing. */}
-        {settings.readingMode === 'scrolling' && (
-          <label className="field">
-            <span className="field__label">
-              Scroll speed <strong>{settings.scrollSpeed}</strong>
-            </span>
-            <input
-              type="range"
-              min={SCROLL_SPEED_RANGE.min}
-              max={SCROLL_SPEED_RANGE.max}
-              step={10}
-              value={settings.scrollSpeed}
-              onChange={(event) => update('scrollSpeed', Number(event.target.value))}
-            />
-            <p className="field__note muted">
-              How fast the music travels, whatever the tempo. Spacing follows it.
-            </p>
-          </label>
-        )}
-
-        {/* Only when there is a conductor to have a style. The screen was
-            quietened on purpose, and a slider shaping something switched off
-            is exactly the noise that was taken out of it. */}
-        {settings.conductorEnabled && (
-          <label className="field">
-            <span className="field__label">
-              Conductor style <strong>{styleName(settings.conductorStyle)}</strong>
-            </span>
-            <input
-              type="range"
-              min={CONDUCTOR_STYLE_RANGE.min}
-              max={CONDUCTOR_STYLE_RANGE.max}
-              step={0.05}
-              value={settings.conductorStyle}
-              onChange={(event) => update('conductorStyle', Number(event.target.value))}
-            />
-            <p className="field__note muted">
-              How sharply the beat lands. Smooth is harder to follow, and meant to be.
-            </p>
-          </label>
-        )}
-
-        {/* Only where there is a tone to cushion. */}
-        {settings.playbackMode !== 'off' && (
-          <label className="field">
-            <span className="field__label">
-              Cushion <strong>{Math.round(settings.cushionLevel * 100)}%</strong>
-            </span>
-            <input
-              type="range"
-              min={CUSHION_RANGE.min * 100}
-              max={CUSHION_RANGE.max * 100}
-              step={5}
-              value={Math.round(settings.cushionLevel * 100)}
-              onChange={(event) => update('cushionLevel', Number(event.target.value) / 100)}
-            />
-            <p className="field__note muted">
-              How loud the soft sound behind a note is until you finger it right, against the
-              instrument that takes over when you do.
-            </p>
-            {/* Silently withholding it would read as a bug; the reason is the
-                output's own lateness, so it is said here where the output was
-                chosen. See REACTIVE_SOUND_MAX_LEAD for the arithmetic. */}
-            {audioLeadFor(settings) > REACTIVE_SOUND_MAX_LEAD && (
-              <p className="field__note muted">
-                Off on this output: its sound arrives{' '}
-                {Math.round(audioLeadFor(settings) * 1000)}ms late, so the instrument taking
-                over would be heard long after the fingering it answers. The judgement shows on
-                the screen instead.
-              </p>
-            )}
-          </label>
-        )}
-
-        <label className="field">
-          <span className="field__label">
-            Timing tolerance{' '}
-            <strong>
-              {/* Quoted for a crotchet, which is the note the figure is easiest
-                  to picture against. */}
-              ±{Math.round(toleranceFor(60 / settings.tempo, settings.timingTolerance) * 1000)} ms
-            </strong>
-          </span>
-          <input
-            type="range"
-            min={TIMING_TOLERANCE_RANGE.min * 100}
-            max={TIMING_TOLERANCE_RANGE.max * 100}
-            step={25}
-            value={Math.round(settings.timingTolerance * 100)}
-            onChange={(event) => update('timingTolerance', Number(event.target.value) / 100)}
-          />
-        </label>
-
-        <label className="field">
-          <span className="field__label">Count-in</span>
-          <select
-            value={settings.countInBars}
-            onChange={(event) => update('countInBars', Number(event.target.value))}
-          >
-            <option value={0}>None</option>
-            <option value={1}>1 bar</option>
-            <option value={2}>2 bars</option>
-          </select>
-        </label>
-
-        <label className="field field--inline">
-          <input
-            type="checkbox"
-            checked={settings.weakNoteDrilling}
-            onChange={(event) => update('weakNoteDrilling', event.target.checked)}
-          />
-          <span>Favour notes I get wrong</span>
-        </label>
-
-        {/*
-          A door rather than a control, like My Music: an output cannot be
-          measured from here, since the click has to be running while it is.
-          The line under it says what is in use, which is the one thing worth
-          knowing without going through.
-        */}
-        <button type="button" className="entry" onClick={onOutputs}>
-          <span className="entry__title">Outputs</span>
-          <span className="entry__detail">
-            {!output
-              ? 'Measure how late your speakers or headphones are, so the sound lands on the beat'
-              : output.calibrations === 0
-                ? `${output.name} — not measured yet`
-                : `${output.name} — sound brought forward ${output.leadMs} ms`}
-          </span>
-        </button>
-      </Panel>
-
-      {/* CC-BY requires the attribution to travel with the app itself, not only
-          with the source, so it lives here rather than only in the README. */}
-      <p className="field__note muted credits">
-        Instrument samples from FluidR3_GM by Frank Wen, licensed{' '}
-        <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">
-          CC-BY 3.0
-        </a>
-        . Notation drawn with Bravura by Steinberg, SIL OFL 1.1.
-      </p>
-      {/* So a stale cached copy announces itself rather than being mistaken for
-          a change that did not work.
-
-          The corpus carries its own number because material and behaviour are
-          different axes: accepting a batch of cells changes what a player is
-          handed without changing anything the release number promises. See
-          `exercise/corpus.ts`. */}
-      <p className="field__note muted credits">
-        v{__APP_VERSION__} · build {__BUILD_TIME__} · corpus {CORPUS.revision} ({CORPUS.cells}{' '}
-        cells)
-      </p>
 
       {/*
         Start stands alone, and only sticks where the whole screen fits.

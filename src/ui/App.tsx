@@ -240,6 +240,22 @@ export function App() {
           exercise={exercise}
           onFinish={onFinish}
           onExit={() => setScreen('settings')}
+          /*
+           * Ready-screen edits. Settings persist as they always did; the two
+           * that feed generation — tempo and variable tempo — regenerate the
+           * exercise with its own seed, so the music stays the music and only
+           * its marking changes. Never for an import (no generator behind it)
+           * and never for a course run, whose exercise the course built.
+           * runAt follows the tempo so the skill tally records what was
+           * actually played.
+           */
+          onSettings={(next) => {
+            updateSettings(next);
+            setRunAt((at) => ({ ...at, tempo: next.tempo }));
+            if (exercise && exercise.kind !== 'imported' && !fromCourse) {
+              setExercise(buildFrom(next, exercise.seed));
+            }
+          }}
           /* Leaving mid-run for the calibration screen unmounts the play
              surface exactly as Exit does, so the session is stopped the same
              way; Back from there lands on Settings, which is where every
@@ -377,10 +393,9 @@ export function App() {
            that build has not got is not a door. */
         onImport={__HAS_MY_MUSIC__ ? () => setScreen('import') : undefined}
         onBack={__HAS_TEACHER__ ? () => setScreen('home') : undefined}
-        onOutputs={() => setScreen('outputs')}
       />
     );
-  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, startCourse, courseAccuracy, fromCourse]);
+  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse]);
 
   return <div className="app">{content}</div>;
 }

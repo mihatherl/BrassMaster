@@ -90,7 +90,9 @@ describe('the app', () => {
     renderApp();
     const panels = [...document.querySelectorAll<HTMLDetailsElement>('details.panel')];
 
-    expect(panels.length).toBeGreaterThan(3);
+    // Two panels since 2026-08-23: this screen answers what-to-play, and the
+    // how-it-goes panels moved to the Ready gate (see ReadyControls).
+    expect(panels.length).toBeGreaterThan(1);
     expect(panels.filter((panel) => panel.open)).toHaveLength(0);
   });
 
@@ -104,55 +106,53 @@ describe('the app', () => {
     // The defaults: Eb bass in treble, Eb major, sight-reading, Easy.
     expect(valuesOf('Instrument')).toBe('Eb Bass (Tuba) · Treble');
     expect(valuesOf('Exercise')).toBe('Eb major · Sight-reading · Easy');
-    expect(valuesOf('Playing')).toBe('80 bpm · Scrolling line · Play the notes · metronome');
-    // Advanced says nothing until something in it has been moved off its
-    // default, rather than reciting the settings the app came with.
-    /* No longer empty: the device's own speaker is an output like any other
-       since 2026-08-22, so Advanced always has one to name. */
-    expect(valuesOf('Advanced')).toContain('speaker');
+    // No Playing and no Advanced since 2026-08-23: how the run goes is chosen
+    // on the Ready gate, where every run already passes.
+    expect(valuesOf('Playing')).toBeUndefined();
+    expect(valuesOf('Advanced')).toBeUndefined();
   });
 
-  it('keeps the tempo at the head of the Playing panel, with the bpm on its summary', () => {
+  it('keeps the tempo on the Ready gate, where the run it sets is about to start', () => {
     /*
-     * This ruling has reversed once, and the test pins whichever stands. From
-     * 2026-08-12 the tempo sat beside Start — the one setting reached for
-     * every time must not be two taps down. On 2026-08-23 the player reversed
-     * it: the strip's height was burying the list on a 360-wide phone, and a
-     * shorter strip buries less. The tempo now leads the Playing panel, and
-     * the panel's summary carries the bpm so it stays one glance away
-     * collapsed.
+     * The tempo's third home, and the test pins whichever stands. Beside
+     * Start from 2026-08-12 (reached every time, must not be two taps down);
+     * into the Playing panel on 2026-08-23 morning (the strip was burying
+     * the list on a 360-wide phone); onto the Ready gate the same day, when
+     * the panel itself dissolved there — the gate is a stop every run
+     * already makes, so the tempo is one glance away at the exact moment it
+     * matters, and the home screen never mentions it.
      */
     renderApp();
+    expect(screen.queryByLabelText(/^Tempo/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     const tempo = screen.getByLabelText(/^Tempo/);
-    expect(tempo.closest('details.panel')).not.toBeNull();
-    expect(tempo.closest('.actions')).toBeNull();
+    expect(tempo.closest('.ready-controls')).not.toBeNull();
   });
 
   it('hides the scroll speed in the mode where it does nothing', () => {
     // Paged reading engraves the music standing still; `layout` returns before
     // the speed is read. A slider that moves nothing is worse than no slider.
+    // Both controls live on the Ready gate now — the mode on its face, the
+    // speed behind its cog.
     renderApp();
-    fireEvent.click(screen.getByText('Advanced'));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    fireEvent.click(screen.getByRole('button', { name: /Preferences/ }));
     expect(screen.getByLabelText(/^Scroll speed/)).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Playing'));
     fireEvent.click(screen.getByRole('button', { name: /Read the page/ }));
     expect(screen.queryByLabelText(/^Scroll speed/)).toBeNull();
   });
 
-  it('offers the cushion in Advanced, and says so when it is moved', () => {
+  it('offers the cushion behind the gate cog, and keeps what is set there', () => {
     renderApp();
-    const valuesOf = () =>
-      [...document.querySelectorAll<HTMLDetailsElement>('details.panel')]
-        .find((panel) => panel.querySelector('.panel__title')?.textContent === 'Advanced')
-        ?.querySelector('.panel__values')?.textContent;
-    fireEvent.click(screen.getByText('Advanced'));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    fireEvent.click(screen.getByRole('button', { name: /Preferences/ }));
     const slider = screen.getByLabelText<HTMLInputElement>(/^Cushion/);
     expect(slider.value).toBe('50');
-    expect(valuesOf()).not.toContain('cushion');
     fireEvent.change(slider, { target: { value: '25' } });
     expect(screen.getByLabelText<HTMLInputElement>(/^Cushion/).value).toBe('25');
-    expect(valuesOf()).toContain('cushion');
+    // The gate writes the same store the settings screen always did: no
+    // defaults-and-overrides, one tier, and it sticks for next time.
     expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).cushionLevel).toBe(0.25);
   });
 
@@ -241,7 +241,8 @@ describe('the app', () => {
     // below are still found even while their section is shut.
     renderApp();
     expect(screen.getByLabelText('Instrument')).toBeTruthy();
-    expect(screen.getByText(/Timing tolerance/)).toBeTruthy();
+    // Inside the shut Exercise panel, but still in the document.
+    expect(screen.getByText(/Favour notes I get wrong/)).toBeTruthy();
   });
 
   /**
@@ -254,16 +255,16 @@ describe('the app', () => {
    * rid of.
    */
   /**
-   * The Playing section, laid out in pairs.
+   * The Ready gate's face, laid out in pairs.
    *
-   * Its settings are mostly two-option questions — a reading mode, sound on or
-   * off, two switches for what keeps time — and one card per line spent a line
-   * saying what a second column says for nothing. The section came to 760 pixels
-   * on a phone, which is more than the screen has above the Start bar.
+   * The same questions the Playing panel used to carry — a reading mode,
+   * sound on or off, two switches for what keeps time, fingerings — moved to
+   * the gate on 2026-08-23, compacted: no blurbs, because the face must be
+   * readable in the three seconds before a run.
    */
-  describe('the playing section', () => {
+  describe('the ready screen', () => {
     const cardsIn = (label: string) => {
-      const field = [...document.querySelectorAll('#panel-playing .field')].find(
+      const field = [...document.querySelectorAll('.ready-controls .field')].find(
         (f) => f.querySelector('.field__label')?.textContent === label,
       );
       return [...(field?.querySelectorAll('.card strong') ?? [])].map((c) => c.textContent);
@@ -271,20 +272,20 @@ describe('the app', () => {
 
     it('offers the fingering modes two up, with Every note on its own row', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Playing'));
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }));
 
       // The two a player lives in share a row; the one chosen deliberately for
       // a piece never seen before takes the row below, which is where the odd
       // card of three lands anyway. Order is layout here, so it is pinned.
       expect(cardsIn('Fingerings')).toEqual(['Where I struggle', 'Never', 'Every note']);
-      expect(document.querySelectorAll('#panel-playing .cards--two').length).toBe(3);
+      expect(document.querySelectorAll('.ready-controls .cards--two').length).toBe(3);
     });
 
     it('puts the two time-keepers on one line', () => {
       renderApp();
-      fireEvent.click(screen.getByText('Playing'));
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }));
 
-      const row = document.querySelector('#panel-playing .field-row');
+      const row = document.querySelector('.ready-controls .field-row');
       const labels = [...(row?.querySelectorAll('label span') ?? [])].map((s) => s.textContent);
       expect(labels).toEqual(['Metronome', 'Conductor']);
     });
@@ -535,14 +536,14 @@ describe('headphones and speakers', () => {
    * signpost from a run to the calibration screen, which otherwise hides in
    * the advanced menu.
    */
-  it('names the adjustment during a run, and leads to where it was set', () => {
+  it('names the adjustment at the gate, and leads to where it was set', () => {
     stored([{ id: 'z', name: 'Zen Air', leadMs: 250, calibrations: 1 }], 'z');
     renderApp();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    const note = screen.getByRole('button', {
-      name: /Sound brought forward 250 ms for Zen Air/,
-    });
-    fireEvent.click(note);
+    // The gate's status line names the output and its lead in force…
+    expect(screen.getByText(/Zen Air — sound brought forward 250 ms/)).toBeTruthy();
+    // …and its link is the signpost to where it was measured.
+    fireEvent.click(screen.getByRole('button', { name: 'Outputs' }));
     expect(screen.getByRole('heading', { name: 'Outputs' })).toBeTruthy();
   });
 
@@ -552,15 +553,13 @@ describe('headphones and speakers', () => {
     expect(screen.queryByText(/Sound brought forward/)).toBeNull();
   });
 
-  it('is a door in Advanced, saying what is in use', () => {
+  it('says on the gate what is in use, with the door beside it', () => {
     stored([{ id: 'b', name: 'Bose', leadMs: 180, calibrations: 1 }], 'b');
     renderApp();
-    fireEvent.click(screen.getByText('Advanced'));
-    const door = screen.getByRole('button', { name: /Outputs/ });
-    expect(door.textContent).toContain('Bose');
-    expect(door.textContent).toContain('180 ms');
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.getByText(/Bose — sound brought forward 180 ms/)).toBeTruthy();
 
-    fireEvent.click(door);
+    fireEvent.click(screen.getByRole('button', { name: 'Outputs' }));
     expect(screen.getByRole('heading', { name: 'Outputs' })).toBeTruthy();
   });
 
@@ -573,8 +572,10 @@ describe('headphones and speakers', () => {
       null,
     );
     renderApp();
-    fireEvent.click(screen.getByText('Advanced'));
-    fireEvent.click(screen.getByRole('button', { name: /Outputs/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    // The default speaker is unmeasured, so the gate's link says what needs
+    // doing rather than where it happens.
+    fireEvent.click(screen.getByRole('button', { name: 'Measure it' }));
 
     const speaker = screen.getByRole('button', { name: /^This device/ });
     const zen = screen.getByRole('button', { name: /^Zen/ });
@@ -593,10 +594,11 @@ describe('headphones and speakers', () => {
       screen.getByRole('button', { name: /^This device/ }).getAttribute('aria-pressed'),
     ).toBe('true');
 
-    // And the way back lands on settings, with the change kept.
+    // And the way back lands on settings, with the change kept — read back on
+    // the gate's status line, which is where the output now announces itself.
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    fireEvent.click(screen.getByText('Advanced'));
-    expect(screen.getByRole('button', { name: /Outputs/ }).textContent).toContain('speaker');
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.getByText(/This device.s speaker — not measured yet/)).toBeTruthy();
     // Bose and the device itself, which cannot be forgotten.
     expect(JSON.parse(localStorage.getItem('brass-trainer:settings')!).audioOutputs).toHaveLength(2);
   });

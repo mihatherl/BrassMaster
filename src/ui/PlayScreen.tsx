@@ -25,6 +25,7 @@ import { instrumentById } from '../domain/instruments';
 import type { Transport } from '../engine/clock';
 import { ValveInput } from '../engine/input';
 import { REACTIVE_SOUND_MAX_LEAD, Session } from '../engine/session';
+import { ReadyControls } from './ReadyControls';
 import { fingeringHints, type Hints } from '../exercise/hints';
 import { soundingHeads } from '../exercise/ties';
 import { loadStats } from '../storage/stats';
@@ -45,6 +46,14 @@ interface PlayScreenProps {
   exercise: Exercise;
   onFinish: (summary: SessionSummary) => void;
   onExit: () => void;
+  /**
+   * The gate's own settings changes — how this run will go, edited on the
+   * Ready screen itself (2026-08-23). The owner decides what a change means:
+   * tempo and variable tempo feed generation, so the app regenerates the
+   * exercise with the same seed — the same music, re-marked — where this
+   * screen could only have played the stale one.
+   */
+  onSettings?: (settings: Settings) => void;
   /**
    * The speed the player settled on, reported when the run ends.
    *
@@ -95,6 +104,7 @@ export function PlayScreen({
   exercise,
   onFinish,
   onExit,
+  onSettings,
   onTempoSettled,
   inKey,
   onKeySettled,
@@ -639,6 +649,11 @@ export function PlayScreen({
         )}
         <div className="start-gate">
           <h2>Ready</h2>
+          {/* How this run will go, editable at the door — see ReadyControls
+              for the admission rule that keeps this face short. */}
+          {onSettings && (
+            <ReadyControls settings={settings} onChange={onSettings} onOutputs={onOutputs} />
+          )}
           <p className="muted">
             {settings.readingMode === 'paged'
               ? `Hold the valve buttons — or keys 1, 2 and 3 — for each note, counting with the ${
@@ -674,7 +689,10 @@ export function PlayScreen({
           >
             Back to settings
           </button>
-          {leadNote}
+          {/* The lead note used to sit here too; the ReadyControls status line
+              says the same thing with the unmeasured case besides. It remains
+              beside the music, where it still has no substitute. */}
+          {!onSettings && leadNote}
         </div>
       </div>
     );
