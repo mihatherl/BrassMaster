@@ -26,6 +26,7 @@ the morning). Earlier ones go back through `handover-2026-08-22.md`.
 | `v2-design.md` | Never end to end. Grep it for the noun you are touching |
 | `difficulty-model-plan.md`, `app-store-plan.md`, `v3-library-plan.md`, `musicxml-import-plan.md`, `tempo-map-plan.md` | As their subjects come up |
 | `android-shell-plan.md` | Before any 4.2 work — it is the plan for the task the *What is next* section names |
+| `device-testing.md` | Before any session touching the shell or a phone — open faults from real hardware live there |
 
 ## Where this stands
 
