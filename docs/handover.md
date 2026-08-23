@@ -1,239 +1,178 @@
-# Handover — 2026-08-22/23, an unattended night on both halves
+# Handover — 2026-08-23, the day of the redesign
 
-You are picking up **one half** of a two-app product, from a parent folder
-holding both this repository and its sister. This half is *Brass Master*: the
-practice app, free on the web at **brassmaster.net** and — from version 3 —
-paid, **on Google Play first and the App Store after it**. The other half turns
-photographs of band parts into MusicXML. They meet at one seam.
+You are picking up **one third** of a workspace, from a parent folder holding
+three repositories. This one is *Brass Master*: the practice app, free on the
+web at **brassmaster.net** and — from version 3 — paid, on Google Play first.
+The second is the parked MusicXML generator. The third is new today:
+`../container-spike/`, the roadmap-4.1 spike, **run and closed** with every
+answer measured on real hardware; its `FINDINGS.md` is the record.
 
 **Read this file, then `../CLAUDE.md`, then one plan document for the task in
-front of you. Nothing else, until you need it.** The failure mode of a
-two-repository session is reading both test suites into context and having no
-room left to think.
+front of you. Nothing else, until you need it.**
 
-The previous handovers are `handover-2026-08-22.md` (the corpus, divisi and the
-calibration redesign), `handover-2026-08-20.md` and `handover-2026-08-19.md`.
-Read them only for the *why* of something this file assumes.
-
-**This session ran unattended and both halves were worked.** That is unusual
-and it shapes what is here: everything below was either named in the previous
-handover as the next thing to do, or is a measurement. **No musical material
-was added, no feature was designed, and nothing was decided that wanted the
-player's ear** — see *What I did not do, and why* before assuming an omission
-was an oversight.
+The previous handover is `handover-2026-08-23-unattended.md` (the overnight
+session: GPU experiments on the sister project, and the first three fixes of
+the morning). Earlier ones go back through `handover-2026-08-22.md`.
 
 ## What to read, and what to leave alone
 
-| | Lines | When |
-|---|---|---|
-| `handover.md` — this file | ~250 | Now, all of it |
-| **`roadmap.md`** | 1,100 | **Now, and before proposing any feature.** What the product is, what is deliberately not on it, and the phases |
-| `../CLAUDE.md` | ~60 | Now. The seam, and which remote is which |
-| `difficulty-model-plan.md` | 145 | Before touching a level, a tempo or `difficulty.ts` |
-| `app-store-plan.md` | 295 | Before version 3 |
-| `v3-library-plan.md` | 149 | Before any capture or library work |
-| `v2-design.md` | 3,540 | **Never end to end.** Grep it for the noun you are touching |
-| `musicxml-import-plan.md` | 477 | Only when touching `import/` |
-| `tempo-map-plan.md` | 607 | Only when touching the clock or the conductor |
-
-**Every "why is it like this?" has an answer in `v2-design.md`, and the way to
-find it is to grep for the noun** — `grep -n "fourth valve"`, `grep -n "open
-note"`. Its headings are a map: `grep -n "^## " docs/v2-design.md`.
+| | When |
+|---|---|
+| `handover.md` — this file | Now, all of it |
+| **`roadmap.md`** | Now, and before proposing any feature |
+| `../CLAUDE.md` | Now. The seam, and which remote is which |
+| `../container-spike/FINDINGS.md` | Before any Phase 2/4/5 work — it is what those phases now stand on |
+| `../BrassMXMLGenerator/docs/handover-ml.md` § 14 | Only if touching the generator; **§ 14.0 first** |
+| `v2-design.md` | Never end to end. Grep it for the noun you are touching |
+| `difficulty-model-plan.md`, `app-store-plan.md`, `v3-library-plan.md`, `musicxml-import-plan.md`, `tempo-map-plan.md` | As their subjects come up |
 
 ## Where this stands
 
-**v2.33.0, pushed, deployed and green.** 1,340 tests across 67 files.
-brassmaster.net was confirmed serving 2.33.0 rather than assumed to be.
+**v2.44.4, pushed, deployed and green** — sixteen releases today, v2.34.0
+through v2.44.4. 1,343 tests across 67 files. The gate before any push is
+`npm test && npm run build && npm run lint`, plus `npm run check:web` and
+`npm run check:channel` when anything touches the build split.
 
-The gate before any push is `npm test && npm run build && npm run lint`, all
-three, plus `npm run check:web` **and now `npm run check:channel`** when
-anything touches the build split.
+**After any gate run, rebuild the tailnet copy: `npm run build:dev`.** Every
+plain build overwrites `dist/` with the wrong flavour, and the preview on 4173
+serves whatever is sitting there. This bit the previous session for half an
+hour; it will bite yours too. If 4173 is dead, `npm run preview` restarts it.
 
-**`npx tsc --noEmit` checks nothing.** The root `tsconfig.json` is
-`{ "files": [], "references": [...] }`, so that command silently passes on a
-broken tree. Use **`npx tsc -b`**, which is what `npm run build` runs.
+**The E32 is set up for adb** (udev rule installed, USB debugging authorised),
+and — the day's best debugging discovery — **the installed PWA can be driven
+live over CDP**:
 
-## What this session did
+    adb forward tcp:9222 localabstract:chrome_devtools_remote
+    # then playwright chromium.connectOverCDP('http://localhost:9222')
 
-**All three "start here" items from the previous handover are done**, and one
-of them turned out to be blocked behind a broken gate that nobody had noticed.
+One bug (v2.44.3) survived two plausible-theory releases and fell in a minute
+of measuring the real phone this way. Do that first, not third.
 
-**The dev build says so.** `VITE_CHANNEL=dev` names the tailnet copy *Brass
-Master — Dev*, with `BM Dev` as the home-screen label, in the manifest, the
-`<title>` and the iOS tag. `npm run build:dev` builds it, `npm run
-check:channel` proves it both ways, and CI runs the release direction. **The
-tailnet preview on 4173 is now serving it** — that was done and verified, not
-merely made possible.
+## What the app is now
 
-**The audio lead reaches 750ms**, rewritten around the measurement that demands
-it, and "zero for the phone's own speaker" is gone from all three places that
-said it.
+The redesign was iterated with the player across the whole day, one screenshot
+round per ruling. Three screens, one question each:
 
-**Phase 4.1 now has to measure input latency**, with the round-trip method
-written down, and the paragraph that named the tap calibration as the
-mitigation for Android's input spread is corrected — that calibration was
-removed the same evening it was cited.
+- **Home** — *what to play.* Title and the instrument chip (identity, opens
+  the instrument sheet); the Structured Learning / Free play segments (paid
+  build; choice persists as `settings.homeMode`); **four mode tabs** — My
+  Music · Drills · Sight-reading · Themes — sticky at the top, the chosen
+  one's controls as the page; **Start pinned at the bottom** with the
+  version/corpus line. Nothing scrolls but the page. My Music is a door
+  wearing a tab: it navigates, never selects.
+- **Ready** (the gate inside PlayScreen) — *how this run goes.* Tap to start
+  first, tempo directly under it, then the accordion: Reading, Beat, Sound,
+  Fingerings, Preferences — each collapsed line reciting its choice. The
+  output and its calibration state on the face; credits and version behind
+  Preferences. Gate edits write the one settings store; tempo/variableTempo
+  regenerate the exercise same-seed (never imports, never course runs).
+- **Play** — unchanged, plus: **the screen going dark ends the run** ("nothing
+  is judged unseen"), and the visual clock survives a coarse Android audio
+  clock (v2.34.0's slew).
 
-**The suite's gate was red and flaky, and is now green.** See *Where I went
-wrong* — it is the most useful thing in this file.
+Two structural components died happily: the Panel accordion machinery and the
+keys/drills scroll windows with their centring effects.
 
-**The settings overflow is diagnosed and not fixed**, deliberately. `npm run
-shots` gained a `phone-small` viewport (360×740, the Moto E32 in the room) and
-the fault is plain in the photograph: `.actions--sticky` is drawn over the tail
-of the list, slicing the Advanced panel and covering both credit lines. Nothing
-is unreachable and Start stays reachable at every size measured. The fix is a
-design choice, recorded in `roadmap.md` § 1.9 and left for you.
+## The rulings that moved, and where their history lives
 
-**The sister project had a productive night** — see
-`../BrassMXMLGenerator/docs/handover-ml.md` § 14, and § 14.0 first. Two of its
-lessons are general enough to be worth carrying across the seam:
+Several of this codebase's recorded rulings were reversed today by the player,
+and each reversal is written **at the site**, alongside what it reversed:
 
-- **Measure which population you are in before optimising the total.** A census
-  of every non-clean bar found that **missed barlines cause 2.7% of the
-  damage**, and that is what most of that project's nights had gone into.
-- **One run is a sample, not a result.** Two runs of an identical recipe,
-  differing only in which pages were held out, came apart by 5.3 points on the
-  metric being optimised. Several published findings there sit inside that
-  band. The equivalent here is any number that comes from a single measurement
-  on one device — the 330ms above is one pair of hands on one handset, and it
-  is written down as such.
-
-## The rulings this session added
-
-**The channel is not the target, and the default must be the safe one.**
-`VITE_TARGET=app` is the tailnet copy's target *and* the paid release's, so a
-dev name keyed off it would ship "Dev" to the Play listing. `VITE_CHANNEL` is a
-signal of its own and defaults to production, exactly as `VITE_TARGET` defaults
-to the free product: in both cases forgetting the variable gives the answer
-that is embarrassing rather than the one that is expensive.
-
-**A build-time check should read both ways.** `check:channel` fails a release
-build carrying the dev mark — the guard — *and* fails a dev build that has lost
-it. Without the second half the check passes for ever the day the rename
-quietly stops firing, and two identically named icons come back with a green
-tick over them. Both directions were mutation-tested by running each against
-the other's build.
-
-**An intermittently red gate is worse than a red one**, because it teaches you
-to run it again. See below.
-
-**A measurement outranks a comment that reasons from an assumption.** The
-500ms ceiling and "zero for the phone's own speaker" were both written before
-anyone had measured a handset; one iPhone had become a rule, and it cost every
-Android player a third of a second with no way to correct it.
+- **The tempo has had four homes**; the law extracted from the journey is in
+  `ReadyControls.tsx`: *every other setting is occasional, the tempo is every
+  session — wherever Start lives, the tempo belongs in its shadow.*
+- **The Start strip has had three rulings** (tall-and-translucent → unstick on
+  overflow → fixed as part of the frame); the full history is at the strip in
+  `SettingsScreen.tsx`. It is `position: fixed` — sticky never leaves the
+  flow, which is exactly why it failed.
+- **My Music has had three homes** (footer → top door → material tab).
+- **The Drills blurb guard** ("nothing claims what it doesn't deliver",
+  2026-08-15) survived the blurb shrinking to "Scales and arpeggios." by
+  moving up a level: every drill must belong to a claimed category, enforced
+  at compile time. `generate.test.ts`.
 
 ## Where I went wrong, so you need not
 
-**The gate was already red at HEAD and I nearly pushed on top of it.** `npm
-test` was exiting 1 while reporting 1,340 tests passing and naming no failure —
-`Errors 5`, and nothing else. `calibration-warning.test.tsx` is the first UI
-test to click *past* the "Tap to start" gate that `App.test.tsx` explicitly
-stops at ("everything past that needs a real AudioContext"), happy-dom has no
-Web Audio, and `beginRun` threw inside a promise nobody awaits — long after the
-dialog under test had been drawn and asserted on. **Nothing failed; the suite
-did.**
+**I shipped two wrong theories for one bug before measuring the phone that
+had it.** The E32 could not scroll the drills clear of the pinned strip.
+Theory one: old engines don't scroll to a container's own padding (true fact,
+wrong diagnosis — v2.44.2). The real cause, found via CDP on the live device:
+**the strip's height is variable** — it carries the output-lead note only
+when a lead is in force, and the E32 wears a two-line "brought forward
+750 ms" note that **no desktop test browser ever has**, because test browsers
+have no calibrated outputs. The clearance is now measured from the strip
+(`--strip-clearance`). The class of bug to remember: *state that only real
+devices accumulate makes layouts that only real devices break.*
 
-Worse, it was **intermittent**: three runs in five. My first fix stubbed
-`AudioContext` per test and unstubbed it in `afterEach`, which made it *more*
-intermittent — `unlockAudio` is awaited, so the construction lands on a timer
-after the test that started it has finished, and the global had been taken away
-underneath a call already in flight. Stubbing once for the file fixed it; eight
-consecutive runs are green.
+**Each phone fails in its own dialect.** The E32 (WebView 94) failed on old
+engine behaviour — the `roundRect` lesson again, now recorded in `index.css`
+too. The iPhone failed on modern geometry: sticky `top: 0` is the viewport's
+top, which is under the clock on a notched phone; Android's zero inset hid it.
+Tabs stick at `var(--safe-top)` with a scrim behind the status bar.
 
-**Two lessons.** A test that passes is not a suite that passes — check the exit
-code, not the summary line. And when a fix makes a flake *less* frequent rather
-than absent, it is the wrong fix.
+**`git checkout <file>` wiped my own uncommitted work. Twice.** Both times
+while restoring a deliberate mutation after mutation-testing. Stash the real
+edit, or re-apply the mutation by hand — never checkout a file carrying
+unpushed surgery.
 
-**I served the free build to the phone for half an hour without noticing.** The
-tailnet preview on 4173 serves whatever is sitting in `dist/`, and every `npm
-run build` in the gate overwrites it with a *web* build. So the dev app on the
-phone silently lost My Music. **Run `npm run build:dev` after any gate run**,
-or the tailnet copy is whatever the last command left behind. This is the same
-family as the previous session's "I killed the dev server and did not notice
-for hours".
+**The suite still cannot see any of this.** Today's visual faults — the
+ghosting band above the tabs, the strip overlap, the notch collision — were
+all found in screenshots or on glass, never by an assertion. `npm run shots`
+photographs; simulated notch insets can be forced with
+`--safe-top: 47px` on the document element.
 
-**I could not reproduce the settings overflow for half an hour** because I was
-looking for horizontal overflow and measuring the collapsed screen. It is
-vertical, it needs a font scale or a shorter viewport to appear at all, and it
-was invisible in every number until the screenshot. **Look at the picture** —
-that is now three sessions running.
+## What is deliberately left open
 
-## What I did not do, and why
+- **The phone pass.** Sixteen releases deserve one end-to-end session on both
+  phones before the redesign is called settled. The version line under Start
+  exists so a stale cached copy cannot impersonate a fix.
+- **`REACTIVE_SOUND_MAX_LEAD` is 100ms, the player's first guess.** It also
+  withholds the cushion from an iPhone on headphones (~200ms measured). His
+  to tune by ear; the constant is in `engine/session.ts`.
+- **"Favour notes I get wrong" ships default-on**, newly visible inside
+  Sight-reading. Whether a beginner's first exercise should be biased by an
+  empty history was flagged and deliberately not changed.
+- **The course's one-run tempo override at the gate** (drag it down for one
+  tired run without rewriting the ladder) is designed, not wired — the gate
+  currently leaves course runs' generation alone entirely.
+- **The structured side of the frame**: the embedded PracticeScreen keeps its
+  own in-flow Start; only Free play has the pinned strip. Asymmetry accepted
+  today, unexamined.
+- **ScorePicker and ImportScreen still use sticky strips** — untouched, and
+  possibly fine, but they have not been looked at since the strip lessons.
 
-**6.2, two-voice themes, was not started.** The previous handover lists it as
-ready and needing no hardware, and it is the obvious next feature. It was left
-alone on purpose:
+## What is next
 
-- its material must be **heard** before it ships, and nobody was here to hear it;
-- it is **paid**, so it needs a build-time flag and `check:web` needles of its
-  own, which is scope the roadmap entry does not mention;
-- it carries genuine **UI decisions** — how the sounding voice is offered, what
-  the app says when the player's own instrument cannot reach the line, how the
-  swap announces which half it can offer — and those are the player's taste,
-  not mine;
-- and `realiseTheme` is exactly the code the previous session got wrong twice
-  by wiring one of two construction sites.
+**4.2 — the real Android shell.** The spike left it nothing but green lights:
+Capacitor toolchain installed and proven on this machine (JDK 21, SDK 35,
+first APK built and run on the E32), microphone-in-wrapper works, input
+latency ~100–140ms and stable, the in-process HTTP server freezes ~7–8 min
+off charge and thaws intact (so Phase 5's foreground service exists to
+survive the screen timeout, nothing grander), and the OS names the player's
+Bose QC45s — so the shell should read the audio route: prefill output names,
+and switch the calibration profile when the route changes.
+`../container-spike/` is its own small git repo, local only.
 
-Half-built, it would be worse than not built. It is still the right next thing
-**with the player in the room**.
+**6.2 — two-voice themes**, fully specified in the roadmap, needing the
+player's ear in the room.
 
-**The difficulty reclassification was not applied**, for the reason
-`difficulty-model-plan.md` already gives: cross-rhythm is on no axis, and
-adding one is a musical judgement.
-
-**The `Session` refactor** — pulling `followFingers` and `applyVolume` out —
-was not done. It is worth doing *before building on top*, and nothing was being
-built on top; it is 945 lines of the most timing-sensitive code in the app and
-the suite cannot see the screen it drives.
-
-## Start here
-
-**1. The settings strip.** The fault is photographed and diagnosed; only the
-choice is open. `npm run shots -- --viewport phone-small --screen settings`,
-then decide whether the strip shortens, stops sticking once the content
-overflows, or the screen becomes a grid with the list and the strip as separate
-rows.
-
-**2. Then 6.2, with the player.** Everything above.
-
-**3. And the container spike (roadmap 4.1)**, which is unblocked — there is a
-second-hand Moto E32 in the room. Two questions: the microphone inside the real
-wrapper *while the reference tone plays*, and an embedded HTTP server serving a
-page, taking an upload, and surviving backgrounding. **It now has a third**:
-the input-latency round trip. **Put Tailscale on the phone first.**
-
-## What is left
-
-- The Prelude's two waivers measure the **written** line; taking its offers, no
-  leap exceeds an octave. The difficulty model measures the page, and a divisi
-  page is not what one player performs.
-- Run length still counts four themes rather than following the material: four
-  of the Bach collection is 130 bars where four of the written corpus is 48.
-- Most written themes carry no tempo, so for them seconds and beats are the
-  same number in different units.
-- The reclassification is run and not applied: `npx tsx
-  tools/difficulty-dry-run.mts`.
+**The generator** sleeps again. Its § 14 ends with the honest instruction:
+the next hour there is annotation (which bars hold a rest; note-level ground
+truth on a few pages), not another training arm — six axes failed to move a
+population nobody has opened. One adoption candidate waits: `--head-weight
+15` (+1.2 notehead precision, free), pending a second seed by its own rule.
 
 ## How to work here
 
-Small, complete changes. Run the gate — **and check its exit code**. Write the
-reasoning into the code where the next person will meet it; this codebase
-explains itself in comments that say *why*, including what was tried and
-abandoned, and that is deliberate.
+Small, complete changes. Run the gate — and check its exit code. Write the
+reasoning into the code where the next person will meet it, including what
+was tried and abandoned; today added several long site-histories and they are
+the map of the player's taste.
 
-**Mutation-test anything that guards.** Change the rule, watch the test fail,
-put it back. `check:channel` was tested in both directions this way, and so was
-the AudioContext stub.
-
-**Look at the picture.** `npm run themes-sheet` builds the review sheet, `npm
-run svg` renders an exercise, `npm run shots` photographs the app at six
-viewports — `phone-small` is the new one and it is the one that found tonight's
-fault.
-
-**Push without asking** once the gate is green — standing permission since
-2026-08-10 — then confirm the deploy rather than assuming it. **Push `origin`,
-never `legacy`.** Tag every version and push with `--follow-tags`.
-
-**Nothing ships to a player unheard.** A theme goes into its collection's
-`unjudged` set in the same edit that adds it, and comes out when somebody has
-heard it.
+**Mutation-test anything that guards.** Everything shipped today was: the
+clock slew (both directions), the visibility stop, the channel checks before
+that. **Look at the picture** — and when a picture disagrees with a phone,
+**measure the phone**; adb plus CDP turns an argument into a number in one
+minute. Push without asking once the gate is green; push `origin`, never
+`legacy`; tag every version; confirm the deploy. Nothing ships to a player
+unheard.
