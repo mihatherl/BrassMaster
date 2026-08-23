@@ -39,6 +39,8 @@ interface Entry {
   name: string;
   method: number;
   compressedSize: number;
+  /** From the central directory: what the entry inflates to, byte for byte. */
+  uncompressedSize: number;
   localHeaderAt: number;
 }
 
@@ -67,6 +69,7 @@ function readDirectory(view: DataView, at: number): Entry[] {
       name,
       method: view.getUint16(cursor + 10, true),
       compressedSize: view.getUint32(cursor + 20, true),
+      uncompressedSize: view.getUint32(cursor + 24, true),
       localHeaderAt: view.getUint32(cursor + 42, true),
     });
     cursor += 46 + nameLength + extraLength + commentLength;
@@ -95,11 +98,76 @@ async function readEntry(bytes: Uint8Array, view: DataView, entry: Entry): Promi
 
   if (entry.method === STORED) return data;
   if (entry.method !== DEFLATED) return null;
+  return inflate(data, entry.uncompressedSize);
+}
 
-  const stream = new Blob([data as BlobPart])
+/**
+ * A zip entry's raw deflate stream, inflated — on any engine this app meets.
+ *
+ * `deflate-raw` is the honest name for what a zip entry holds, but it only
+ * reached Chromium at 103, and the app's floor device runs System WebView 94
+ * — where the constructor throws, which surfaced as My Music hanging on
+ * "Reading…" the first evening the Play build met the E32 (the device
+ * testing log's first entry). The engine *does* have `deflate`, the
+ * zlib-wrapped flavour, and a raw stream becomes a zlib one by prepending
+ * the two-byte header — except that zlib also expects an adler32 trailer the
+ * zip never kept, so the stream yields every byte and then errors on the
+ * missing checksum.
+ *
+ * Measured live on the E32 over CDP before being trusted: all 369,319 bytes
+ * of a real score arrived intact, the terminal error reading "Compressed
+ * input was truncated". So the fallback collects what the stream yields,
+ * expects that error, and verifies the one thing the zip *did* keep — the
+ * entry's uncompressed size from the central directory, checked to the
+ * byte. That is the integrity test standing in for the checksum this path
+ * cannot have.
+ *
+ * Errors on the modern path fall into the fallback too, deliberately: a
+ * genuinely corrupt file then fails the length check and comes back null,
+ * which the caller reports as "could not be unpacked" — where before this
+ * function let the rejection fly and the screen hung.
+ */
+async function inflate(data: Uint8Array, expectedSize: number): Promise<Uint8Array | null> {
+  try {
+    const stream = new Blob([data as BlobPart])
+      .stream()
+      .pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch {
+    // Missing format, or bad data — the fallback decides which.
+  }
+
+  const wrapped = new Uint8Array(data.length + 2);
+  wrapped[0] = 0x78;
+  wrapped[1] = 0x9c;
+  wrapped.set(data, 2);
+  const reader = new Blob([wrapped as BlobPart])
     .stream()
-    .pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+    .pipeThrough(new DecompressionStream('deflate'))
+    .getReader();
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.length;
+    }
+  } catch {
+    // The absent trailer always lands here; the length check below is the
+    // verdict on whether what arrived before it was the whole entry.
+  }
+
+  if (total !== expectedSize) return null;
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, at);
+    at += chunk.length;
+  }
+  return out;
 }
 
 /**

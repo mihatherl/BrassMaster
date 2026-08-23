@@ -76,7 +76,10 @@ export function partNames(doc: Document): string[] {
     const named = id
       ? doc.querySelector(`score-part[id="${CSS.escape(id)}"] > part-name`)
       : null;
-    return named?.textContent?.trim() || id || `Part ${index + 1}`;
+    /* Internal whitespace collapsed as well as trimmed: a real export names
+       a part "Piano\n(or Harp)" across two lines of the page, and a chooser
+       row is one line. */
+    return named?.textContent?.replace(/\s+/g, ' ').trim() || id || `Part ${index + 1}`;
   });
 }
 

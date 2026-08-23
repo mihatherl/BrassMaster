@@ -58,6 +58,8 @@ const STORE = storageAvailable() ? indexedDbStore() : memoryStore();
 interface Read {
   exercise: Exercise;
   problems: string[];
+  /** The piece's stated tempo marks, in the dial's unit. See `Imported.tempos`. */
+  tempos: { atBeat: number; bpm: number }[];
   part: string;
   from: string;
   /** Whether the part divides anywhere, which decides whether to offer a choice. */
@@ -91,7 +93,7 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
 
   const readPart = useCallback(
     (source: Loaded, index: number, line: Divisi) => {
-      const { exercise, problems } = importPart(source.doc, {
+      const { exercise, problems, tempos } = importPart(source.doc, {
         instrument: instrumentById(settings.instrumentId),
         partIndex: index,
         clef: settings.clef,
@@ -107,6 +109,7 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
       setRead({
         exercise,
         problems,
+        tempos,
         part: source.names[index] ?? 'the part',
         from: source.fileName,
         divides: problems.some((line) => line.includes('divided note')),
@@ -123,36 +126,47 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
       setLoaded(null);
       setProblem(null);
 
-      // Decided from the bytes rather than the extension: a `.musicxml` that is
-      // really a zip and an `.mxl` that is really plain XML both turn up.
-      const bytes = await file.arrayBuffer();
-      const opened = await readScoreFile(bytes);
-      if ('problem' in opened) {
-        setProblem(opened.problem);
-        setBusy(false);
-        return;
-      }
+      /*
+       * Whatever happens in here lands as a message, never as a hang. The
+       * lesson is the device-testing log's first entry: on the E32's WebView
+       * an unsupported decompression format threw past every early return,
+       * nothing cleared `busy`, and the player watched "Reading…" forever.
+       * The format has its fallback now (see `container.ts`), but the screen
+       * must not depend on every future throw being foreseen.
+       */
+      try {
+        // Decided from the bytes rather than the extension: a `.musicxml` that
+        // is really a zip and an `.mxl` that is really plain XML both turn up.
+        const bytes = await file.arrayBuffer();
+        const opened = await readScoreFile(bytes);
+        if ('problem' in opened) {
+          setProblem(opened.problem);
+          return;
+        }
 
-      const parsed = parseMusicXml(opened.xml);
-      if ('problem' in parsed) {
-        setProblem(parsed.problem);
-        setBusy(false);
-        return;
-      }
+        const parsed = parseMusicXml(opened.xml);
+        if ('problem' in parsed) {
+          setProblem(parsed.problem);
+          return;
+        }
 
-      const source: Loaded = {
-        doc: parsed.doc,
-        names: partNames(parsed.doc),
-        fileName: file.name,
-        source: bytes,
-      };
-      setLoaded(source);
-      setPartIndex(0);
-      // Straight to the first part: a single-part file is the common case and
-      // should not need a choice made about it.
-      setSaved(false);
-      readPart(source, 0, divisi);
-      setBusy(false);
+        const source: Loaded = {
+          doc: parsed.doc,
+          names: partNames(parsed.doc),
+          fileName: file.name,
+          source: bytes,
+        };
+        setLoaded(source);
+        setPartIndex(0);
+        // Straight to the first part: a single-part file is the common case and
+        // should not need a choice made about it.
+        setSaved(false);
+        readPart(source, 0, divisi);
+      } catch {
+        setProblem('this file could not be read');
+      } finally {
+        setBusy(false);
+      }
     },
     [readPart, divisi],
   );
@@ -255,6 +269,7 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
       setRead({
         exercise: result.imported.exercise!,
         problems: result.imported.problems,
+        tempos: result.imported.tempos,
         part: result.record.partName,
         from: result.record.title,
         divides: result.imported.problems.some((line) => line.includes('divided note')),
@@ -409,6 +424,23 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
             * printed part wherever a repeat was unfolded. Said plainly here
             * rather than left to surprise someone counting along.
             */}
+
+          {read.tempos.length > 0 && (
+            <p className="import__count">
+              {/*
+                * What the piece asks, in the dial's own unit — the fact was
+                * being invisibly discarded before 2026-08-23. Said with its
+                * limit in the same breath: the marks are recorded, not yet
+                * obeyed, and how they should meet the player's dial is a
+                * ruling nobody has made. Never show one thing and hold
+                * another.
+                */}
+              Asks {Math.round(read.tempos[0].bpm)} beats a minute
+              {read.tempos.length > 1 &&
+                ` and changes tempo ${read.tempos.length - 1} time${read.tempos.length > 2 ? 's' : ''} later`}
+              . The tempo dial stays yours — the marks are noted, not obeyed.
+            </p>
+          )}
 
           {read.problems.length > 0 && (
             <>

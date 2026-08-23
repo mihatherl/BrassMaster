@@ -9,7 +9,20 @@ phone, and the phone is right.
 
 ## Open
 
-### My Music does not import — E32, Play build v2.46.1 (2026-08-23)
+### My Music does not import — E32, Play build v2.46.1 (2026-08-23) — **cause found, fix built, awaiting the device**
+
+Diagnosed the same night, live over CDP: the player pinned the symptom to
+"hangs on Reading… after choosing the file", and the WebView answered the
+rest — `DecompressionStream('deflate-raw')`, which every `.mxl` needs, throws
+`Unsupported compression format` on System WebView 94 (it reached Chromium at
+103), and the unhandled throw left `busy` set forever. Two fixes shipped in
+v2.47.0: `container.ts` falls back to a zlib-wrapped inflate verified against
+the entry's declared size (the fallback was measured on the E32 itself —
+369,319 bytes of a real score arrived intact — before being trusted), and the
+import screen now lands every failure as a message, never a hang. **Stays
+open until an `.mxl` imports on the E32's own screen**; the debug shell on
+the phone carries the fix, and the Play track wants the v2.47.0 bundle
+uploaded. The original entry follows.
 
 Reported by the player from the Play-installed internal-testing build, the
 first session on the real shell. "Doesn't import" — exact failure shape not

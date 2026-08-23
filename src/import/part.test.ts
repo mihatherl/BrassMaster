@@ -1137,3 +1137,60 @@ describe('locating bars against what is drawn', () => {
     });
   });
 });
+
+/*
+ * Tempo marks: `<sound tempo>` read at last, 2026-08-23 — the plan carried
+ * "tempo marks are not read" since the library shipped. The file speaks in
+ * quarter notes a minute; the app's dial names the pulse, so the figure is
+ * converted by the metre in force where the mark lands. Recorded, not
+ * obeyed: the dial is the player's, and the wiring question is deliberately
+ * left for a ruling.
+ */
+describe('tempo marks', () => {
+  const mark = (qpm: number) => `<direction><sound tempo="${qpm}"/></direction>`;
+
+  it('reads a stated tempo in the dial\'s unit', () => {
+    const { tempos } = importing(score(mark(112) + note('C4', 4)));
+    expect(tempos).toEqual([{ atBeat: 0, bpm: 112 }]);
+  });
+
+  it('converts through a compound metre to the pulse', () => {
+    // 120 quarter notes a minute through 6/8 is 80 dotted crotchets — the
+    // pulse a conductor beats and the number the dial shows.
+    const xml = `<score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Eb Bass</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>4</divisions>
+          <key><fifths>0</fifths></key>
+          <time><beats>6</beats><beat-type>8</beat-type></time>
+          <clef><sign>G</sign><line>2</line></clef>
+        </attributes>
+        ${mark(120)}
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration></note>
+      </measure></part>
+    </score-partwise>`;
+    const parsed = parseMusicXml(xml);
+    if ('problem' in parsed) throw new Error(parsed.problem);
+    const { tempos } = importPart(parsed.doc, { instrument: EB_BASS });
+    expect(tempos).toEqual([{ atBeat: 0, bpm: 80 }]);
+  });
+
+  it('records a change where it lands, and nothing where the figure repeats', () => {
+    const { tempos } = importing(
+      score(
+        mark(100) + note('C4', 4),
+        mark(100) + note('D4', 4),
+        mark(120) + note('E4', 4),
+      ),
+    );
+    expect(tempos).toEqual([
+      { atBeat: 0, bpm: 100 },
+      { atBeat: 8, bpm: 120 },
+    ]);
+  });
+
+  it('has none for the many files that state none', () => {
+    expect(importing(score(note('C4', 4))).tempos).toEqual([]);
+  });
+});

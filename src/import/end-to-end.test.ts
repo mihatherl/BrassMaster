@@ -301,3 +301,72 @@ describe('a real MuseScore export, end to end', () => {
     }
   });
 });
+
+/*
+ * A real multi-part score, at last — the plan carried "the part chooser has
+ * not met a real multi-part score" since v1.41.0. This one is Harriett
+ * Abrams' *Crazy Jane* from OpenScore Lieder (CC0, a genuine MuseScore
+ * export): two parts, Voice and "Piano (or Harp)" across two lines, 69
+ * written measures of which five are implicit — the pickup, and four "X"
+ * continuation measures where MuseScore split a bar at a mid-bar section
+ * break — so the page holds 65 numbered bars, no repeats, one tempo mark in
+ * the voice part only, and a piano part whose chords and second staff are
+ * everything the importer warns about. Every figure below was counted off
+ * the file with a throwaway script, not read back from the importer.
+ *
+ * This file has already earned its place twice over: its split bars were
+ * the first correct file to draw the fullness warning (now exempted — see
+ * the check's comment), and its part name was the first with a line break
+ * in it.
+ */
+describe('a real two-part score', () => {
+  const LIEDER = 'src/import/__fixtures__/openscore-lieder.mxl';
+
+  async function importLieder(partIndex: number) {
+    const bytes = readFileSync(LIEDER);
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const opened = await readScoreFile(buffer as ArrayBuffer);
+    if ('problem' in opened) throw new Error(`the fixture would not open: ${opened.problem}`);
+    const parsed = parseMusicXml(opened.xml);
+    if ('problem' in parsed) throw new Error(`the fixture would not parse: ${parsed.problem}`);
+    return {
+      ...importPart(parsed.doc, { instrument: instrumentById('eb-bass'), partIndex }),
+      names: partNames(parsed.doc),
+    };
+  }
+
+  it('offers both parts by name, on one line each', async () => {
+    const { names } = await importLieder(0);
+    // The file writes "Piano\n(or Harp)"; a chooser row is one line.
+    expect(names).toEqual(['Voice', 'Piano (or Harp)']);
+  });
+
+  it('reads the voice part whole: every bar, the opening line, the stated tempo', async () => {
+    const { exercise, problems, tempos } = await importLieder(0);
+    expect(exercise).not.toBeNull();
+    // 65 numbered bars: 69 measures less the four mid-bar splits, whose two
+    // halves are one printed bar between them, exactly as the pickup pair is.
+    expect(barCount(exercise!.metres, exercise!.totalBeats)).toBe(65);
+    // The singer's opening phrase, as printed.
+    const opening = exercise!.notes.slice(0, 4).map((note) => formatPitch(note.pitch));
+    expect(opening).toEqual(['F4', 'Bb4', 'Bb4', 'A4']);
+    // One mark, 92 quarter notes a minute through 3/4 — the pulse unchanged.
+    expect(tempos).toEqual([{ atBeat: 0, bpm: 92 }]);
+    // And no complaint about the split bars: the one warning left is real —
+    // the file genuinely carries 27 grace notes. Pinned exactly, because the
+    // split-bar exemption is a guard against warning on correct files.
+    expect(problems).toEqual(['27 grace notes left out']);
+  });
+
+  it('reads the piano part as one line, and says what that cost', async () => {
+    const { exercise, problems, tempos } = await importLieder(1);
+    expect(exercise).not.toBeNull();
+    // A piano part is chords on two staves. The importer reads the upper
+    // line of each divide and drops the second voice, and says so, counted.
+    expect(problems.some((line) => line.includes('divided note'))).toBe(true);
+    expect(problems.some((line) => line.includes('second voice'))).toBe(true);
+    // The file's one tempo mark lives in the voice part — choosing the piano
+    // genuinely loses it, which is the file's truth, not a fault.
+    expect(tempos).toEqual([]);
+  });
+});

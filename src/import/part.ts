@@ -227,6 +227,20 @@ export interface Imported {
    * one thing and hold another.
    */
   problems: string[];
+  /**
+   * The piece's own tempo marks, in playing order, **in the dial's unit** —
+   * pulses a minute, converted from the file's quarter-notes-a-minute by the
+   * metre in force where each lands (a mark through 6/8 divides by the dotted
+   * crotchet's 1.5 crotchets). Empty for the many files that state none.
+   *
+   * **Recorded, not obeyed.** The tempo dial is the player's — the same
+   * ruling `Theme.tempo` carries — and how a piece's stated tempo should
+   * meet the dial (seed it? scale mid-piece changes against it?) is a design
+   * decision deliberately not taken here. What this ships is the fact: the
+   * review screen can now say what the piece asks, where before the marks
+   * were invisibly discarded.
+   */
+  tempos: { atBeat: number; bpm: number }[];
 }
 
 /** MusicXML writes note letters as `<step>`; the app calls them letters. */
@@ -275,6 +289,15 @@ interface MeasureBody {
     * lands adrift by that much.
     */
   items: Element[];
+  /**
+   * The first `<sound tempo>` in the measure, in quarter notes a minute, or
+   * null. First rather than last: a bar carrying both a "rit." result and an
+   * "a tempo" is beyond what one figure per bar can say, and the mark at the
+   * bar line is the one a player reads first. Attributed to the bar's start
+   * either way — finer placement needs the cursor, and no mark this app has
+   * met sits anywhere else.
+   */
+  tempoQpm: number | null;
   /** A short bar the engraver has told us not to count — a pickup. */
   implicit: boolean;
   number: string;
@@ -355,9 +378,18 @@ function readBody(measure: Element): MeasureBody {
     items: [...measure.children].filter((child) =>
       child.tagName === 'note' || child.tagName === 'forward' || child.tagName === 'backup',
     ),
+    tempoQpm: readTempoQpm(measure),
     implicit: measure.getAttribute('implicit') === 'yes',
     number: measure.getAttribute('number') ?? '?',
   };
+}
+
+/** The measure's first stated tempo, quarter notes a minute, if it is a number. */
+function readTempoQpm(measure: Element): number | null {
+  const sound = measure.querySelector('sound[tempo]');
+  if (!sound) return null;
+  const value = Number(sound.getAttribute('tempo'));
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 /**
@@ -711,11 +743,11 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
   const partIndex = options.partIndex ?? 0;
   const divisi = options.divisi ?? 'upper';
   const source = parts(doc)[partIndex];
-  if (!source) return { exercise: null, bars: [], problems: ['that part is not in this file'] };
+  if (!source) return { exercise: null, bars: [], tempos: [], problems: ['that part is not in this file'] };
 
   const bodies = fillBarRepeats([...source.querySelectorAll(':scope > measure')].map(readBody));
   if (bodies.length === 0) {
-    return { exercise: null, bars: [], problems: [...problems, 'this part has no bars'] };
+    return { exercise: null, bars: [], tempos: [], problems: [...problems, 'this part has no bars'] };
   }
 
   const reading = options.reading ?? { kind: 'played' };
@@ -749,7 +781,7 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
       for (let index = span.from; index <= span.to; index++) once.push(index);
     }
     if (once.length === 0) {
-      return { exercise: null, bars: [], problems: [...problems, 'no bars were chosen'] };
+      return { exercise: null, bars: [], tempos: [], problems: [...problems, 'no bars were chosen'] };
     }
 
     const times = Math.max(1, reading.times ?? passesFor(once.length));
@@ -804,6 +836,7 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
   const keys: KeyChange[] = [];
   const metres: MetreChange[] = [];
   const bars: ImportedBar[] = [];
+  const tempos: { atBeat: number; bpm: number }[] = [];
 
   // Sticky state, carried along the walk rather than read off the page, since a
   // repeated bar meets it twice at two different beats.
@@ -910,6 +943,21 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
     if (metres.length === 0) metres.push({ fromBeat: 0, metre });
 
     /*
+     * A tempo mark, converted to the dial's unit by the metre now in force —
+     * after the bar's own signature change, since a mark over a new metre
+     * speaks that metre's pulse. Recorded each time the walk passes it (a
+     * repeated bar's mark re-applies on the second pass, exactly as it is
+     * obeyed from the stand) and deduped only against the figure already in
+     * force, the same discipline as the keys above.
+     */
+    if (body.tempoQpm !== null) {
+      const bpm = body.tempoQpm / metre.pulseBeats;
+      if (tempos.length === 0 || Math.abs(tempos[tempos.length - 1].bpm - bpm) > 1e-9) {
+        tempos.push({ atBeat: snapBeat(beat), bpm });
+      }
+    }
+
+    /*
      * A pickup: the part begins part-way through its first bar, which nearly
      * every march does. Padded with silence up to the bar line rather than
      * left short, because every bar line in the piece is placed by counting
@@ -980,7 +1028,7 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
      * Does this bar hold a bar's worth? Pure arithmetic against the metre in
      * force, and the only thing here that checks the file rather than reads it.
      *
-     * Three bars are exempt, all of them deliberately short and none of them a
+     * Four bars are exempt, all of them deliberately short and none of them a
      * fault:
      *
      * - **A bar the engraver marked `implicit`.** That attribute means "do not
@@ -989,6 +1037,16 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
      * - **The last bar of a part that opened with a pickup**, short by exactly
      *   the length of the pickup. The two are one bar between them, which is
      *   why the printed part numbers neither.
+     * - **A short measure whose successor is implicit** — a mid-bar split,
+     *   which MuseScore writes at a section break inside a bar: measure "12"
+     *   holds the front of the bar and implicit measure "X1" the rest, one
+     *   printed bar between them, the same shape as the pickup pair. Found on
+     *   the first real score through this check (OpenScore Lieder,
+     *   2026-08-23), where it flagged four split bars on a correct file —
+     *   and a warning that fires on correct files is worse than none, which
+     *   is this check's own founding rule. The exemption reads the *played*
+     *   neighbour, so a passage that selects the front half without its
+     *   completion is still warned about, rightly.
      * - **A multi-bar rest**, which never reaches here — the walk steps over
      *   the measures it covers rather than reading them.
      *
@@ -1002,7 +1060,9 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
       order[step] === bodies.length - 1 &&
       pickupBeats > 0 &&
       Math.abs(shortfall - pickupBeats) < BAR_TOLERANCE;
-    if (!body.implicit && !completesPickup && Math.abs(shortfall) > BAR_TOLERANCE) {
+    const splitBar =
+      shortfall > BAR_TOLERANCE && bodies[order[step + 1] ?? -1]?.implicit === true;
+    if (!body.implicit && !completesPickup && !splitBar && Math.abs(shortfall) > BAR_TOLERANCE) {
       /*
        * A bar that is longer than its metre and whose length names a signature
        * is read as that signature, for this bar only. Real music does this —
@@ -1086,7 +1146,7 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
   problems.push(...describe(tally, divisi, options.instrument.name));
 
   if (slots.length === 0 && multiRests.length === 0) {
-    return { exercise: null, bars: [], problems: [...problems, 'this part has nothing playable in it'] };
+    return { exercise: null, bars: [], tempos: [], problems: [...problems, 'this part has nothing playable in it'] };
   }
 
   const settledMetres = settleChanges(metres);
@@ -1147,6 +1207,7 @@ export function importPart(doc: Document, options: ImportOptions): Imported {
       barNumbers: located.map((bar) => bar.number),
     },
     bars: located,
+    tempos,
     problems,
   };
 }

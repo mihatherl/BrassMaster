@@ -166,15 +166,26 @@ so the choice costs the octave you read and hear rather than the practice.
   adding a fake one is a dependency this app has managed without. The contract
   is tested against an in-memory store and the adapter was driven in a real
   browser across a cold start.
-- **Tempo marks are not read.** `<sound tempo>` is quarter-notes per minute and
-  the app's tempo names the *pulse*, so it needs the v1.30.0 conversion. Cheap,
-  and deliberately left until the library exists.
+- ~~Tempo marks are not read.~~ **Read since 2026-08-23 (overnight).**
+  `<sound tempo>` is taken per measure, converted to the pulse by the metre in
+  force where it lands, deduped against the figure in force, and surfaced on
+  the import summary — *"Asks 112 beats a minute… the marks are noted, not
+  obeyed."* Deliberately recorded and not wired to playback: the dial is the
+  player's, and how a piece's stated tempo should meet it (seed the dial?
+  scale mid-piece changes against it?) is a ruling still to be made with him.
 - **`<transpose>` is ignored, by design and untested.** The written pitches are
   taken off the page and the player's own instrument decides the fingerings,
   which is what lets a tuba player read a cornet part. No file carrying a
   transposition has been through it yet.
-- **The part chooser has not met a real multi-part score.** Its logic is
-  covered; a real one has not been tried.
+- ~~The part chooser has not met a real multi-part score.~~ **It has now
+  (2026-08-23, overnight):** `openscore-lieder.mxl`, a CC0 MuseScore export of
+  Harriett Abrams' *Crazy Jane*, Voice and Piano, is a committed fixture with
+  end-to-end tests. The real file earned its keep immediately: it drew the
+  fullness warning on four *correct* mid-bar split bars (short measure plus
+  implicit "X" continuation — now exempted, by the check's own rule that a
+  warning firing on correct files is worse than none), carried a part name
+  with a line break in it (now collapsed for the chooser), and keeps its one
+  tempo mark in the voice part alone — choosing the piano genuinely loses it.
 - **The long-rest skip is not offered.** The ruling — over ten seconds at the
   designated tempo, ask, and come back in at the bar before — needs a screen to
   ask on.
@@ -230,7 +241,14 @@ against the former.
 - **`.mxl` is a zip.** `DecompressionStream` exists in both the browser and the
   test environment and supports `deflate-raw`, which is what zip entries use —
   so a compressed MusicXML file can be opened with a small central-directory
-  reader and no dependency. Not built; the mechanism was confirmed to exist.
+  reader and no dependency. Built, in `container.ts`. **And the claim above
+  was true everywhere it was checked and false on the floor device**
+  (2026-08-23): `deflate-raw` reached Chromium at 103, System WebView 94
+  throws on it, and the first `.mxl` chosen in the Play build hung My Music
+  on "Reading…" — the device-testing log's first entry. The fallback wraps
+  the raw stream in a zlib header, expects the error the missing checksum
+  trailer causes, and verifies the entry's declared uncompressed size to the
+  byte instead — measured live on the E32 over CDP before it was trusted.
 
 ## The structural blocker — done
 

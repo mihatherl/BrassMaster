@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { isCompressed, openContainer, readScoreFile } from './container';
 
 /**
@@ -153,5 +153,58 @@ describe('deciding what a file is', () => {
     const compressed = await zip([{ name: 'score.musicxml', text: SCORE }]);
     expect(await readScoreFile(compressed)).toEqual({ xml: SCORE });
     expect(await readScoreFile(encoder.encode(SCORE).buffer)).toEqual({ xml: SCORE });
+  });
+});
+
+/*
+ * Engines without `deflate-raw` — System WebView 94, the app's floor device,
+ * where the format's absence surfaced as My Music hanging on "Reading…"
+ * (the device-testing log's first entry, 2026-08-23). The stub mimics that
+ * engine exactly as it answered over CDP: the constructor throws on
+ * `deflate-raw` and works for `deflate`. The fallback's behaviour was
+ * measured on the E32 itself before being trusted here — every byte
+ * arrives, the stream then errors on the trailer a zip never kept, and the
+ * entry's declared size is the integrity check that stands in for it.
+ */
+describe('inflating without deflate-raw', () => {
+  const Real = globalThis.DecompressionStream;
+  class WebView94 extends Real {
+    constructor(format: CompressionFormat) {
+      if (format === 'deflate-raw') {
+        throw new TypeError(`Unsupported compression format: '${format}'`);
+      }
+      super(format);
+    }
+  }
+
+  it('opens a deflated score through the zlib wrap', async () => {
+    vi.stubGlobal('DecompressionStream', WebView94);
+    try {
+      const opened = await openContainer(
+        await zip([
+          { name: 'META-INF/container.xml', text: MANIFEST },
+          { name: 'score.musicxml', text: SCORE },
+        ]),
+      );
+      expect(opened).toEqual({ xml: SCORE });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  /*
+   * Corrupt data must come back as the problem message, never as a throw —
+   * a throw is what the hang was made of. Unstubbed on purpose: on a modern
+   * engine the corrupt stream fails the `deflate-raw` path first, falls into
+   * the wrap, and the length check refuses what comes out.
+   */
+  it('refuses corrupt data with a message rather than an error', async () => {
+    const archive = new Uint8Array(await zip([{ name: 'score.musicxml', text: SCORE }]));
+    // The deflate stream starts after the 30-byte local header and the name;
+    // stamping zeros over its middle ruins it without touching the container.
+    const from = 30 + 'score.musicxml'.length + 8;
+    archive.fill(0, from, from + 8);
+    const opened = await openContainer(archive.buffer);
+    expect(opened).toEqual({ problem: 'the score inside this .mxl file could not be unpacked' });
   });
 });
