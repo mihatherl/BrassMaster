@@ -26,6 +26,7 @@ redesign, the same day's daylight). Earlier ones go back through
 | `../container-spike/FINDINGS.md` | Before any Phase 2/5 work |
 | `musicxml-import-plan.md` | Before importer work — updated tonight, including a corrected tooling claim |
 | `v2-design.md` | Never end to end. Grep it for the noun you are touching |
+| **`course-plan.md`** | Before any pedagogy work — drafted 2026-08-24, awaiting the player's ratification |
 | `difficulty-model-plan.md`, `app-store-plan.md`, `v3-library-plan.md`, `tempo-map-plan.md` | As their subjects come up |
 
 ## Where this stands
@@ -121,21 +122,33 @@ player's first move is the two-step below.
   the player's corrections (keys on the same sheet; grey the unfittable, one
   open at a time) reshaped it both times.
 
-## What is deliberately left open
+## The Play track sleeps — ruling of 2026-08-24
 
-- **The player's morning two-step**: upload the v2.47.0 AAB to the internal
-  track (shows as 247000), then reinstall on the E32 from the Play link —
-  Play will ask to remove the debug shell first. Then Pendennis from
-  OneDrive should import; if not, `device-testing.md` gets entry two.
-- **The keystore backup is not done and must be**: `upload.jks` plus the
-  passphrase (`~/keystores/brassmaster/passphrase.txt`), off this machine.
-  The plan says same-day; the day is over.
-- **The QC45 route test** — the one unverified piece of 4.2: calibrate the
-  headphones in the shell (name box should prefill "Bose QC45"), then
-  disconnect/reconnect and watch the gate's status line follow.
-- **Play console finish-setting-up tasks**: content rating, data safety
-  ("no data collected" — true), target audience 13+. These retire the
-  placeholder listing name.
+**4.2 was a proof of concept about the player, not about the app**: that he
+personally can enrol, sign, upload and install from the store with no blocker
+left standing. It is proved, so **the internal testing track is no longer kept
+current.** Do not build or upload an AAB, do not chase the version there, and
+do not treat the deployed v2.46.1 as stale — it is a snapshot of a question
+already answered. The morning two-step written here last night is cancelled;
+so are the console finish-setting-up tasks, which belong with the release they
+serve. Roadmap § 4.2 carries the same ruling.
+
+**Two carve-outs survive it**, because neither is deployment work:
+
+- **The keystore backup**, still not done: `upload.jks` plus the passphrase
+  (`~/keystores/brassmaster/passphrase.txt`), off this machine. Ten minutes
+  now against a support round-trip later — and *how bad* losing it would be
+  depends on whether Play App Signing is enabled on this app, which is the
+  default for new apps but has not been checked. A lost **upload** key under
+  Play App Signing is resettable; a lost **app signing** key without it ends
+  the app's update path for good. Worth confirming once, in the console,
+  rather than assuming either way.
+- **The QC45 route test**, ten minutes on the bench: calibrate the headphones
+  in the shell (the name box should prefill "Bose QC45"), then
+  disconnect/reconnect and watch the gate's status line follow. It is a
+  capability 4.2 built and nobody has watched work.
+
+## What is deliberately left open
 - **How a piece's stated tempo meets the dial** — seed it? scale mid-piece
   marks against it? The facts now exist (`Imported.tempos`); the ruling is
   the player's.
@@ -150,10 +163,40 @@ player's first move is the two-step below.
 
 ## What is next
 
-**The 4.2 tail** is verification, not construction: the morning two-step,
-the QC45 test, the console tasks. Then the roadmap's next build item is
-**6.2 — two-voice themes**, fully specified, needing the player's ear in the
-room. The generator sleeps; its next hour is annotation, not training.
+**Building, then deployment — settled 2026-08-24.** The store work is done
+being interesting. **v3.0 is teacher mode, the microphone with its calibration,
+and My Music** (roadmap § 4.3, corrected the same day to name teacher mode).
+My Music is done; the other two are not. **The tuner was ruled out of v3.0 the
+same day** — it was drafted in as a dependency of the microphone and is not
+one; what the microphone needs is § 2.4's recognition calibration, which is
+smaller and has a different purpose.
+
+1. **The pedagogy, and it is the bigger of the two.** Phase 1's *machinery* is
+   built — the skill model, the ladder, goals, sessions, the progress screen —
+   and what is missing is the teaching: **something simple to start on**. A
+   beginner who chooses Structured Learning today meets a parameter space, not
+   a first lesson. Expect it to take what the themes work took, and expect it
+   to be settled with the player rather than designed for him. The named
+   unfinished pieces are roadmap § 1.2's **mastery criterion** (thresholds are
+   still constants awaiting real practice data), § 1.3's **whose standard**
+   (own ladder first, grades calibrated onto it later), § 1.5's planned
+   multi-part session, and § 1.8's material to feed it.
+2. **The microphone, with its calibration (Phase 2, including new § 2.4).**
+   Proven in principle and not yet by use: it runs while the reference tone
+   plays, input latency is ~100–140 ms and stable, and the tone bleeds back
+   into the mic as a constant baseline the detector must expect. **The mic
+   reports the fingering a pitch implies, not the pitch** (`player-input.ts`),
+   which makes octave errors harmless — a harmonic shares its fingering — and
+   leaves pitch class as the only thing needing calibration. The calibration is
+   a scale the player plays once per instrument, skippable note by note, stored
+   in *sounding* pitch because `transposition` is per clef. **Rules before
+   judging anything: intonation error is not a reading error, and a cracked
+   note during calibration is discarded rather than learned.** Effort here is
+   genuinely unestimated — say so rather than guessing.
+
+**6.2 — two-voice themes** stays specified and waits. The generator sleeps; its
+next hour is annotation, not training, and `train/annotate_bars.py` is the tool
+for it (handover-ml § 16).
 
 ## How to work here
 
