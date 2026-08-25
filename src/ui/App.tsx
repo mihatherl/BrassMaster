@@ -6,10 +6,16 @@ import { defaultLengthFor, generateExercise, HORIZON_BARS } from '../exercise/ge
 import { canRekeyKind } from '../exercise/rekey';
 import { randomSeed } from '../exercise/rng';
 import type { Exercise } from '../exercise/types';
-import type { SessionSummary } from '../engine/judge';
+import { wasAttempted, type SessionSummary } from '../engine/judge';
 import { loadSettings, saveSettings, type Settings } from '../storage/settings';
 import { audioRouteCapability, outputForRoute, routeDeviceName } from '../platform/audio-route';
-import { loadStats, noteWeights, recordSession, type NoteStats } from '../storage/stats';
+import {
+  loadStats,
+  mergeSessionStats,
+  noteWeights,
+  saveStats,
+  type NoteStats,
+} from '../storage/stats';
 import { attributesFor } from '../exercise/attributes';
 import { recordSkills, tallySession } from '../storage/skills';
 import { OutputScreen } from './OutputScreen';
@@ -47,7 +53,17 @@ type Screen = 'progress' | 'settings' | 'play' | 'results' | 'import' | 'outputs
 interface Finished {
   summary: SessionSummary;
   exercise: Exercise;
+  /**
+   * The stats this run *would* leave behind — merged for the chart, not yet
+   * saved. Nothing is written until the player leaves the results screen; see
+   * `commit`.
+   */
   stats: NoteStats;
+  /** What the run was played at, captured here because the commit is late. */
+  runAt: { tempo: number; levelId?: string };
+  fromCourse: boolean;
+  /** False when nobody played: see `wasAttempted`. Such a run is never filed. */
+  attempted: boolean;
 }
 
 export function App() {
@@ -76,6 +92,16 @@ export function App() {
     tempo: chosen.tempo,
   });
   const [courseAccuracy, setCourseAccuracy] = useState<number | null>(null);
+  /**
+   * Whether the finished run should be filed when the player leaves.
+   *
+   * Starts true and the player may turn it off — "I wasn't really playing".
+   * A run that `wasAttempted` already rejected is never filed whatever this
+   * says, because there is nothing in it to file.
+   */
+  const [counted, setCounted] = useState(true);
+  /** The run already filed, by identity, so no exit can file one twice. */
+  const committedRef = useRef<Finished | null>(null);
 
   /**
    * The exercise the settings describe, from a seed — and optionally in a key
@@ -238,42 +264,94 @@ export function App() {
     };
   }, [updateSettings]);
 
+  /**
+   * Files the run, and is called on the way *out* of the results screen.
+   *
+   * **Why so late.** The player may disown a run — they stopped half way, they
+   * were showing someone the app, they played it through a speaker — and there
+   * is no way to take one back once it is filed: `mergeSessionStats` and
+   * `mergeSessionSkills` fold a run into a decayed aggregate, and no inverse
+   * exists. Recording and then undoing is unimplementable, so the run waits in
+   * `finished` and is committed once, when the player leaves.
+   *
+   * The cost is that a run dies if the app is killed on the results screen.
+   * That is the right side of the bargain and the same one this app keeps
+   * elsewhere: the screen going dark ends a run because *nothing is judged
+   * unseen*, and losing an occasional record is far cheaper than filing one
+   * that is not true.
+   */
+  const commit = useCallback((run: Finished) => {
+    const { summary, exercise: ex, stats, runAt: at, fromCourse: viaCourse } = run;
+    saveStats(ex.instrumentId, ex.clef, stats);
+    /*
+     * The same verdicts, tallied a second way: against what made each note
+     * hard rather than against which note it was. Nothing reads this yet —
+     * teacher mode will — but it is recorded from now so that a player who
+     * reaches that feature arrives with a history rather than starting blank.
+     *
+     * Recorded in every build, not only the paid one. It is a store, not the
+     * feature: what is sold is the coach that reads it, and keeping one code
+     * path here is worth more than withholding a few kilobytes of tally.
+     */
+    recordSkills(
+      ex.instrumentId,
+      ex.clef,
+      tallySession(attributesFor(ex, at.tempo), summary.judgements),
+    );
+    if (viaCourse) setCourseAccuracy(summary.accuracy);
+    /*
+     * The sitting's record, and the one place free play and the course meet.
+     *
+     * Every run is filed, not only a course's: a report that quietly omitted
+     * half of someone's practice would be worse than no report. Guarded by
+     * the literal so the whole store leaves the free build, which has nothing
+     * to read it with — checked by `npm run check:web`, not assumed.
+     */
+    if (__HAS_TEACHER__) {
+      recordRun(ex.instrumentId, ex.clef, {
+        at: Date.now(),
+        accuracy: summary.accuracy,
+        ...at,
+      });
+    }
+  }, []);
+
+  /**
+   * Leaves the results screen, filing the run unless it was disowned.
+   *
+   * `finished` is deliberately *not* cleared: `repeat` rebuilds from the
+   * exercise held there, and a results screen that erased its own subject on
+   * the way out would break the one button most likely to be pressed. The
+   * guard is identity instead — each finish makes a new object, and the ref
+   * remembers which one has already been filed, so no exit can file twice.
+   */
+  const leaveResults = useCallback(() => {
+    if (!finished || committedRef.current === finished) return;
+    committedRef.current = finished;
+    if (counted && finished.attempted) commit(finished);
+  }, [commit, counted, finished]);
+
   const onFinish = useCallback(
     (summary: SessionSummary) => {
       if (!exercise) return;
-      const stats = recordSession(exercise.instrumentId, exercise.clef, summary.byNote);
       /*
-       * The same verdicts, tallied a second way: against what made each note
-       * hard rather than against which note it was. Nothing reads this yet —
-       * teacher mode will — but it is recorded from now so that a player who
-       * reaches that feature arrives with a history rather than starting blank.
-       *
-       * Recorded in every build, not only the paid one. It is a store, not the
-       * feature: what is sold is the coach that reads it, and keeping one code
-       * path here is worth more than withholding a few kilobytes of tally.
+       * Merged for the weak-note chart, deliberately not saved: the chart shows
+       * what this run *would* leave behind, which is what it always showed, and
+       * `commit` writes exactly this map if the run is kept.
        */
-      recordSkills(
-        exercise.instrumentId,
-        exercise.clef,
-        tallySession(attributesFor(exercise, runAt.tempo), summary.judgements),
+      const stats = mergeSessionStats(
+        loadStats(exercise.instrumentId, exercise.clef),
+        summary.byNote,
       );
-      if (fromCourse) setCourseAccuracy(summary.accuracy);
-      /*
-       * The sitting's record, and the one place free play and the course meet.
-       *
-       * Every run is filed, not only a course's: a report that quietly omitted
-       * half of someone's practice would be worse than no report. Guarded by
-       * the literal so the whole store leaves the free build, which has nothing
-       * to read it with — checked by `npm run check:web`, not assumed.
-       */
-      if (__HAS_TEACHER__) {
-        recordRun(exercise.instrumentId, exercise.clef, {
-          at: Date.now(),
-          accuracy: summary.accuracy,
-          ...runAt,
-        });
-      }
-      setFinished({ summary, exercise, stats });
+      setFinished({
+        summary,
+        exercise,
+        stats,
+        runAt,
+        fromCourse,
+        attempted: wasAttempted(summary),
+      });
+      setCounted(true);
       setScreen('results');
     },
     [exercise, fromCourse, runAt],
@@ -409,9 +487,22 @@ export function App() {
           summary={finished.summary}
           exercise={finished.exercise}
           stats={finished.stats}
-          onRepeat={repeat}
-          onNext={startNew}
-          onSettings={() => setScreen('settings')}
+          attempted={finished.attempted}
+          counted={counted}
+          onCounted={setCounted}
+          /* Every way out files the run first; see `leaveResults`. */
+          onRepeat={() => {
+            leaveResults();
+            repeat();
+          }}
+          onNext={() => {
+            leaveResults();
+            startNew();
+          }}
+          onSettings={() => {
+            leaveResults();
+            setScreen('settings');
+          }}
         />
       );
     }
@@ -446,7 +537,10 @@ export function App() {
         }
       />
     );
-  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse, routeName]);
+    /* `counted` and `leaveResults` are not optional here: without them the
+       memo holds the closure from before the player ticked "don't count this",
+       and the tick is remembered by the state and ignored by the commit. */
+  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse, routeName, counted, leaveResults]);
 
   return <div className="app">{content}</div>;
 }

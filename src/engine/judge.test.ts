@@ -8,6 +8,7 @@ import {
   judgeNote,
   summarise,
   toleranceFor,
+  wasAttempted,
   windowJudgements,
   type NoteJudgement,
 } from './judge';
@@ -130,28 +131,59 @@ describe('judging', () => {
   /*
    * An open hand from a player who has not touched a valve is an instrument
    * on a lap. Until v2.21.0 a run played by nobody scored every open note
-   * correct — a quarter of an E flat bass part for doing nothing. The
-   * player's rule: an open note counts if some fingering was played on at
-   * least one of the two notes before it.
+   * correct — a quarter of an E flat bass part for doing nothing.
+   *
+   * The rule of 2026-08-16 asked for a press within the *two notes before*,
+   * and that window was widened to the whole run on 2026-08-24: a passage of
+   * open notes holds no evidence, so the last valved note fell out of range
+   * after exactly two of them and the rest of the phrase scored nothing. See
+   * `ValveInput.answers`.
    */
   describe('an open note asks for evidence the player is playing', () => {
     const open = noteExpecting([maskOf([])]);
     const judgeOpen = (activeSince: number | null) =>
       judgeNote(open, 0, 2.0, CROTCHET, input, 1, activeSince);
 
-    it('is missed for a player who has held nothing since the notes before', () => {
+    it('is missed for a player who has not touched a valve all run', () => {
       // Two notes back began at 1.0; nothing has been pressed at all.
       expect(judgeOpen(1.0).verdict).toBe('missed');
     });
 
-    it('is correct for a player who had a valve down within the two notes before', () => {
+    it('is correct once a valve has been pressed anywhere earlier in the run', () => {
       now = 1.2;
       input.keyDown(1);
       now = 1.4;
       input.keyUp(1);
       expect(judgeOpen(1.0).verdict).toBe('correct');
-      // But not one whose last press was before the window looked at.
-      expect(judgeOpen(1.5).verdict).toBe('missed');
+      /*
+       * And still correct when that press is older than the two notes being
+       * looked back over. This assertion read `missed` until 2026-08-24 and
+       * is the ruling that changed: the press is evidence that the player is
+       * here, and a phrase of open notes cannot renew it.
+       */
+      expect(judgeOpen(1.5).verdict).toBe('correct');
+    });
+
+    /*
+     * The reported bug, from Jingle Bells: a valved note, then a string of
+     * open ones. It scored `correct, correct, missed, missed, …` because the
+     * evidence aged out after precisely two notes.
+     */
+    it('holds through a long phrase of open notes after one valved note', () => {
+      now = 0.1;
+      input.keyDown(1);
+      now = 0.4;
+      input.keyUp(1);
+      const verdicts = [];
+      for (let i = 1; i <= 6; i++) {
+        const onset = 1 + i * CROTCHET;
+        now = onset + CROTCHET;
+        // The two notes before this one, neither of which has a valve in it.
+        verdicts.push(
+          judgeNote(open, 0, onset, CROTCHET, input, 1, onset - 2 * CROTCHET).verdict,
+        );
+      }
+      expect(verdicts).toEqual(['correct', 'correct', 'correct', 'correct', 'correct', 'correct']);
     });
 
     it('accepts an alternate fingering with a valve in it without asking', () => {
@@ -436,5 +468,45 @@ describe('the scoring window', () => {
     expect(inWindow).toHaveLength(16);
     expect(inWindow[0].noteIndex).toBe(4);
     expect(inWindow[inWindow.length - 1].noteIndex).toBe(19);
+  });
+});
+
+describe('whether anybody played at all', () => {
+  const verdicts = (list: Array<'correct' | 'wrong' | 'missed'>) =>
+    summarise(
+      list.map((_, i) => noteExpecting([0b011], i)),
+      list.map((verdict, noteIndex) => ({
+        noteIndex,
+        verdict,
+        heldMask: verdict === 'missed' ? 0 : 0b011,
+        timingOffset: verdict === 'correct' ? 0 : null,
+      })),
+    );
+
+  /*
+   * The bug this exists for, and it is worth stating as a test rather than as
+   * a comment: a piece loaded and left to scroll produces a full set of
+   * verdicts, every one of them `missed`, and every store in the app used to
+   * believe it.
+   */
+  it('says no when every note went by untouched', () => {
+    expect(wasAttempted(verdicts(['missed', 'missed', 'missed', 'missed']))).toBe(false);
+  });
+
+  it('says yes on one wrong note, because a wrong answer is still an answer', () => {
+    expect(wasAttempted(verdicts(['missed', 'missed', 'wrong', 'missed']))).toBe(true);
+  });
+
+  it('says yes on one right note, however badly the rest went', () => {
+    expect(wasAttempted(verdicts(['correct', 'missed', 'missed', 'missed']))).toBe(true);
+  });
+
+  /* A run that stops half way is an attempt. Disowning it is the player's. */
+  it('says yes to a run abandoned part way through', () => {
+    expect(wasAttempted(verdicts(['correct', 'correct', 'missed', 'missed']))).toBe(true);
+  });
+
+  it('says no when there was nothing to judge', () => {
+    expect(wasAttempted(verdicts([]))).toBe(false);
   });
 });

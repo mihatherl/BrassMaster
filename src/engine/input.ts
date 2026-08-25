@@ -179,15 +179,35 @@ export class ValveInput implements PlayerInput {
    * accepted only from a player who is engaged: it is what an instrument on
    * its owner's lap produces too, and until v2.21.0 a run played by nobody
    * scored every open note correct, which on an E flat bass part was a quarter
-   * of the score for doing nothing. The player's rule, on 2026-08-16: an open
-   * note counts if some fingering was played on at least one of the two notes
-   * before it.
+   * of the score for doing nothing.
+   *
+   * **The window is the run, and it used to be two notes.** The player's rule
+   * of 2026-08-16 read *an open note counts if some fingering was played on at
+   * least one of the two notes before it*, and `activeSince` walks back exactly
+   * two playable notes to find it. That fails on a passage of open notes, which
+   * contains no evidence to find: the last valved note stays in range for
+   * precisely two open notes and then falls out, so a tune sitting on the
+   * harmonic series scored *correct, correct, and then nothing at all*.
+   * Reported from Jingle Bells and reproduced, 2026-08-24.
+   *
+   * The intent survives and only the window changes: a player who has pressed
+   * any valve this run has shown they are here, and an instrument on a lap
+   * never presses one, so it still scores nothing. What the two-note window
+   * bought — catching a run played by nobody — is now held more securely a
+   * level up: `wasAttempted` in `judge.ts` refuses to file such a run at all,
+   * which no per-note rule could do.
+   *
+   * **Still unfixed, deliberately**: a tune with no valved note *anywhere*
+   * never gathers evidence, so only its first note can count. The exception
+   * that would fix it — where the exercise offers no evidence, do not judge —
+   * hands an unattended instrument full marks on exactly those tunes, so it
+   * waits for a real tune to run into the problem.
    *
    * **A rule about buttons, and it lives with them for that reason.** With
    * buttons, an open note and an abandoned instrument are the same input, so
-   * the evidence has to be borrowed from the notes either side. A microphone
-   * hears the difference and will want nothing of the kind — which is why the
-   * judge no longer knows this rule exists.
+   * the evidence has to be borrowed. A microphone hears the difference and will
+   * want nothing of the kind — which is why the judge no longer knows this rule
+   * exists.
    */
   answers(state: InputState, note: NoteEvent, engagedSince: number | null, asOf: number): boolean {
     if (!note.acceptedMasks.includes(state.mask)) return false;
@@ -195,16 +215,25 @@ export class ValveInput implements PlayerInput {
   }
 
   /**
-   * Whether the player has had a valve down at any instant since `since`.
+   * Whether this player has shown, at any point in the run so far, that they
+   * are here — which is the evidence that an open hand is an open note rather
+   * than an instrument on a lap.
    *
-   * The evidence that an open hand is a player playing an open note rather than
-   * an instrument on a lap. `null` is no earlier note to look back over — the
-   * first note of a run — and is read as engaged: there is no evidence either
-   * way, and a player opening on an open note has, rightly, pressed nothing.
+   * A `ValveInput` is built fresh for each run, so its own history *is* the
+   * run's, and one press anywhere in it settles the question.
+   *
+   * `since` is now read only for whether an earlier note exists at all: `null`
+   * is the first note of a run, and is engaged because there is no evidence
+   * either way and a player opening on an open note has, rightly, pressed
+   * nothing.
+   *
+   * Bounded by `until` rather than taken as "ever", so a verdict does not
+   * depend on when it happened to be computed. Evidence from after the note's
+   * window closed is not evidence about the note.
    */
   private engaged(since: number | null, until: number): boolean {
     if (since === null) return true;
-    return this.statesDuring(since, until).some((state) => state.playing);
+    return this.history.some((change) => change.mask !== 0 && change.time <= until);
   }
 
   /**

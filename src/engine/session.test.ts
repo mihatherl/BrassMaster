@@ -38,7 +38,7 @@ const context = {
   get destination() {
     return {} as AudioNode;
   },
-  createGain: () => ({ gain: { value: 0 }, connect: () => {} }),
+  createGain: () => ({ gain: { value: 0, setTargetAtTime: () => {} }, connect: () => {} }),
 } as unknown as AudioContext;
 
 const voice: Voice = {
@@ -1347,7 +1347,15 @@ describe('a run played by nobody', () => {
     ]);
   });
 
-  it('scores the open notes within two of a valve the player did press', () => {
+  /*
+   * Widened 2026-08-24, and this test is where the old rule was written down.
+   * It used to expect `correct, correct, missed` from beat 3 on: the press
+   * stayed inside the two-note look-back for exactly two notes and then aged
+   * out. A phrase of open notes — Jingle Bells on the harmonic series — has
+   * no way to renew that evidence, so the rest of the phrase scored nothing.
+   * One press now stands for the whole run. See `ValveInput.answers`.
+   */
+  it('scores every open note after a valve the player did press', () => {
     const s = openSession();
     s.start();
     // Through the first two notes idle; a valve down during the third, released.
@@ -1358,12 +1366,10 @@ describe('a run played by nobody', () => {
       vi.advanceTimersByTime(25);
     }
     s.stop();
-    // The notes at beats 3 and 4 look back two notes — to beats 1 and 2 —
-    // and find the press; the note at beat 5 looks back to beat 3, and does
-    // not.
     const verdicts = s.judgements.map((j) => j.verdict);
-    expect(verdicts.slice(3, 5)).toEqual(['correct', 'correct']);
-    expect(verdicts[5]).toBe('missed');
+    expect(verdicts.slice(3)).toEqual(['correct', 'correct', 'correct']);
+    // And the run played by nobody at all is untouched: still one and no more.
+    expect(verdicts[1]).toBe('missed');
   });
 
   it('drops the tone to half while the fingers do not answer, and back when they do', () => {

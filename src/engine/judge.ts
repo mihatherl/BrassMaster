@@ -177,6 +177,33 @@ export function windowJudgements(
   return judgements.filter((j) => barAt(metres, notes[j.noteIndex].startBeat) >= fromBar);
 }
 
+/**
+ * Whether anybody actually played this run.
+ *
+ * Loading a piece and letting it scroll past produces a full set of verdicts,
+ * every one of them `missed`, and until 2026-08-24 all of it was recorded: an
+ * accuracy of nought, an attempt against every note, an attempt against every
+ * skill label, and — because `noteWeights` boosts a poorly-played note by up
+ * to four times and *"favour notes I get wrong"* ships default-on — a bias in
+ * the next several sessions toward notes the player never tried. **One
+ * listen-through taught the app that the player could not play any of those
+ * notes.**
+ *
+ * The distinction it needs already exists, and `judge` drew it deliberately:
+ * a wrong answer is `wrong` because holding a wrong fingering takes intent,
+ * while doing nothing at all is `missed`, "an absent answer, not a wrong one".
+ * So a run in which *every* verdict is `missed` is a run nobody attempted.
+ * No threshold, no heuristic, and no way for it to catch a genuinely bad
+ * attempt: one note played — right or wrong — makes this true.
+ *
+ * A run that stops half way is therefore an attempt, and correctly so. That
+ * case is the player's own to disown, on the results screen, which is the
+ * other half of the ruling in `docs/course-plan.md`.
+ */
+export function wasAttempted(summary: SessionSummary): boolean {
+  return summary.total > 0 && summary.missed < summary.total;
+}
+
 export interface SessionSummary {
   total: number;
   correct: number;

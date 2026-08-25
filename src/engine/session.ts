@@ -71,6 +71,11 @@ export interface SessionOptions {
   countInBars: number;
   metronomeEnabled: boolean;
   /**
+   * The click's level, 0 to 1; 1 is what it has always been. Absent means 1,
+   * so every caller that predates the setting still sounds as it did.
+   */
+  metronomeVolume?: number;
+  /**
    * Asked of each bar's metre when the metronome is off: does the beat still
    * need sounding here?
    *
@@ -342,6 +347,10 @@ export class Session {
     });
     this.synth = options.brassVoice ?? new BrassSynth(context);
     this.metronome = new Metronome(context);
+    // Set unconditionally rather than only when it differs: `setVolume(1)`
+    // reproduces the constructor's own level exactly, so there is no path
+    // where this changes what an unset session sounds like.
+    this.metronome.setVolume(options.metronomeVolume ?? 1);
     // A count-in of whole bars, so it must be measured in the crotchets a bar
     // actually holds rather than in the numerator on the stave.
     this.countInBeats = countInBars * opening.barBeats;

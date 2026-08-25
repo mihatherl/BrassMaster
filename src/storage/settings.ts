@@ -22,6 +22,7 @@ import type { FingeringMode } from '../exercise/hints';
 import type { ExerciseKind } from '../exercise/types';
 import { DRILLS, type DrillId, type PatternRegister } from '../exercise/generate';
 import { DEFAULT_CUSHION } from '../audio/following-voice';
+import { METRONOME_VOLUME_RANGE } from '../audio/metronome';
 
 // Re-exported from the domain, where the tempo plan clamps against the same
 // figures; the settings screen was this range's first customer, not its owner.
@@ -29,6 +30,8 @@ export { TEMPO_RANGE };
 // The same arrangement for the conductor's style: `render/conductor.ts` decides
 // what the number means, and this is where it gets stored.
 export { CONDUCTOR_STYLE_RANGE };
+// And again for the click's level: `audio/metronome.ts` owns what 1 means.
+export { METRONOME_VOLUME_RANGE };
 
 /** One step of a defined run: a tune, in the key it will be played in. */
 export interface ThemeStep {
@@ -175,6 +178,15 @@ export interface Settings {
   beatUnit: number;
   countInBars: number;
   metronomeEnabled: boolean;
+  /**
+   * How loud the click is, 0 to 1, where 1 is the level it has always been.
+   *
+   * Its own control rather than a balance against the voice, because the two
+   * are heard in different rooms: the click competes with a real instrument
+   * and the synth voice does not compete with anything. See
+   * `METRONOME_VOLUME_RANGE`.
+   */
+  metronomeVolume: number;
   /**
    * Whether the conductor beats the metre beside the notation.
    *
@@ -481,6 +493,8 @@ export const DEFAULT_SETTINGS: Settings = {
   beatUnit: 4,
   countInBars: 1,
   metronomeEnabled: true,
+  // 1 is what every session before this setting existed sounded like.
+  metronomeVolume: 1,
   conductorEnabled: false,
   // What the spike's slider calls "lively", which is where the fixed value sat
   // for as long as there was one: clearly beaten, without being a march.
@@ -781,6 +795,22 @@ export function sanitise(settings: Settings): Settings {
       settings.conductorStyle,
       CONDUCTOR_STYLE_RANGE.min,
       CONDUCTOR_STYLE_RANGE.max,
+    ),
+    /*
+     * Not `clamp` alone, and the difference is the point: `clamp` answers a
+     * non-finite value with its *minimum*, which is right for a cushion or a
+     * conductor's style and wrong here, because the minimum is silence. A
+     * corrupt stored value would then present as a broken metronome — the one
+     * failure a player cannot distinguish from the feature not working. A
+     * value nobody can read falls back to the default instead, which is loud
+     * and therefore obvious.
+     */
+    metronomeVolume: clamp(
+      Number.isFinite(settings.metronomeVolume)
+        ? settings.metronomeVolume
+        : DEFAULT_SETTINGS.metronomeVolume,
+      METRONOME_VOLUME_RANGE.min,
+      METRONOME_VOLUME_RANGE.max,
     ),
     ...sanitiseOutputs(settings),
     cushionLevel: clamp(settings.cushionLevel, CUSHION_RANGE.min, CUSHION_RANGE.max),

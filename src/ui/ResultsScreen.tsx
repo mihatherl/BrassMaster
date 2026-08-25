@@ -21,6 +21,11 @@ interface ResultsScreenProps {
   summary: SessionSummary;
   exercise: Exercise;
   stats: NoteStats;
+  /** False when nobody played at all; such a run is never filed. */
+  attempted: boolean;
+  /** Whether an attempted run will be filed when the player leaves. */
+  counted: boolean;
+  onCounted: (counted: boolean) => void;
   onRepeat: () => void;
   onNext: () => void;
   onSettings: () => void;
@@ -30,6 +35,9 @@ export function ResultsScreen({
   summary,
   exercise,
   stats,
+  attempted,
+  counted,
+  onCounted,
   onRepeat,
   onNext,
   onSettings,
@@ -156,6 +164,32 @@ export function ResultsScreen({
         {summary.averageOffset > 0 && (
           <p className="field__note muted">
             Average {Math.round(summary.averageOffset * 1000)} ms late on the notes you got right.
+          </p>
+        )}
+
+        {/*
+          Whether this run counts, said on the screen that shows the score.
+
+          Two cases, and only one of them is a choice. A run nobody played is
+          not filed and is not offered as a decision — there is nothing in it
+          to keep, and asking would imply otherwise. A run that *was* played is
+          filed by default and the player may disown it, which is the half of
+          the ruling automation must not guess at: stopping half way, showing
+          someone the app, and playing badly are identical to arithmetic.
+          `docs/course-plan.md`, § The scores are not yet honest.
+        */}
+        {attempted ? (
+          <label className="field field--inline">
+            <input
+              type="checkbox"
+              checked={!counted}
+              onChange={(event) => onCounted(!event.target.checked)}
+            />
+            <span>Don&rsquo;t count this run — I wasn&rsquo;t really playing</span>
+          </label>
+        ) : (
+          <p className="field__note muted">
+            Nothing was played, so this run is not counted towards your progress.
           </p>
         )}
       </section>

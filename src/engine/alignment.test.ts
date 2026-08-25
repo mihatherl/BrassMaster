@@ -42,7 +42,7 @@ const context = {
   get destination() {
     return {} as AudioNode;
   },
-  createGain: () => ({ gain: { value: 0 }, connect: () => {} }),
+  createGain: () => ({ gain: { value: 0, setTargetAtTime: () => {} }, connect: () => {} }),
 } as unknown as AudioContext;
 
 const voice: Voice = {
@@ -259,7 +259,7 @@ describe('the output latency report', () => {
       get destination() {
         return {} as AudioNode;
       },
-      createGain: () => ({ gain: { value: 0 }, connect: () => {} }),
+      createGain: () => ({ gain: { value: 0, setTargetAtTime: () => {} }, connect: () => {} }),
       outputLatency,
     } as unknown as AudioContext;
     const exercise = themesRun({ collectionIds: [], difficultyId: 'easy', metre: [4, 4] });

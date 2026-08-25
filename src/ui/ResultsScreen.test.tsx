@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 
 import { metreFor } from '../domain/metre';
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { instrumentById } from '../domain/instruments';
 import { difficultyById } from '../exercise/difficulty';
 import { generateExercise } from '../exercise/generate';
@@ -38,12 +38,19 @@ function summaryFor(pattern: Verdict[], upTo = exercise.notes.length) {
 
 const noop = () => undefined;
 
-function renderResults(summary: ReturnType<typeof summaryFor>, stats: NoteStats = new Map()) {
+function renderResults(
+  summary: ReturnType<typeof summaryFor>,
+  stats: NoteStats = new Map(),
+  extra: Partial<{ attempted: boolean; counted: boolean; onCounted: (v: boolean) => void }> = {},
+) {
   render(
     <ResultsScreen
       summary={summary}
       exercise={exercise}
       stats={stats}
+      attempted={extra.attempted ?? true}
+      counted={extra.counted ?? true}
+      onCounted={extra.onCounted ?? noop}
       onRepeat={noop}
       onNext={noop}
       onSettings={noop}
@@ -85,6 +92,30 @@ describe('the results screen', () => {
     // The old list rendered one item per note; the chart is a single canvas.
     expect(document.querySelectorAll('.review canvas')).toHaveLength(2);
     expect(screen.queryByText(/^[A-G][#b♯♭]?\d$/)).toBeNull();
+  });
+
+  /*
+   * The two faces of the honesty ruling. A run nobody played is stated as not
+   * counting and offers no choice about it — there is nothing in it to keep,
+   * and a checkbox would imply there was. A run that *was* played is filed by
+   * default and can be disowned, because stopping half way, demonstrating the
+   * app and playing badly are indistinguishable to arithmetic.
+   */
+  it('says a run nobody played is not counted, and offers no choice about it', () => {
+    renderResults(summaryFor(['missed', 'missed']), new Map(), { attempted: false });
+
+    expect(screen.getByText(/not counted towards your progress/i)).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('lets a played run be disowned, and counts it until it is', () => {
+    const onCounted = vi.fn();
+    renderResults(summaryFor(['correct', 'wrong']), new Map(), { onCounted });
+
+    const box = screen.getByRole('checkbox');
+    expect((box as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(box);
+    expect(onCounted).toHaveBeenCalledWith(false);
   });
 
   it('copes with a run that stopped part-way', () => {

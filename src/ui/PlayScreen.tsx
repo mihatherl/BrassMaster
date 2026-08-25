@@ -308,6 +308,7 @@ export function PlayScreen({
       tempo: settings.tempo,
       countInBars: settings.countInBars,
       metronomeEnabled: settings.metronomeEnabled,
+      metronomeVolume: settings.metronomeVolume,
       /*
        * Where the conductor has no pattern for a metre it draws nothing, and
        * the comment on `patternFor` has always said the metronome carries on.

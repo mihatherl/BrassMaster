@@ -20,6 +20,7 @@
 
 import { type ReactNode } from 'react';
 import { metreFor } from '../domain/metre';
+import { previewClick } from '../audio/metronome';
 import { styleName } from '../render/conductor';
 import { toleranceFor } from '../engine/judge';
 import { REACTIVE_SOUND_MAX_LEAD } from '../engine/session';
@@ -29,6 +30,7 @@ import {
   CONDUCTOR_STYLE_RANGE,
   CUSHION_RANGE,
   FINGERING_MODES,
+  METRONOME_VOLUME_RANGE,
   PLAYBACK_MODES,
   READING_MODES,
   SCROLL_SPEED_RANGE,
@@ -159,6 +161,39 @@ export function ReadyControls({ settings, onChange, onOutputs }: ReadyControlsPr
             <span>Conductor</span>
           </label>
         </div>
+
+        {/*
+         * Under the switch that turns it on, and hidden with it: a level for a
+         * click nobody is hearing is a control with nothing to do. Same shape
+         * as the conductor's style slider directly below, for the same reason.
+         */}
+        {settings.metronomeEnabled && (
+          <label className="field">
+            <span className="field__label">
+              Metronome volume <strong>{Math.round(settings.metronomeVolume * 100)}%</strong>
+            </span>
+            <input
+              type="range"
+              min={METRONOME_VOLUME_RANGE.min}
+              max={METRONOME_VOLUME_RANGE.max}
+              step={0.05}
+              value={settings.metronomeVolume}
+              onChange={(event) => {
+                const volume = Number(event.target.value);
+                update('metronomeVolume', volume);
+                /* Heard as it is chosen. The metronome otherwise only sounds
+                   during a run, which made this the one setting a player could
+                   not judge without starting one. Throttled inside. */
+                previewClick(volume);
+              }}
+            />
+            <p className="field__note muted">
+              You will hear it as you move it. The click is pitched to carry over an
+              instrument in the room — turn it down when you are reading against the
+              app's own voice.
+            </p>
+          </label>
+        )}
       </Section>
 
       <Section

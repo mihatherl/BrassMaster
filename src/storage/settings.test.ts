@@ -451,6 +451,34 @@ describe('a key and a difficulty per material', () => {
   });
 });
 
+describe('the metronome volume', () => {
+  it('is the level it always was by default, and is held between silent and that', () => {
+    expect(DEFAULT_SETTINGS.metronomeVolume).toBe(1);
+    expect(sanitise({ ...DEFAULT_SETTINGS, metronomeVolume: 3 }).metronomeVolume).toBe(1);
+    expect(sanitise({ ...DEFAULT_SETTINGS, metronomeVolume: -1 }).metronomeVolume).toBe(0);
+    expect(sanitise({ ...DEFAULT_SETTINGS, metronomeVolume: 0.4 }).metronomeVolume).toBe(0.4);
+  });
+
+  /*
+   * The one that matters, and the reason this does not simply use `clamp`.
+   * Every other clamped setting answers an unreadable value with its minimum;
+   * here the minimum is silence, and a player cannot tell a silent metronome
+   * from a broken one. A corrupt value must come back loud.
+   */
+  it('comes back loud from a value nobody can read, never silent', () => {
+    expect(sanitise({ ...DEFAULT_SETTINGS, metronomeVolume: Number.NaN }).metronomeVolume).toBe(1);
+    expect(
+      sanitise({ ...DEFAULT_SETTINGS, metronomeVolume: undefined as unknown as number })
+        .metronomeVolume,
+    ).toBe(1);
+  });
+
+  it('is full for a settings file that predates it', () => {
+    store({ tempo: 90 });
+    expect(loadSettings().metronomeVolume).toBe(1);
+  });
+});
+
 describe('the cushion', () => {
   it('sits at half the instrument by default, and is held between silent and as loud', () => {
     expect(DEFAULT_SETTINGS.cushionLevel).toBe(0.5);
