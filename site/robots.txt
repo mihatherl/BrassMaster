@@ -1,0 +1,8 @@
+# Everything is public and crawlable except the throwaway diagnostic pages,
+# which are not part of the product and are only published because they sit
+# alongside it. See tools/check-web-bundle.mjs, NOT_THE_APP.
+User-agent: *
+Allow: /
+Disallow: /app/spike/
+
+Sitemap: https://brassmaster.net/sitemap.xml

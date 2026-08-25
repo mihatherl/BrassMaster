@@ -76,6 +76,16 @@ if (channel === 'dev') console.log(`building the DEV copy: "${names.name}"`);
 const repository = process.env.GITHUB_REPOSITORY?.split('/')[1];
 const base = process.env.VITE_BASE ?? (repository ? `/${repository}/` : '/');
 
+/**
+ * Where the build lands, which is no longer the same for both targets.
+ *
+ * The web build goes to `dist/app` and is served from `/app/`, because the
+ * root now holds a landing page — see `tools/site.mjs` for why the app moved.
+ * The paid build keeps `dist`, which is Capacitor's `webDir` and the tailnet
+ * copy's home, so the Android flow and `npm run preview` are untouched.
+ */
+const outDir = process.env.VITE_OUT_DIR ?? 'dist';
+
 export default defineConfig({
   base,
   define: {
@@ -97,6 +107,7 @@ export default defineConfig({
     __HAS_MICROPHONE__: JSON.stringify(target === 'app'),
     __HAS_TEACHER__: JSON.stringify(target === 'app'),
   },
+  build: { outDir },
   server: { allowedHosts: [TAILNET] },
   preview: { allowedHosts: [TAILNET] },
   plugins: [

@@ -861,6 +861,55 @@ sounded voice is bound by neither compass nor fingering — nobody plays it — 
 a piece can be readable in one direction and not the other. Half a duet is
 better than none, and it must say which half it is offering.
 
+### Phase 7 — Being found (free, and it gates everything paid)
+
+**Added 2026-08-25, on the player's ask**, and the roadmap had nothing about
+distribution at all until now — a real gap for a document whose § 1 says
+revenue is a goal.
+
+**Read the Search Console numbers correctly first.** Zero clicks and zero
+impressions looks like a verdict and is not one: the property was verified on
+2026-08-23 for the Play developer account's website step, so the "3 months"
+view holds two days. Nothing can be concluded from it, and nothing should be
+optimised on the strength of it.
+
+**What was actually wrong was that there was nothing to find.** A crawler got
+`<div id="root"></div>`, an empty body, no `robots.txt` and no `sitemap.xml`;
+the only words on the site were the title and one meta description. Even
+indexed perfectly it could rank for "Brass Master" and nothing else — and
+nobody types that. Learners type *tuba fingering chart*, *euphonium fingering
+practice*, *brass sight reading app*, *how to read bass clef*.
+
+**7.1 A front door** — ~~to build~~ **built 2026-08-25.** The app moved to
+`/app/` and a landing page took the root, with `robots.txt`, a sitemap, and a
+self-destroying service worker at the old scope. `tools/site.mjs` assembles it
+and explains why. Affordable only because there were no installed copies to
+orphan; it would not be affordable a second time.
+
+**7.2 The words, and they are not marketing words.** The page has to contain
+the sentences a learner would type, because that is the only way it can be
+matched to them. This is a content job and it is the player's: he is the brass
+player, and copy claiming things the app does not do would be worse than no
+copy. Nothing on that page may promise a feature that is not shipped.
+
+**7.3 The free channels, which are warmer than any advertisement.** The band
+already plays the legacy app — real brass players with a reason to move. Brass
+teachers, band associations, the brass corners of Reddit and Facebook. None of
+this costs anything, and all of it reaches people who already know they want
+this.
+
+**7.4 Paid advertising, last, and only against something.** Google's starter
+credits are spend-matched — the $600 is unlocked by spending $600 — so it is
+real money, and today it would buy clicks to a free app that earns nothing,
+with no figure to measure the spend against. **Ads make sense once the paid
+Android app is on sale and a click has a value.** Doing it in the other order
+buys traffic for the worst version of the product.
+
+**7.5 The Play listing is a discovery surface too**, and it is not ready to be
+one: internal track, placeholder name, and the content rating, data safety and
+target-audience tasks outstanding (§ 4.2). The landing page will link to it
+when there is something to link to, and not before.
+
 
 ## 5. Releases, and where things run
 

@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:web": "VITE_TARGET=web npm run build",
+    "build:web": "node tools/site.mjs clear && VITE_TARGET=web VITE_BASE=/app/ VITE_OUT_DIR=dist/app npm run build && node tools/site.mjs assemble",
     "build:app": "VITE_TARGET=app npm run build",
     "build:dev": "VITE_CHANNEL=dev npm run build:app",
-    "check:web": "node tools/check-web-bundle.mjs",
+    "check:web": "node tools/check-web-bundle.mjs dist/app",
     "check:channel": "node tools/check-channel.mjs",
     "lint": "oxlint",
     "preview": "vite preview",

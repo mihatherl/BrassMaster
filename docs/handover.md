@@ -31,12 +31,22 @@ redesign, the same day's daylight). Earlier ones go back through
 
 ## Where this stands
 
-**v2.47.0, pushed, tagged, deployed and green** — 1,366 tests across 68
+**v2.48.0, pushed, tagged, deployed and green** — 1,377 tests across 68
 files. The gate before any push is `npm test && npm run build && npm run
 lint`, plus `npm run check:web` and `npm run check:channel` when anything
 touches the build split. **After any gate run, rebuild the tailnet copy:
 `npm run build:dev`** — every plain build overwrites `dist/` with the wrong
 flavour, and this has now bitten three sessions.
+
+**The site has two halves since 2026-08-25**: a landing page at `/` and the app
+at `/app/`. Only the *web* build moved — it clears `dist/`, writes the app to
+`dist/app` with `VITE_BASE=/app/`, then copies `site/` over the root
+(`tools/site.mjs`, which explains why). The app build still writes `dist/`, so
+Capacitor's `webDir`, `npm run build:dev` and the tailnet preview on 4173 are
+all untouched. Two things to know: **`site/CNAME` is the custom domain** and
+the assemble step fails the build if it is missing, and `site/sw.js` is a
+tombstone that unregisters the service worker every earlier visitor still has
+at `/` — leave it there.
 
 **Brass Master is on Google Play.** Internal testing track, app id
 `net.brassmaster.app`, created tonight as **Paid** (the one-way door is

@@ -1,7 +1,7 @@
 # Builds the app and publishes it to GitHub Pages at brassmaster.net.
 #
 # VITE_BASE=/ because a custom domain serves from the root (see vite.config.ts).
-# The domain itself is public/CNAME plus the Pages custom-domain setting.
+# The domain itself is site/CNAME plus the Pages custom-domain setting.
 name: Deploy
 
 on:
@@ -54,7 +54,12 @@ jobs:
       # quietly deploy the paid app to the free site.
       - run: npm run build:app
 
-      - run: VITE_BASE=/ npm run build:web
+      # The web build now clears dist/, writes the app to dist/app/ with a base
+      # of /app/, and copies the landing page over the root — all inside the
+      # script, so nothing here needs to know the layout. The clear is what
+      # keeps the hazard above from getting worse: the paid build's dist/ is
+      # removed before the site is assembled, so it cannot be published.
+      - run: npm run build:web
 
       # The free build must not *contain* the paid features, which is the whole
       # point of drawing the line at build time. Nothing on screen would show
