@@ -290,6 +290,21 @@ disagree. Two consequences worth recording now:
   an imported part is invisible. If feel ever ships, the marking becomes worth
   keeping.
 
+**How feel would be taught, and where it may not apply** (the player's
+question, 2026-08-26, second pass). Taught the way rhythm is, one layer up:
+the same printed bar, the voice counting it straight and then swung, the
+notation held still so the learner sees that nothing on the page moved — and
+in course terms feel is an **axis**, straight to swung, moved only after the
+straight version is mastered. Applicability is mechanical, not curated: **a
+feel applies to a pattern iff the transform moves at least one of its
+onsets**, plus a metre gate — swing displaces offbeat quavers, so an
+on-the-beat pattern is invariant under it, and compound time already contains
+the lilt (a shuffle is close to a straight pattern performed as written in
+12/8), so swing declares itself for simple metres and the picker simply does
+not offer it where it would change nothing. One honest limit: feel is timing
+plus weight, and the buttons judge only timing — accent and note length are
+inaudible to a valve press, so that half of feel waits for the microphone.
+
 ## Open, and named so they are not forgotten
 
 - **The clip recordings**: who records them is settled (the player); when is
