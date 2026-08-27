@@ -48,6 +48,17 @@ const ImportScreen = __HAS_MY_MUSIC__
   ? lazy(() => import('./ImportScreen').then((m) => ({ default: m.ImportScreen })))
   : null;
 
+/**
+ * The course's play-screen presence, absent from the free build the same way:
+ * it imports the course rules and the fingerprinted store, so it is reached
+ * only through this dynamic import behind the literal, and Rollup drops it —
+ * and everything only it reaches — from the web bundle. `npm run check:web`
+ * proves that on every deploy; see `CoursePlayControls` for what it does.
+ */
+const CoursePlayControls = __HAS_TEACHER__
+  ? lazy(() => import('./CoursePlayControls').then((m) => ({ default: m.CoursePlayControls })))
+  : null;
+
 
 type Screen = 'progress' | 'settings' | 'play' | 'results' | 'import' | 'outputs';
 
@@ -93,6 +104,12 @@ export function App() {
     tempo: chosen.tempo,
   });
   const [courseAccuracy, setCourseAccuracy] = useState<number | null>(null);
+  /**
+   * The run the course prescribed, kept only for what the play screen needs
+   * to know in plain words: which gate options the course pinned. Plain data,
+   * like everything of the course's that `App` may hold.
+   */
+  const [courseRun, setCourseRun] = useState<CourseRun | null>(null);
   /**
    * Whether the finished run should be filed when the player leaves.
    *
@@ -175,6 +192,7 @@ export function App() {
   );
 
   const startNew = useCallback(() => {
+    setCourseRun(null);
     setFromCourse(false);
     setRunAt({ tempo: chosen.tempo });
     setExercise(build(randomSeed()));
@@ -191,6 +209,7 @@ export function App() {
   const startCourse = useCallback(
     (run: CourseRun) => {
       const { tempo, levelId, fifths, ...base } = run;
+      setCourseRun(run);
       setFromCourse(true);
       setRunAt({ tempo, levelId });
       /*
@@ -408,6 +427,30 @@ export function App() {
           /* "Accept current offset": the output in use is settled at the lead
              it already has, which counts as having been measured and stops the
              warning returning. See `AudioOutput.calibrations`. */
+          /* The course on the play surface: injected behind the literal so
+             the free build carries none of it, replacing the tempo dial —
+             the course owns the tempo, it is the axis. */
+          courseControls={
+            __HAS_TEACHER__ && fromCourse && CoursePlayControls
+              ? (state) => (
+                  <Suspense fallback={null}>
+                    <CoursePlayControls
+                      instrumentId={chosen.instrumentId}
+                      clef={chosen.clef}
+                      {...state}
+                      onRun={startCourse}
+                    />
+                  </Suspense>
+                )
+              : undefined
+          }
+          coursePinned={
+            fromCourse && courseRun
+              ? (['metronomeEnabled', 'conductorEnabled'] as const).filter(
+                  (key) => courseRun[key] !== undefined,
+                )
+              : undefined
+          }
           onAcceptOutput={() =>
             updateSettings({
               ...chosen,
@@ -556,7 +599,7 @@ export function App() {
     /* `counted` and `leaveResults` are not optional here: without them the
        memo holds the closure from before the player ticked "don't count this",
        and the tick is remembered by the state and ignored by the commit. */
-  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse, routeName, counted, leaveResults]);
+  }, [screen, exercise, finished, chosen, onFinish, repeat, startNew, updateSettings, playImported, build, buildFrom, startCourse, courseAccuracy, fromCourse, courseRun, routeName, counted, leaveResults]);
 
   return <div className="app">{content}</div>;
 }

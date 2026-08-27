@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advanceFor,
   COURSES,
+  DEFAULT_ADVANCE,
+  pinnedFor,
+  prescribedRun,
   courseById,
   courseLength,
   DEFAULT_MASTERY,
@@ -282,6 +286,47 @@ describe('the suggestion, which moves nobody', () => {
       ],
     });
     expect(masteryOf(perLevel.levels[0], perLevel).promoteAbove).toBe(0.7);
+  });
+});
+
+describe('the author rule and the pins', () => {
+  it('resolves the progression rule level over course over default', () => {
+    const custom = { afterBars: 12, windowBars: 6, accuracyAbove: 0.9 };
+    const course = read({ advance: custom });
+    expect(advanceFor(startOf(course), course)).toEqual(custom);
+    expect(advanceFor(startOf(read()))).toEqual(DEFAULT_ADVANCE);
+  });
+
+  it('ignores a malformed rule rather than refusing the course, like the bar', () => {
+    const course = read({ advance: { afterBars: -3, windowBars: 'four' } });
+    expect(advanceFor(startOf(course), course)).toEqual(DEFAULT_ADVANCE);
+  });
+
+  it('reads pins and resolves them level over course', () => {
+    const course = read({
+      pinned: { metronomeEnabled: true },
+      levels: [
+        {
+          ...(doc().levels as Record<string, unknown>[])[0],
+          pinned: { conductorEnabled: false },
+        },
+      ],
+    });
+    expect(pinnedFor(startOf(course), course)).toEqual({ conductorEnabled: false });
+  });
+
+  it('prescribes a run from a position: the base, the tempo, the pins', () => {
+    const course = read({ pinned: { metronomeEnabled: true } });
+    const run = prescribedRun(startOf(course), course);
+    expect(run).toEqual({
+      kind: 'drills',
+      drillId: 'major-scale',
+      difficultyId: 'easy',
+      fifths: -1,
+      tempo: 60,
+      levelId: 'one',
+      metronomeEnabled: true,
+    });
   });
 });
 

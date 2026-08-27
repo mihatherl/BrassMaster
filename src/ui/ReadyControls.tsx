@@ -46,6 +46,13 @@ interface ReadyControlsProps {
   onChange: (settings: Settings) => void;
   /** The outputs room; absent hides the doors to it. */
   onOutputs?: () => void;
+  /**
+   * Settings keys a course has pinned for this run (2026-08-27). Pinned
+   * controls show disabled rather than hidden — a player who cannot find the
+   * switch thinks the app is broken; one who sees it locked knows the course
+   * chose — and the note beside them says who did the choosing.
+   */
+  pinned?: readonly string[];
 }
 
 /**
@@ -69,9 +76,10 @@ function Section({ title, values, children }: { title: string; values: string; c
   );
 }
 
-export function ReadyControls({ settings, onChange, onOutputs }: ReadyControlsProps) {
+export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyControlsProps) {
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...settings, [key]: value });
+  const isPinned = (key: keyof Settings) => pinned?.includes(key) ?? false;
 
   const metre = metreFor(settings.beatsPerBar, settings.beatUnit);
   const output = settings.audioOutputs.find((o) => o.id === settings.audioOutputId);
@@ -148,6 +156,7 @@ export function ReadyControls({ settings, onChange, onOutputs }: ReadyControlsPr
             <input
               type="checkbox"
               checked={settings.metronomeEnabled}
+              disabled={isPinned('metronomeEnabled')}
               onChange={(event) => update('metronomeEnabled', event.target.checked)}
             />
             <span>Metronome</span>
@@ -156,11 +165,15 @@ export function ReadyControls({ settings, onChange, onOutputs }: ReadyControlsPr
             <input
               type="checkbox"
               checked={settings.conductorEnabled}
+              disabled={isPinned('conductorEnabled')}
               onChange={(event) => update('conductorEnabled', event.target.checked)}
             />
             <span>Conductor</span>
           </label>
         </div>
+        {(isPinned('metronomeEnabled') || isPinned('conductorEnabled')) && (
+          <p className="field__note muted">Set by the course for this level.</p>
+        )}
 
         {/*
          * Under the switch that turns it on, and hidden with it: a level for a

@@ -325,7 +325,52 @@ notes, change the id*, because a review verdict is recorded against an id. A
 course that travels between people makes that rule load-bearing rather than
 tidy.
 
-## When the machine widens — settled at ratification: it never moves you
+## The play-screen loop — revised 2026-08-27, after playing phase 2 — **and built the same day**
+
+Built: `ui/CoursePlayControls.tsx` (paid, reached through a dynamic import
+behind the literal, like `ImportScreen`), the `advance` and `pinned` document
+fields, the pause-countdown-resume gap on the session's own pause machinery,
+and the tempo dial stepping aside. The veto is module-scope — passages rebuild
+the component, storage would make it permanent, and the ruling says it is
+neither. The whole-window rule and the never-moves rule are mutation-tested.
+Verified on glass: 1.1 on the play surface, Forward mid-play lands on 1.2 with
+a fresh count-in. Pins currently cover metronome and conductor — the first
+increment of "all of the gate's options"; the reader ignores pins it does not
+yet honour, so documents may already carry more.
+
+The built screen taught what no draft could: **going home to step is a
+navigation tax on the thing a course does most often.** The player's verdict,
+and the model that replaces the ratified one below it:
+
+- **Stepping lives on the play screen.** Forward and back are always there
+  during a course run; a press restarts immediately at the new step, with a
+  bar's count-in. The partial passage is discarded, not filed — the same
+  contract as the key dial's mid-run rebuild, and the store stays clean.
+- **The machine may move the player again — but only after announcing it.**
+  The author configures the rule: after **X bars played** and **Y% over the
+  last Z bars** (the window `SCORE_WINDOW_BARS` machinery already computes),
+  the music pauses at a bar end and a banner counts down — "Moving to 1.4 in
+  3…2…1" — beside a **Stay here** button. The countdown lives in a gap the
+  app makes, because a player mid-phrase has both hands on the valves; a veto
+  nobody can reach is not a veto.
+- **Stay here is transient.** It disarms auto-progression at that step for
+  the sitting, and nothing more — "it isn't expensive for the user to reset
+  it." Arriving at any step, by any means, re-arms the rule.
+- **The tempo dial leaves the play screen for course runs** — the course owns
+  the tempo, it is the axis. This supersedes the designed-but-unwired
+  "one-run tempo override at the gate" (roadmap § 1): the ever-present back
+  button does that job in the course's own terms.
+- **The author may pin the Ready gate's options** — metronome, conductor,
+  playback, reading mode — per course or per level. Pinned controls show
+  disabled rather than hidden: a player who cannot find the switch thinks the
+  app is broken; one who sees it locked knows the course chose. This is the
+  same mechanism `rhythm-plan.md`'s progression stages need (voice on, then
+  off), and there is deliberately one of it.
+
+The home screen's course panel keeps the suggestion bar as a between-sittings
+summary; the countdown is its in-play voice.
+
+## When the machine widens — the ratified model this revises (kept for the reasoning)
 
 **Ruled 2026-08-26, and it is stronger than the draft's "suggestion, not a
 gate": the machine never moves the player at all.** Position in a course is a

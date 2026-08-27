@@ -15,7 +15,7 @@
  * actually reaches for mid-practice.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ensureRunning, getAudioContext, markStuck, unlockAudio } from '../audio/context';
 import { FollowingVoice } from '../audio/following-voice';
 import { Sampler, type Voice } from '../audio/sampler';
@@ -97,6 +97,23 @@ interface PlayScreenProps {
    * screen holds a copy of the settings and does not own them.
    */
   onAcceptOutput?: () => void;
+  /**
+   * The course's presence on this screen (2026-08-27), injected rather than
+   * imported: the course rules and store are paid and fingerprinted, this
+   * screen is in both builds, so `App` hands in an element made behind the
+   * `__HAS_TEACHER__` literal and this screen knows only plain data — the
+   * accuracy of each completed bar, whether the music is running, and a way
+   * to hold and resume it for the countdown's gap. Present also means the
+   * tempo dial steps aside: the course owns the tempo, it is the axis.
+   */
+  courseControls?: (state: {
+    barAccuracies: readonly number[];
+    playing: boolean;
+    hold: () => void;
+    resume: () => void;
+  }) => ReactNode;
+  /** Gate options the course pinned, shown disabled there. */
+  coursePinned?: readonly string[];
 }
 
 export function PlayScreen({
@@ -110,6 +127,8 @@ export function PlayScreen({
   onKeySettled,
   onOutputs,
   onAcceptOutput,
+  courseControls,
+  coursePinned,
 }: PlayScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
@@ -129,6 +148,41 @@ export function PlayScreen({
   const headsRef = useRef<number[]>([]);
 
   const [started, setStarted] = useState(false);
+  /**
+   * Accuracy per *completed* bar of this passage, for the course's rule. A
+   * bar is complete once a later bar has been judged — the playhead is past
+   * it — and its accuracy counts judged notes only, which is the same honesty
+   * the totals keep. Recomputed from the verdicts on every judgement, and
+   * cheap at exercise scale.
+   */
+  const [barAccuracies, setBarAccuracies] = useState<readonly number[]>([]);
+  /*
+   * Both reached from inside the session effect through refs, deliberately:
+   * `courseControls` is a render prop whose identity changes with every App
+   * render, and putting it in that effect's dependencies would tear the
+   * session down mid-run for a re-render that changed nothing audible.
+   */
+  const courseControlsRef = useRef(courseControls);
+  courseControlsRef.current = courseControls;
+  const reportBars = () => {
+    const { notes, metres } = exercise;
+    let inFlight = -1;
+    verdictsRef.current.forEach((verdict, index) => {
+      if (verdict !== undefined) inFlight = Math.max(inFlight, barAt(metres, notes[index].startBeat));
+    });
+    const totals: Array<{ total: number; correct: number } | undefined> = [];
+    verdictsRef.current.forEach((verdict, index) => {
+      if (verdict === undefined) return;
+      const bar = barAt(metres, notes[index].startBeat);
+      if (bar >= inFlight) return; // the bar under the playhead is not evidence yet
+      const entry = (totals[bar] ??= { total: 0, correct: 0 });
+      entry.total++;
+      if (verdict === 'correct') entry.correct++;
+    });
+    setBarAccuracies(totals.filter((t) => t !== undefined).map((t) => t!.correct / t!.total));
+  };
+  const reportBarsRef = useRef(reportBars);
+  reportBarsRef.current = reportBars;
   /** Why the gate is being shown again; see the visibility effect below. */
   const [lockStopped, setLockStopped] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -248,6 +302,7 @@ export function PlayScreen({
     setPaused(false);
     setCommittedBeats(exercise.chosenBeats);
     verdictsRef.current = new Array(exercise.notes.length).fill(undefined);
+    setBarAccuracies([]);
     /*
      * Which note actually sounds each written one, so the renderer can look a
      * verdict up through a tie. Walked once rather than on every note of every
@@ -338,6 +393,7 @@ export function PlayScreen({
       onJudgement: (judgement: NoteJudgement) => {
         verdictsRef.current[judgement.noteIndex] = judgement.verdict;
         report();
+        if (courseControlsRef.current) reportBarsRef.current();
 
         /*
          * Every verdict, not only the bad ones: a mistake is answered on the
@@ -705,7 +761,12 @@ export function PlayScreen({
           {/* How this run will go, editable at the door — see ReadyControls
               for the admission rule that keeps this face short. */}
           {onSettings && (
-            <ReadyControls settings={settings} onChange={onSettings} onOutputs={onOutputs} />
+            <ReadyControls
+              settings={settings}
+              onChange={onSettings}
+              onOutputs={onOutputs}
+              pinned={coursePinned}
+            />
           )}
           <button
             type="button"
@@ -887,6 +948,26 @@ export function PlayScreen({
       </div>
 
       <div className="play-aside">
+        {courseControls ? (
+          courseControls({
+            barAccuracies,
+            playing: started && !paused,
+            hold: () => {
+              const session = sessionRef.current;
+              if (session && !session.isPaused) {
+                session.pause();
+                setPaused(true);
+              }
+            },
+            resume: () => {
+              const session = sessionRef.current;
+              if (session && session.isPaused) {
+                session.resume();
+                setPaused(false);
+              }
+            },
+          })
+        ) : (
         <TempoDial
           tempo={tempo}
           /* The metre in force, not the settings' and not the opening one: the
@@ -902,6 +983,7 @@ export function PlayScreen({
             hintsRef.current?.retime();
           }}
         />
+        )}
         {/* Only where the music can be rewritten: not for an imported part,
             which has no generator behind it, and not on the free tier, which is
             entitled to one key. */}

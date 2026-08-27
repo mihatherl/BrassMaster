@@ -22,4 +22,11 @@ export interface CourseRun {
   register?: PatternRegister;
   tempo: number;
   levelId: string;
+  /**
+   * Options the course pins for this run (2026-08-27). Present means the
+   * author chose; absent leaves the player's own setting alone. `App` spreads
+   * them over the settings like the rest, and the gate shows them disabled.
+   */
+  metronomeEnabled?: boolean;
+  conductorEnabled?: boolean;
 }

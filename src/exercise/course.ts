@@ -110,6 +110,43 @@ export const DEFAULT_MASTERY: Mastery = {
   runsToJudge: 2,
 };
 
+/**
+ * The author's progression rule, revised into the play screen 2026-08-27:
+ * after `afterBars` bars played at a step, with accuracy at or above
+ * `accuracyAbove` over the last `windowBars` of them, the music pauses and a
+ * countdown offers the next step — beside a Stay here button, because the
+ * machine announces and the player disposes. The window is the same idea the
+ * results screen's headline already computes.
+ */
+export interface Advance {
+  afterBars: number;
+  windowBars: number;
+  accuracyAbove: number;
+}
+
+/**
+ * Provisional like the mastery bar, and under the same law: measured, not
+ * argued about, and not tuned before a real course has been played through.
+ */
+export const DEFAULT_ADVANCE: Advance = {
+  afterBars: 8,
+  windowBars: 4,
+  accuracyAbove: 0.85,
+};
+
+/**
+ * Ready-gate options the author pins for a run, shown disabled at the gate
+ * rather than hidden — a player who cannot find the switch thinks the app is
+ * broken; one who sees it locked knows the course chose. The two booleans are
+ * the first increment of the ratified "all of the gate's options, configurably"
+ * — the reader ignores pins it does not yet honour, so a document written for
+ * a later version degrades rather than dies.
+ */
+export interface Pinned {
+  metronomeEnabled?: boolean;
+  conductorEnabled?: boolean;
+}
+
 export interface CourseLevel {
   id: string;
   /** What the player is told they are on: "F major, the shape". */
@@ -120,6 +157,10 @@ export interface CourseLevel {
   tempo: TempoBand;
   /** Overrides the course's bar for this level alone. */
   mastery?: Mastery;
+  /** Overrides the course's progression rule for this level alone. */
+  advance?: Advance;
+  /** Overrides the course's pins for this level alone. */
+  pinned?: Pinned;
 }
 
 export interface Course {
@@ -136,6 +177,10 @@ export interface Course {
   levels: readonly CourseLevel[];
   /** The bar for every level that does not set its own. */
   mastery?: Mastery;
+  /** The progression rule for every level that does not set its own. */
+  advance?: Advance;
+  /** The pins for every level that does not set its own. */
+  pinned?: Pinned;
 }
 
 /**
@@ -156,6 +201,36 @@ export interface Position {
 const KINDS: readonly LevelKind[] = ['drills', 'phrases', 'themes'];
 const DIFFICULTY_IDS = new Set(DIFFICULTIES.map((d) => d.id));
 const DRILL_IDS = new Set<string>(DRILLS.map((d) => d.id));
+
+function readAdvance(value: unknown): Advance | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { afterBars, windowBars, accuracyAbove } = value as Record<string, unknown>;
+  if (
+    typeof afterBars !== 'number' ||
+    typeof windowBars !== 'number' ||
+    typeof accuracyAbove !== 'number' ||
+    !(afterBars >= 1) ||
+    !(windowBars >= 1) ||
+    !(accuracyAbove > 0 && accuracyAbove <= 1)
+  ) {
+    return undefined;
+  }
+  return {
+    afterBars: Math.round(afterBars),
+    windowBars: Math.round(windowBars),
+    accuracyAbove,
+  };
+}
+
+function readPinned(value: unknown): Pinned | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { metronomeEnabled, conductorEnabled } = value as Record<string, unknown>;
+  const pinned: Pinned = {
+    ...(typeof metronomeEnabled === 'boolean' ? { metronomeEnabled } : {}),
+    ...(typeof conductorEnabled === 'boolean' ? { conductorEnabled } : {}),
+  };
+  return Object.keys(pinned).length ? pinned : undefined;
+}
 
 function readMastery(value: unknown): Mastery | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
@@ -257,6 +332,8 @@ export function readCourse(raw: unknown): Course | { error: string } {
       },
       tempo: band,
       ...(readMastery(level.mastery) ? { mastery: readMastery(level.mastery)! } : {}),
+      ...(readAdvance(level.advance) ? { advance: readAdvance(level.advance)! } : {}),
+      ...(readPinned(level.pinned) ? { pinned: readPinned(level.pinned)! } : {}),
     });
   }
 
@@ -267,6 +344,8 @@ export function readCourse(raw: unknown): Course | { error: string } {
     schemaVersion,
     levels: read,
     ...(readMastery(doc.mastery) ? { mastery: readMastery(doc.mastery)! } : {}),
+    ...(readAdvance(doc.advance) ? { advance: readAdvance(doc.advance)! } : {}),
+    ...(readPinned(doc.pinned) ? { pinned: readPinned(doc.pinned)! } : {}),
   };
 }
 
@@ -409,6 +488,46 @@ export function masteryOf(level: CourseLevel, course: Course): Mastery {
 
 export function masteryFor(position: Position): Mastery {
   return masteryOf(levelOf(position), courseById(position.courseId));
+}
+
+/*
+ * Each resolver takes the course as an optional second argument — the lookup
+ * half kept separate from the rule, as the ladder's masteryOf/masteryFor
+ * split was, so the rules can be tested against courses that are not in the
+ * registry.
+ */
+
+function levelIn(course: Course, levelId: string): CourseLevel {
+  return course.levels.find((level) => level.id === levelId) ?? course.levels[0];
+}
+
+/** The progression rule in force at a position, resolved like the bar is. */
+export function advanceFor(position: Position, course = courseById(position.courseId)): Advance {
+  return levelIn(course, position.levelId).advance ?? course.advance ?? DEFAULT_ADVANCE;
+}
+
+/** The pins in force at a position: the level's, else the course's, else none. */
+export function pinnedFor(position: Position, course = courseById(position.courseId)): Pinned {
+  return levelIn(course, position.levelId).pinned ?? course.pinned ?? {};
+}
+
+/**
+ * The run a position prescribes, in the plain settings words that cross the
+ * seam into `App` (structurally `CourseRun` — see `ui/course-run.ts`, which
+ * deliberately imports nothing from here). The level's base, the position's
+ * tempo, and the pins resolved.
+ */
+export function prescribedRun(position: Position, course = courseById(position.courseId)) {
+  const level = levelIn(course, position.levelId);
+  const band = level.tempo;
+  const steps = Math.round((position.tempo - band.floor) / band.step);
+  const tempo = Math.min(band.ceiling, Math.max(band.floor, band.floor + steps * band.step));
+  return {
+    ...level.base,
+    tempo,
+    levelId: level.id,
+    ...pinnedFor(position, course),
+  };
 }
 
 /**
