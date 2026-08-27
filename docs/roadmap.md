@@ -67,7 +67,7 @@ gap is Phase 1, and it is the largest thing on this roadmap.**
 |---|---|---|
 | Generated material | everything: all keys, difficulties, materials, endless play, paged and scrolling reading, weak-note drilling | the same |
 | The band around you | metronome, conductor, tempo dial, key dial, reference tone | the same |
-| Teaching you | — | **Teacher mode**: goals, guided sessions, a progression that remembers between sittings, and reporting |
+| Teaching you | one or two bundled taster courses (decided 2026-08-26 — a first-steps course and a late-beginner course, to whet the appetite) | **Teacher mode**: goals, guided sessions, a progression that remembers between sittings, reporting, and the course builder |
 | Input | the on-screen valves | **the microphone** — you play, it listens |
 | Intonation | — | **the tuner**, which knows which slide to move |
 | Your own music | — | **My Music**: MusicXML import at all, and everything built on it |
@@ -421,12 +421,10 @@ as the app losing material.
   middle is a cracked note or a lapse, not a hole in someone's compass.
 - **Per instrument, per player, in sounding pitch** — the same storage rules as
   the profile it comes from.
-- **Open: whether a course may overrule it.** Free play is settled — the range
-  applies. But a level's author chose their material, and a level that
-  deliberately stretches a player is a legitimate thing to write. Placement
-  respecting the range (a tune an octave lower is still the tune) is probably
-  right; silently refusing a level's material is probably not. Not decided
-  here; see `course-plan.md`.
+- **Ruled 2026-08-26: a course overrides the range.** The app says plainly
+  that the course exceeds what was measured, and the player judges — proceed,
+  or work on the range first. Free play keeps respecting it. The full ruling
+  is in `course-plan.md`.
 
 **This whole phase is buildable without a Mac**, which matters given the
 hardware is deferred. The seam (`PlayerInput`) is cut, the detector is
@@ -935,7 +933,7 @@ Phases 2 to 6 are entirely paid.
 | Roadmap item | Free web app | Paid app |
 |---|---|---|
 | 1.1 skill model | recorded, invisible | recorded, and read by everything below |
-| 1.2–1.7 teacher mode | — | ✓ |
+| 1.2–1.7 teacher mode | taster courses only (2026-08-26) | ✓ |
 | 1.8 theme corpus | ✓ | ✓ |
 | 1.9 reading fixes | ✓ | ✓ |
 | 1.10 divisi | ✓ | ✓ |

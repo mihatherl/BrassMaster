@@ -1,6 +1,8 @@
 # Courses — authored levels, automated variation, honest scores
 
-Drafted 2026-08-24 from the player's design input, **not yet ratified**.
+Drafted 2026-08-24 from the player's design input; **ratified 2026-08-26**,
+with every open question answered — the answers are folded in below, each
+dated.
 Revised the same day, after he corrected the first draft: *"surely there needs
 to be something within a level"*. It answers the gap named that morning —
 Phase 1's machinery is built and the pedagogy is not, because a beginner who
@@ -115,6 +117,12 @@ declares which are in play. The machine holds all but one and moves that one.
                  adding G–B, then any degree of the scale
     direction    ascending only, then ascending and descending
     length       4 bars, then 8, then 16
+    cells        an ordered list of the course's own cells — Cell A, then B,
+                 then C — for a flourish an author teaches that no interval
+                 setting can describe (ruled 2026-08-26)
+    rhythm       an ordered list of named rhythm patterns, the same notes
+                 walked through progressively harder rhythms — the seam to
+                 `rhythm-plan.md`'s pattern library (ruled 2026-08-26)
 
 **Tempo moves first, and the widening axes after it**, which is the order
 `ladder.ts` already argues: get it fluent at speed before making the notes
@@ -181,6 +189,16 @@ built-in scales and arpeggios, they write it themselves and **import it into
 the course as MusicXML**. The app gains no drill editor and no second pattern
 language: it already has a parser, and notation software is better at writing
 notation than anything that could be built here.
+
+**And imported material declares what it is: a theme or a cell** (ruled
+2026-08-26). A *theme* is played as written — the literal drill. A *cell* is
+one bar handed to the composer's vocabulary: the author writes it in notation
+software in some key, declares that key on import, and the app converts the
+concrete pitches to diatonic steps from an anchor — after which it is
+key-independent like every built-in cell, placeable anywhere, and usable as a
+`cells` axis. The conversion is mechanical (pitch minus key, expressed in
+scale steps); what it cannot survive is chromaticism outside the declared
+key, which the import should refuse loudly rather than approximate.
 
 **That material belongs to the course, not to My Music.** The two stores stay
 separate, and the reasons are worth writing down before someone economises them
@@ -307,22 +325,28 @@ notes, change the id*, because a review verdict is recorded against an id. A
 course that travels between people makes that rule load-bearing rather than
 tidy.
 
-## When the machine widens — the criterion that came back
+## When the machine widens — settled at ratification: it never moves you
 
-Roadmap § 1.2 left this open because the thresholds want real practice data,
-and it is still open. What can be said now:
+**Ruled 2026-08-26, and it is stronger than the draft's "suggestion, not a
+gate": the machine never moves the player at all.** Position in a course is a
+decimal — level 3, step 2, shown as **3.2** — with **forward and back buttons
+that are the player's**, in both directions. Narrowing is allowed for the
+same reason everything else is: "we're leaving it up to the player to decide
+on where they want to be." The widening rule becomes a **suggestion bar** —
+the machine's opinion of readiness, visible beside the controls, moving
+nothing.
 
-- **It is a suggestion the player can overrule, not a gate.** Nothing locks.
-  Consistent with the ruling that the player decides.
-- **Something of the form "accuracy at or above X% across N runs at this
-  point"**, chosen so a bad day does not send anyone backwards and a lucky run
-  does not push them on.
-- **The author may override it per level**, which is the cheap synthesis: a
-  default that works, and an author who knows this level is unusually hard can
-  say so. `Level.mastery` already exists in `ladder.ts` for exactly this.
-- **It must degrade honestly when there is no data.** A player two runs into a
-  level has not proved anything either way, and the correct behaviour is to
-  stay put and say nothing.
+This resolves the draft's worry about oscillation by dissolving it: a player
+who steps back has decided to, which is the system working. What remains of
+the old criterion:
+
+- **The suggestion is of the form "accuracy at or above X% across N runs at
+  this step"**, chosen so a bad day does not suggest retreat and a lucky run
+  does not urge haste.
+- **The author may override it per level.** `Level.mastery` already exists in
+  `ladder.ts` for exactly this.
+- **It must degrade honestly when there is no data**: two runs in, the bar
+  shows nothing rather than a guess.
 
 **Do not tune the numbers before there is practice data.** They are constants
 with a named home, and the first real course played through by a real player is
@@ -451,33 +475,38 @@ Phase 2 is the one that puts a first lesson in front of a beginner. It is also
 the one that will teach us whether the widening rule feels right, which is why
 it deliberately ships with one axis rather than four.
 
-## Open, and named so they are not forgotten
+## Ratified 2026-08-26 — the open questions, answered
 
-- **Whether a course may overrule the player's measured range.** Roadmap § 2.5
-  gives the app a range for the *person* rather than the instrument, applied at
-  `writtenRange` so it reaches every placement decision. Free play is settled:
-  it applies. A course is not, because a level's author chose their material
-  and stretching a player is a legitimate thing to write. Re-placing a tune an
-  octave lower is probably right; silently refusing a level's material is
-  probably not. **Whichever way it goes, the player must be able to see that it
-  happened** — this is a place the app could quietly hand someone a different
-  exercise from the one the author wrote.
-- **What a level may say about an imported piece** — the whole thing every
-  time, or bars *x* to *y*? A four-bar interval study is a different object
-  from a two-page study whose second line is this week's work, and only the
-  second needs a range.
-- **What "done" means for a level.** Reaching the top of every axis? The player
-  ticking it? The ruling says the player decides, so the lightest answer is
-  probably a tick, with the axes exhausted as the app's hint that it is time.
-- **Whether a level may narrow again** after a bad run, or only ever widen.
-  Narrowing is kinder and risks a player oscillating; only widening is simpler
-  and risks stranding someone. Suggest only-widening first, and watch.
-- **Forward compatibility**, if courses are shared: a `schemaVersion` and
-  reading that ignores unknown fields rather than refusing the file. Cheap now,
-  impossible to retrofit once files are in the wild.
-- **Whether the free build ever sees a course.** Teacher mode is paid, so no —
-  but the free app is where most first impressions happen, and that is a
-  product question rather than a technical one.
-- **Nothing ships unheard.** A bundled course is musical material, so the
-  standing rule applies: the player plays each course through before it ships,
-  which is satisfied by construction if he authors them.
+- **A course overrides the measured range.** If a player cannot reach a
+  course's material, that is theirs to see and judge — "proceed with it, or
+  work on their range first". The app's duty is honesty, not protection: say
+  plainly that the course exceeds the measured range, and change nothing.
+  Free play keeps respecting the range (roadmap § 2.5).
+- **Bar spans stand as drafted**: a course may nominate bars *x* to *y* of an
+  imported piece.
+- **"Done" for a level is the player stepping past it** — the same call they
+  make for every increment within it. No tick, no gate, no ceremony.
+- **Narrowing is allowed** — folded into the stepping ruling above.
+- **`schemaVersion` confirmed**: forward-tolerant reading, unknown fields
+  ignored, cheap now and impossible to retrofit.
+- **The free build gets a taste.** The course *builder* and import ship only
+  in the paid app — but **one or two authored courses ship in the free app**:
+  one for a child just starting, one for a late-stage beginner "like myself",
+  to whet the appetite for the rest. Part of the free app's job is to feed
+  the paid one. **Consequences for phase 2, named now**: course *playback*
+  crosses the build line while authoring stays paid, so the flag cannot be
+  `__HAS_TEACHER__` alone — the split needs its own flag and a decision
+  about position storage, because `check:web` currently fails the free build
+  on the `brass-trainer:ladder:` and `brass-trainer:sessions:` keys. The
+  tripwires move deliberately or the feature cannot ship; they must not be
+  loosened in passing. Roadmap § 3's table is updated to match.
+- **Nothing ships unheard** — confirmed; satisfied by construction while the
+  player authors the bundled courses, including the free ones.
+
+## Still open, and honestly so
+
+- **The suggestion bar's thresholds** — constants with a named home, tuned
+  only after a real course has been played through.
+- **Cell import's chromatic edge** — what exactly the importer refuses, and
+  with what message, when a would-be cell steps outside its declared key.
+- **The free-build flag split** — ruled above, designed in phase 2.

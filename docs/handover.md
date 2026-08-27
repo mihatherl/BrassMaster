@@ -26,7 +26,7 @@ redesign, the same day's daylight). Earlier ones go back through
 | `../container-spike/FINDINGS.md` | Before any Phase 2/5 work |
 | `musicxml-import-plan.md` | Before importer work — updated tonight, including a corrected tooling claim |
 | `v2-design.md` | Never end to end. Grep it for the noun you are touching |
-| **`course-plan.md`** | Before any pedagogy work — drafted 2026-08-24, awaiting the player's ratification |
+| **`course-plan.md`** | Before any pedagogy work — **ratified 2026-08-26**, every open question answered |
 | `difficulty-model-plan.md`, `app-store-plan.md`, `v3-library-plan.md`, `tempo-map-plan.md`, `rhythm-plan.md` | As their subjects come up |
 
 ## Where this stands
