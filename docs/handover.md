@@ -27,7 +27,7 @@ redesign, the same day's daylight). Earlier ones go back through
 | `musicxml-import-plan.md` | Before importer work — updated tonight, including a corrected tooling claim |
 | `v2-design.md` | Never end to end. Grep it for the noun you are touching |
 | **`course-plan.md`** | Before any pedagogy work — drafted 2026-08-24, awaiting the player's ratification |
-| `difficulty-model-plan.md`, `app-store-plan.md`, `v3-library-plan.md`, `tempo-map-plan.md` | As their subjects come up |
+| `difficulty-model-plan.md`, `app-store-plan.md`, `v3-library-plan.md`, `tempo-map-plan.md`, `rhythm-plan.md` | As their subjects come up |
 
 ## Where this stands
 

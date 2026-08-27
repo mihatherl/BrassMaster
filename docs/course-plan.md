@@ -73,7 +73,13 @@ the machine widen this level" — and it is still open. See below.
     Level
       id, name                 what the player is told they are on
       note?                    the author's words: why this level, what to watch
-      base                     the run, fully specified — the fields below
+      base                     the run, fully specified — the fields below.
+                               **A discriminated shape per material, with key,
+                               key set, register and range OPTIONAL** — ruled
+                               2026-08-26, because rhythm drills
+                               (`rhythm-plan.md`) are a material with none of
+                               them, and a shared document format cannot be
+                               retrofitted once files exist
       axes[]                   what the machine may vary while the player is here
       advance?                 when it widens; the author may override the default
 

@@ -245,6 +245,18 @@ strip, stop it sticking once the content overflows, or make the screen a grid
 with the list and the strip as separate rows. `npm run shots -- --viewport
 phone-small` now photographs it, which is how it was found.
 
+**1.9b Rhythm drills — designed, deliberately unscheduled.** The player's
+concept of 2026-08-26, worked through as design-before-build:
+**`rhythm-plan.md`** is the record. In one line: a paid material that teaches
+the fall of notes as a thing of its own — a counting voice ("1-e-and-a",
+recorded clips scheduled like metronome clicks, never runtime speech
+synthesis) demonstrates a named pattern over the beat, then the player plays
+it on two alternating notes, the scaffold withdrawing in stages. Raised now
+for its architectural demands, which are settled and small: unjudged spans
+already exist (`acceptedMasks: []`), the skill store already labels `rhythm:`
+and `beat:`, and the one binding constraint — course levels whose material
+carries no key — is pinned in `course-plan.md` phase 2. **Not in v3.0.**
+
 **1.10 Divisi — two noteheads, all the way through.** ~~To build~~ — **built
 2026-08-22, v2.29.0–v2.30.0.** A note may carry a second head, either
 fingering is accepted, and placement needs only one of the two inside the
