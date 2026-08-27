@@ -107,7 +107,21 @@ export default defineConfig({
     __HAS_MICROPHONE__: JSON.stringify(target === 'app'),
     __HAS_TEACHER__: JSON.stringify(target === 'app'),
   },
-  build: { outDir },
+  build: {
+    outDir,
+    /*
+     * The course editor is a second page, in the paid build only: it is built
+     * from the course modules, which the free bundle must not contain, and it
+     * is desktop-shaped besides. The tailnet copy serves it at /editor.html;
+     * Phase 5's phone server will serve the same page. Conditional at the
+     * entry so the web build simply has no such file — absence, not
+     * unreachability, which is the whole build-split doctrine.
+     */
+    rollupOptions:
+      target === 'app'
+        ? { input: { main: 'index.html', editor: 'editor.html' } }
+        : undefined,
+  },
   server: { allowedHosts: [TAILNET] },
   preview: { allowedHosts: [TAILNET] },
   plugins: [
@@ -150,8 +164,11 @@ export default defineConfig({
          * caught by the navigation fallback, which would serve the app shell in
          * its place.
          */
-        globIgnores: ['spike/**'],
-        navigateFallbackDenylist: [/\/spike\//],
+        // The editor joins the spike pages outside the PWA: it is part of
+        // the product but not of the phone app, and precaching a desktop
+        // page onto every handset would be weight without a reader.
+        globIgnores: ['spike/**', 'editor.html'],
+        navigateFallbackDenylist: [/\/spike\//, /\/editor\.html/],
       },
       manifest: {
         name: names.name,

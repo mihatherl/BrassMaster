@@ -26,6 +26,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  allCourses,
+  BUNDLED_DOCUMENTS,
+  COURSES,
   courseById,
   distanceTo,
   levelOf,
@@ -33,13 +36,21 @@ import {
   noteRun,
   positionLabel,
   progressToward,
+  readCourse,
+  startOf,
   step,
   stepBack,
   stepForward,
   suggestionOn,
   type Position,
 } from '../exercise/course';
-import { loadProgress, saveProgress } from '../storage/course';
+import {
+  deleteCourseDocument,
+  loadCourseDocuments,
+  loadProgress,
+  saveCourseDocument,
+  saveProgress,
+} from '../storage/course';
 import { loadSessions, meanAccuracy } from '../storage/sessions';
 import type { Clef } from '../domain/instruments';
 import type { CourseRun } from './course-run';
@@ -94,6 +105,8 @@ export function PracticeScreen({
   onBack,
 }: PracticeScreenProps) {
   const [progress, setProgress] = useState(() => loadProgress(instrumentId, clef));
+  /** The import's verdict — the reader's own sentence, shown verbatim. */
+  const [importError, setImportError] = useState<string | null>(null);
 
   // A finished run, folded into the evidence once and then forgotten. It
   // moves nobody — the suggestion below is the whole of its consequence —
@@ -121,6 +134,60 @@ export function PracticeScreen({
   });
 
   const course = courseById(progress.position.courseId);
+  const courses = allCourses();
+
+  const chooseCourse = (id: string) => {
+    if (id === course.id) return;
+    const next = { position: startOf(courseById(id)), recent: [] };
+    setProgress(next);
+    saveProgress(instrumentId, clef, next);
+  };
+
+  /*
+   * The import half of the editor loop: the editor saved a file, this reads
+   * it — through the same `readCourse`, so the only errors a player can meet
+   * here are from files the editor never saw. The reader's sentence shows
+   * verbatim; a summarised error would just send them hunting.
+   */
+  const importCourse = (file: File) => {
+    void file.text().then((text) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        setImportError(`${file.name} is not JSON at all.`);
+        return;
+      }
+      const read = readCourse(parsed);
+      if ('error' in read) {
+        setImportError(read.error);
+        return;
+      }
+      saveCourseDocument(parsed);
+      setImportError(null);
+      chooseCourse(read.id);
+    });
+  };
+
+  const exportCourse = () => {
+    const doc =
+      loadCourseDocuments().find((d) => (d as { id?: unknown })?.id === course.id) ??
+      BUNDLED_DOCUMENTS.find((d) => (d as { id?: unknown })?.id === course.id);
+    if (!doc) return;
+    const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${course.id}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const bundled = COURSES.some((c) => c.id === course.id);
+  const removeCourse = () => {
+    if (bundled) return;
+    deleteCourseDocument(course.id);
+    chooseCourse(COURSES[0].id);
+  };
   const level = levelOf(progress.position);
   const mastery = masteryFor(progress.position);
   const goal = progress.goal;
@@ -180,6 +247,48 @@ export function PracticeScreen({
         {embedded ? <h2 className="practice__level">{level.name}</h2> : <h1>{level.name}</h1>}
         {level.note && <p className="practice__note">{level.note}</p>}
       </header>
+
+      <div className="field field-row practice__courses">
+        {courses.length > 1 && (
+          <select
+            aria-label="Course"
+            value={course.id}
+            onChange={(event) => chooseCourse(event.target.value)}
+          >
+            {courses.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>
+                {candidate.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <label className="button button--quiet">
+          Import course…
+          <input
+            type="file"
+            accept=".json,application/json"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) importCourse(file);
+              event.target.value = '';
+            }}
+          />
+        </label>
+        <button type="button" className="button button--quiet" onClick={exportCourse}>
+          Export
+        </button>
+        {!bundled && (
+          <button type="button" className="button button--quiet" onClick={removeCourse}>
+            Delete
+          </button>
+        )}
+      </div>
+      {importError && (
+        <p className="practice__note" role="alert">
+          The file was refused: {importError}
+        </p>
+      )}
 
       {previous && (
         <p className="practice__last">

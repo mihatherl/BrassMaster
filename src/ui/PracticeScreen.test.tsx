@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PracticeScreen } from './PracticeScreen';
 import { COURSES, DEFAULT_MASTERY, startOf } from '../exercise/course';
 import { loadProgress, saveProgress } from '../storage/course';
@@ -186,5 +186,54 @@ describe('the practice screen', () => {
   it('says nothing about last time when there was no last time', () => {
     show();
     expect(screen.queryByText(/averaging/i)).toBeNull();
+  });
+
+  /*
+   * The editor loop's phone half. The import goes through the same
+   * `readCourse` the editor validated with, so a refusal here carries the
+   * reader's own sentence — verbatim, because a summarised error sends the
+   * author hunting for a fault the sentence already names.
+   */
+  it('imports a course file, switches to it, and offers it in the picker', async () => {
+    show();
+    const doc = {
+      id: 'teachers-own',
+      name: "Teacher's own",
+      schemaVersion: 1,
+      levels: [
+        {
+          id: 'warm',
+          name: 'Warm up',
+          base: { kind: 'phrases', difficultyId: 'easy' },
+          tempo: { floor: 60, ceiling: 72, step: 6 },
+        },
+      ],
+    };
+    const file = new File([JSON.stringify(doc)], 'teachers-own.json', {
+      type: 'application/json',
+    });
+    const input = document.querySelector('input[type=file]') as HTMLInputElement;
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('heading', { name: 'Warm up' })).toBeTruthy();
+    expect(loadProgress('cornet', 'treble').position.courseId).toBe('teachers-own');
+    expect((screen.getByLabelText('Course') as HTMLSelectElement).value).toBe('teachers-own');
+  });
+
+  it('refuses a bad file with the reader’s own sentence, changing nothing', async () => {
+    show();
+    const file = new File(
+      [JSON.stringify({ id: 'broken', name: 'Broken', schemaVersion: 1, levels: [] })],
+      'broken.json',
+    );
+    const input = document.querySelector('input[type=file]') as HTMLInputElement;
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/course "broken" has no levels/i)).toBeTruthy();
+    expect(loadProgress('cornet', 'treble').position.courseId).toBe(COURSE.id);
   });
 });

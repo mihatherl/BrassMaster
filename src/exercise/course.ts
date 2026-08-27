@@ -373,7 +373,10 @@ export function readCourse(raw: unknown): Course | { error: string } {
  * at runtime it is dropped with a complaint rather than crashing a practice
  * app over a curriculum.
  */
-export const COURSES: readonly Course[] = [COMMON_KEYS_DOCUMENT].flatMap((doc) => {
+/** The documents the bundled courses are read from, for export round-trips. */
+export const BUNDLED_DOCUMENTS: readonly unknown[] = [COMMON_KEYS_DOCUMENT];
+
+export const COURSES: readonly Course[] = BUNDLED_DOCUMENTS.flatMap((doc) => {
   const course = readCourse(doc);
   if ('error' in course) {
     console.error(`bundled course refused: ${course.error}`);
@@ -383,12 +386,40 @@ export const COURSES: readonly Course[] = [COMMON_KEYS_DOCUMENT].flatMap((doc) =
 });
 
 /**
- * A course by id, falling back to the first. Never throws: a stored id from a
- * course that has since been removed must leave the player somewhere they can
- * practise rather than on a screen that cannot render.
+ * Courses the player imported, read from their stored documents each time.
+ *
+ * A function rather than a constant because the store changes while the app
+ * runs — an import adds one, a delete removes one — and a snapshot taken at
+ * module load would show yesterday's list. Reading is cheap at this scale,
+ * and every document goes through `readCourse`, so a stored file a newer
+ * version wrote degrades exactly as a fresh import would. Wired by
+ * `storage/course.ts`, which owns the keys; a build with no store (tests
+ * without the hook) simply has no user courses.
+ */
+let userDocuments: (() => unknown[]) | null = null;
+
+export function provideUserDocuments(read: () => unknown[]): void {
+  userDocuments = read;
+}
+
+export function allCourses(): readonly Course[] {
+  const user = (userDocuments?.() ?? []).flatMap((doc) => {
+    const course = readCourse(doc);
+    return 'error' in course ? [] : [course];
+  });
+  // Bundled first, and a user course wearing a bundled id loses: the bundled
+  // course is the one support conversations can reason about.
+  const ids = new Set(COURSES.map((course) => course.id));
+  return [...COURSES, ...user.filter((course) => !ids.has(course.id))];
+}
+
+/**
+ * A course by id, falling back to the first bundled one. Never throws: a
+ * stored id from a course that has since been removed must leave the player
+ * somewhere they can practise rather than on a screen that cannot render.
  */
 export function courseById(id: string): Course {
-  return COURSES.find((course) => course.id === id) ?? COURSES[0];
+  return allCourses().find((course) => course.id === id) ?? COURSES[0];
 }
 
 export function levelOf(position: Position): CourseLevel {

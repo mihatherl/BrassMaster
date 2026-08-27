@@ -564,11 +564,20 @@ picker and a download, both of which My Music already does.
 5. **The interval pool**, then the degree constraint, then the axes that need
    them. This is what makes "Exploring 3rds" expressible, and it is the only
    item here that is real generator work.
-6. **The editor on the served page**, with Phase 5. Same document, no rework.
-   Authoring a course that carries material means uploading it there, which is
-   the served page earning its keep — and it is where the cell-set completeness
-   check belongs, since a hand-written document can be wrong in ways a form
-   cannot.
+6. ~~The editor on the served page, with Phase 5.~~ — **built early,
+   2026-08-28, on the player's insistence** — the file route was offered and
+   refused: *"I just can't see myself hand-editing the JSON and then debugging
+   it when I try to import"* — with the rework risk of an unsettled schema
+   accepted and recorded. `src/editor/main.tsx`, its own Vite entry in the
+   paid build only, served today by the tailnet copy at `/editor.html` and by
+   Phase 5's phone server when it exists — the page does not change, only who
+   serves it. **Validation is `readCourse` itself, live**, so a file that
+   reads clean in the editor imports clean on the phone; the practice screen
+   gained the other half — import (refusals showing the reader's sentence
+   verbatim), a course picker, export, and delete for imported courses, with
+   documents stored verbatim so forward-tolerant fields survive the round
+   trip. The cell-set completeness check still lands here when cells do.
+   **The phone-hosted server remains Phase 5, unmoved.**
 
 Phase 2 is the one that puts a first lesson in front of a beginner. It is also
 the one that will teach us whether the widening rule feels right, which is why

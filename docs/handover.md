@@ -31,8 +31,12 @@ redesign, the same day's daylight). Earlier ones go back through
 
 ## Where this stands
 
-**v2.52.0, pushed, tagged, deployed and green** — 1,384 tests across 70
-files. Course steps are now written into the music: a label at the end of the
+**v2.53.0, pushed, tagged, deployed and green** — 1,386 tests across 70
+files. **The course editor exists**: `/editor.html` on the paid build (the
+tailnet copy serves it to a desktop), validation is `readCourse` live, Save
+writes a file the practice screen imports — picker, export and delete
+included. Built on the player's insistence over the file route, schema-rework
+risk accepted; the phone server stays Phase 5. Course steps are now written into the music: a label at the end of the
 following bar, the tempo changing there, fresh material spliced in mid-stream
 for level joins (`continueFrom`, the generalisation `rekey.ts` promised
 itself), Stay here rewriting the future back, position committing when the

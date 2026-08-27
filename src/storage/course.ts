@@ -23,7 +23,14 @@
  */
 
 import type { Clef } from '../domain/instruments';
-import { COURSES, positionFrom, startOf, type Position, type Progress } from '../exercise/course';
+import {
+  COURSES,
+  positionFrom,
+  provideUserDocuments,
+  startOf,
+  type Position,
+  type Progress,
+} from '../exercise/course';
 
 /** Unique to teacher mode, and the bundle check's fingerprint for it. */
 const STORAGE_PREFIX = 'brass-trainer:course:';
@@ -72,6 +79,55 @@ export function loadProgress(instrumentId: string, clef: Clef): Progress {
     return fresh();
   }
 }
+
+/**
+ * The player's imported course documents, stored verbatim.
+ *
+ * Verbatim on purpose: the document is the author's file, and re-serialising
+ * a parsed course would silently shed every field a newer schema wrote —
+ * exactly what forward-tolerant reading exists to protect. Keyed under the
+ * same fingerprinted prefix as the position, so the bundle check covers this
+ * store without a new tripwire.
+ */
+const DOCUMENTS_KEY = `${STORAGE_PREFIX}documents`;
+
+export function loadCourseDocuments(): unknown[] {
+  try {
+    const raw = localStorage.getItem(DOCUMENTS_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Adds or replaces one document, matched by its id. */
+export function saveCourseDocument(doc: unknown): void {
+  const id = (doc as { id?: unknown })?.id;
+  if (typeof id !== 'string' || !id) return;
+  try {
+    const kept = loadCourseDocuments().filter((d) => (d as { id?: unknown })?.id !== id);
+    localStorage.setItem(DOCUMENTS_KEY, JSON.stringify([...kept, doc]));
+  } catch {
+    // A full store loses the import, not the session; the screen reports it
+    // by the course simply not appearing.
+  }
+}
+
+export function deleteCourseDocument(id: string): void {
+  try {
+    const kept = loadCourseDocuments().filter((d) => (d as { id?: unknown })?.id !== id);
+    localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(kept));
+  } catch {
+    // As above.
+  }
+}
+
+// The registry reads the store through this hook, so `exercise/` stays
+// ignorant of localStorage and the free build's course module — were it ever
+// present — would carry no storage reads.
+provideUserDocuments(loadCourseDocuments);
 
 export function saveProgress(instrumentId: string, clef: Clef, progress: Progress): void {
   try {
