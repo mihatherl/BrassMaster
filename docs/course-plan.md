@@ -354,6 +354,12 @@ The player's replacement, and the machinery it stands on:
 - **Stay here rewrites the future back** — *"revert to a continuation of what
   they are already playing"* — a second splice, removing the label. The veto
   stays transient as ruled.
+- **The evidence resets at every step, unless the author says otherwise**
+  (`carryEvidence`, ruled 2026-08-28 after the player found the fault it
+  fixes: carried old bars offered him a new step every two bars). Reset is
+  the default because a step usually changes what is being practised; an
+  author whose steps are trivial — a nudge of tempo — may carry, and one
+  whose steps bring a new flourish through a custom cell must not.
 - **Position commits when the playhead crosses the join**, which is when the
   evidence clears: before the join a cancel restores everything, because
   nothing has happened yet.

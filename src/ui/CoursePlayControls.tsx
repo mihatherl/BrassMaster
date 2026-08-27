@@ -24,7 +24,7 @@
  * a built exercise outward.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   advanceFor,
   levelOf,
@@ -80,6 +80,15 @@ export function CoursePlayControls({
 }: CoursePlayControlsProps) {
   const [progress, setProgress] = useState<Progress>(() => loadProgress(instrumentId, clef));
   const [pending, setPending] = useState<PendingStep | null>(null);
+  /**
+   * Where this step's evidence begins in the passage's bar history. Moved to
+   * the crossing on every committed step, because by default the rule counts
+   * afresh there — found by the player on the day the join shipped: carrying
+   * the old bars offered him a new step every two bars, since eight clean
+   * bars from the step before still satisfied the rule. `carryEvidence`
+   * leaves it at zero for the authors who want exactly that.
+   */
+  const evidenceFromRef = useRef(0);
 
   /**
    * Asks the session to write a step into the music.
@@ -123,7 +132,11 @@ export function CoursePlayControls({
     if (!pending || lastJudgedBeat < pending.joinBeat - 1e-9) return;
     setProgress(pending.to);
     saveProgress(instrumentId, clef, pending.to);
+    evidenceFromRef.current = barAccuracies.length;
     setPending(null);
+    // barAccuracies is read, not depended on: the crossing is decided by the
+    // judged beat, and the length is simply where the new evidence starts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastJudgedBeat, pending, instrumentId, clef]);
 
   /*
@@ -136,8 +149,11 @@ export function CoursePlayControls({
     if (!playing || pending) return;
     if (isVetoed(progress.position)) return;
     if (stepForward(progress.position) === null) return;
-    if (barAccuracies.length < advance.afterBars) return;
-    const window = barAccuracies.slice(-advance.windowBars);
+    const evidence = advance.carryEvidence
+      ? barAccuracies
+      : barAccuracies.slice(evidenceFromRef.current);
+    if (evidence.length < advance.afterBars) return;
+    const window = evidence.slice(-advance.windowBars);
     if (window.length < advance.windowBars) return;
     if (!window.every((accuracy) => accuracy >= advance.accuracyAbove)) return;
     schedule('forward', true);

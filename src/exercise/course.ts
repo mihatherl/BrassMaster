@@ -122,6 +122,16 @@ export interface Advance {
   afterBars: number;
   windowBars: number;
   accuracyAbove: number;
+  /**
+   * Whether the evidence survives a step (2026-08-28, from the player finding
+   * the bug this decides: after a step the rule kept reading the passage's
+   * whole history, so his pre-step clean bars offered him a new step every
+   * two bars). **Absent means false — the evidence resets at every step** and
+   * the rule starts counting afresh, which is right wherever a step changes
+   * what is being practised. An author whose steps are trivial — a nudge of
+   * tempo — may set it true and let a player in form ride the offers up.
+   */
+  carryEvidence?: boolean;
 }
 
 /**
@@ -215,10 +225,12 @@ function readAdvance(value: unknown): Advance | undefined {
   ) {
     return undefined;
   }
+  const { carryEvidence } = value as Record<string, unknown>;
   return {
     afterBars: Math.round(afterBars),
     windowBars: Math.round(windowBars),
     accuracyAbove,
+    ...(typeof carryEvidence === 'boolean' ? { carryEvidence } : {}),
   };
 }
 

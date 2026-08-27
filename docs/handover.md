@@ -31,7 +31,7 @@ redesign, the same day's daylight). Earlier ones go back through
 
 ## Where this stands
 
-**v2.51.0, pushed, tagged, deployed and green** — 1,382 tests across 70
+**v2.52.0, pushed, tagged, deployed and green** — 1,384 tests across 70
 files. Course steps are now written into the music: a label at the end of the
 following bar, the tempo changing there, fresh material spliced in mid-stream
 for level joins (`continueFrom`, the generalisation `rekey.ts` promised

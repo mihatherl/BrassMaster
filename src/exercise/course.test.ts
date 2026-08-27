@@ -297,6 +297,14 @@ describe('the author rule and the pins', () => {
     expect(advanceFor(startOf(read()))).toEqual(DEFAULT_ADVANCE);
   });
 
+  it('reads carryEvidence, and its absence means reset-at-every-step', () => {
+    const carried = read({
+      advance: { afterBars: 4, windowBars: 2, accuracyAbove: 0.8, carryEvidence: true },
+    });
+    expect(advanceFor(startOf(carried), carried).carryEvidence).toBe(true);
+    expect(advanceFor(startOf(read()), read()).carryEvidence).toBeUndefined();
+  });
+
   it('ignores a malformed rule rather than refusing the course, like the bar', () => {
     const course = read({ advance: { afterBars: -3, windowBars: 'four' } });
     expect(advanceFor(startOf(course), course)).toEqual(DEFAULT_ADVANCE);

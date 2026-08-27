@@ -118,6 +118,30 @@ describe('the in-stream course step', () => {
     expect(screen.getByText(/at the bar line/i)).toBeTruthy();
   });
 
+  /*
+   * The bug the player found the day the join shipped: after a crossing the
+   * rule kept reading the passage's whole history, so eight clean bars from
+   * the step before offered him a new step every two bars. By default the
+   * evidence resets at the crossing and the rule counts afresh.
+   */
+  it('starts the evidence afresh after a crossing, rather than riding old bars', () => {
+    const { rerender, courseStep } = show({ barAccuracies: CLEAN });
+    // The rule fires and the step crosses.
+    rerender({ lastJudgedBeat: JOIN.changeBeat });
+    expect(screen.getByText('1.2')).toBeTruthy();
+    (courseStep as ReturnType<typeof vi.fn>).mockClear();
+    // Two more clean bars arrive: with the old bars carried this would fire
+    // again — the reported fault. It must not.
+    rerender({ barAccuracies: [...CLEAN, 1, 1], lastJudgedBeat: JOIN.changeBeat });
+    expect(courseStep).not.toHaveBeenCalled();
+    // A full fresh run of clean bars beyond the crossing earns the next offer.
+    rerender({
+      barAccuracies: [...CLEAN, ...CLEAN],
+      lastJudgedBeat: JOIN.changeBeat,
+    });
+    expect(courseStep).toHaveBeenCalled();
+  });
+
   it('offers nothing at the top of the course, and watches only live play', () => {
     const last = COURSE.levels[COURSE.levels.length - 1];
     saveProgress('cornet', 'treble', {
