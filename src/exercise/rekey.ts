@@ -174,3 +174,111 @@ export function rekeyFrom(live: Exercise, fresh: Exercise, changeBeat: number): 
 function changesKeyAfter(exercise: Exercise, beat: number): boolean {
   return exercise.keys.some((change) => change.fromBeat > beat + 1e-9);
 }
+
+/**
+ * Continues a live exercise with *different music* from a bar line onwards —
+ * the "change of material rather than of key" that `canRekey`'s comment said
+ * wants its own design. This is that design, built for the course's
+ * in-stream steps (2026-08-27): the next level's material joins the stream
+ * the way a medley's next tune does, named by a label at the join.
+ *
+ * Everything `rekeyFrom` holds sacred holds here: the paper keeps its
+ * identity, the splice lands on a bar line, no index below the join moves.
+ * What is new is that the shapes need not agree — `fresh` is a whole exercise
+ * beginning at beat 0, shifted out to the join, and **the paper changes
+ * length**: `totalBeats` and `chosenBeats` become the join plus the fresh
+ * exercise's own. The caller owns the consequences of that (the session's
+ * `playUntil` — see `continueCourse`), which is why this stays a pure
+ * paper operation.
+ *
+ * `label` names what begins at the join — the course position, or the level.
+ * Empty means no label: a reverted step ("Stay here") continues the same
+ * music and announcing it would be noise.
+ */
+export function continueFrom(
+  live: Exercise,
+  fresh: Exercise,
+  joinBeat: number,
+  label: string,
+): Rekeyed | null {
+  if (joinBeat >= live.totalBeats - 1e-9) return null;
+  if (Math.abs(joinBeat - barLineAtOrAfter(live, joinBeat)) > 1e-9) return null;
+
+  const keep = live.notes.findIndex((note) => note.startBeat >= joinBeat - 1e-9);
+  const fromNoteIndex = keep === -1 ? live.notes.length : keep;
+
+  // A note held across the join would be two notes in two pieces of music.
+  const last = fromNoteIndex - 1;
+  if (last >= 0) live.notes[last] = { ...live.notes[last], tiedToNext: false };
+
+  live.notes.splice(
+    fromNoteIndex,
+    live.notes.length - fromNoteIndex,
+    ...fresh.notes.map((note) => ({ ...note, startBeat: note.startBeat + joinBeat })),
+  );
+
+  const restsFrom = live.rests.findIndex((rest) => rest.startBeat >= joinBeat - 1e-9);
+  const restsKept = restsFrom === -1 ? live.rests.length : restsFrom;
+  live.rests.splice(
+    restsKept,
+    live.rests.length - restsKept,
+    ...fresh.rests.map((rest) => ({ ...rest, startBeat: rest.startBeat + joinBeat })),
+  );
+
+  /*
+   * Keys, metres, tempo marks and labels: the live paper's own up to the
+   * join, the fresh paper's — shifted — after it. A fresh change that merely
+   * restates what is already in force at the join is dropped, because a
+   * signature or metre printed mid-line to announce itself is a lie about
+   * the music (the rekey rule, inherited).
+   */
+  const fifths = keyAt(fresh.keys, 0);
+  live.keys = [
+    ...live.keys.filter((change) => change.fromBeat < joinBeat - 1e-9),
+    ...(keyAt(live.keys, joinBeat) === fifths ? [] : [{ fromBeat: joinBeat, fifths }]),
+    ...fresh.keys
+      .filter((change) => change.fromBeat > 1e-9)
+      .map((change) => ({ ...change, fromBeat: change.fromBeat + joinBeat })),
+  ];
+
+  // The metre in force at the join stays in force unless the fresh music
+  // opens in a different one; a signature restating itself is dropped, as the
+  // keys above are. live.metres[0] is beat 0 and the join is past it, so the
+  // head of the list always survives the filter.
+  const metreAtJoin = live.metres.filter((change) => change.fromBeat <= joinBeat + 1e-9).pop();
+  live.metres = [
+    ...live.metres.filter((change) => change.fromBeat < joinBeat - 1e-9),
+    ...fresh.metres
+      .filter(
+        (change) =>
+          change.fromBeat > 1e-9 ||
+          metreAtJoin === undefined ||
+          change.metre.barBeats !== metreAtJoin.metre.barBeats,
+      )
+      .map((change) => ({ ...change, fromBeat: change.fromBeat + joinBeat })),
+  ];
+
+  const eventStart = (event: (typeof live.tempo)[number]): number =>
+    'atBeat' in event ? event.atBeat : event.fromBeat;
+  const shiftTempo = (event: (typeof live.tempo)[number]): (typeof live.tempo)[number] =>
+    'atBeat' in event
+      ? { ...event, atBeat: event.atBeat + joinBeat }
+      : { ...event, fromBeat: event.fromBeat + joinBeat, toBeat: event.toBeat + joinBeat };
+  live.tempo = [
+    ...live.tempo.filter((event) => eventStart(event) < joinBeat - 1e-9),
+    ...fresh.tempo.map(shiftTempo),
+  ];
+
+  live.labels = [
+    ...live.labels.filter((event) => event.atBeat < joinBeat - 1e-9),
+    ...(label ? [{ atBeat: joinBeat, text: label }] : []),
+    ...fresh.labels
+      .filter((event) => event.atBeat > 1e-9 || !label)
+      .map((event) => ({ ...event, atBeat: event.atBeat + joinBeat })),
+  ];
+
+  live.totalBeats = joinBeat + fresh.totalBeats;
+  live.chosenBeats = joinBeat + fresh.chosenBeats;
+
+  return { changeBeat: joinBeat, fromNoteIndex, fifths };
+}

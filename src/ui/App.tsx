@@ -438,7 +438,21 @@ export function App() {
                       instrumentId={chosen.instrumentId}
                       clef={chosen.clef}
                       {...state}
-                      onRun={startCourse}
+                      /* The generator on loan, exactly as startCourse uses it:
+                         the level's key replaces the set as well as the key,
+                         and a level naming none leaves both alone. */
+                      buildRun={(run: CourseRun) => {
+                        const { tempo, levelId: _levelId, fifths, ...base } = run;
+                        return buildFrom(
+                          {
+                            ...chosen,
+                            ...base,
+                            tempo,
+                            ...(fifths === undefined ? {} : { fifths, keySet: [fifths] }),
+                          },
+                          randomSeed(),
+                        );
+                      }}
                     />
                   </Suspense>
                 )

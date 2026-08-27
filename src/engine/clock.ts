@@ -450,7 +450,24 @@ export class Transport {
    * inside one has no meaning — it waits for the ramp to arrive.
    */
   changeTempo(bpm: number): void {
-    let atBeat = Math.max(Math.ceil(this.scheduledUntilBeat), MIN_CHANGE_BEAT);
+    this.changeTempoAt(bpm, 0);
+  }
+
+  /**
+   * The same change, landing no earlier than a beat of the caller's choosing.
+   *
+   * The dial's own change (above) lands as soon as the scheduling horizon
+   * allows; a course step (2026-08-27) lands at the end of the following bar,
+   * where its label is printed — so the caller names the beat and the floor
+   * below still applies: nothing already handed to the audio thread can move,
+   * whatever was asked.
+   */
+  changeTempoAt(bpm: number, noEarlierThan: number): void {
+    let atBeat = Math.max(
+      Math.ceil(noEarlierThan),
+      Math.ceil(this.scheduledUntilBeat),
+      MIN_CHANGE_BEAT,
+    );
 
     for (const event of this.events) {
       if (event.kind === 'ramp' && atBeat > event.fromBeat && atBeat < event.toBeat) {

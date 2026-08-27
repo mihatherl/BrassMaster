@@ -1,117 +1,134 @@
 // @vitest-environment happy-dom
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { act } from 'react';
-import { CoursePlayControls, clearVetoes } from './CoursePlayControls';
-import { advanceFor, COURSES, prescribedRun, startOf, stepForward } from '../exercise/course';
+import { CoursePlayControls } from './CoursePlayControls';
+import { clearVetoes } from './course-vetoes';
+import { advanceFor, COURSES, startOf, stepForward } from '../exercise/course';
 import { loadProgress, saveProgress } from '../storage/course';
+import type { Exercise } from '../exercise/types';
 
 const COURSE = COURSES[0];
 const ADVANCE = advanceFor(startOf(COURSE));
-
-/** Enough clean bars to satisfy the default rule outright. */
 const CLEAN = Array.from({ length: ADVANCE.afterBars }, () => 1);
+const JOIN = { changeBeat: 8 };
+const FAKE_EXERCISE = {} as Exercise;
 
 function show(overrides: Partial<Parameters<typeof CoursePlayControls>[0]> = {}) {
   const props = {
     instrumentId: 'cornet',
     clef: 'treble' as const,
     barAccuracies: [] as readonly number[],
+    lastJudgedBeat: -1,
     playing: true,
-    hold: vi.fn(),
-    resume: vi.fn(),
-    onRun: vi.fn(),
+    courseStep: vi.fn(() => JOIN),
+    buildRun: vi.fn(() => FAKE_EXERCISE),
     ...overrides,
   };
-  render(<CoursePlayControls {...props} />);
-  return props;
+  const view = render(<CoursePlayControls {...props} />);
+  return { ...props, rerender: (next: Partial<typeof props>) =>
+    view.rerender(<CoursePlayControls {...props} {...next} />) };
 }
-
-beforeEach(() => vi.useFakeTimers());
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
   clearVetoes();
-  vi.useRealTimers();
 });
 
-describe('the course on the play screen', () => {
-  it('shows the position and the level, and the buttons both ways', () => {
+describe('the in-stream course step', () => {
+  it('shows the position, the level, and the buttons both ways', () => {
     show();
     expect(screen.getByText('1.1')).toBeTruthy();
     expect(screen.getByText(new RegExp(COURSE.levels[0].name))).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Back' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Forward' }) as HTMLButtonElement).disabled).toBe(
-      false,
-    );
-  });
-
-  it('restarts at the new step on a press, and remembers it', () => {
-    const { onRun } = show();
-    fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
-    const next = stepForward(startOf(COURSE))!;
-    expect(onRun).toHaveBeenCalledWith(prescribedRun(next));
-    expect(loadProgress('cornet', 'treble').position).toEqual(next);
   });
 
   /*
-   * The revised ruling of 2026-08-27, end to end: the rule met, the music
-   * held, the countdown run out, the step taken — and none of it while the
-   * player was still owed their three seconds.
+   * The player's ruling: a manual press goes into the music too — not
+   * instantaneous, at the end of the following bar. Same level, so only the
+   * clock and the label change; no material is built.
    */
-  it('holds the music and counts down when the author rule is met, then steps', () => {
-    const { hold, onRun } = show({ barAccuracies: CLEAN });
-    expect(hold).toHaveBeenCalled();
-    expect(screen.getByText(/moving to/i)).toBeTruthy();
-    expect(onRun).not.toHaveBeenCalled();
-    act(() => void vi.advanceTimersByTime(3200));
-    expect(onRun).toHaveBeenCalledWith(prescribedRun(stepForward(startOf(COURSE))!));
+  it('writes a manual step into the music rather than restarting', () => {
+    const { courseStep, buildRun } = show();
+    fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+    const next = stepForward(startOf(COURSE))!;
+    expect(courseStep).toHaveBeenCalledWith({ bpm: next.tempo, label: '1.2' });
+    expect(buildRun).not.toHaveBeenCalled();
+    expect(screen.getByText(/at the bar line/i)).toBeTruthy();
   });
 
-  it('does not offer what it cannot deliver: no countdown at the top of the course', () => {
+  it('commits nothing until the playhead crosses the join', () => {
+    const { rerender } = show();
+    fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+    expect(loadProgress('cornet', 'treble').position).toEqual(startOf(COURSE));
+    rerender({ lastJudgedBeat: JOIN.changeBeat });
+    expect(loadProgress('cornet', 'treble').position).toEqual(stepForward(startOf(COURSE)));
+    expect(screen.getByText('1.2')).toBeTruthy();
+  });
+
+  it('splices fresh material only when the step crosses a level', () => {
+    const first = COURSE.levels[0];
+    saveProgress('cornet', 'treble', {
+      position: { courseId: COURSE.id, levelId: first.id, tempo: first.tempo.ceiling },
+      recent: [],
+    });
+    const { courseStep, buildRun } = show();
+    fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+    expect(buildRun).toHaveBeenCalled();
+    expect(courseStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fresh: FAKE_EXERCISE,
+        label: expect.stringContaining(COURSE.levels[1].name),
+      }),
+    );
+  });
+
+  it('schedules the step itself when the author rule is met', () => {
+    const { courseStep } = show({ barAccuracies: CLEAN });
+    expect(courseStep).toHaveBeenCalledWith(expect.objectContaining({ label: '1.2' }));
+    expect(screen.getByText(/at the bar line/i)).toBeTruthy();
+  });
+
+  it('needs the whole window clean, not a good average', () => {
+    const { courseStep } = show({ barAccuracies: [...CLEAN.slice(0, -1), 0.5] });
+    expect(courseStep).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Stay here, in the new grammar: the future is rewritten back — a step with
+   * no label — and the veto holds for the step. Nothing pauses and nothing
+   * was ever committed, so there is nothing to undo.
+   */
+  it('Stay here rewrites the future back and vetoes the step', () => {
+    const { courseStep, rerender } = show({ barAccuracies: CLEAN });
+    fireEvent.click(screen.getByRole('button', { name: 'Stay here' }));
+    const calls = (courseStep as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls[calls.length - 1][0].label).toBeUndefined();
+    expect(loadProgress('cornet', 'treble').position).toEqual(startOf(COURSE));
+    // More clean bars at the vetoed step: the rule stays quiet.
+    rerender({ barAccuracies: [...CLEAN, 1, 1] });
+    expect(screen.queryByText(/at the bar line/i)).toBeNull();
+  });
+
+  it('a manual step after a veto still goes through, and re-arms the rule beyond it', () => {
+    show({ barAccuracies: CLEAN });
+    fireEvent.click(screen.getByRole('button', { name: 'Stay here' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
+    expect(screen.getByText(/at the bar line/i)).toBeTruthy();
+  });
+
+  it('offers nothing at the top of the course, and watches only live play', () => {
     const last = COURSE.levels[COURSE.levels.length - 1];
     saveProgress('cornet', 'treble', {
       position: { courseId: COURSE.id, levelId: last.id, tempo: last.tempo.ceiling },
       recent: [],
     });
-    const { hold } = show({ barAccuracies: CLEAN });
-    expect(hold).not.toHaveBeenCalled();
-  });
-
-  it('needs the whole window clean, not a good average', () => {
-    // One weak bar inside the window: an 80% mean would pass, the rule must not.
-    const nearly = [...CLEAN.slice(0, -1), 0.5];
-    const { hold } = show({ barAccuracies: nearly });
-    expect(hold).not.toHaveBeenCalled();
-  });
-
-  it('Stay here resumes where the pause fell, and the veto holds for the step', () => {
-    const { resume, onRun } = show({ barAccuracies: CLEAN });
-    fireEvent.click(screen.getByRole('button', { name: 'Stay here' }));
-    expect(resume).toHaveBeenCalled();
-    act(() => void vi.advanceTimersByTime(5000));
-    expect(onRun).not.toHaveBeenCalled();
-    // More clean bars at the same step: still vetoed, still nothing moves.
+    const top = show({ barAccuracies: CLEAN });
+    expect(top.courseStep).not.toHaveBeenCalled();
     cleanup();
-    const again = show({ barAccuracies: [...CLEAN, 1, 1] });
-    expect(again.hold).not.toHaveBeenCalled();
-  });
-
-  it('the veto is about the step, not the sitting: moving on re-arms the rule', () => {
-    const first = show({ barAccuracies: CLEAN });
-    fireEvent.click(screen.getByRole('button', { name: 'Stay here' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Forward' }));
-    expect(first.onRun).toHaveBeenCalled();
-    cleanup();
-    // A fresh passage at the NEW step, rule met: the countdown returns.
-    const second = show({ barAccuracies: CLEAN });
-    expect(second.hold).toHaveBeenCalled();
-  });
-
-  it('watches only live play', () => {
-    const { hold } = show({ barAccuracies: CLEAN, playing: false });
-    expect(hold).not.toHaveBeenCalled();
+    localStorage.clear();
+    const idle = show({ barAccuracies: CLEAN, playing: false });
+    expect(idle.courseStep).not.toHaveBeenCalled();
   });
 });

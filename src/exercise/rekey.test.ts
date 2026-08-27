@@ -5,7 +5,7 @@ import { barAt, beatOfBar, metreFor } from '../domain/metre';
 import { durationBeats } from '../domain/rhythm';
 import { difficultyById } from './difficulty';
 import { generateExercise } from './generate';
-import { barLineAtOrAfter, canRekey, canRekeyKind, rekeyFrom } from './rekey';
+import { barLineAtOrAfter, canRekey, canRekeyKind, continueFrom, rekeyFrom } from './rekey';
 import type { Exercise, ExerciseKind } from './types';
 
 function build(
@@ -175,5 +175,73 @@ describe('rekeyFrom', () => {
       fresh.rests.filter((rest) => rest.startBeat >= 8),
     );
     expect(live.rests.every((rest) => rest.startBeat < live.totalBeats)).toBe(true);
+  });
+});
+
+describe('continueFrom — different music joining the stream', () => {
+  /*
+   * The generalisation rekeyFrom's own comment promised: a change of material
+   * rather than of key, built for the course's in-stream steps. Shapes need
+   * not agree — the fresh exercise may be a drill where the live one was
+   * phrases — and the paper changes length.
+   */
+  it('splices a different kind of material from a bar line, and the paper follows', () => {
+    const live = build(-1, 1);
+    const fresh = build(-1, 2, { kind: 'drills' });
+    const before = live.notes.length;
+    const joinBeat = beatOfBar(live.metres, 2);
+    const done = continueFrom(live, fresh, joinBeat, '2.1 · The chord')!;
+    expect(done.changeBeat).toBe(joinBeat);
+    expect(live.totalBeats).toBeCloseTo(joinBeat + fresh.totalBeats);
+    expect(live.chosenBeats).toBeCloseTo(joinBeat + fresh.chosenBeats);
+    expect(live.notes.length).not.toBe(before);
+    // Every note from the join on is fresh material, shifted out to the join.
+    for (let i = done.fromNoteIndex; i < live.notes.length; i++) {
+      expect(live.notes[i].startBeat).toBeGreaterThanOrEqual(joinBeat - 1e-9);
+      expect(live.notes[i].writtenMidi).toBe(
+        fresh.notes[i - done.fromNoteIndex].writtenMidi,
+      );
+    }
+  });
+
+  it('prints the label at the join, and none on a revert', () => {
+    const live = build(-1, 1);
+    const joinBeat = beatOfBar(live.metres, 2);
+    continueFrom(live, build(-1, 2), joinBeat, '1.4');
+    expect(live.labels.some((l) => l.atBeat === joinBeat && l.text === '1.4')).toBe(true);
+
+    const reverted = build(-1, 3);
+    const back = beatOfBar(reverted.metres, 2);
+    continueFrom(reverted, build(-1, 4), back, '');
+    expect(reverted.labels.some((l) => Math.abs(l.atBeat - back) < 1e-9)).toBe(false);
+  });
+
+  it('changes key signature at the join only when the music actually changes key', () => {
+    const live = build(-1, 1);
+    const joinBeat = beatOfBar(live.metres, 2);
+    const done = continueFrom(live, build(2, 5), joinBeat, 'x')!;
+    expect(done.fifths).toBe(2);
+    expect(keyAt(live.keys, joinBeat)).toBe(2);
+    expect(keyAt(live.keys, joinBeat - 0.5)).toBe(-1);
+
+    const same = build(-1, 6);
+    const at = beatOfBar(same.metres, 2);
+    continueFrom(same, build(-1, 7), at, 'x');
+    // No signature restating the key it is already in.
+    expect(same.keys.filter((k) => Math.abs(k.fromBeat - at) < 1e-9)).toHaveLength(0);
+  });
+
+  it('refuses a join off the bar line or past the end of the paper', () => {
+    const live = build(-1, 1);
+    expect(continueFrom(live, build(-1, 2), beatOfBar(live.metres, 2) + 0.5, 'x')).toBeNull();
+    expect(continueFrom(live, build(-1, 2), live.totalBeats + 4, 'x')).toBeNull();
+  });
+
+  it('cuts a tie that would cross the join', () => {
+    const live = build(-1, 1);
+    const joinBeat = beatOfBar(live.metres, 2);
+    const done = continueFrom(live, build(-1, 2), joinBeat, 'x')!;
+    const last = done.fromNoteIndex - 1;
+    if (last >= 0) expect(live.notes[last].tiedToNext).toBe(false);
   });
 });

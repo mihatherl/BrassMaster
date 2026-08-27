@@ -8,12 +8,13 @@
  */
 
 import { isUnplayable, type Exercise } from '../exercise/types';
-import { barLineAtOrAfter, rekeyFrom, type Rekeyed } from '../exercise/rekey';
+import { barLineAtOrAfter, continueFrom, rekeyFrom, type Rekeyed } from '../exercise/rekey';
 import { isTieContinuation, tiedBeats } from '../exercise/ties';
 import { BrassSynth } from '../audio/synth';
 import type { Voice } from '../audio/sampler';
 import { Metronome } from '../audio/metronome';
 import { barAt, beatOfBar, metreAt, type Metre } from '../domain/metre';
+import { keyAt } from '../domain/keys';
 import { Transport } from './clock';
 import type { PlayerInput } from './player-input';
 import {
@@ -546,6 +547,74 @@ export class Session {
    * for, where the change would land past the end of the paper, or where the
    * material is not the kind that can be re-keyed at all — see `canRekey`.
    */
+  /**
+   * The label beat of a pending course step, so a reverted step can take its
+   * announcement back off the paper. One at a time by construction: a new
+   * step replaces the pending one, and a revert clears it.
+   */
+  private courseLabelBeat: number | null = null;
+
+  /**
+   * A course step, written into the music (2026-08-27, `course-plan.md`
+   * § *The join is written into the music*). The step lands at
+   * `keyChangeBeat` — the end of the following bar, the exact lead the key
+   * dial already reads as "between one and two bars" — where three things
+   * may happen together: the tempo changes (`bpm`), the material continues
+   * differently (`fresh`, a whole exercise for the next level, spliced by
+   * `continueFrom`), and a label names what begins there. A step with no
+   * `label` is a revert — Stay here — and also removes the label the pending
+   * step printed, so the future reads as if nothing had been offered.
+   *
+   * Returns where the join landed and the first note it owns, or null when
+   * there is nothing to do — the run finished, or a material splice was
+   * refused.
+   */
+  courseStep(opts: { fresh?: Exercise; bpm?: number; label?: string }): Rekeyed | null {
+    if (this.finished) return null;
+    const { exercise } = this.options;
+    const joinBeat = this.keyChangeBeat;
+
+    // A pending step's label comes off first: whether this is a new step or a
+    // revert, the old announcement no longer tells the truth.
+    if (this.courseLabelBeat !== null) {
+      const at = this.courseLabelBeat;
+      exercise.labels = exercise.labels.filter((event) => Math.abs(event.atBeat - at) > 1e-9);
+      this.courseLabelBeat = null;
+    }
+
+    let result: Rekeyed | null = null;
+    if (opts.fresh) {
+      result = continueFrom(exercise, opts.fresh, joinBeat, opts.label ?? '');
+      if (!result) return null;
+      // The paper changed length; the run's own end moves with it. The
+      // confirmations resize exactly as changeKey's do, and for the same
+      // reason.
+      this.playUntil = exercise.chosenBeats;
+      this.noticed.length = exercise.notes.length;
+      for (let i = result.fromNoteIndex; i < this.noticed.length; i++) this.noticed[i] = false;
+    } else {
+      if (opts.label) {
+        exercise.labels = [
+          ...exercise.labels.filter((event) => Math.abs(event.atBeat - joinBeat) > 1e-9),
+          { atBeat: joinBeat, text: opts.label },
+        ];
+      }
+      const from = exercise.notes.findIndex((note) => note.startBeat >= joinBeat - 1e-9);
+      result = {
+        changeBeat: joinBeat,
+        fromNoteIndex: from === -1 ? exercise.notes.length : from,
+        fifths: keyAt(exercise.keys, joinBeat),
+      };
+    }
+    if (opts.label) this.courseLabelBeat = joinBeat;
+    if (opts.bpm !== undefined) this.transport.changeTempoAt(opts.bpm, joinBeat);
+
+    // The screen's one paper-changed signal: verdict tails cleared (nothing
+    // beyond the join has been judged), hints re-read, the renderer re-laid.
+    this.options.onKeyChange?.(result);
+    return result;
+  }
+
   changeKey(fresh: Exercise): Rekeyed | null {
     if (this.finished) return null;
 

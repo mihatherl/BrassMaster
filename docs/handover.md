@@ -31,10 +31,13 @@ redesign, the same day's daylight). Earlier ones go back through
 
 ## Where this stands
 
-**v2.50.0, pushed, tagged, deployed and green** — 1,376 tests across 70
-files. The course now lives on the play screen: stepping, the author's
-progression rule with its countdown and Stay here, pinned gate options —
-`course-plan.md` § *The play-screen loop*, ruled and built 2026-08-27. The gate before any push is `npm test && npm run build && npm run
+**v2.51.0, pushed, tagged, deployed and green** — 1,382 tests across 70
+files. Course steps are now written into the music: a label at the end of the
+following bar, the tempo changing there, fresh material spliced in mid-stream
+for level joins (`continueFrom`, the generalisation `rekey.ts` promised
+itself), Stay here rewriting the future back, position committing when the
+playhead crosses. The countdown version lived one day —
+`course-plan.md` § *The join is written into the music*. The gate before any push is `npm test && npm run build && npm run
 lint`, plus `npm run check:web` and `npm run check:channel` when anything
 touches the build split. **After any gate run, rebuild the tailnet copy:
 `npm run build:dev`** — every plain build overwrites `dist/` with the wrong

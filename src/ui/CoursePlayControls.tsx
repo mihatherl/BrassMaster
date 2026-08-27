@@ -1,31 +1,30 @@
 /**
- * The course's presence on the play screen, revised in from the home screen
- * on 2026-08-27 after the player played phase 2 and named the fault: going
- * home to step is a navigation tax on the thing a course does most often.
+ * The course's presence on the play screen — and since 2026-08-27's second
+ * revision, the join is *written into the music* rather than announced over
+ * it. The countdown version was built, played by its author, and rejected
+ * the same day: "it just stops mid note… freezes and then resets into
+ * another page." What replaced it, ruled in `course-plan.md` § *The join is
+ * written into the music*:
  *
- * Three jobs, all ruled in `docs/course-plan.md` § *The play-screen loop*:
- *
- * - **The player's buttons, always.** Forward and back restart immediately at
- *   the new step with a bar's count-in (the new run's own), the partial
- *   passage discarded — the key dial's mid-run contract.
- * - **The author's rule, watching.** After `afterBars` bars with accuracy at
- *   or above the bar over the last `windowBars`, the music *pauses* — a
- *   countdown a player mid-phrase could never answer is not an offer — and
- *   the banner counts down to the next step beside **Stay here**, which
- *   resumes exactly where the pause fell.
- * - **The veto is transient.** Stay here disarms the rule at this step for
- *   this sitting and nothing more — "it isn't expensive for the user to
- *   reset it." Arriving at any step, by any means, re-arms it.
+ * - **Every step — manual or automatic — lands at the end of the following
+ *   bar**, where the score gains a label naming what begins there, exactly
+ *   as a medley names its next tune. The music never stops; the player reads
+ *   the join coming and plays through it.
+ * - **Stay here rewrites the future back**: a second step with no label,
+ *   continuing the music the player was already in. The veto stays transient.
+ * - **Position commits when the playhead crosses the join.** Until then the
+ *   step has not happened, which is precisely why it can still be declined.
  *
  * ## Why this file is paid, and how it stays out of the free build
  *
- * It imports the course rules and the course store — both fingerprinted —
- * so `App` reaches it only through a dynamic import behind the
- * `__HAS_TEACHER__` literal, exactly as `ImportScreen` is reached. What
- * crosses back is a `CourseRun`: plain settings words, no position.
+ * It imports the course rules and the course store — both fingerprinted — so
+ * `App` reaches it only through a dynamic import behind the `__HAS_TEACHER__`
+ * literal, exactly as `ImportScreen` is reached. What crosses the seam is
+ * plain data: bar accuracies and the judged beat inward; settings words and
+ * a built exercise outward.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   advanceFor,
   levelOf,
@@ -37,128 +36,123 @@ import {
   type Progress,
 } from '../exercise/course';
 import { loadProgress, saveProgress } from '../storage/course';
+import { isVetoed, vetoStep } from './course-vetoes';
 import type { Clef } from '../domain/instruments';
+import type { Exercise } from '../exercise/types';
 import type { CourseRun } from './course-run';
 
-/**
- * The transient veto: steps stayed-at this sitting. Module scope on purpose —
- * every passage rebuilds this component, and a veto that a rebuild forgot
- * would nag again two bars later; storage would make it permanent, and the
- * ruling says it is neither: "it isn't expensive for the user to reset it."
- */
-const VETOED = new Set<string>();
-
-/** The sitting's vetoes, cleared — a seam for tests, which share the module. */
-export function clearVetoes(): void {
-  VETOED.clear();
+/** A step in flight: offered or asked for, not yet crossed. */
+interface PendingStep {
+  from: Progress;
+  to: Progress;
+  joinBeat: number;
+  /** Whether the author's rule scheduled it — a Stay then vetoes the step. */
+  auto: boolean;
 }
-
-function vetoKey(position: { courseId: string; levelId: string; tempo: number }): string {
-  return `${position.courseId}:${position.levelId}:${position.tempo}`;
-}
-
-/** Seconds the banner counts before the step is taken. */
-const COUNTDOWN_SECONDS = 3;
 
 interface CoursePlayControlsProps {
   instrumentId: string;
   clef: Clef;
-  /** Accuracy per completed bar of the passage in hand, oldest first. */
+  /** Accuracy per completed bar of the passage, oldest first. */
   barAccuracies: readonly number[];
-  /** Whether the session is running — the rule only watches live play. */
+  /** Start beat of the furthest note judged — how a crossing is seen. */
+  lastJudgedBeat: number;
+  /** Whether the music is running — the rule only watches live play. */
   playing: boolean;
-  /** Pause the passage where it stands; the countdown lives in this gap. */
-  hold: () => void;
-  /** Resume it — the whole of what Stay here does. */
-  resume: () => void;
-  /** Restart the play screen on a new run. The count-in comes with it. */
-  onRun: (run: CourseRun) => void;
+  /** Writes a step into the music; null means it could not land. */
+  courseStep: (opts: {
+    fresh?: Exercise;
+    bpm?: number;
+    label?: string;
+  }) => { changeBeat: number } | null;
+  /** Builds the exercise a run prescribes — `App`'s generator, on loan. */
+  buildRun: (run: CourseRun) => Exercise;
 }
 
 export function CoursePlayControls({
   instrumentId,
   clef,
   barAccuracies,
+  lastJudgedBeat,
   playing,
-  hold,
-  resume,
-  onRun,
+  courseStep,
+  buildRun,
 }: CoursePlayControlsProps) {
   const [progress, setProgress] = useState<Progress>(() => loadProgress(instrumentId, clef));
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pending, setPending] = useState<PendingStep | null>(null);
 
-  const move = (direction: 'forward' | 'back') => {
-    clearCountdown();
-    const next = step(progress, direction);
-    if (next === progress) return;
-    setProgress(next);
-    saveProgress(instrumentId, clef, next);
-    onRun(prescribedRun(next.position));
+  /**
+   * Asks the session to write a step into the music.
+   *
+   * Same level: the material continues and only the clock and the label
+   * change. New level: the next level's material joins the stream, spliced
+   * from the bar line. Either way nothing is saved yet — the step has not
+   * happened until the playhead crosses it.
+   */
+  const schedule = (direction: 'forward' | 'back', auto: boolean) => {
+    const to = step(progress, direction);
+    if (to === progress) return;
+    const run = prescribedRun(to.position);
+    const sameLevel = to.position.levelId === progress.position.levelId;
+    const label = sameLevel
+      ? positionLabel(to.position)
+      : `${positionLabel(to.position)} · ${levelOf(to.position).name}`;
+    const landed = courseStep(
+      sameLevel
+        ? { bpm: run.tempo, label }
+        : { fresh: buildRun(run), bpm: run.tempo, label },
+    );
+    if (!landed) return;
+    setPending({ from: progress, to, joinBeat: landed.changeBeat, auto });
   };
 
-  const clearCountdown = () => {
-    if (timerRef.current !== null) clearInterval(timerRef.current);
-    timerRef.current = null;
-    setCountdown(null);
+  /** Stay here: the future rewritten back to the music already in hand. */
+  const stay = () => {
+    if (!pending) return;
+    if (pending.auto) vetoStep(pending.from.position);
+    const run = prescribedRun(pending.from.position);
+    const sameLevel = pending.to.position.levelId === pending.from.position.levelId;
+    courseStep(sameLevel ? { bpm: run.tempo } : { fresh: buildRun(run), bpm: run.tempo });
+    setPending(null);
   };
+
+  // The crossing: the join is behind the playhead, so the step has happened.
+  // Committed here — position, cleared evidence, storage — and not before,
+  // which is what made Stay here free of consequences.
+  useEffect(() => {
+    if (!pending || lastJudgedBeat < pending.joinBeat - 1e-9) return;
+    setProgress(pending.to);
+    saveProgress(instrumentId, clef, pending.to);
+    setPending(null);
+  }, [lastJudgedBeat, pending, instrumentId, clef]);
 
   /*
-   * The author's rule, evaluated as bars complete. Trigger once per arrival
-   * at a step: met → hold the music and start the countdown. The guard order
-   * matters — a vetoed step, a step already counting, or a step with nowhere
-   * above all decline before the arithmetic runs.
+   * The author's rule, watching completed bars. It asks only while nothing is
+   * pending, only below the top, and never at a vetoed step; met, it
+   * schedules the same step a finger would have.
    */
   const advance = advanceFor(progress.position);
-  const label = positionLabel(progress.position);
   useEffect(() => {
-    if (!playing || countdown !== null) return;
-    if (VETOED.has(vetoKey(progress.position))) return;
+    if (!playing || pending) return;
+    if (isVetoed(progress.position)) return;
     if (stepForward(progress.position) === null) return;
     if (barAccuracies.length < advance.afterBars) return;
     const window = barAccuracies.slice(-advance.windowBars);
     if (window.length < advance.windowBars) return;
     if (!window.every((accuracy) => accuracy >= advance.accuracyAbove)) return;
-    hold();
-    setCountdown(COUNTDOWN_SECONDS);
-    timerRef.current = setInterval(() => {
-      setCountdown((current) => (current === null ? null : current - 1));
-    }, 1000);
-    // The deps are the evidence: each completed bar re-asks the question.
+    schedule('forward', true);
+    // Each completed bar re-asks; everything else it reads is stable per render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [barAccuracies, playing]);
 
-  // Zero reached: the step is taken. In an effect rather than the interval
-  // callback, because taking it re-renders the world and a timer callback
-  // that navigates is a timer callback that races unmount.
-  useEffect(() => {
-    if (countdown !== 0) return;
-    clearCountdown();
-    move('forward');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countdown]);
-
-  useEffect(() => () => clearCountdown(), []);
-
-  const stay = () => {
-    VETOED.add(vetoKey(progress.position));
-    clearCountdown();
-    resume();
-  };
-
-  const next = stepForward(progress.position);
   const level = levelOf(progress.position);
 
   return (
     <div className="course-play">
-      {countdown !== null && next ? (
-        /*
-         * The banner, in the silence the hold made. Nothing is being judged,
-         * so Stay here is pressable with a hand off the valves.
-         */
-        <div className="course-play__banner" role="alert">
+      {pending ? (
+        <div className="course-play__banner" role="status">
           <p>
-            Moving to <strong>{positionLabel(next)}</strong> in {Math.max(countdown, 1)}…
+            <strong>{positionLabel(pending.to.position)}</strong> at the bar line
           </p>
           <button type="button" className="button" onClick={stay}>
             Stay here
@@ -167,22 +161,22 @@ export function CoursePlayControls({
       ) : (
         <>
           <p className="course-play__where">
-            <strong>{label}</strong> · {level.name}
+            <strong>{positionLabel(progress.position)}</strong> · {level.name}
           </p>
           <div className="course-play__steps">
             <button
               type="button"
               className="button button--quiet"
               disabled={stepBack(progress.position) === null}
-              onClick={() => move('back')}
+              onClick={() => schedule('back', false)}
             >
               Back
             </button>
             <button
               type="button"
               className="button button--quiet"
-              disabled={next === null}
-              onClick={() => move('forward')}
+              disabled={stepForward(progress.position) === null}
+              onClick={() => schedule('forward', false)}
             >
               Forward
             </button>

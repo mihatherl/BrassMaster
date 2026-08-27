@@ -325,7 +325,46 @@ notes, change the id*, because a review verdict is recorded against an id. A
 course that travels between people makes that rule load-bearing rather than
 tidy.
 
-## The play-screen loop — revised 2026-08-27, after playing phase 2 — **and built the same day**
+## The join is written into the music — revised again 2026-08-27, after playing the countdown — **and built the same day**
+
+Built: `continueFrom` in `rekey.ts` (the "own design" that file promised
+itself — different music joining from a bar line, the paper changing length),
+`Session.courseStep` (tempo, material, label and the revert in one call, on
+`keyChangeBeat`'s existing end-of-following-bar lead),
+`Transport.changeTempoAt`, and `CoursePlayControls` rewritten: nothing pauses,
+nothing restarts, the crossing commits. Mutation-tested: committing at
+schedule time instead of at the crossing fails two tests. Verified on glass —
+the banner beside running music, and the position following the playhead over
+the join.
+
+The pause-and-countdown below was built, played, and rejected the same day:
+*"it just stops mid note… sort of freezes and then resets into another page."*
+The player's replacement, and the machinery it stands on:
+
+- **A step is written into the paper, not announced over it.** The score gains
+  a label at the join — the position, or the level's name — exactly as a
+  medley names its next tune (`LabelEvent` is that mechanism), and the tempo
+  change is scheduled at the same beat. The player reads it coming and keeps
+  playing. Nothing freezes; nothing resets.
+- **Every step lands at the end of the following bar** — finish the bar in
+  hand, one full bar of preparation, join at the bar line. Manual presses too,
+  by the player's ruling: *"they should [go in-stream], but not
+  instantaneous — placed at the end of the following bar, to give some prep
+  time."* This supersedes restart-with-count-in.
+- **Stay here rewrites the future back** — *"revert to a continuation of what
+  they are already playing"* — a second splice, removing the label. The veto
+  stays transient as ruled.
+- **Position commits when the playhead crosses the join**, which is when the
+  evidence clears: before the join a cancel restores everything, because
+  nothing has happened yet.
+- **The machinery is the key dial's.** `rekey.ts` already rewrites a running
+  exercise from a bar line ahead — one piece of paper, spliced in place, the
+  confirmations resized — and its own comment names the generalisation this
+  needs: material change "wants its own design". Tempo-only steps are cheaper
+  still: `changeTempo` already schedules at a future beat; the material never
+  changes.
+
+### The countdown version, built and superseded the same day (kept for the record)
 
 Built: `ui/CoursePlayControls.tsx` (paid, reached through a dynamic import
 behind the literal, like `ImportScreen`), the `advance` and `pinned` document

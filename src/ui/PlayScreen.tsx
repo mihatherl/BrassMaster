@@ -108,9 +108,19 @@ interface PlayScreenProps {
    */
   courseControls?: (state: {
     barAccuracies: readonly number[];
+    /** Start beat of the furthest note judged — how the course sees the join crossed. */
+    lastJudgedBeat: number;
     playing: boolean;
-    hold: () => void;
-    resume: () => void;
+    /**
+     * Writes a step into the music at the end of the following bar — tempo,
+     * fresh material, a label, any of them — and reports where the join
+     * landed. A call with no label is a revert. See `Session.courseStep`.
+     */
+    courseStep: (opts: {
+      fresh?: Exercise;
+      bpm?: number;
+      label?: string;
+    }) => { changeBeat: number } | null;
   }) => ReactNode;
   /** Gate options the course pinned, shown disabled there. */
   coursePinned?: readonly string[];
@@ -156,6 +166,7 @@ export function PlayScreen({
    * cheap at exercise scale.
    */
   const [barAccuracies, setBarAccuracies] = useState<readonly number[]>([]);
+  const [lastJudgedBeat, setLastJudgedBeat] = useState(-1);
   /*
    * Both reached from inside the session effect through refs, deliberately:
    * `courseControls` is a render prop whose identity changes with every App
@@ -303,6 +314,7 @@ export function PlayScreen({
     setCommittedBeats(exercise.chosenBeats);
     verdictsRef.current = new Array(exercise.notes.length).fill(undefined);
     setBarAccuracies([]);
+    setLastJudgedBeat(-1);
     /*
      * Which note actually sounds each written one, so the renderer can look a
      * verdict up through a tie. Walked once rather than on every note of every
@@ -393,7 +405,12 @@ export function PlayScreen({
       onJudgement: (judgement: NoteJudgement) => {
         verdictsRef.current[judgement.noteIndex] = judgement.verdict;
         report();
-        if (courseControlsRef.current) reportBarsRef.current();
+        if (courseControlsRef.current) {
+          reportBarsRef.current();
+          setLastJudgedBeat((furthest) =>
+            Math.max(furthest, exercise.notes[judgement.noteIndex].startBeat),
+          );
+        }
 
         /*
          * Every verdict, not only the bad ones: a mistake is answered on the
@@ -951,21 +968,9 @@ export function PlayScreen({
         {courseControls ? (
           courseControls({
             barAccuracies,
+            lastJudgedBeat,
             playing: started && !paused,
-            hold: () => {
-              const session = sessionRef.current;
-              if (session && !session.isPaused) {
-                session.pause();
-                setPaused(true);
-              }
-            },
-            resume: () => {
-              const session = sessionRef.current;
-              if (session && session.isPaused) {
-                session.resume();
-                setPaused(false);
-              }
-            },
+            courseStep: (opts) => sessionRef.current?.courseStep(opts) ?? null,
           })
         ) : (
         <TempoDial
