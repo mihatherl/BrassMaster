@@ -448,10 +448,19 @@ picker and a download, both of which My Music already does.
    this run"* on one that was played. Verified on glass, all three cases: a
    listen-through leaves the stores empty, a played run writes stats, skills
    and sessions, and a disowned one writes nothing.
-2. **The course document and one bundled course, read-only on the phone, with
-   tempo as the only axis.** Tempo needs no generator work, `TempoBand` already
-   exists, and it proves the whole loop — authored order, machine variation,
-   widening rule, scores — end to end on the smallest possible surface.
+2. ~~The course document and one bundled course.~~ — **built 2026-08-26.**
+   `exercise/course.ts` replaces the ladder: a `Course` is read from a plain
+   document by `readCourse` (forward-tolerant, refusals whole and loud, the
+   tempo ceiling snapped onto the grid), and the bundled *Common Keys* course
+   goes through the same reader a user's file will. Position is the ratified
+   decimal ("3.2"), the buttons are the player's both ways, evidence clears on
+   a step, and `noteRun` **cannot** move anyone — mutation-tested at the rules
+   and at the screen. The bundle fingerprint moved with the storage key
+   (`brass-trainer:course:`), deliberately. **The bundled content is
+   scaffolding from this plan's worked example and says so in the document —
+   the curriculum is the author's, and editing `courses/common-keys.ts` is
+   authorship, not programming.** Verified on glass: step, persist, and a run
+   started from the course reaching the gate.
 3. **Author-written cells.** The seam exists (`selectCells` takes the list),
    the notation exists (`parseCell`), the audition exists (`cellAsTheme`) and
    the ear rule exists (`candidate`). Mostly a cell set on the document, the

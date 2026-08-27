@@ -1,44 +1,48 @@
 /**
- * Where the course has got the player to, and what happens next.
+ * Where the course has got the player to, and the buttons that move them.
  *
- * Teacher mode's one screen for now (`docs/roadmap.md` § 1.4). Deliberately
- * small: it shows the rung, the evidence for moving off it, and a goal if one
- * is set. **Arranging a course belongs on the served page of § 5.2** — a
- * keyboard and a whole course in view — so nothing here edits one.
+ * Teacher mode's one screen for now (`docs/roadmap.md` § 1.4), reshaped for
+ * the ratified stepping ruling of 2026-08-26: **the machine never moves the
+ * player.** Position is a decimal — level 3, step 2 reads "3.2" — with
+ * forward and back buttons that are the player's in both directions, and the
+ * old promotion machinery survives only as a *suggestion bar*: the machine's
+ * opinion of readiness, visible beside controls it cannot touch. A player who
+ * steps back has decided to, which is the system working.
  *
- * The screen states the ladder's reasoning rather than hiding it. A coach that
- * silently moves a player up and down is indistinguishable from an app with a
- * bug in it, and "one more like that and you move up" is the sentence that
- * makes the whole mechanism legible.
+ * The screen still states its reasoning rather than hiding it. "Two runs at
+ * 85% or better and the bar will say move on" is the sentence that makes the
+ * mechanism legible — it has simply stopped being a threat.
  *
  * ## Why this screen owns the course, and `App` does not
  *
- * Everything about the ladder — its rules, its store, its types — is paid, and
- * the free build must not contain it. `App` is in both builds, so it may not
- * import any of it: not the store (which carries the bundle check's
- * fingerprint) and not the rules either, which would leak just as surely while
- * being invisible to the check.
- *
- * So the boundary is drawn here. This screen loads and saves the progress, and
- * `App` is told only what it needs in plain data: a difficulty and a tempo to
- * build a run from, and — afterwards — how that run went. Nothing crosses the
- * seam that names a rung.
+ * Everything about courses — rules, store, types — is paid, and the free
+ * build must not contain it. `App` is in both builds, so it may not import
+ * any of it: not the store (which carries the bundle check's fingerprint) and
+ * not the rules either. The boundary is drawn here: this screen loads and
+ * saves the progress, and `App` is told only what it needs in plain data —
+ * the run a level prescribes, and afterwards how it went. Nothing crosses the
+ * seam that names a position.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  afterRun,
+  courseById,
   distanceTo,
-  ladderById,
   levelOf,
   masteryFor,
-  nextRung,
+  noteRun,
+  positionLabel,
   progressToward,
-  type Rung,
-} from '../exercise/ladder';
-import { loadProgress, saveProgress } from '../storage/ladder';
+  step,
+  stepBack,
+  stepForward,
+  suggestionOn,
+  type Position,
+} from '../exercise/course';
+import { loadProgress, saveProgress } from '../storage/course';
 import { loadSessions, meanAccuracy } from '../storage/sessions';
 import type { Clef } from '../domain/instruments';
+import type { CourseRun } from './course-run';
 
 /**
  * When a sitting was, in the words a player would use.
@@ -59,18 +63,15 @@ function describeWhen(at: number, now = Date.now()): string {
 interface PracticeScreenProps {
   instrumentId: string;
   clef: Clef;
-  /** Where the player practises when no course has spoken yet. */
-  fallback: { difficultyId: string; tempo: number };
   /**
-   * How the last course run went, or null.
-   *
-   * Applied here rather than in `App` because the ladder is what a result
-   * means: `App` knows an accuracy, this knows whether it moves anyone.
+   * How the last course run went, or null. Applied here rather than in `App`
+   * because the course is what a result means: `App` knows an accuracy, this
+   * knows what the bar should say about it.
    */
   pendingAccuracy: number | null;
   onAccuracyApplied: () => void;
   /** Plain data on purpose — see the note above about the seam. */
-  onStart: (from: { difficultyId: string; tempo: number; levelId: string }) => void;
+  onStart: (run: CourseRun) => void;
   onProgress: () => void;
   /**
    * Inside the unified home since 2026-08-23: the shell owns the masthead and
@@ -85,7 +86,6 @@ interface PracticeScreenProps {
 export function PracticeScreen({
   instrumentId,
   clef,
-  fallback,
   pendingAccuracy,
   onAccuracyApplied,
   onStart,
@@ -93,15 +93,16 @@ export function PracticeScreen({
   embedded = false,
   onBack,
 }: PracticeScreenProps) {
-  const [progress, setProgress] = useState(() => loadProgress(instrumentId, clef, fallback));
+  const [progress, setProgress] = useState(() => loadProgress(instrumentId, clef));
 
-  // A finished run, folded in once and then forgotten. Recorded here so the
-  // move happens where the rules are, and saved immediately: a session that
-  // ends on the results screen has still been practised.
+  // A finished run, folded into the evidence once and then forgotten. It
+  // moves nobody — the suggestion below is the whole of its consequence —
+  // and it is saved immediately: a session that ends on the results screen
+  // has still been practised.
   useEffect(() => {
     if (pendingAccuracy === null) return;
     setProgress((current) => {
-      const { progress: next } = afterRun(current, pendingAccuracy);
+      const { progress: next } = noteRun(current, pendingAccuracy);
       saveProgress(instrumentId, clef, next);
       return next;
     });
@@ -119,27 +120,36 @@ export function PracticeScreen({
     return sessions[sessions.length - 1];
   });
 
-  const ladder = ladderById(progress.rung.ladderId);
-  const level = levelOf(progress.rung);
-  const mastery = masteryFor(progress.rung);
-  const band = level.tempo;
+  const course = courseById(progress.position.courseId);
+  const level = levelOf(progress.position);
+  const mastery = masteryFor(progress.position);
   const goal = progress.goal;
 
   const distance = useMemo(
-    () => (goal ? distanceTo(progress.rung, goal) : null),
-    [goal, progress.rung],
+    () => (goal ? distanceTo(progress.position, goal) : null),
+    [goal, progress.position],
   );
   const along = useMemo(
     () =>
-      goal && progress.goalSetAt ? progressToward(progress.goalSetAt, progress.rung, goal) : null,
-    [goal, progress.goalSetAt, progress.rung],
+      goal && progress.goalSetAt
+        ? progressToward(progress.goalSetAt, progress.position, goal)
+        : null,
+    [goal, progress.goalSetAt, progress.position],
   );
 
-  const setGoal = (next: Rung | undefined) => {
+  const move = (direction: 'forward' | 'back') => {
+    setProgress((current) => {
+      const next = step(current, direction);
+      saveProgress(instrumentId, clef, next);
+      return next;
+    });
+  };
+
+  const setGoal = (next: Position | undefined) => {
     setProgress((current) => {
       const updated = next
-        ? { ...current, goal: next, goalSetAt: current.rung }
-        : { rung: current.rung, recent: current.recent };
+        ? { ...current, goal: next, goalSetAt: current.position }
+        : { position: current.position, recent: current.recent };
       saveProgress(instrumentId, clef, updated);
       return updated;
     });
@@ -147,16 +157,18 @@ export function PracticeScreen({
 
   /*
    * Only the levels *above* this one are offered: a target already behind the
-   * player is not an ambition, and one they are standing on would report itself
-   * reached the moment it was set.
+   * player is not an ambition, and one they are standing on would report
+   * itself reached the moment it was set.
    */
-  const above = ladder.levels.slice(
-    ladder.levels.findIndex((candidate) => candidate.id === level.id) + 1,
+  const above = course.levels.slice(
+    course.levels.findIndex((candidate) => candidate.id === level.id) + 1,
   );
 
   const recent = progress.recent.slice(-mastery.runsToJudge);
   const met = recent.filter((accuracy) => accuracy >= mastery.promoteAbove).length;
-  const atTop = nextRung(progress.rung) === null;
+  const suggestion = suggestionOn(progress.recent, mastery);
+  const atTop = stepForward(progress.position) === null;
+  const atBottom = stepBack(progress.position) === null;
 
   const body = (
     <>
@@ -164,10 +176,9 @@ export function PracticeScreen({
         {/* Standalone, the course announces itself; inside the shell the
             masthead above already carries the name, and saying it twice reads
             as a stutter. */}
-        {!embedded && <p className="practice__course">{ladder.name}</p>}
-        {/* The level name stays a heading either way; what the shell owns is
-            the app's own masthead, not the course's. */}
+        {!embedded && <p className="practice__course">{course.name}</p>}
         {embedded ? <h2 className="practice__level">{level.name}</h2> : <h1>{level.name}</h1>}
+        {level.note && <p className="practice__note">{level.note}</p>}
       </header>
 
       {previous && (
@@ -179,40 +190,58 @@ export function PracticeScreen({
       )}
 
       <section className="panel">
-        <h2>Today</h2>
+        <h2>Where you are</h2>
         <p className="practice__tempo">
-          <strong>{progress.rung.tempo}</strong> bpm
+          <strong>{positionLabel(progress.position)}</strong> ·{' '}
+          {progress.position.tempo} bpm
         </p>
-        <p className="practice__note">
-          {band.floor} to {band.ceiling} on this level, in steps of {band.step}
-        </p>
+        {/* The player's buttons, both directions, per the ratified stepping
+            ruling. Disabled at the ends rather than hidden, so the edge of
+            the course is visible rather than a button that vanished. */}
+        <div className="field field-row">
+          <button
+            type="button"
+            className="button"
+            disabled={atBottom}
+            onClick={() => move('back')}
+          >
+            Back a step
+          </button>
+          <button
+            type="button"
+            className="button"
+            disabled={atTop}
+            onClick={() => move('forward')}
+          >
+            Forward a step
+          </button>
+        </div>
       </section>
 
       <section className="panel">
-        <h2>To move on</h2>
-        {atTop ? (
-          <p className="practice__note">
-            The top of {ladder.name}. There is nothing above this one.
-          </p>
-        ) : (
-          <>
-            <ul className="practice__runs">
-              {Array.from({ length: mastery.runsToJudge }, (_, index) => {
-                const accuracy = recent[recent.length - mastery.runsToJudge + index];
-                const cleared = accuracy !== undefined && accuracy >= mastery.promoteAbove;
-                return (
-                  <li key={index} className={`practice__run ${cleared ? 'is-met' : ''}`}>
-                    {accuracy === undefined ? '–' : `${Math.round(accuracy * 100)}%`}
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="practice__note">
-              {met} of {mastery.runsToJudge} at {Math.round(mastery.promoteAbove * 100)}% or better.
-              Clear them all and the tempo rises.
-            </p>
-          </>
-        )}
+        <h2>The suggestion</h2>
+        <ul className="practice__runs">
+          {Array.from({ length: mastery.runsToJudge }, (_, index) => {
+            const accuracy = recent[recent.length - mastery.runsToJudge + index];
+            const cleared = accuracy !== undefined && accuracy >= mastery.promoteAbove;
+            return (
+              <li key={index} className={`practice__run ${cleared ? 'is-met' : ''}`}>
+                {accuracy === undefined ? '–' : `${Math.round(accuracy * 100)}%`}
+              </li>
+            );
+          })}
+        </ul>
+        {/* The machine's opinion, moving nothing. It says so, because a coach
+            whose advice might be an order is not advice. */}
+        <p className="practice__note">
+          {suggestion === 'up'
+            ? 'On this evidence: ready to move on. The step is yours to take.'
+            : suggestion === 'down'
+              ? 'On this evidence: this step is a struggle. Easing back is no failure.'
+              : `${met} of ${mastery.runsToJudge} runs at ${Math.round(
+                  mastery.promoteAbove * 100,
+                )}% or better. Clear them all and the bar will suggest moving on.`}
+        </p>
       </section>
 
       <section className="panel">
@@ -222,8 +251,8 @@ export function PracticeScreen({
             <p className="practice__note">
               {distance.reached
                 ? `Reached — ${levelOf(goal).name} at ${goal.tempo}.`
-                : `${levelOf(goal).name} at ${goal.tempo}, ${distance.rungs} ${
-                    distance.rungs === 1 ? 'step' : 'steps'
+                : `${levelOf(goal).name} at ${goal.tempo}, ${distance.steps} ${
+                    distance.steps === 1 ? 'step' : 'steps'
                   } away.`}
             </p>
             {along !== null && (
@@ -254,7 +283,7 @@ export function PracticeScreen({
                   className="segmented__option"
                   onClick={() =>
                     setGoal({
-                      ladderId: ladder.id,
+                      courseId: course.id,
                       levelId: candidate.id,
                       tempo: candidate.tempo.floor,
                     })
@@ -271,11 +300,13 @@ export function PracticeScreen({
       <button
         type="button"
         className="button button--primary button--large"
-        onClick={() => onStart({
-            difficultyId: level.difficultyId,
-            tempo: progress.rung.tempo,
+        onClick={() =>
+          onStart({
+            ...level.base,
+            tempo: progress.position.tempo,
             levelId: level.id,
-          })}
+          })
+        }
       >
         Start
       </button>

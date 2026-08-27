@@ -31,8 +31,8 @@ redesign, the same day's daylight). Earlier ones go back through
 
 ## Where this stands
 
-**v2.48.0, pushed, tagged, deployed and green** — 1,377 tests across 68
-files. The gate before any push is `npm test && npm run build && npm run
+**v2.49.0, pushed, tagged, deployed and green** — 1,362 tests across 68
+files (the ladder's tests died with the ladder; the course's replaced them). The gate before any push is `npm test && npm run build && npm run
 lint`, plus `npm run check:web` and `npm run check:channel` when anything
 touches the build split. **After any gate run, rebuild the tailnet copy:
 `npm run build:dev`** — every plain build overwrites `dist/` with the wrong
@@ -181,7 +181,13 @@ same day** — it was drafted in as a dependency of the microphone and is not
 one; what the microphone needs is § 2.4's recognition calibration, which is
 smaller and has a different purpose.
 
-1. **The pedagogy, and it is the bigger of the two.** Phase 1's *machinery* is
+1. **The pedagogy, and it is the bigger of the two.** *Course-plan phase 2
+   is built (2026-08-26): the document reader, the bundled Common Keys course,
+   decimal stepping and the suggestion bar — `exercise/course.ts`, the ladder
+   deleted. What remains of this item is the curriculum itself (the player's
+   to author, in `courses/common-keys.ts`) and the later phases: author
+   cells, course-carried MusicXML, the interval pool, the served-page
+   editor.* Phase 1's *machinery* is
    built — the skill model, the ladder, goals, sessions, the progress screen —
    and what is missing is the teaching: **something simple to start on**. A
    beginner who chooses Structured Learning today meets a parameter space, not

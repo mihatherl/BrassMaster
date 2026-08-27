@@ -3,22 +3,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PracticeScreen } from './PracticeScreen';
-import { DEFAULT_LADDER_ID, ladderById, DEFAULT_MASTERY } from '../exercise/ladder';
-import { loadProgress, saveProgress } from '../storage/ladder';
+import { COURSES, DEFAULT_MASTERY, startOf } from '../exercise/course';
+import { loadProgress, saveProgress } from '../storage/course';
 import { saveSessions } from '../storage/sessions';
 
-const LADDER = ladderById(DEFAULT_LADDER_ID);
-const FIRST = LADDER.levels[0];
-const SECOND = LADDER.levels[1];
-const LAST = LADDER.levels[LADDER.levels.length - 1];
-
-const fallback = { difficultyId: FIRST.difficultyId, tempo: FIRST.tempo.floor };
+const COURSE = COURSES[0];
+const FIRST = COURSE.levels[0];
+const SECOND = COURSE.levels[1];
+const LAST = COURSE.levels[COURSE.levels.length - 1];
 
 function show(overrides: Partial<Parameters<typeof PracticeScreen>[0]> = {}) {
   const props = {
     instrumentId: 'cornet',
     clef: 'treble' as const,
-    fallback,
     pendingAccuracy: null,
     onAccuracyApplied: vi.fn(),
     onStart: vi.fn(),
@@ -36,97 +33,134 @@ afterEach(() => {
 });
 
 describe('the practice screen', () => {
-  it('opens where the player already practises, naming the level and the tempo', () => {
+  it('opens at the start of the course, naming the level and the position', () => {
     show();
     expect(screen.getByRole('heading', { name: FIRST.name })).toBeTruthy();
-    expect(screen.getByText(String(FIRST.tempo.floor))).toBeTruthy();
+    expect(screen.getByText('1.1')).toBeTruthy();
   });
 
   /*
-   * The seam that keeps the ladder out of `App`: what crosses is a difficulty
-   * and a tempo, never a rung. If this ever hands over something ladder-shaped,
-   * the free build is one careless import away from carrying teacher mode.
+   * The seam that keeps the course out of `App`: what crosses is the run a
+   * level prescribes in plain settings words, never a position. If this ever
+   * hands over something course-shaped, the free build is one careless import
+   * away from carrying teacher mode.
    */
-  it('hands the run up as plain settings, not as a rung', () => {
-    // Deliberately a rung *above* the band's floor: the two were the same
-    // number in the first version of this test, which could not tell the rung's
-    // tempo from the level's and passed while the wrong one was sent.
+  it('hands the run up as plain settings, the level base included', () => {
     const tempo = FIRST.tempo.floor + FIRST.tempo.step * 2;
     saveProgress('cornet', 'treble', {
-      rung: { ladderId: DEFAULT_LADDER_ID, levelId: FIRST.id, tempo },
+      position: { courseId: COURSE.id, levelId: FIRST.id, tempo },
       recent: [],
     });
     const { onStart } = show();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(onStart).toHaveBeenCalledWith({
-      difficultyId: FIRST.difficultyId,
+      ...FIRST.base,
       tempo,
       levelId: FIRST.id,
     });
   });
 
-  it('shows a slot for every run the bar asks for, filled or not', () => {
-    saveProgress('cornet', 'treble', {
-      rung: { ladderId: DEFAULT_LADDER_ID, levelId: FIRST.id, tempo: FIRST.tempo.floor },
-      recent: [0.91],
-    });
+  it('shows a slot for every run the bar reads, filled or not', () => {
+    saveProgress('cornet', 'treble', { position: startOf(COURSE), recent: [0.9] });
     show();
-    expect(screen.getByText('91%')).toBeTruthy();
-    // The rest are owed, and saying so is the point — a screen that showed only
-    // what had been played would not say how many were left.
-    expect(screen.getAllByText('–')).toHaveLength(DEFAULT_MASTERY.runsToJudge - 1);
+    const slots = document.querySelectorAll('.practice__run');
+    expect(slots).toHaveLength(DEFAULT_MASTERY.runsToJudge);
+    expect(screen.getByText('90%')).toBeTruthy();
   });
 
-  it('folds a finished run in, moves the player, and remembers it', () => {
-    saveProgress('cornet', 'treble', {
-      rung: { ladderId: DEFAULT_LADDER_ID, levelId: FIRST.id, tempo: FIRST.tempo.floor },
-      recent: [1],
-    });
-    const { onAccuracyApplied } = show({ pendingAccuracy: 1 });
+  /*
+   * The ratified ruling on this screen: a finished run feeds the suggestion
+   * and MOVES NOBODY. The ladder this replaced would have promoted here.
+   */
+  it('folds a finished run into the evidence without moving the player', () => {
+    saveProgress('cornet', 'treble', { position: startOf(COURSE), recent: [0.95] });
+    const applied = vi.fn();
+    show({ pendingAccuracy: 0.97, onAccuracyApplied: applied });
+    expect(applied).toHaveBeenCalled();
+    const kept = loadProgress('cornet', 'treble');
+    expect(kept.position).toEqual(startOf(COURSE));
+    expect(kept.recent).toEqual([0.95, 0.97]);
+    expect(screen.getByText(/ready to move on/i)).toBeTruthy();
+    expect(screen.getByText(/the step is yours to take/i)).toBeTruthy();
+  });
 
-    expect(onAccuracyApplied).toHaveBeenCalled();
-    const stored = loadProgress('cornet', 'treble', fallback);
-    expect(stored.rung.tempo).toBe(FIRST.tempo.floor + FIRST.tempo.step);
-    expect(stored.recent).toEqual([]);
+  it('says when the evidence points the other way, without demoting anyone', () => {
+    saveProgress('cornet', 'treble', { position: startOf(COURSE), recent: [0.4, 0.5] });
+    show();
+    expect(screen.getByText(/easing back is no failure/i)).toBeTruthy();
+    expect(loadProgress('cornet', 'treble').position).toEqual(startOf(COURSE));
+  });
+
+  it('moves only when the player presses, and remembers the step', () => {
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Forward a step' }));
+    expect(screen.getByText('1.2')).toBeTruthy();
+    expect(loadProgress('cornet', 'treble').position.tempo).toBe(
+      FIRST.tempo.floor + FIRST.tempo.step,
+    );
+  });
+
+  it('clears the evidence on a step, because it was about the old one', () => {
+    saveProgress('cornet', 'treble', { position: startOf(COURSE), recent: [0.9, 0.95] });
+    show();
+    fireEvent.click(screen.getByRole('button', { name: 'Forward a step' }));
+    expect(loadProgress('cornet', 'treble').recent).toEqual([]);
+  });
+
+  it('disables the buttons at the ends rather than hiding the edge', () => {
+    show();
+    expect(
+      (screen.getByRole('button', { name: 'Back a step' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    cleanup();
+    saveProgress('cornet', 'treble', {
+      position: { courseId: COURSE.id, levelId: LAST.id, tempo: LAST.tempo.ceiling },
+      recent: [],
+    });
+    show();
+    expect(
+      (screen.getByRole('button', { name: 'Forward a step' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('applies a run once, not on every render', () => {
-    saveProgress('cornet', 'treble', {
-      rung: { ladderId: DEFAULT_LADDER_ID, levelId: FIRST.id, tempo: FIRST.tempo.floor },
-      recent: [1],
-    });
-    show({ pendingAccuracy: 1 });
-    expect(loadProgress('cornet', 'treble', fallback).rung.tempo).toBe(
-      FIRST.tempo.floor + FIRST.tempo.step,
-    );
+    const applied = vi.fn();
+    show({ pendingAccuracy: 0.9, onAccuracyApplied: applied });
+    expect(applied).toHaveBeenCalledTimes(1);
+    expect(loadProgress('cornet', 'treble').recent).toEqual([0.9]);
   });
 
   it('offers only the levels above as somewhere to aim, and keeps the choice', () => {
     show();
     expect(screen.queryByRole('button', { name: FIRST.name })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: SECOND.name }));
-
-    expect(screen.getByText(new RegExp(SECOND.name))).toBeTruthy();
-    const stored = loadProgress('cornet', 'treble', fallback);
-    expect(stored.goal?.levelId).toBe(SECOND.id);
-    // Recorded so a bar can measure from where the aiming started.
-    expect(stored.goalSetAt?.tempo).toBe(FIRST.tempo.floor);
+    expect(loadProgress('cornet', 'treble').goal).toEqual({
+      courseId: COURSE.id,
+      levelId: SECOND.id,
+      tempo: SECOND.tempo.floor,
+    });
+    expect(screen.getByText(new RegExp(`${SECOND.name} at ${SECOND.tempo.floor}`))).toBeTruthy();
   });
 
   it('lets a goal be cleared again', () => {
+    saveProgress('cornet', 'treble', {
+      position: startOf(COURSE),
+      recent: [],
+      goal: { courseId: COURSE.id, levelId: SECOND.id, tempo: SECOND.tempo.floor },
+      goalSetAt: startOf(COURSE),
+    });
     show();
-    fireEvent.click(screen.getByRole('button', { name: SECOND.name }));
-    fireEvent.click(screen.getByRole('button', { name: /clear it/i }));
-    expect(loadProgress('cornet', 'treble', fallback).goal).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear it' }));
+    expect(loadProgress('cornet', 'treble').goal).toBeUndefined();
   });
 
-  it('says there is nothing above the top of the ladder rather than inventing a step', () => {
+  it('says there is nothing above the top rather than inventing a level', () => {
     saveProgress('cornet', 'treble', {
-      rung: { ladderId: DEFAULT_LADDER_ID, levelId: LAST.id, tempo: LAST.tempo.ceiling },
+      position: { courseId: COURSE.id, levelId: LAST.id, tempo: LAST.tempo.floor },
       recent: [],
     });
     show();
-    expect(screen.getByText(/nothing above this one/i)).toBeTruthy();
+    expect(screen.getByText(/nothing further up this course/i)).toBeTruthy();
   });
 
   it('goes back when asked', () => {
@@ -135,25 +169,22 @@ describe('the practice screen', () => {
     expect(onBack).toHaveBeenCalled();
   });
 
-  /*
-   * § 1.5's whole requirement, in one line: "focusing a bit on what you
-   * achieved last time". Without it every sitting starts as though the app has
-   * never met the player before.
-   */
   it('opens by saying what happened last time', () => {
-    const yesterday = Date.now() - 24 * 60 * 60 * 1000;
     saveSessions('cornet', 'treble', [
-      { startedAt: yesterday, runs: [
-        { at: yesterday, accuracy: 0.9, tempo: 84 },
-        { at: yesterday + 60_000, accuracy: 1, tempo: 84 },
-      ] },
+      {
+        startedAt: Date.now() - 26 * 60 * 60 * 1000,
+        runs: [
+          { at: Date.now() - 26 * 60 * 60 * 1000, accuracy: 0.8, tempo: 72 },
+          { at: Date.now() - 26 * 60 * 60 * 1000, accuracy: 0.9, tempo: 72 },
+        ],
+      },
     ]);
     show();
-    expect(screen.getByText(/yesterday: 2 runs, averaging 95%/i)).toBeTruthy();
+    expect(screen.getByText(/yesterday: 2 runs, averaging 85%/i)).toBeTruthy();
   });
 
   it('says nothing about last time when there was no last time', () => {
     show();
-    expect(screen.queryByText(/runs, averaging/i)).toBeNull();
+    expect(screen.queryByText(/averaging/i)).toBeNull();
   });
 });

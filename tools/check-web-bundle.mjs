@@ -46,7 +46,10 @@ const root = process.argv[2] ?? 'dist';
 const PAID_ONLY = {
   'My Music': ['score-partwise', 'unfoldRepeats', 'importPart', 'ImportScreen'],
   'the microphone': ['getUserMedia', 'mediaDevices'],
-  'teacher mode': ['brass-trainer:ladder:', 'brass-trainer:sessions:'],
+  // The ladder key became the course key when the ladder became courses
+  // (2026-08-26); the fingerprint moved with it, deliberately — the ratified
+  // free-taster ruling says these tripwires move on purpose or not at all.
+  'teacher mode': ['brass-trainer:course:', 'brass-trainer:sessions:'],
 };
 
 /**

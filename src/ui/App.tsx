@@ -24,6 +24,7 @@ import { ResultsScreen } from './ResultsScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { recordRun } from '../storage/sessions';
 import { PracticeScreen } from './PracticeScreen';
+import type { CourseRun } from './course-run';
 import { ProgressScreen } from './ProgressScreen';
 
 /**
@@ -188,10 +189,28 @@ export function App() {
    * for themselves. See *A course chooses the settings* in `v2-design.md`.
    */
   const startCourse = useCallback(
-    (from: { difficultyId: string; tempo: number; levelId: string }) => {
+    (run: CourseRun) => {
+      const { tempo, levelId, fifths, ...base } = run;
       setFromCourse(true);
-      setRunAt({ tempo: from.tempo, levelId: from.levelId });
-      setExercise(buildFrom({ ...chosen, ...from }, randomSeed()));
+      setRunAt({ tempo, levelId });
+      /*
+       * The level's key, where it names one, replaces the set as well as the
+       * key — `fifths` is derived from `keySet[0]` everywhere else, and a
+       * course level in F must not leave the generator touring the player's
+       * own key set from F. A level naming no key leaves both alone, which is
+       * the ratified optional-key ruling doing its work.
+       */
+      setExercise(
+        buildFrom(
+          {
+            ...chosen,
+            ...base,
+            tempo,
+            ...(fifths === undefined ? {} : { fifths, keySet: [fifths] }),
+          },
+          randomSeed(),
+        ),
+      );
       setScreen('play');
     },
     [buildFrom, chosen],
@@ -525,9 +544,6 @@ export function App() {
               embedded
               instrumentId={chosen.instrumentId}
               clef={chosen.clef}
-              /* Where a first session opens: what the player already
-                 practises, rather than the bottom of the ladder. */
-              fallback={{ difficultyId: chosen.difficultyId, tempo: chosen.tempo }}
               pendingAccuracy={courseAccuracy}
               onAccuracyApplied={() => setCourseAccuracy(null)}
               onStart={startCourse}

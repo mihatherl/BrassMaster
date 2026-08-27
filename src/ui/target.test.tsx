@@ -84,8 +84,9 @@ describe('the unified home', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Structured Learning' }));
     // Asserted on the screen's own furniture rather than a level name, which
-    // follows whatever difficulty the settings happen to default to.
-    expect(screen.getByRole('heading', { name: /to move on/i })).toBeTruthy();
+    // is the course's business. "The suggestion" replaced "To move on" when
+    // the stepping ruling made the machine advisory (2026-08-26).
+    expect(screen.getByRole('heading', { name: /the suggestion/i })).toBeTruthy();
     // The choice is the player's and persists like any other setting.
     expect(loadSettings().homeMode).toBe('structured');
     fireEvent.click(screen.getByRole('button', { name: 'Free play' }));
