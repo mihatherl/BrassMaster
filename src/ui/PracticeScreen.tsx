@@ -54,6 +54,7 @@ import {
 import { loadSessions, meanAccuracy } from '../storage/sessions';
 import type { Clef } from '../domain/instruments';
 import type { CourseRun } from './course-run';
+import { t } from '../i18n';
 
 /**
  * When a sitting was, in the words a player would use.
@@ -251,7 +252,7 @@ export function PracticeScreen({
       <div className="field field-row practice__courses">
         {courses.length > 1 && (
           <select
-            aria-label="Course"
+            aria-label={t('course.course')}
             value={course.id}
             onChange={(event) => chooseCourse(event.target.value)}
           >
@@ -263,7 +264,7 @@ export function PracticeScreen({
           </select>
         )}
         <label className="button button--quiet">
-          Import course…
+          {t('course.import')}
           <input
             type="file"
             accept=".json,application/json"
@@ -276,11 +277,11 @@ export function PracticeScreen({
           />
         </label>
         <button type="button" className="button button--quiet" onClick={exportCourse}>
-          Export
+          {t('course.export')}
         </button>
         {!bundled && (
           <button type="button" className="button button--quiet" onClick={removeCourse}>
-            Delete
+            {t('course.delete')}
           </button>
         )}
       </div>
@@ -299,7 +300,7 @@ export function PracticeScreen({
       )}
 
       <section className="panel">
-        <h2>Where you are</h2>
+        <h2>{t('course.whereYouAre')}</h2>
         <p className="practice__tempo">
           <strong>{positionLabel(progress.position)}</strong> ·{' '}
           {progress.position.tempo} bpm
@@ -328,7 +329,7 @@ export function PracticeScreen({
       </section>
 
       <section className="panel">
-        <h2>The suggestion</h2>
+        <h2>{t('course.suggestion')}</h2>
         <ul className="practice__runs">
           {Array.from({ length: mastery.runsToJudge }, (_, index) => {
             const accuracy = recent[recent.length - mastery.runsToJudge + index];
@@ -354,7 +355,7 @@ export function PracticeScreen({
       </section>
 
       <section className="panel">
-        <h2>Aiming for</h2>
+        <h2>{t('course.aimingFor')}</h2>
         {goal && distance ? (
           <>
             <p className="practice__note">
@@ -417,10 +418,10 @@ export function PracticeScreen({
           })
         }
       >
-        Start
+        {t('home.start')}
       </button>
       <button type="button" className="entry practice__door" onClick={onProgress}>
-        <span className="entry__title">Progress</span>
+        <span className="entry__title">{t('course.progress')}</span>
         <span className="entry__detail">What has improved, and what to work on</span>
       </button>
 

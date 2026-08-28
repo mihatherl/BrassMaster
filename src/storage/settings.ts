@@ -23,6 +23,7 @@ import type { ExerciseKind } from '../exercise/types';
 import { DRILLS, type DrillId, type PatternRegister } from '../exercise/generate';
 import { DEFAULT_CUSHION } from '../audio/following-voice';
 import { METRONOME_VOLUME_RANGE } from '../audio/metronome';
+import { LOCALES } from '../i18n';
 
 // Re-exported from the domain, where the tempo plan clamps against the same
 // figures; the settings screen was this range's first customer, not its owner.
@@ -40,6 +41,12 @@ export interface ThemeStep {
 }
 
 export interface Settings {
+  /**
+   * The interface's language — labels and buttons only, by the partial-i18n
+   * ruling of 2026-08-28; see `i18n/index.ts` for what is deliberately not
+   * translated. 'en' is the source of truth and the fallback.
+   */
+  locale: string;
   instrumentId: string;
   clef: Clef;
   /**
@@ -472,6 +479,7 @@ export const READING_MODES: ReadonlyArray<Choice<ReadingMode>> = [
 ];
 
 export const DEFAULT_SETTINGS: Settings = {
+  locale: 'en',
   instrumentId: 'eb-bass',
   clef: 'treble',
   fifths: -3, // Eb major — brass band home turf
@@ -812,6 +820,7 @@ export function sanitise(settings: Settings): Settings {
       METRONOME_VOLUME_RANGE.min,
       METRONOME_VOLUME_RANGE.max,
     ),
+    locale: LOCALES.some((entry) => entry.id === settings.locale) ? settings.locale : 'en',
     ...sanitiseOutputs(settings),
     cushionLevel: clamp(settings.cushionLevel, CUSHION_RANGE.min, CUSHION_RANGE.max),
   };

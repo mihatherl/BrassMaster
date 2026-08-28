@@ -40,6 +40,7 @@ import { isVetoed, vetoStep } from './course-vetoes';
 import type { Clef } from '../domain/instruments';
 import type { Exercise } from '../exercise/types';
 import type { CourseRun } from './course-run';
+import { t } from '../i18n';
 
 /** A step in flight: offered or asked for, not yet crossed. */
 interface PendingStep {
@@ -168,10 +169,10 @@ export function CoursePlayControls({
       {pending ? (
         <div className="course-play__banner" role="status">
           <p>
-            <strong>{positionLabel(pending.to.position)}</strong> at the bar line
+            <strong>{positionLabel(pending.to.position)}</strong> {t('course.atTheBar')}
           </p>
           <button type="button" className="button" onClick={stay}>
-            Stay here
+            {t('course.stayHere')}
           </button>
         </div>
       ) : (
@@ -186,7 +187,7 @@ export function CoursePlayControls({
               disabled={stepBack(progress.position) === null}
               onClick={() => schedule('back', false)}
             >
-              Back
+              {t('course.back')}
             </button>
             <button
               type="button"
@@ -194,7 +195,7 @@ export function CoursePlayControls({
               disabled={stepForward(progress.position) === null}
               onClick={() => schedule('forward', false)}
             >
-              Forward
+              {t('course.forward')}
             </button>
           </div>
         </>

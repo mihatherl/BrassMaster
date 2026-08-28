@@ -9,6 +9,11 @@
       content="Free practice for brass players: read generated music at your own tempo, on cornet, trumpet, tenor horn, baritone, euphonium or tuba, in treble or bass clef. Works offline in your browser, no account needed."
     />
     <link rel="canonical" href="https://brassmaster.net/" />
+    <link rel="alternate" hreflang="en" href="https://brassmaster.net/" />
+    <link rel="alternate" hreflang="de" href="https://brassmaster.net/de/" />
+    <link rel="alternate" hreflang="nl" href="https://brassmaster.net/nl/" />
+    <link rel="alternate" hreflang="fr" href="https://brassmaster.net/fr/" />
+    <link rel="alternate" hreflang="x-default" href="https://brassmaster.net/" />
     <link rel="icon" type="image/svg+xml" href="/app/favicon.svg" />
     <meta name="theme-color" content="#c48a2c" />
 
@@ -20,184 +25,72 @@
       content="Read music you have never seen before, at a tempo you choose, and find out honestly whether you played it. Free, offline, no account."
     />
 
-    <style>
-      :root {
-        --ink: #23201b;
-        --muted: #5d574d;
-        --line: #ddd5c7;
-        --paper: #faf7f1;
-        --brass: #c48a2c;
-        --brass-deep: #8c5f14;
-      }
-      * { box-sizing: border-box; }
-      html { -webkit-text-size-adjust: 100%; }
-      body {
-        margin: 0;
-        background: var(--paper);
-        color: var(--ink);
-        font: 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-      }
-      .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem; }
-      header { padding: 3.5rem 0 2.5rem; }
-      h1 {
-        font-size: clamp(2rem, 6vw, 3rem);
-        line-height: 1.1;
-        margin: 0 0 0.6rem;
-        letter-spacing: -0.02em;
-      }
-      .tagline { font-size: clamp(1.05rem, 3vw, 1.3rem); color: var(--muted); margin: 0 0 2rem; }
-      .cta {
-        display: inline-block;
-        background: var(--brass);
-        color: #fff;
-        font-weight: 600;
-        font-size: 1.1rem;
-        text-decoration: none;
-        padding: 0.85rem 1.75rem;
-        border-radius: 8px;
-      }
-      .cta:hover { background: var(--brass-deep); }
-      .cta-note { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem; }
-      h2 { font-size: 1.35rem; margin: 2.5rem 0 0.75rem; }
-      h3 { font-size: 1.05rem; margin: 1.5rem 0 0.35rem; }
-      p { margin: 0 0 1rem; }
-      ul { margin: 0 0 1rem; padding-left: 1.25rem; }
-      li { margin-bottom: 0.4rem; }
-      .grid { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
-      @media (min-width: 40rem) { .grid { grid-template-columns: 1fr 1fr; } }
-      .card { border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.25rem; background: #fff; }
-      .card h3 { margin-top: 0; }
-      .card p { margin-bottom: 0; color: var(--muted); }
-      footer {
-        margin-top: 3.5rem;
-        border-top: 1px solid var(--line);
-        padding: 1.5rem 0 3rem;
-        color: var(--muted);
-        font-size: 0.92rem;
-      }
-      footer a { color: var(--brass-deep); }
-      @media (prefers-color-scheme: dark) {
-        :root { --ink: #ece7de; --muted: #a79f92; --line: #3a352d; --paper: #1c1a17; }
-        .card { background: #232019; }
-      }
-    </style>
+    <style>:root { --ink: #23201b; --muted: #5d574d; --line: #ddd5c7; --paper: #faf7f1; --brass: #c48a2c; --brass-deep: #8c5f14; } * { box-sizing: border-box; } html { -webkit-text-size-adjust: 100%; } body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; } .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem; } .langs { padding-top: 1rem; font-size: 0.9rem; color: var(--muted); } .langs a { color: var(--muted); text-decoration: none; } .langs a.active { color: var(--ink); font-weight: 600; } header { padding: 3.5rem 0 2.5rem; } h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; margin: 0 0 0.6rem; letter-spacing: -0.02em; } .tagline { font-size: clamp(1.05rem, 3vw, 1.3rem); color: var(--muted); margin: 0 0 2rem; } .cta { display: inline-block; background: var(--brass); color: #fff; font-weight: 600; font-size: 1.1rem; text-decoration: none; padding: 0.85rem 1.75rem; border-radius: 8px; } .cta:hover { background: var(--brass-deep); } .cta-note { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.95rem; } h2 { font-size: 1.35rem; margin: 2.5rem 0 0.75rem; } h3 { font-size: 1.05rem; margin: 1.5rem 0 0.35rem; } p { margin: 0 0 1rem; } ul { margin: 0 0 1rem; padding-left: 1.25rem; } li { margin-bottom: 0.4rem; } .grid { display: grid; gap: 1.5rem; grid-template-columns: 1fr; } @media (min-width: 40rem) { .grid { grid-template-columns: 1fr 1fr; } } .card { border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.25rem; background: #fff; } .card h3 { margin-top: 0; } .card p { margin-bottom: 0; color: var(--muted); } footer { margin-top: 3.5rem; border-top: 1px solid var(--line); padding: 1.5rem 0 3rem; color: var(--muted); font-size: 0.92rem; } footer a { color: var(--brass-deep); } @media (prefers-color-scheme: dark) { :root { --ink: #ece7de; --muted: #a79f92; --line: #3a352d; --paper: #1c1a17; } .card { background: #232019; } }</style>
   </head>
   <body>
     <div class="wrap">
+      <nav class="langs" aria-label="Language"><a href="/" class="active">English</a> · <a href="/de/">Deutsch</a> · <a href="/nl/">Nederlands</a> · <a href="/fr/">Français</a></nav>
       <header>
         <h1>Brass Master</h1>
-        <p class="tagline">
-          Sight-reading and fingering practice for brass players. Free, in your browser, and
-          it works offline.
-        </p>
+        <p class="tagline">Sight-reading and fingering practice for brass players. Free, in your browser, and it works offline.</p>
         <a class="cta" href="/app/">Start practising</a>
         <p class="cta-note">No account, no install, nothing to pay.</p>
       </header>
 
       <h2>What it does</h2>
-      <p>
-        It puts music in front of you at a tempo you choose, with a conductor beating time and
-        a reference tone in your ear, and tells you honestly whether you played it.
-      </p>
-      <p>
-        The music is generated, so you are always reading something you have not seen before —
-        which is the thing that actually makes a reader fluent. Play along on the valve buttons
-        and every note is judged: right, wrong, or missed.
-      </p>
+      <p>It puts music in front of you at a tempo you choose, with a conductor beating time and a reference tone in your ear, and tells you honestly whether you played it.</p>
+      <p>The music is generated, so you are always reading something you have not seen before — which is the thing that actually makes a reader fluent. Play along on the valve buttons and every note is judged: right, wrong, or missed.</p>
 
       <div class="grid">
         <div class="card">
           <h3>Every valved brass instrument</h3>
-          <p>
-            B♭ cornet and trumpet, flugel horn, E♭ tenor horn, B♭ baritone, euphonium, and
-            E♭ or B♭ bass. Fingerings follow the instrument you pick.
-          </p>
+          <p>B♭ cornet and trumpet, flugel horn, E♭ tenor horn, B♭ baritone, euphonium, and E♭ or B♭ bass. Fingerings follow the instrument you pick.</p>
         </div>
         <div class="card">
           <h3>Treble or bass clef</h3>
-          <p>
-            Read in whichever your part is written in, with the brass band treble-clef
-            convention where it applies.
-          </p>
+          <p>Read in whichever your part is written in, with the brass band treble-clef convention where it applies.</p>
         </div>
         <div class="card">
           <h3>Scales, arpeggios and tunes</h3>
-          <p>
-            Drill a scale or an arpeggio in any key, read generated phrases, or play through
-            written themes.
-          </p>
+          <p>Drill a scale or an arpeggio in any key, read generated phrases, or play through written themes.</p>
         </div>
         <div class="card">
           <h3>The band around you</h3>
-          <p>
-            Metronome, conductor, tempo dial, key dial and a reference tone — so there is
-            something to play against, not just something to look at.
-          </p>
+          <p>Metronome, conductor, tempo dial, key dial and a reference tone — so there is something to play against, not just something to look at.</p>
         </div>
       </div>
 
       <h2>Who it is for</h2>
-      <p>
-        Any brass learner — beginner or advanced, in a band or not. It is built by a learner in a brass
-        band, so the conductor and the key dial show their origins, but nothing about
-        it assumes you play in one.
-      </p>
+      <p>Any brass learner — beginner or advanced, in a band or not. It is built by a learner in a brass band, so the conductor and the key dial show their origins, but nothing about it assumes you play in one.</p>
 
       <h2>Fingering charts, without the chart</h2>
-      <p>
-        If you came looking for a tuba, euphonium, cornet or tenor horn fingering chart: this
-        shows you the fingering under the note you are actually trying to play, and then stops
-        showing you the ones you already know. Turn the hints off when you no longer need them.
-      </p>
+      <p>If you came looking for a tuba, euphonium, cornet or tenor horn fingering chart: this shows you the fingering under the note you are actually trying to play, and then stops showing you the ones you already know. Turn the hints off when you no longer need them.</p>
 
       <h2>On your phone</h2>
-      <p>
-        It runs in a phone browser and can be added to your home screen, where it works with no
-        connection at all.
-      </p>
+      <p>It runs in a phone browser and can be added to your home screen, where it works with no connection at all.</p>
 
       <h2>What is coming</h2>
-      <p>
-        Everything above is free and stays free. A paid Android app is being built, and it adds
-        the things that need more than a web page can do:
-      </p>
+      <p>Everything above is free and stays free. A paid Android app is being built, and it adds the things that need more than a web page can do:</p>
       <ul>
         <li>
-          <strong>Microphone mode</strong> — it listens to you play, instead of watching you
-          press buttons.
-        </li>
+          <strong>Microphone mode</strong>— it listens to you play, instead of watching you press buttons.</li>
         <li>
-          <strong>Guided practice</strong> — goals, a planned session, and a progression that
-          remembers between sittings and tells you whether you are actually improving.
-        </li>
+          <strong>Guided practice</strong>— goals, a planned session, and a progression that remembers between sittings and tells you whether you are actually improving.</li>
         <li>
-          <strong>Your own music</strong> — import a part and read it with everything else the
-          app can do to it.
-        </li>
+          <strong>Your own music</strong>— import a part and read it with everything else the app can do to it.</li>
       </ul>
-      <p>
-        After that, playing your part <em>with the other instruments around it</em>, so you are
-        reading in context rather than alone. An iOS version comes after the Android one.
-      </p>
+      <p>After that, playing your part<em>with the other instruments around it</em>, so you are reading in context rather than alone. An iOS version comes after the Android one.</p>
       <p>This page will link to the app when there is something to link to.</p>
 
       <h2>Tell me what is wrong with it</h2>
-      <p>
-        This is built by one person, and the fastest way it gets better is people saying what
-        broke or what they wish it did. Bugs, an instrument that is missing, something that
-        felt wrong to read — all welcome at
-        <a href="mailto:feedback@brassmaster.net">feedback@brassmaster.net</a>.
-      </p>
+      <p>This is built by one person, and the fastest way it gets better is people saying what broke or what they wish it did. Bugs, an instrument that is missing, something that felt wrong to read — all welcome at<a href="mailto:feedback@brassmaster.net">feedback@brassmaster.net</a>.</p>
 
       <p style="margin-top: 2rem">
         <a class="cta" href="/app/">Start practising</a>
       </p>
 
       <footer>
-        <p>
-          Brass Master is made in Victoria, Australia, by a learner in a brass band.
-          Nothing you play leaves your device — there are no accounts and no tracking.
-        </p>
+        <p>Brass Master is made in Victoria, Australia, by a learner in a brass band. Nothing you play leaves your device — there are no accounts and no tracking.</p>
         <p>
           <a href="/app/">Open the practice app</a>
         </p>

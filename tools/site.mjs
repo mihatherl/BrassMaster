@@ -34,7 +34,7 @@
  * before the web build, so there is nothing to inherit.
  */
 
-import { cpSync, existsSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DIST = 'dist';
@@ -51,7 +51,11 @@ if (mode === 'clear') {
     console.error(`No app at ${APP}/ — run the web build before assembling.`);
     process.exit(2);
   }
-  cpSync(SITE, DIST, { recursive: true });
+  cpSync(SITE, DIST, {
+    recursive: true,
+    // The packs are build input, not site content.
+    filter: (src) => !src.endsWith('translations.mjs'),
+  });
 
   /*
    * The custom domain lives or dies by this file, and it is the one mistake
@@ -67,6 +71,41 @@ if (mode === 'clear') {
     );
     process.exit(2);
   }
+
+  /*
+   * The translated landing pages, generated from the English one. Every
+   * source string must be FOUND — a pack whose English has drifted from the
+   * page fails the build by name, because a translation that silently stopped
+   * matching would ship half a page in each language and nothing would say
+   * so. Replacement is all-occurrences ("Start practising" appears twice, by
+   * design, and must translate twice).
+   */
+  const { LANGUAGES } = await import('../site/translations.mjs');
+  const english = readFileSync(join(DIST, 'index.html'), 'utf8');
+  for (const { lang, pairs } of LANGUAGES) {
+    let page = english;
+    for (const [source, translated] of pairs) {
+      if (!page.includes(source)) {
+        console.error(`translations.mjs (${lang}): source string no longer on the page:\n  ${source}`);
+        process.exit(2);
+      }
+      page = page.split(source).join(translated);
+    }
+    page = page.replace('<html lang="en">', `<html lang="${lang}">`);
+    page = page.replace(
+      '<link rel="canonical" href="https://brassmaster.net/" />',
+      `<link rel="canonical" href="https://brassmaster.net/${lang}/" />`,
+    );
+    page = page.replace(
+      'property="og:url" content="https://brassmaster.net/"',
+      `property="og:url" content="https://brassmaster.net/${lang}/"`,
+    );
+    page = page.replace(' href="/" class="active"', ' href="/"');
+    page = page.replace(`<a href="/${lang}/">`, `<a href="/${lang}/" class="active">`);
+    mkdirSync(join(DIST, lang), { recursive: true });
+    writeFileSync(join(DIST, lang, 'index.html'), page);
+  }
+  console.log(`landing pages: en + ${LANGUAGES.map((l) => l.lang).join(', ')}`);
 
   const top = readdirSync(DIST).sort().join(', ');
   console.log(`assembled ${DIST}/: ${top}`);

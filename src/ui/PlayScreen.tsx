@@ -26,6 +26,7 @@ import type { Transport } from '../engine/clock';
 import { ValveInput } from '../engine/input';
 import { REACTIVE_SOUND_MAX_LEAD, Session } from '../engine/session';
 import { ReadyControls } from './ReadyControls';
+import { t } from '../i18n';
 import { fingeringHints, type Hints } from '../exercise/hints';
 import { soundingHeads } from '../exercise/ties';
 import { loadStats } from '../storage/stats';
@@ -773,7 +774,7 @@ export function PlayScreen({
             disabled={loading}
             onClick={start}
           >
-            {loading ? 'Loading instrument…' : 'Tap to start'}
+            {loading ? 'Loading instrument…' : t('play.tapToStart')}
           </button>
           {/* How this run will go, editable at the door — see ReadyControls
               for the admission rule that keeps this face short. */}
@@ -928,7 +929,7 @@ export function PlayScreen({
           className={`button play-action ${offering ? 'play-action--continue' : 'play-action--stop'}`}
           onPress={press}
         >
-          {offering ? 'Continue' : 'Stop'}
+          {offering ? t('play.continue') : t('play.stop')}
         </PressButton>
 
         {/*
@@ -938,7 +939,7 @@ export function PlayScreen({
         */}
         <div className="play-transport">
           <PressButton className="button play-step" onPress={holdOrPlay}>
-            {paused ? 'Start' : 'Pause'}
+            {paused ? t('play.start') : t('play.pause')}
           </PressButton>
           <PressButton
             className="button play-step play-step--back"

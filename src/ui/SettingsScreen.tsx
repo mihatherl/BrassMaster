@@ -11,6 +11,7 @@ import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
+import { LOCALES, t, type StringKey } from '../i18n';
 import type { ExerciseKind } from '../exercise/types';
 import { RangePicker } from './RangePicker';
 import {
@@ -820,8 +821,23 @@ export function SettingsScreen({
               which read worse than saying less. The full name is one tap
               away, on the sheet this opens. */}
           {instrument.name.replace(/\s*\(.*\)/, '')} ·{' '}
-          {settings.clef === 'treble' ? 'Treble' : 'Bass'}
+          {settings.clef === 'treble' ? t('clefShort.treble') : t('clefShort.bass')}
         </button>
+        {/* "A little setting up the top" — the player's own words for where
+            the language belongs (2026-08-28). Its own names, because nobody
+            hunts for their language in another. */}
+        <select
+          className="locale-select"
+          aria-label={t('home.language')}
+          value={settings.locale}
+          onChange={(event) => onChange({ ...settings, locale: event.target.value })}
+        >
+          {LOCALES.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {entry.name}
+            </option>
+          ))}
+        </select>
       </header>
 
       {/* The two ways in, side by side with literally equal billing — the
@@ -836,7 +852,7 @@ export function SettingsScreen({
             aria-pressed={mode === 'structured'}
             onClick={() => onMode('structured')}
           >
-            Structured Learning
+            {t('home.structured')}
           </button>
           <button
             type="button"
@@ -844,7 +860,7 @@ export function SettingsScreen({
             aria-pressed={mode === 'free'}
             onClick={() => onMode('free')}
           >
-            Free play
+            {t('home.free')}
           </button>
         </div>
       )}
@@ -945,7 +961,7 @@ export function SettingsScreen({
         <div className="mode-tabs">
           {onImport && (
             <button type="button" className="mode-tab" onClick={onImport}>
-              <strong>My Music</strong>
+              <strong>{t('home.myMusic')}</strong>
             </button>
           )}
           {EXERCISE_KINDS.map((kind) => (
@@ -958,7 +974,7 @@ export function SettingsScreen({
               // see `switchMaterial`.
               onClick={() => onChange(switchMaterial(settings, kind.id as ExerciseKind))}
             >
-              <strong>{kind.name}</strong>
+              <strong>{t(`kind.${kind.id}` as StringKey)}</strong>
             </button>
           ))}
         </div>
@@ -1069,7 +1085,7 @@ export function SettingsScreen({
         )}
 
         <button type="button" className="button button--primary button--large" onClick={onStart}>
-          Start
+          {t('home.start')}
         </button>
         <p className="field__note muted strip-version">
           v{__APP_VERSION__} · corpus {CORPUS.revision} ({CORPUS.cells} cells)

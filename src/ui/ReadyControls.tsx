@@ -25,6 +25,7 @@ import { styleName } from '../render/conductor';
 import { toleranceFor } from '../engine/judge';
 import { REACTIVE_SOUND_MAX_LEAD } from '../engine/session';
 import { corpusSummary } from '../exercise/corpus';
+import { t, type StringKey } from '../i18n';
 import {
   audioLeadFor,
   CONDUCTOR_STYLE_RANGE,
@@ -112,7 +113,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
        */}
       <label className="field tempo">
         <span className="field__label">
-          Tempo <strong>{settings.tempo}</strong> bpm
+          {t('gate.tempo')} <strong>{settings.tempo}</strong> bpm
         </span>
         <input
           type="range"
@@ -130,8 +131,8 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
       </label>
 
       <Section
-        title="Reading"
-        values={READING_MODES.find((m) => m.id === settings.readingMode)?.name ?? ''}
+        title={t('gate.reading')}
+        values={t(`reading.${settings.readingMode}` as StringKey)}
       >
         <div className="field">
           <div className="cards cards--two">
@@ -142,14 +143,14 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
                 className={`card card--compact ${settings.readingMode === mode.id ? 'is-selected' : ''}`}
                 onClick={() => update('readingMode', mode.id)}
               >
-                <strong>{mode.name}</strong>
+                <strong>{t(`reading.${mode.id}` as StringKey)}</strong>
               </button>
             ))}
           </div>
         </div>
       </Section>
 
-      <Section title="Beat" values={beat}>
+      <Section title={t('gate.beat')} values={beat}>
         {/* Two switches, one line: the pair answers one question. */}
         <div className="field field-row">
           <label className="field field--inline">
@@ -159,7 +160,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
               disabled={isPinned('metronomeEnabled')}
               onChange={(event) => update('metronomeEnabled', event.target.checked)}
             />
-            <span>Metronome</span>
+            <span>{t('gate.metronome')}</span>
           </label>
           <label className="field field--inline">
             <input
@@ -168,7 +169,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
               disabled={isPinned('conductorEnabled')}
               onChange={(event) => update('conductorEnabled', event.target.checked)}
             />
-            <span>Conductor</span>
+            <span>{t('gate.conductor')}</span>
           </label>
         </div>
         {(isPinned('metronomeEnabled') || isPinned('conductorEnabled')) && (
@@ -183,7 +184,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
         {settings.metronomeEnabled && (
           <label className="field">
             <span className="field__label">
-              Metronome volume <strong>{Math.round(settings.metronomeVolume * 100)}%</strong>
+              {t('gate.metronomeVolume')} <strong>{Math.round(settings.metronomeVolume * 100)}%</strong>
             </span>
             <input
               type="range"
@@ -210,8 +211,8 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
       </Section>
 
       <Section
-        title="Sound"
-        values={PLAYBACK_MODES.find((m) => m.id === settings.playbackMode)?.name ?? ''}
+        title={t('gate.sound')}
+        values={t(`playback.${settings.playbackMode}` as StringKey)}
       >
         <div className="field">
           <div className="cards cards--two">
@@ -222,7 +223,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
                 className={`card card--compact ${settings.playbackMode === mode.id ? 'is-selected' : ''}`}
                 onClick={() => update('playbackMode', mode.id)}
               >
-                <strong>{mode.name}</strong>
+                <strong>{t(`playback.${mode.id}` as StringKey)}</strong>
               </button>
             ))}
           </div>
@@ -230,7 +231,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
       </Section>
 
       <Section
-        title="Fingerings"
+        title={t('gate.fingerings')}
         values={FINGERING_MODES.find((m) => m.id === settings.fingerings)?.name ?? ''}
       >
         <div className="field">
@@ -249,7 +250,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
         </div>
       </Section>
 
-      <Section title="Preferences" values="">
+      <Section title={t('gate.preferences')} values="">
         <label className="field field--inline">
           <input
             type="checkbox"

@@ -915,6 +915,22 @@ with no figure to measure the spend against. **Ads make sense once the paid
 Android app is on sale and a click has a value.** Doing it in the other order
 buys traffic for the worst version of the product.
 
+**7.6 Language packs — partial by ruling, 2026-08-28.** The player's scope:
+the landing page and "the various labels and buttons throughout the different
+forms", with what cannot change named as such — course content, theme names,
+the long teaching prose, the corpus blurbs (pinned by their own guards), the
+editor. Built the same day: `i18n/` with English as source of truth and
+per-key fallback (an incomplete pack degrades to mixed, never to broken), a
+selector up the top of the home screen, and **German, Dutch and French** as
+pilots. The landing page translates as *whole pages* — `/de/`, `/nl/`,
+`/fr/`, generated at assemble with hreflang and sitemap entries, each its own
+search surface, and the build **fails by name** when the English copy drifts
+from a pack. Standing obligations: **every pack wants a native brass
+player's pass** (the ear rule's linguistic twin — drafted by the assistant,
+native in none of them); new labels should go through `t()` as they are
+written; and the **US-English duration-name fork** (crotchet/quarter note)
+remains open and is the cheapest locale with the largest audience.
+
 **7.5 The Play listing is a discovery surface too**, and it is not ready to be
 one: internal track, placeholder name, and the content rating, data safety and
 target-audience tasks outstanding (§ 4.2). The landing page will link to it

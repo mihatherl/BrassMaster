@@ -807,6 +807,20 @@ body {
   border-top: 1px solid var(--border);
 }
 
+.masthead--home .locale-select {
+  /* "A little setting up the top": quiet, compact, and wearing the language's
+     own name rather than a flag — flags are countries, not languages. */
+  margin-left: auto;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--line, #ddd5c7);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  max-width: 6.5rem;
+  font-size: 0.75rem;
+}
+
 .screen--settings > .masthead--home {
   padding-top: calc(1.25rem + var(--safe-top));
 }

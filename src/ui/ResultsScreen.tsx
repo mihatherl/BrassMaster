@@ -15,6 +15,7 @@ import type { Exercise } from '../exercise/types';
 import { weakestNotes, type NoteStats } from '../storage/stats';
 import type { ChartNote } from '../render/note-chart';
 import { ReviewStave } from './ReviewStave';
+import { t } from '../i18n';
 import { WeakNoteChart } from './WeakNoteChart';
 
 interface ResultsScreenProps {
@@ -150,15 +151,15 @@ export function ResultsScreen({
         <div className="tally">
           <div className="tally__item tally__item--correct">
             <strong>{summary.correct}</strong>
-            <span>Correct</span>
+            <span>{t('results.correct')}</span>
           </div>
           <div className="tally__item tally__item--wrong">
             <strong>{summary.wrong}</strong>
-            <span>Wrong valves</span>
+            <span>{t('results.wrongValves')}</span>
           </div>
           <div className="tally__item tally__item--missed">
             <strong>{summary.missed}</strong>
-            <span>Missed</span>
+            <span>{t('results.missed')}</span>
           </div>
         </div>
         {summary.averageOffset > 0 && (
@@ -185,7 +186,7 @@ export function ResultsScreen({
               checked={!counted}
               onChange={(event) => onCounted(!event.target.checked)}
             />
-            <span>Don&rsquo;t count this run — I wasn&rsquo;t really playing</span>
+            <span>{t('results.dontCount')}</span>
           </label>
         ) : (
           <p className="field__note muted">
@@ -205,13 +206,13 @@ export function ResultsScreen({
       */}
       <div className="actions">
         <button type="button" className="button button--primary button--large" onClick={onNext}>
-          Another
+          {t('results.another')}
         </button>
         <button type="button" className="button" onClick={onRepeat}>
-          Same again
+          {t('results.sameAgain')}
         </button>
         <button type="button" className="button button--quiet" onClick={onSettings}>
-          Settings
+          {t('results.settings')}
         </button>
       </div>
 

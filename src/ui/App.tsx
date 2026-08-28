@@ -24,6 +24,7 @@ import { ResultsScreen } from './ResultsScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { recordRun } from '../storage/sessions';
 import { PracticeScreen } from './PracticeScreen';
+import { setLocale } from '../i18n';
 import type { CourseRun } from './course-run';
 import { ProgressScreen } from './ProgressScreen';
 
@@ -80,6 +81,9 @@ interface Finished {
 
 export function App() {
   const [chosen, setChosen] = useState<Settings>(loadSettings);
+  // Before any child renders: t() reads a module variable, and every locale
+  // change is a settings change, which re-renders this whole tree anyway.
+  setLocale(chosen.locale);
   // One home since 2026-08-23: the interstitial with two doors is gone, and
   // which side shows is `settings.homeMode`, remembered across launches.
   const [screen, setScreen] = useState<Screen>('settings');
