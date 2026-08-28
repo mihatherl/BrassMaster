@@ -34,12 +34,14 @@ const OPEN_KEY_COURSE = {
   ],
 };
 
-const summary = (title: string): string => {
-  const head = [...document.querySelectorAll('.panel__summary')].find(
-    (candidate) => candidate.querySelector('.panel__title')?.textContent === title,
-  );
-  return head?.querySelector('.panel__values')?.textContent ?? '';
-};
+/** The key named on the gate's face, where the question is asked. */
+const asked = (): string =>
+  [...document.querySelectorAll('.field__label')]
+    .map((node) => node.textContent ?? '')
+    .find((text) => text.startsWith('Key ')) ?? '';
+
+/** A key's chip in the grid on the face. */
+const chip = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name},`) });
 
 /**
  * Into the course and up to the gate, which is where the key is asked.
@@ -71,29 +73,30 @@ afterEach(() => {
 describe('a course level that leaves the key to the player', () => {
   it('asks at the gate, rather than silently taking free play’s key', () => {
     reachTheGate();
-    expect(screen.getByRole('combobox', { name: /yours to choose/i })).toBeTruthy();
+    expect(screen.getByText(/yours to choose/i)).toBeTruthy();
     expect(screen.queryByText(/set by the course/i)).toBeNull();
+    // On the face and uncollapsed — not behind an accordion the player would
+    // have to know to open (the player's instruction, 2026-08-29).
+    expect(chip('Eb major').closest('details')).toBeNull();
   });
 
   it('opens on the player’s free-play key the first time', () => {
     // Eb major is the default and brass band home turf; the point is that the
     // gate opens somewhere honest rather than on an app default nobody chose.
     reachTheGate();
-    expect(summary('Key')).toBe('Eb major');
+    expect(asked()).toBe('Key Eb major');
   });
 
   it('remembers the answer for the next time the question is asked', () => {
     reachTheGate();
-    fireEvent.change(screen.getByRole('combobox', { name: /yours to choose/i }), {
-      target: { value: '-1' },
-    });
-    expect(summary('Key')).toBe('F major');
+    fireEvent.click(chip('F major'));
+    expect(asked()).toBe('Key F major');
 
     // Leave the run entirely and come back: the answer is the player's, and
     // it is kept apart from free play's key set on purpose.
     cleanup();
     reachTheGate();
-    expect(summary('Key')).toBe('F major');
+    expect(asked()).toBe('Key F major');
   });
 
   it('leaves the free-play key set alone, rather than flattening it', () => {
@@ -103,9 +106,7 @@ describe('a course level that leaves the key to the player', () => {
      * four-key tour to one every time they answered a course level.
      */
     reachTheGate();
-    fireEvent.change(screen.getByRole('combobox', { name: /yours to choose/i }), {
-      target: { value: '3' },
-    });
+    fireEvent.click(chip('A major'));
     const stored = JSON.parse(localStorage.getItem('brass-trainer:settings') ?? '{}');
     expect(stored.courseFifths).toBe(3);
     expect(stored.keySet).toEqual([-3]);

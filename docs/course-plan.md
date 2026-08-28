@@ -621,14 +621,22 @@ course. The author could not tell what they were specifying and the player was
 never told what they were in — and a level that *did* name a key never said so
 either.
 
-- **The Ready gate owns the key on a course run**, and says who chose it. Named
-  by the course: shown locked with "Set by the course", the same vocabulary as
-  the pinned switches and for the reason already recorded there — *a player who
-  cannot find the control thinks the app is broken; one who sees it locked knows
-  the course chose*. Left open: a live control, labelled as theirs. It earns its
-  place by the gate's own admission rule — *changed often, and changes the run
-  about to start* — because on a course that leaves the key open it is touched
-  every level.
+- **The Ready gate owns the key on a course run**, and says who chose it. It
+  earns its place by the gate's own admission rule — *changed often, and
+  changes the run about to start* — because on a course that leaves the key
+  open it is touched every level.
+- **A question goes on the face; a statement goes in the accordion** (the
+  player, revising the first build the same day: *"this should be prominent at
+  the gate… in the same format as is on the setting screen"*). Where the author
+  named the key it is a section, showing it, locked, with "Set by the course" —
+  the pinned switches' vocabulary and their recorded reason: *a player who
+  cannot find the control thinks the app is broken; one who sees it locked
+  knows the course chose*. Where the author left it open it is **uncollapsed on
+  the face, under the tempo**, in the home screen's own three-by-five grid. A
+  question the course is asking must not be behind an accordion the player has
+  to know to open. `KeyGrid` is shared by both screens so they cannot drift
+  into looking different; only the rules differ, the home screen building an
+  ordered set with a cap and the gate answering with exactly one key.
 - **One key, never a set.** "The player's own key" is singular. Inheriting free
   play's `keySet` had a level touring several keys and changing key mid-run
   because of a setting made on another screen.

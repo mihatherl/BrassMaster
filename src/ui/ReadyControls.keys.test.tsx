@@ -23,14 +23,11 @@ import { DEFAULT_SETTINGS } from '../storage/settings';
 afterEach(cleanup);
 
 /**
- * The name on the Key section's *closed* summary — what a player reads
- * without opening anything.
+ * The name on the Key section's *closed* summary — the locked case only,
+ * since a key the course fixed is a statement and lives in the accordion.
  *
- * Found by its own title rather than by class alone, for two reasons the
- * first drafts of this file hit in turn: the same key name also appears in
- * the fifteen options below, so a bare text query cannot tell the summary
- * from a choice; and the gate has five other sections with the same class, so
- * the first match is Reading's.
+ * Found by its own title rather than by class alone: the gate has five other
+ * sections with the same class, so the first match is Reading's.
  */
 const summary = (title: string): string => {
   const head = [...document.querySelectorAll('.panel__summary')].find(
@@ -38,6 +35,18 @@ const summary = (title: string): string => {
   );
   return head?.querySelector('.panel__values')?.textContent ?? '';
 };
+
+/**
+ * The key named on the face, where the question is asked — uncollapsed, by the
+ * player's instruction of 2026-08-29.
+ */
+const asked = (): string =>
+  [...document.querySelectorAll('.field__label')]
+    .map((node) => node.textContent ?? '')
+    .find((text) => text.startsWith('Key ')) ?? '';
+
+/** The chip for a key, in the grid on the face. */
+const chip = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name},`) });
 
 const gate = (over: Partial<KeyGate> = {}): KeyGate => ({
   fifths: 0,
@@ -48,10 +57,18 @@ const gate = (over: Partial<KeyGate> = {}): KeyGate => ({
 });
 
 describe('the key at the gate', () => {
+  it('marks the key in force, and only that one', () => {
+    render(<ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} keyGate={gate({ fifths: -1 })} />);
+    const pressed = [...document.querySelectorAll('.keys .key[aria-pressed="true"]')];
+    expect(pressed).toHaveLength(1);
+    expect(pressed[0].textContent).toContain('F');
+  });
+
   it('is absent in free play, where the home screen owns the grid', () => {
     render(<ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} />);
-    expect(screen.queryByLabelText(/yours to choose/i)).toBeNull();
-    // The section itself does not appear at all — not an empty one.
+    expect(screen.queryByText(/yours to choose/i)).toBeNull();
+    // Neither the question on the face nor a section: the home screen owns it.
+    expect(asked()).toBe('');
     expect(screen.queryByText('Key')).toBeNull();
   });
 
@@ -61,23 +78,38 @@ describe('the key at the gate', () => {
     );
     expect(summary('Key')).toBe('F major');
     expect(screen.getByText(/set by the course/i)).toBeTruthy();
-    expect(screen.queryByRole('combobox', { name: /yours to choose/i })).toBeNull();
+    // No question on the face: there is nothing to answer.
+    expect(screen.queryByText(/yours to choose/i)).toBeNull();
+    expect(asked()).toBe('');
   });
 
-  it('asks, when the course left the key open', () => {
+  it('asks on the face, uncollapsed, when the course left the key open', () => {
+    /*
+     * The player's instruction, and the point of the whole control: a question
+     * the course is asking must not be behind an accordion the player has to
+     * know to open. The locked case may sit in one; a question may not.
+     */
     render(<ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} keyGate={gate({ fifths: -3 })} />);
-    expect(screen.getByRole('combobox', { name: /yours to choose/i })).toBeTruthy();
+    expect(screen.getByText(/yours to choose/i)).toBeTruthy();
     expect(screen.queryByText(/set by the course/i)).toBeNull();
-    // Named on the closed section too, so it answers without being opened.
-    expect(summary('Key')).toBe('Eb major');
+    expect(asked()).toBe('Key Eb major');
+    // On the face, not inside any of the accordion's sections.
+    expect(summary('Key')).toBe('');
+    expect(chip('Eb major').closest('details')).toBeNull();
+  });
+
+  it('draws the same grid the home screen does', () => {
+    // Three rows of five, one chip per key — the shared `KeyGrid`, so the two
+    // screens cannot drift into looking different.
+    render(<ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} keyGate={gate()} />);
+    expect(document.querySelectorAll('.keys__row')).toHaveLength(3);
+    expect(document.querySelectorAll('.keys .key')).toHaveLength(15);
   });
 
   it('hands back the signature the player picked', () => {
     const onChoose = vi.fn();
     render(<ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} keyGate={gate({ onChoose })} />);
-    fireEvent.change(screen.getByRole('combobox', { name: /yours to choose/i }), {
-      target: { value: '-1' },
-    });
+    fireEvent.click(chip('F major'));
     expect(onChoose).toHaveBeenCalledWith(-1);
   });
 
@@ -91,18 +123,16 @@ describe('the key at the gate', () => {
     const { rerender } = render(
       <ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} keyGate={gate({ fifths: 0 })} />,
     );
-    expect(summary('Key')).toBe('C major');
+    expect(asked()).toBe('Key C major');
     rerender(
       <ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} keyGate={gate({ fifths: 0, minor: true })} />,
     );
-    expect(summary('Key')).toBe('A minor');
-    expect(screen.queryByText('C major')).toBeNull();
+    expect(asked()).toBe('Key A minor');
   });
 
-  it('offers minor names throughout the list, not just on the summary', () => {
+  it('names every chip in the grid as a minor, not just the chosen one', () => {
     render(<ReadyControls settings={DEFAULT_SETTINGS} onChange={vi.fn()} keyGate={gate({ minor: true })} />);
-    const options = screen.getAllByRole('option').map((o) => o.textContent);
-    expect(options).toContain('D minor');
-    expect(options).not.toContain('F major');
+    expect(chip('D minor')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^F major,/ })).toBeNull();
   });
 });

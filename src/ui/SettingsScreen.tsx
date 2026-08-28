@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
-import { describeFifths, keyNameFor, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
+import { keyNameFor, orderByCloseness } from '../domain/keys';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
 import { COLLECTIONS, themeById, themesOf } from '../exercise/collections';
@@ -14,6 +14,7 @@ import { EXERCISE_KINDS } from '../exercise/types';
 import { LOCALES, t, tCount, type StringKey } from '../i18n';
 import type { ExerciseKind } from '../exercise/types';
 import { RangePicker } from './RangePicker';
+import { accidentalCount, KeyGrid } from './KeyGrid';
 import {
   REGISTERS,
   DEVICE_OUTPUT_ID,
@@ -42,26 +43,6 @@ import {
  * is where nearly all brass band reading lives. The rows either side hold the
  * keys a player goes looking for rather than the ones they land on.
  */
-const KEYS_PER_ROW = 5;
-
-const KEY_ROWS = Array.from(
-  { length: Math.ceil(MAJOR_KEYS.length / KEYS_PER_ROW) },
-  (_, row) => MAJOR_KEYS.slice(row * KEYS_PER_ROW, row * KEYS_PER_ROW + KEYS_PER_ROW),
-);
-
-
-/**
- * A key's accidentals as a symbol and a count: `3♭`, `2♯`, or nothing for C.
- *
- * Enough for a player to recognise a key they half-know without the sentence
- * the dropdown used to spell out. The full wording is still there for a screen
- * reader, which cannot make anything of a sharp sign on its own.
- */
-function accidentalCount(fifths: number): string {
-  if (fifths === 0) return '';
-  return `${Math.abs(fifths)}${fifths > 0 ? '♯' : '♭'}`;
-}
-
 function describeSpan(semitones: number): string {
   if (semitones >= 24) return 'two octaves';
   if (semitones >= 12) return 'one octave';
@@ -89,43 +70,26 @@ function KeysGrid({
   keyName: (fifths: number, short?: boolean) => string;
   onChange: (next: number[]) => void;
 }) {
+  const full = keySet.length >= MAX_KEYS_IN_PLAY;
   return (
-    <div className="keys">
-      {KEY_ROWS.map((row) => (
-        <div className="keys__row" key={row[0].fifths}>
-          {row.map((key) => {
-            const chosen = keySet.includes(key.fifths);
-            const start = keySet[0] === key.fifths;
-            const full = keySet.length >= MAX_KEYS_IN_PLAY;
-            const only = chosen && keySet.length === 1;
-            return (
-              <button
-                key={key.fifths}
-                type="button"
-                disabled={only || (!chosen && full)}
-                aria-pressed={chosen}
-                // The accidentals are shown as "3♭" beside the name, which a
-                // screen reader would spell out as a number and a symbol.
-                aria-label={`${keyName(key.fifths)}, ${describeFifths(key.fifths)}`}
-                className={`segmented__option key ${chosen ? 'is-selected' : ''} ${
-                  start ? 'is-start' : ''
-                }`}
-                onClick={() => {
-                  const next = chosen
-                    ? keySet.filter((f) => f !== key.fifths)
-                    : [...keySet, key.fifths];
-                  if (next.length === 0) return;
-                  onChange(next);
-                }}
-              >
-                <span className="key__name">{keyName(key.fifths, true)}</span>
-                <span className="key__accidentals muted">{accidentalCount(key.fifths)}</span>
-              </button>
-            );
-          })}
-        </div>
-      ))}
-    </div>
+    <KeyGrid
+      keyName={keyName}
+      isSelected={(fifths) => keySet.includes(fifths)}
+      isStart={(fifths) => keySet[0] === fifths}
+      /* Beyond the cap only what is already chosen can be undone, and the last
+         one standing cannot be — an exercise has to be in some key. */
+      isDisabled={(fifths) => {
+        const chosen = keySet.includes(fifths);
+        return (chosen && keySet.length === 1) || (!chosen && full);
+      }}
+      onPick={(fifths) => {
+        const next = keySet.includes(fifths)
+          ? keySet.filter((f) => f !== fifths)
+          : [...keySet, fifths];
+        if (next.length === 0) return;
+        onChange(next);
+      }}
+    />
   );
 }
 

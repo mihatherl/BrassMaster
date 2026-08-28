@@ -19,8 +19,9 @@
  */
 
 import { type ReactNode } from 'react';
-import { keyNameFor, MAJOR_KEYS } from '../domain/keys';
+import { keyNameFor } from '../domain/keys';
 import { metreFor } from '../domain/metre';
+import { KeyGrid } from './KeyGrid';
 import { previewClick } from '../audio/metronome';
 import { styleName } from '../render/conductor';
 import { toleranceFor } from '../engine/judge';
@@ -157,6 +158,33 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned, keyGate }
         )}
       </label>
 
+      {/*
+       * A key the course left to the player: a *question*, and questions do
+       * not belong in an accordion. Asked on the face, uncollapsed, in the
+       * same grid the home screen uses — the player's own instruction,
+       * 2026-08-29: "this should be prominent at the gate… in the same format
+       * as is on the setting screen".
+       *
+       * One key, not a set, so pressing one replaces rather than adds. The
+       * grid is shared with the home screen (`KeyGrid`) and only the rules
+       * differ, which is why there is no cap here and nothing to undo: there
+       * is always exactly one answer.
+       */}
+      {keyGate && !keyGate.setByCourse && (
+        <div className="field">
+          <span className="field__label">
+            {t('gate.key')} <strong>{keyNameFor(keyGate.fifths, keyGate.minor)}</strong>
+          </span>
+          <p className="field__note">{t('gate.yourChoice')}</p>
+          <KeyGrid
+            keyName={(fifths, short) => keyNameFor(fifths, keyGate.minor, short)}
+            isSelected={(fifths) => fifths === keyGate.fifths}
+            onPick={keyGate.onChoose}
+          />
+          <p className="field__note muted">{t('gate.keyRemembered')}</p>
+        </div>
+      )}
+
       <Section
         title={t('gate.reading')}
         values={t(`reading.${settings.readingMode}` as StringKey)}
@@ -178,44 +206,13 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned, keyGate }
       </Section>
 
       {/*
-       * Keys, on a course run only.
-       *
-       * It earns its place by the gate's own admission rule — *changed often,
-       * and changes the run about to start* — because on a course that leaves
-       * the key open it is touched at every level, and it is the one thing
-       * about the run the player could not otherwise discover. Above the
-       * Beat and Sound sections deliberately: those are how the run is heard,
-       * this is what the run *is*.
+       * A key the course fixed: a statement, so it sits in the accordion with
+       * everything else the run has already decided. Said at all because a
+       * level in F told the player nothing about being in F until 2026-08-29.
        */}
-      {keyGate && (
-        <Section
-          title={t('gate.key')}
-          values={keyNameFor(keyGate.fifths, keyGate.minor)}
-        >
-          {keyGate.setByCourse ? (
-            <p className="field__note muted">{t('gate.setByCourse')}</p>
-          ) : (
-            <div className="field">
-              <label className="field__label" htmlFor="gate-key">
-                {t('gate.yourChoice')}
-              </label>
-              <select
-                id="gate-key"
-                value={String(keyGate.fifths)}
-                onChange={(event) => keyGate.onChoose(Number(event.target.value))}
-              >
-                {MAJOR_KEYS.map((key) => (
-                  <option key={key.fifths} value={key.fifths}>
-                    {keyNameFor(key.fifths, keyGate.minor)}
-                  </option>
-                ))}
-              </select>
-              {/* One key, not a set: the course owns the shape of the run, and
-                  a player quietly turning a level into a four-key tour is the
-                  same surprise as inheriting free play's. Ruled 2026-08-29. */}
-              <p className="field__note muted">{t('gate.keyRemembered')}</p>
-            </div>
-          )}
+      {keyGate?.setByCourse && (
+        <Section title={t('gate.key')} values={keyNameFor(keyGate.fifths, keyGate.minor)}>
+          <p className="field__note muted">{t('gate.setByCourse')}</p>
         </Section>
       )}
 

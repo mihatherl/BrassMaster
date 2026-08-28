@@ -31,7 +31,7 @@ covers 2026-08-24 to 28: seven releases, v2.48.0 through v2.54.0.
 ## Where this stands
 
 **v2.54.0, pushed, tagged, deployed and green** — and since then, unpushed
-on this machine, the work below: **1,525 tests across 76 files**.
+on this machine, the work below: **1,528 tests across 76 files**.
 The gate before any push is `npm test && npm run build && npm run lint`,
 plus `npm run check:web` and `npm run check:channel` when anything touches
 the build split. **Gate order matters now**: a plain `build` empties
@@ -133,8 +133,10 @@ every session and no session can discharge it.
 player authoring a real course: the optional-key ruling was correct and
 unreachable, because the key grid is on the free-play home screen and nothing
 in the structured flow could answer it. The **Ready gate now owns the key on a
-course run and says who chose it** — locked with "Set by the course" where the
-author named one, live where they did not. One key never a set;
+course run and says who chose it** — a *statement* in the accordion, locked
+with "Set by the course", where the author named one; a *question*
+**uncollapsed on the face** in the home screen's own key grid where they did
+not (`KeyGrid`, shared so the two screens cannot drift). One key never a set;
 `settings.courseFifths` keeps the answer apart from free play's tour; and
 answering **regenerates the music**, which is the one exception to "never
 rebuild a course run's exercise" and is the course's own instruction being
