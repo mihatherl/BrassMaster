@@ -951,12 +951,33 @@ evening, three parts:
   is three entries — the product name, units, and a licence attribution —
   and adding to it is a decision not to translate something.
 
+**Four more languages, and the build split, 2026-08-28 (v2.56.0).** Asked
+for Spanish, Italian and Portuguese; Portuguese came back as **two packs**,
+because the words this app repeats most are exactly the ones that fork —
+ecrã/tela, telemóvel/celular, auscultadores/fones de ouvido. One
+"Portuguese" would have read as foreign on every calibration screen at one
+end of the language or the other. **Eight locales**, seven packs of 247 keys,
+seven landing pages. `pt-PT` and `pt-BR` forced the regional-subtag matching
+that `localeFromBrowser` had deferred to the US-English fork — that fork now
+has its road built and is a pack away.
+
+**The packs are split by build target.** They were plain objects imported
+unconditionally, so My Music and the course screens shipped their prose to
+the *free* web build in every language — the free bundle describing a product
+it had no code to run. `i18n/paid.ts` holds them behind `__HAS_MY_MUSIC__`
+and `__HAS_TEACHER__` (two buckets, not one, for the reason `vite.config.ts`
+refuses a single `__IS_PAID__`), 488 strings that Rollup now folds away. Not
+assumed: `check:web` fingerprints a string from each bucket, mutation-tested.
+`home.myMusic` stays in the free build on purpose — `SettingsScreen` takes
+that door as an optional callback so both sides are testable in one run, and
+one label is the honest price.
+
 Standing obligations: **every pack wants a native brass player's pass** (the
 ear rule's linguistic twin — drafted by the assistant, native in none of
-them, and now four times as much text to get wrong); the **US-English
-duration-name fork** (crotchet/quarter note) remains open and is the cheapest
-locale with the largest audience; and `describeSkill`'s notation vocabulary
-on the Progress report is **the one deliberate gap left**, because
+them, and now **seven languages** of it, live on a real domain); the
+**US-English duration-name fork** (crotchet/quarter note) remains open and is
+the cheapest locale with the largest audience; and `describeSkill`'s notation
+vocabulary on the Progress report is **the one deliberate gap left**, because
 translating "dotted quaver" is the same question the US fork asks and should
 be answered once, for both.
 

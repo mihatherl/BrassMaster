@@ -25,21 +25,38 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { EN, LOCALES, t, tCount, setLocale, localeFromBrowser, localeFromUrl } from './index';
-import { DE } from './de';
-import { NL } from './nl';
-import { FR } from './fr';
+import {
+  englishStrings,
+  LOCALES,
+  packFor,
+  t,
+  tCount,
+  setLocale,
+  localeFromBrowser,
+  localeFromUrl,
+  type StringKey,
+} from './index';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
 import { FINGERING_MODES, PLAYBACK_MODES, READING_MODES, REGISTERS } from '../storage/settings';
 
-const PACKS = { de: DE, nl: NL, fr: FR } as const;
+/*
+ * Derived from `LOCALES`, never listed here.
+ *
+ * The first version of this file hardcoded `{ de, nl, fr }`, which meant the
+ * next language added would have been the one language nothing checked — a
+ * guard with a hole exactly where the new work goes. Adding a locale now adds
+ * its tests, whether or not anybody remembers this file exists.
+ */
+const PACKS = Object.fromEntries(
+  LOCALES.filter((entry) => entry.id !== 'en').map((entry) => [entry.id, packFor(entry.id)]),
+);
 
 describe('the packs answer every key', () => {
   for (const [lang, pack] of Object.entries(PACKS)) {
     it(`${lang} is complete`, () => {
-      const missing = (Object.keys(EN) as Array<keyof typeof EN>).filter((key) => !(key in pack));
+      const missing = Object.keys(englishStrings()).filter((key) => !(key in pack));
       /*
        * Named, not counted. "3 keys missing" sends the next person hunting;
        * `site.mjs` learned this first and prints the string it could not find.
@@ -48,7 +65,7 @@ describe('the packs answer every key', () => {
     });
 
     it(`${lang} invents no keys`, () => {
-      const extra = Object.keys(pack).filter((key) => !(key in EN));
+      const extra = Object.keys(pack).filter((key) => !(key in englishStrings()));
       expect(extra, `${lang} translates keys that no longer exist: ${extra.join(', ')}`).toEqual([]);
     });
 
@@ -59,8 +76,8 @@ describe('the packs answer every key', () => {
        * renders, just without the number it was written to carry.
        */
       const wrong: string[] = [];
-      for (const [key, english] of Object.entries(EN)) {
-        const translated = pack[key as keyof typeof EN];
+      for (const [key, english] of Object.entries(englishStrings())) {
+        const translated = pack[key as StringKey];
         if (translated === undefined) continue;
         const want = [...english.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
         const got = [...translated.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
@@ -69,6 +86,56 @@ describe('the packs answer every key', () => {
       expect(wrong, `${lang} placeholders differ from English: ${wrong.join('; ')}`).toEqual([]);
     });
   }
+});
+
+/**
+ * The mirror of the sweep guard, and just as necessary.
+ *
+ * That one catches a string on screen that no pack translates. This catches a
+ * key eight packs translate that nothing on screen ever asks for — dead
+ * weight in every bundle, and worse, dead work: a native reviewer spending
+ * their goodwill correcting a sentence no player will read. Two turned up the
+ * first time this ran (`common.outputs`, `play.back`), both left behind when
+ * their call sites moved to `common.*`.
+ *
+ * Template call sites (`t(`difficulty.${id}`)`) are counted by prefix, and
+ * `tCount` bases by their `.one`/`.other` pair, because neither ever writes a
+ * whole key out for grep to find.
+ */
+describe('every key is asked for by something', () => {
+  const sources = ['ui', 'exercise', 'storage', 'render', 'engine', 'domain', 'import']
+    .flatMap((area) => {
+      const dir = join(import.meta.dirname, '..', area);
+      try {
+        return readdirSync(dir)
+          .filter((f) => /\.tsx?$/.test(f) && !f.includes('.test.'))
+          .map((f) => readFileSync(join(dir, f), 'utf8'));
+      } catch {
+        return [];
+      }
+    })
+    .join('\n');
+
+  /** `t(`kind.${x}`)` can reach any key starting `kind.` */
+  const prefixes = [...sources.matchAll(/[`']([\w.]*?)\$\{/g)].map((m) => m[1]);
+  /** `tCount('score.practise', n)` reaches `.one` and `.other`. */
+  const counted = [...sources.matchAll(/tCount\(\s*'([\w.]+)'/g)].map((m) => m[1]);
+
+  it('has sources to read', () => expect(sources.length).toBeGreaterThan(10000));
+
+  it('leaves no key nothing asks for', () => {
+    const dead = Object.keys(englishStrings()).filter((key) => {
+      if (sources.includes(`'${key}'`)) return false;
+      if (prefixes.some((p) => p.length > 0 && key.startsWith(p))) return false;
+      if (counted.some((base) => key === `${base}.one` || key === `${base}.other`)) return false;
+      return true;
+    });
+    expect(
+      dead,
+      `these keys are translated ${LOCALES.length - 1} times over and never shown:\n  ` +
+        `${dead.join('\n  ')}\nDelete them from EN and every pack, or wire them up.`,
+    ).toEqual([]);
+  });
 });
 
 describe('the domain labels and their keys have not drifted', () => {
@@ -98,7 +165,7 @@ describe('the domain labels and their keys have not drifted', () => {
 
   for (const [key, label, what] of pairs) {
     it(`${what} ${key}`, () => {
-      expect(EN[key as keyof typeof EN], `EN['${key}'] has drifted from the ${what} table`).toBe(
+      expect(englishStrings()[key as StringKey], `EN['${key}'] has drifted from the ${what} table`).toBe(
         label,
       );
     });
@@ -200,6 +267,45 @@ describe('no screen shows a string that skipped t()', () => {
   }
 });
 
+/**
+ * The two halves of the site, held together.
+ *
+ * This is the guard for the fault the player found on 2026-08-28, written so
+ * it cannot come back by a different road. That fault was a German landing
+ * page whose button led to an English app; the fix carried `?lang=` across.
+ * But the handoff only works if the app *has* the pack the page names — add
+ * `/it/` before `it` exists in `LOCALES` and every Italian reader is handed
+ * to an English app again, with the link working perfectly and nothing
+ * failing.
+ *
+ * The reverse is fine and deliberate: the app may speak a language that has
+ * no landing page yet. Nobody is misdirected by that — the selector offers it.
+ */
+describe('the landing pages and the app agree on what is spoken', () => {
+  it('never publishes a page in a language the app cannot answer in', async () => {
+    const { LANGUAGES } = await import('../../site/translations.mjs');
+    const spoken = new Set<string>(LOCALES.map((entry) => entry.id));
+    const orphans = LANGUAGES.filter((entry) => !spoken.has(entry.lang)).map((e) => e.lang);
+    expect(
+      orphans,
+      `these landing pages send their readers to an app with no pack: ${orphans.join(', ')}.\n` +
+        'Add the pack to LOCALES, or take the page down — a page whose call to action ' +
+        'lands in English is the bug this whole guard exists for.',
+    ).toEqual([]);
+  });
+
+  it('gives each landing page a URL that is not its raw tag when they differ', async () => {
+    const { LANGUAGES } = await import('../../site/translations.mjs');
+    // `pt-PT` is a correct tag and an ugly path; the two are allowed to differ,
+    // and `site.mjs` uses `dir` for the folder and `lang` for `?lang=`.
+    const pt = LANGUAGES.filter((e) => e.lang.startsWith('pt'));
+    expect(pt.map((e) => [e.lang, e.dir])).toEqual([
+      ['pt-PT', 'pt'],
+      ['pt-BR', 'pt-br'],
+    ]);
+  });
+});
+
 describe('falling back, and filling in', () => {
   it('falls back to English per key rather than per pack', () => {
     setLocale('de');
@@ -261,6 +367,38 @@ describe('the language a visitor arrives in', () => {
   });
 
   it('offers every locale it has a pack for', () => {
-    expect(LOCALES.map((l) => l.id).sort()).toEqual(['de', 'en', 'fr', 'nl']);
+    expect(LOCALES.map((l) => l.id).sort()).toEqual([
+      'de',
+      'en',
+      'es',
+      'fr',
+      'it',
+      'nl',
+      'pt-BR',
+      'pt-PT',
+    ]);
+  });
+
+  it('checks every locale but English, which is the source rather than a pack', () => {
+    // Guards the derivation above: if `packFor` ever returned an empty object
+    // for a real locale, every completeness test would pass by testing nothing.
+    expect(Object.keys(PACKS).sort()).toEqual(['de', 'es', 'fr', 'it', 'nl', 'pt-BR', 'pt-PT']);
+    for (const [lang, pack] of Object.entries(PACKS)) {
+      expect(Object.keys(pack).length, `${lang} resolved to an empty pack`).toBeGreaterThan(200);
+    }
+  });
+
+  it('matches a regional tag exactly before falling back to its language', () => {
+    expect(localeFromBrowser(['pt-BR'])).toBe('pt-BR');
+    expect(localeFromBrowser(['pt-PT'])).toBe('pt-PT');
+    // A bare `pt` is the unmarked case and is written down, not left to order.
+    expect(localeFromBrowser(['pt'])).toBe('pt-PT');
+    expect(localeFromBrowser(['pt-AO'])).toBe('pt-PT');
+  });
+
+  it('reads a regional tag from the URL whatever its case', () => {
+    expect(localeFromUrl('?lang=pt-br')).toBe('pt-BR');
+    expect(localeFromUrl('?lang=pt-BR')).toBe('pt-BR');
+    expect(localeFromUrl('?lang=PT-pt')).toBe('pt-PT');
   });
 });

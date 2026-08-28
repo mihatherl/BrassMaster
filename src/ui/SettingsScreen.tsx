@@ -577,7 +577,7 @@ export function SettingsScreen({
             className={`segmented__option drill ${settings.drillId === option.id ? 'is-selected' : ''}`}
             onClick={() => update('drillId', option.id)}
           >
-            {option.name}
+            {t(`drill.${option.id}` as StringKey)}
           </button>
         ))}
       </div>

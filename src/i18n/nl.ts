@@ -18,7 +18,6 @@ export const NL: Pack = {
   'common.forget': 'Verwijderen',
   'common.done': 'Klaar',
   'common.clear': 'Wissen',
-  'common.outputs': 'Uitgangen',
 
   'home.structured': 'Gestructureerd leren',
   'home.free': 'Vrij spelen',
@@ -161,7 +160,6 @@ export const NL: Pack = {
   'play.continue': 'Verder',
   'play.pause': 'Pauze',
   'play.start': 'Start',
-  'play.back': 'Terug',
   'play.ready': 'Klaar',
   'play.lockStopped':
     'De ronde stopte toen het scherm donker werd — ongezien wordt er niets beoordeeld.',
@@ -180,26 +178,6 @@ export const NL: Pack = {
   'play.calibrateNow': 'Nu kalibreren',
   'play.later': 'Later',
   'play.acceptOffset': 'Huidige afwijking aanvaarden ({ms} ms)',
-
-  'course.back': 'Terug',
-  'course.forward': 'Vooruit',
-  'course.stayHere': 'Hier blijven',
-  'course.atTheBar': 'bij de maatstreep',
-  'course.whereYouAre': 'Waar je staat',
-  'course.suggestion': 'Het voorstel',
-  'course.aimingFor': 'Je doel',
-  'course.progress': 'Voortgang',
-  'course.import': 'Cursus importeren…',
-  'course.export': 'Exporteren',
-  'course.delete': 'Verwijderen',
-  'course.course': 'Cursus',
-
-  'practice.backStep': 'Een stap terug',
-  'practice.forwardStep': 'Een stap vooruit',
-  'practice.clearIt': 'Opheffen',
-  'practice.nothingAbove': 'Er staat niets hogers in deze cursus om op te mikken.',
-  'practice.nothingSet': 'Niets gezet. Kies waar je heen gaat.',
-  'practice.progressDoor': 'Wat er beter is geworden, en waaraan te werken',
 
   'results.correct': 'Goed',
   'results.wrongValves': 'Verkeerde ventielen',
@@ -225,22 +203,6 @@ export const NL: Pack = {
   'results.drillingNote':
     'Verzameld over meerdere sessies op {instrument} in de {clef}-sleutel, en genoteerd in de toonsoort die je net hebt gespeeld.',
 
-  'progress.title': 'Voortgang',
-  'progress.nothingYet':
-    'Nog niets opgeslagen. Speel een paar rondes, dan vult dit zich vanzelf.',
-  'progress.runs.one': '{n} ronde',
-  'progress.runs.other': '{n} rondes',
-  'progress.sittings.one': '{n} sessie',
-  'progress.sittings.other': '{n} sessies',
-  'progress.tally': '{runs} in {sittings}.',
-  'progress.recent': 'Recente sessies',
-  'progress.recentNote': 'Het gemiddelde van elke sessie, nieuwste eerst.',
-  'progress.notEnough':
-    'Nog te weinig om te zeggen wat zwak is — een paar rondes meer en hier staat iets bruikbaars.',
-  'progress.rhythm': 'Ritmes',
-  'progress.interval': 'Intervallen',
-  'progress.key': 'Toonsoorten',
-
   'outputs.title': 'Uitgangen',
   'outputs.intro':
     'Elke manier om de app te horen loopt er iets op achter, en elke manier met een ander bedrag — een bluetoothkoptelefoon veel, een bedrade minder, en de eigen luidspreker van dit toestel wat zijn hardware kost. Meet elke uitgang één keer, en de app haalt de klank precies zoveel naar voren wanneer die gekozen is.',
@@ -265,42 +227,6 @@ export const NL: Pack = {
     'Of sleep, als de klank er ver naast zit. Bluetoothkoptelefoons lopen vaak een vijfde seconde achter.',
   'calibrate.name': 'Hoe heet deze uitgang?',
   'calibrate.namePlaceholder': 'Koptelefoon',
-
-  'import.intro':
-    'Open een MusicXML-partij — .musicxml of .mxl, zoals MuseScore, Sibelius of Finale die exporteren. Herhalingen, eerste en tweede haken en D.S.-sprongen worden uitgeschreven gespeeld. Al het andere wordt genoemd in plaats van voor je verborgen.',
-  'import.detail': '{part} · {bars} maten',
-  'import.forgetNamed': '{title} verwijderen',
-  'import.reading': 'Wordt gelezen…',
-  'import.choose': 'Bestand kiezen',
-  'import.whichPart': 'Welke partij',
-  'import.divides': 'Waar de partij zich deelt, speel de',
-  'import.upper': 'Bovenste lijn',
-  'import.lower': 'Onderste lijn',
-  'import.divisiNote':
-    'Er wordt één lijn gelezen, zodat notatie, weergave en beoordeling het eens zijn — welke je sectie je ook gaf. Waar de twee een octaaf uit elkaar liggen, is de greep toch dezelfde.',
-  'import.count': '{bars} maten, {notes} noten — uit {from}',
-  'import.asks':
-    'Vraagt {bpm} tellen per minuut{changes}. De temposchuif blijft van jou — de aanwijzingen zijn genoteerd, niet opgevolgd.',
-  'import.changes.one': ' en wisselt later één keer van tempo',
-  'import.changes.other': ' en wisselt later {n} keer van tempo',
-  'import.beforeYouPlay': 'Voordat je speelt:',
-  'import.playIt': 'Spelen',
-  'import.chooseBars': 'Maten kiezen',
-  'import.keep': 'Bewaren',
-  'import.kept': 'Bewaard in Mijn muziek',
-  'import.noStorage':
-    'Deze browser bewaart niets tussen sessies — hoogstwaarschijnlijk een privévenster. Het stuk speelt nu en is weg zodra het tabblad dat is.',
-
-  'score.label': 'De partij, zoals gedrukt. Tik een maat aan om hem te kiezen.',
-  'score.bar': 'Maat {list}',
-  'score.bars': 'Maten {list}',
-  'score.inAll': ' — {n} in totaal',
-  'score.tapFirst': 'Tik de eerste maat van een reeks aan, dan de laatste.',
-  'score.tapLast': 'Maat {bar} — tik nu de laatste maat aan.',
-  'score.chooseSome': 'Maten kiezen',
-  'score.practise.one': '{n} maat oefenen',
-  'score.practise.other': '{n} maten oefenen',
-  'score.startAgain': 'Opnieuw beginnen',
 
   'range.choose': 'Bereik zelf kiezen',
   'range.lowest': 'Laagste',

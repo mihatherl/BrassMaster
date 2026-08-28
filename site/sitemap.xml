@@ -21,6 +21,26 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://brassmaster.net/es/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://brassmaster.net/it/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://brassmaster.net/pt/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://brassmaster.net/pt-br/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://brassmaster.net/app/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

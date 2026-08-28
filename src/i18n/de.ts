@@ -21,7 +21,6 @@ export const DE: Pack = {
   'common.forget': 'Entfernen',
   'common.done': 'Fertig',
   'common.clear': 'Leeren',
-  'common.outputs': 'Ausgänge',
 
   'home.structured': 'Geführtes Lernen',
   'home.free': 'Freies Spiel',
@@ -165,7 +164,6 @@ export const DE: Pack = {
   'play.continue': 'Weiter',
   'play.pause': 'Pause',
   'play.start': 'Start',
-  'play.back': 'Zurück',
   'play.ready': 'Bereit',
   'play.lockStopped':
     'Der Durchlauf endete, als der Bildschirm dunkel wurde — ungesehen wird nichts bewertet.',
@@ -184,26 +182,6 @@ export const DE: Pack = {
   'play.calibrateNow': 'Jetzt kalibrieren',
   'play.later': 'Später',
   'play.acceptOffset': 'Aktuellen Versatz übernehmen ({ms} ms)',
-
-  'course.back': 'Zurück',
-  'course.forward': 'Vor',
-  'course.stayHere': 'Hier bleiben',
-  'course.atTheBar': 'am Taktstrich',
-  'course.whereYouAre': 'Wo du stehst',
-  'course.suggestion': 'Der Vorschlag',
-  'course.aimingFor': 'Dein Ziel',
-  'course.progress': 'Fortschritt',
-  'course.import': 'Kurs importieren…',
-  'course.export': 'Exportieren',
-  'course.delete': 'Löschen',
-  'course.course': 'Kurs',
-
-  'practice.backStep': 'Eine Stufe zurück',
-  'practice.forwardStep': 'Eine Stufe vor',
-  'practice.clearIt': 'Aufheben',
-  'practice.nothingAbove': 'In diesem Kurs steht nichts Höheres zum Anpeilen.',
-  'practice.nothingSet': 'Nichts gesetzt. Wähle, worauf du zugehst.',
-  'practice.progressDoor': 'Was besser geworden ist, und woran zu arbeiten ist',
 
   'results.correct': 'Richtig',
   'results.wrongValves': 'Falsche Ventile',
@@ -230,22 +208,6 @@ export const DE: Pack = {
   'results.drillingNote':
     'Über mehrere Sitzungen auf {instrument} im {clef}-Schlüssel gesammelt und in der Tonart notiert, die du gerade gespielt hast.',
 
-  'progress.title': 'Fortschritt',
-  'progress.nothingYet':
-    'Noch nichts aufgezeichnet. Spiel ein paar Durchläufe, dann füllt sich das hier von selbst.',
-  'progress.runs.one': '{n} Durchlauf',
-  'progress.runs.other': '{n} Durchläufe',
-  'progress.sittings.one': '{n} Sitzung',
-  'progress.sittings.other': '{n} Sitzungen',
-  'progress.tally': '{runs} in {sittings}.',
-  'progress.recent': 'Letzte Sitzungen',
-  'progress.recentNote': 'Der Durchschnitt jeder Sitzung, neueste zuerst.',
-  'progress.notEnough':
-    'Noch zu wenig, um zu sagen, was schwach ist — ein paar Durchläufe mehr, und hier steht etwas Brauchbares.',
-  'progress.rhythm': 'Rhythmen',
-  'progress.interval': 'Intervalle',
-  'progress.key': 'Tonarten',
-
   'outputs.title': 'Ausgänge',
   'outputs.intro':
     'Jeder Weg, die App zu hören, hinkt ihr etwas hinterher, und jeder um einen anderen Betrag — Bluetooth-Kopfhörer um viel, kabelgebundene um weniger, und der eigene Lautsprecher dieses Geräts um das, was seine Hardware kostet. Miss jeden einmal, und die App zieht den Klang um genau so viel vor, wann immer er gewählt ist.',
@@ -270,42 +232,6 @@ export const DE: Pack = {
     'Oder zieh den Regler, wenn der Klang weit daneben liegt. Bluetooth-Kopfhörer hinken oft eine Fünftelsekunde hinterher.',
   'calibrate.name': 'Wie heißt dieser Ausgang?',
   'calibrate.namePlaceholder': 'Kopfhörer',
-
-  'import.intro':
-    'Öffne eine MusicXML-Stimme — .musicxml oder .mxl, wie MuseScore, Sibelius oder Finale sie exportieren. Wiederholungen, erste und zweite Klammern und D.S.-Sprünge werden ausgeschrieben gespielt. Alles andere wird benannt, statt vor dir verborgen zu werden.',
-  'import.detail': '{part} · {bars} Takte',
-  'import.forgetNamed': '{title} entfernen',
-  'import.reading': 'Wird gelesen…',
-  'import.choose': 'Datei wählen',
-  'import.whichPart': 'Welche Stimme',
-  'import.divides': 'Wo die Stimme geteilt ist, spiele die',
-  'import.upper': 'Obere Linie',
-  'import.lower': 'Untere Linie',
-  'import.divisiNote':
-    'Es wird eine Linie gelesen, damit Notenbild, Wiedergabe und Bewertung übereinstimmen — welche auch immer dein Register bekommen hat. Wo die beiden eine Oktave auseinanderliegen, ist der Griff ohnehin derselbe.',
-  'import.count': '{bars} Takte, {notes} Töne — aus {from}',
-  'import.asks':
-    'Verlangt {bpm} Schläge pro Minute{changes}. Der Tempo-Regler bleibt deiner — die Angaben sind vermerkt, nicht befolgt.',
-  'import.changes.one': ' und wechselt später einmal das Tempo',
-  'import.changes.other': ' und wechselt später {n}-mal das Tempo',
-  'import.beforeYouPlay': 'Bevor du spielst:',
-  'import.playIt': 'Spielen',
-  'import.chooseBars': 'Takte wählen',
-  'import.keep': 'Behalten',
-  'import.kept': 'In „Meine Noten“ behalten',
-  'import.noStorage':
-    'Dieser Browser behält nichts zwischen den Sitzungen — höchstwahrscheinlich ein privates Fenster. Das Stück spielt jetzt und ist mit dem Tab verschwunden.',
-
-  'score.label': 'Die Stimme, wie gedruckt. Tippe einen Takt an, um ihn zu wählen.',
-  'score.bar': 'Takt {list}',
-  'score.bars': 'Takte {list}',
-  'score.inAll': ' — {n} insgesamt',
-  'score.tapFirst': 'Tippe den ersten Takt eines Abschnitts an, dann den letzten.',
-  'score.tapLast': 'Takt {bar} — tippe jetzt den letzten Takt an.',
-  'score.chooseSome': 'Takte wählen',
-  'score.practise.one': '{n} Takt üben',
-  'score.practise.other': '{n} Takte üben',
-  'score.startAgain': 'Von vorn',
 
   'range.choose': 'Umfang selbst wählen',
   'range.lowest': 'Tiefster',

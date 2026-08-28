@@ -51,6 +51,12 @@
 import { DE } from './de';
 import { NL } from './nl';
 import { FR } from './fr';
+import { ES } from './es';
+import { IT } from './it';
+import { PT_PT } from './pt-PT';
+import { PT_BR } from './pt-BR';
+import { PAID_MY_MUSIC, PAID_TEACHER } from './paid';
+import type { EN_MY_MUSIC, EN_TEACHER } from './paid';
 
 export const EN = {
   // Words that appear on more than one screen. One key, so the German for
@@ -62,7 +68,6 @@ export const EN = {
   'common.forget': 'Forget',
   'common.done': 'Done',
   'common.clear': 'Clear',
-  'common.outputs': 'Outputs',
 
   // The home screen
   'home.structured': 'Structured Learning',
@@ -212,7 +217,6 @@ export const EN = {
   'play.continue': 'Continue',
   'play.pause': 'Pause',
   'play.start': 'Start',
-  'play.back': 'Back',
   'play.ready': 'Ready',
   'play.lockStopped': 'The run stopped when the screen went dark — nothing is judged unseen.',
   'play.stalled': 'Audio didn’t start',
@@ -231,26 +235,8 @@ export const EN = {
   'play.acceptOffset': 'Accept current offset ({ms}ms)',
 
   // The course
-  'course.back': 'Back',
-  'course.forward': 'Forward',
-  'course.stayHere': 'Stay here',
-  'course.atTheBar': 'at the bar line',
-  'course.whereYouAre': 'Where you are',
-  'course.suggestion': 'The suggestion',
-  'course.aimingFor': 'Aiming for',
-  'course.progress': 'Progress',
-  'course.import': 'Import course…',
-  'course.export': 'Export',
-  'course.delete': 'Delete',
-  'course.course': 'Course',
 
   // The practice screen
-  'practice.backStep': 'Back a step',
-  'practice.forwardStep': 'Forward a step',
-  'practice.clearIt': 'Clear it',
-  'practice.nothingAbove': 'Nothing further up this course to aim at.',
-  'practice.nothingSet': 'Nothing set. Pick somewhere to head for.',
-  'practice.progressDoor': 'What has improved, and what to work on',
 
   // The results screen
   'results.correct': 'Correct',
@@ -277,20 +263,6 @@ export const EN = {
     'Accumulated across sessions on {instrument} in {clef} clef, and spelled in the key you have just played.',
 
   // The progress report
-  'progress.title': 'Progress',
-  'progress.nothingYet': 'Nothing recorded yet. Play a few runs and this fills itself in.',
-  'progress.runs.one': '{n} run',
-  'progress.runs.other': '{n} runs',
-  'progress.sittings.one': '{n} sitting',
-  'progress.sittings.other': '{n} sittings',
-  'progress.tally': '{runs} across {sittings}.',
-  'progress.recent': 'Recent sittings',
-  'progress.recentNote': 'The average of each sitting’s runs, newest first.',
-  'progress.notEnough':
-    'Not enough yet to say what is weak — a few more runs and this will have something worth telling you.',
-  'progress.rhythm': 'Rhythms',
-  'progress.interval': 'Intervals',
-  'progress.key': 'Keys',
 
   // Outputs, and measuring one
   'outputs.title': 'Outputs',
@@ -319,41 +291,8 @@ export const EN = {
   'calibrate.namePlaceholder': 'Headphones',
 
   // My Music
-  'import.intro':
-    'Open a MusicXML part — .musicxml or .mxl, as exported by MuseScore, Sibelius or Finale. Repeats, first- and second-time bars and D.S. jumps are played out in full. Anything else will say so rather than being hidden from you.',
-  'import.detail': '{part} · {bars} bars',
-  'import.forgetNamed': 'Forget {title}',
-  'import.reading': 'Reading…',
-  'import.choose': 'Choose a file',
-  'import.whichPart': 'Which part',
-  'import.divides': 'Where the part divides, play the',
-  'import.upper': 'Upper line',
-  'import.lower': 'Lower line',
-  'import.divisiNote':
-    'One line is read, so the notation, the playback and what you are marked against all agree — whichever your section gave you. Where the two are an octave apart the fingering is the same either way.',
-  'import.count': '{bars} bars, {notes} notes — from {from}',
-  'import.asks': 'Asks {bpm} beats a minute{changes}. The tempo dial stays yours — the marks are noted, not obeyed.',
-  'import.changes.one': ' and changes tempo once later',
-  'import.changes.other': ' and changes tempo {n} times later',
-  'import.beforeYouPlay': 'Before you play:',
-  'import.playIt': 'Play it',
-  'import.chooseBars': 'Choose bars',
-  'import.keep': 'Keep it',
-  'import.kept': 'Kept in My Music',
-  'import.noStorage':
-    'This browser will not keep anything between sessions — a private window, most likely. The piece will play now and be gone when the tab is.',
 
   // Choosing bars from a printed part
-  'score.label': 'The part, as printed. Tap a bar to choose it.',
-  'score.bar': 'Bar {list}',
-  'score.bars': 'Bars {list}',
-  'score.inAll': ' — {n} in all',
-  'score.tapFirst': 'Tap the first bar of a run, then the last.',
-  'score.tapLast': 'Bar {bar} — now tap the last bar.',
-  'score.chooseSome': 'Choose some bars',
-  'score.practise.one': 'Practise {n} bar',
-  'score.practise.other': 'Practise {n} bars',
-  'score.startAgain': 'Start again',
 
   // The range picker, and the dials
   'range.choose': 'Choose the range myself',
@@ -374,27 +313,131 @@ export const EN = {
   'error.back': 'Back to the start',
 } as const;
 
-export type StringKey = keyof typeof EN;
-export type Pack = Partial<Record<StringKey, string>>;
-export type Locale = 'en' | 'de' | 'nl' | 'fr';
+/**
+ * The paid features' strings, present only in the build that has them.
+ *
+ * Read through the injected literals **directly**, never through a constant:
+ * `vite.config.ts` substitutes per use site, and an indirection defeats the
+ * elimination — the failure `check-web-bundle.mjs` was written for, twice
+ * over. `false ? PAID_… : {}` folds, the binding goes unreferenced, and the
+ * module is tree-shaken out. `check:web` fingerprints a string from each
+ * bucket so this is proven on every deploy rather than believed.
+ *
+ * The keys still exist in `StringKey` in both builds: the free build simply
+ * has no screen that asks for them, and a type that changed shape with the
+ * target would make the two products two codebases.
+ */
+const MY_MUSIC: Record<string, Pack> = __HAS_MY_MUSIC__ ? PAID_MY_MUSIC : {};
+const TEACHER: Record<string, Pack> = __HAS_TEACHER__ ? PAID_TEACHER : {};
 
-/** Offered in their own names: nobody hunts for their language in another. */
+/**
+ * Every key the app can name, English included, for typing and for the
+ * coverage guard. The paid entries are typed from `EN_PAID` below rather than
+ * from the merged object, so the union does not depend on a build flag.
+ */
+export type StringKey = keyof typeof EN | keyof typeof EN_MY_MUSIC | keyof typeof EN_TEACHER;
+export type Pack = Partial<Record<StringKey, string>>;
+export type Locale = 'en' | 'de' | 'nl' | 'fr' | 'es' | 'it' | 'pt-PT' | 'pt-BR';
+
+/**
+ * Offered in their own names: nobody hunts for their language in another.
+ *
+ * **Portuguese is two entries, and that is deliberate.** The words this app
+ * says most often are exactly the ones that fork — screen (ecrã / tela),
+ * phone (telemóvel / celular), headphones (auscultadores / fones de ouvido) —
+ * so one "Portuguese" would have been wrong in Lisbon or wrong in São Paulo
+ * on every calibration screen. Ruled by the player, 2026-08-28. It is also
+ * what forced regional matching in `localeFromBrowser`, a question this file
+ * had deferred to the US-English fork; that fork now has its road built.
+ */
 export const LOCALES: ReadonlyArray<{ id: Locale; name: string }> = [
   { id: 'en', name: 'English' },
   { id: 'de', name: 'Deutsch' },
   { id: 'nl', name: 'Nederlands' },
   { id: 'fr', name: 'Français' },
+  { id: 'es', name: 'Español' },
+  { id: 'it', name: 'Italiano' },
+  { id: 'pt-PT', name: 'Português' },
+  { id: 'pt-BR', name: 'Português (Brasil)' },
 ];
 
-const PACKS: Record<Locale, Pack> = { en: {}, de: DE, nl: NL, fr: FR };
+/**
+ * Where a bare primary subtag lands when a browser does not say which region.
+ *
+ * A device set to Brazilian Portuguese sends `pt-BR` and matches exactly; a
+ * bare `pt` is the unmarked case and takes European Portuguese. Written down
+ * rather than left to whichever pack happens to be first in `LOCALES`, which
+ * is how a reordering would silently move every unmarked visitor.
+ */
+const UNMARKED: Record<string, Locale> = { pt: 'pt-PT' };
+
+const CORE: Record<Locale, Pack> = {
+  en: {},
+  de: DE,
+  nl: NL,
+  fr: FR,
+  es: ES,
+  it: IT,
+  'pt-PT': PT_PT,
+  'pt-BR': PT_BR,
+};
+
+/**
+ * Each language's core strings with whatever paid buckets this build carries
+ * folded in, resolved once rather than on every `t()`.
+ *
+ * In the free build the two spreads are empty objects, so this is the core
+ * pack and nothing else — and `paid.ts` has already been dropped from the
+ * bundle by then.
+ */
+const PACKS: Record<Locale, Pack> = Object.fromEntries(
+  LOCALES.map((entry) => [
+    entry.id,
+    { ...CORE[entry.id], ...(MY_MUSIC[entry.id] ?? {}), ...(TEACHER[entry.id] ?? {}) },
+  ]),
+) as Record<Locale, Pack>;
+
+/**
+ * English, likewise: the source of truth is the fallback for every key a pack
+ * lacks, so it has to carry the paid strings in the build that shows them.
+ */
+const ENGLISH: Partial<Record<StringKey, string>> = {
+  ...EN,
+  ...(MY_MUSIC.en ?? {}),
+  ...(TEACHER.en ?? {}),
+};
+
+/**
+ * Every English string *this build* carries, core plus whatever paid buckets
+ * the flags let through — the coverage guard's source of truth.
+ *
+ * `EN` alone is no longer that: it is the core half, and a guard that read it
+ * directly would quietly stop checking the paid strings the moment they moved
+ * to `paid.ts`. The tests run under the paid target, so this is the full set
+ * there, which is the set that must be complete in every pack.
+ */
+export function englishStrings(): Partial<Record<StringKey, string>> {
+  return ENGLISH;
+}
+
+/** The pack behind a locale, for the coverage guard to enumerate. */
+export function packFor(locale: Locale): Pack {
+  return PACKS[locale];
+}
 
 let current: Locale = 'en';
 
 export function setLocale(locale: string): void {
-  current = LOCALES.some((entry) => entry.id === locale) ? (locale as Locale) : 'en';
+  current = LOCALES.find((entry) => entry.id.toLowerCase() === locale.toLowerCase())?.id ?? 'en';
 }
 
-/** What language the app is speaking, for `Intl` — dates in Progress, mostly. */
+/**
+ * What language the app is speaking, for `Intl` — dates in Progress, mostly.
+ *
+ * The ids are BCP-47 tags already (`pt-BR`, not `ptBR`), chosen that way so
+ * this needs no translation layer and `toLocaleDateString` gets Brazilian
+ * month names on a Brazilian device.
+ */
 export function localeTag(): string {
   return current;
 }
@@ -412,7 +455,13 @@ export function localeTag(): string {
  * a rendering bug somewhere else entirely.
  */
 export function t(key: StringKey, vars?: Record<string, string | number>): string {
-  const source: string = PACKS[current][key] ?? EN[key];
+  /*
+   * The key itself as the last resort, never an empty string. In the free
+   * build a paid key resolves to nothing — no screen asks for one, but if a
+   * refactor ever wires one up, `import.playIt` on screen names its own fault
+   * where a blank space would read as a broken layout somewhere else.
+   */
+  const source: string = PACKS[current][key] ?? ENGLISH[key] ?? key;
   if (!vars) return source;
   return source.replace(/\{(\w+)\}/g, (whole, name: string) =>
     name in vars ? String(vars[name]) : whole,
@@ -448,7 +497,10 @@ export function tCount(base: string, n: number, vars?: Record<string, string | n
  */
 export function localeFromUrl(search: string): Locale | null {
   const asked = new URLSearchParams(search).get('lang');
-  return LOCALES.some((entry) => entry.id === asked) ? (asked as Locale) : null;
+  if (asked === null) return null;
+  // Case-insensitively: a URL says `pt-br`, the locale id is `pt-BR`, and a
+  // link that worked in one case and not the other would be a cruel bug.
+  return LOCALES.find((entry) => entry.id.toLowerCase() === asked.toLowerCase())?.id ?? null;
 }
 
 /**
@@ -462,7 +514,11 @@ export function localeFromUrl(search: string): Locale | null {
  */
 export function localeFromBrowser(languages: readonly string[]): Locale | null {
   for (const tag of languages) {
+    const exact = LOCALES.find((entry) => entry.id.toLowerCase() === tag.toLowerCase());
+    if (exact) return exact.id;
+
     const primary = tag.toLowerCase().split('-')[0];
+    if (primary in UNMARKED) return UNMARKED[primary];
     const match = LOCALES.find((entry) => entry.id === primary);
     if (match) return match.id;
   }

@@ -31,7 +31,7 @@ covers 2026-08-24 to 28: seven releases, v2.48.0 through v2.54.0.
 ## Where this stands
 
 **v2.54.0, pushed, tagged, deployed and green** — and since then, unpushed
-on this machine, the i18n rebuild below: **1,476 tests across 71 files**.
+on this machine, the i18n work below: **1,503 tests across 73 files**.
 The gate before any push is `npm test && npm run build && npm run lint`,
 plus `npm run check:web` and `npm run check:channel` when anything touches
 the build split. **Gate order matters now**: a plain `build` empties
@@ -108,10 +108,26 @@ asymmetry is the entire explanation for how coverage got to a third while
 1,386 tests stayed green. **A build-time rule needs a build-time check** —
 the same sentence `check:web` is there for.
 
+Then four more languages the same day (v2.56.0): **Spanish, Italian and two
+Portuguese** — `pt-PT` and `pt-BR` split on the player's ruling, because
+ecrã/tela and telemóvel/celular sit on the screens a new player meets first.
+**Eight locales, seven packs of 247 keys, seven landing pages**; `/pt/` and
+`/pt-br/` are separate search surfaces linking to `?lang=pt-PT` and
+`?lang=pt-BR`. Regional-subtag matching landed with them, which is the road
+the US-English fork now only needs a pack to walk.
+
+**The packs are also split by build target now.** They were plain objects
+imported unconditionally, so the *free* bundle carried My Music and course
+prose in every language — describing a product it has no code to run.
+`i18n/paid.ts` holds those 488 strings behind `__HAS_MY_MUSIC__` and
+`__HAS_TEACHER__`, and `check:web` fingerprints one string per bucket so the
+fold is proven every deploy, not hoped. Two buckets rather than one, because
+`vite.config.ts` refuses a single `__IS_PAID__` and the same argument applies.
+
 Still deliberately untranslated: course content, tune and collection names,
 instrument names, the editor. Still **awaiting a native brass player's
-pass**, now over four times as much text — the ear rule's linguistic twin,
-and the assistant who drafted these is native in none of them.
+pass** — now seven languages of it, live. That obligation has grown with
+every session and no session can discharge it.
 
 **The road to v3.0, ruled this week**: teacher mode + the microphone *with
 its calibration* + My Music. The tuner is out (deferred to v3.x — it was
@@ -161,13 +177,15 @@ sleeps** — 4.2 was a proof about the player, proved; do not upload AABs.
   levels and their order are the player's intuition, in the editor or in
   `courses/common-keys.ts`. Nothing ships unheard — satisfied by
   construction if he authors them.
-- **Native review of the three language packs** — now 244 keys each rather
-  than 52, so this obligation grew with the sweep and is the largest open
-  item that no session can discharge. The open **US-English fork**
-  (crotchet → quarter note) is still the smallest pack and the largest Play
-  audience, and it should be answered together with `describeSkill`'s
-  notation vocabulary on the Progress report — the one string set the sweep
-  deliberately left English, because both ask the same question.
+- **Native review of the seven language packs** — 247 keys each, plus 40
+  landing-page strings apiece, all live on brassmaster.net. This is the
+  largest open item in the repository that no session can discharge, and it
+  has grown at every step. The open **US-English fork** (crotchet → quarter
+  note) is still the smallest pack and the largest Play audience; regional
+  matching exists now, so it is a pack and two lines. Answer it together with
+  `describeSkill`'s notation vocabulary on the Progress report — the one
+  string set the sweep deliberately left English, because both ask the same
+  question.
 - **Request indexing** for `/de/` `/nl/` `/fr/` in Search Console (the
   sitemap lists them; a nudge is faster).
 - **Pins do not switch mid-stream**: a level join changes pinned options only

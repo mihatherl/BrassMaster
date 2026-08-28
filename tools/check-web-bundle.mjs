@@ -46,6 +46,21 @@ const root = process.argv[2] ?? 'dist';
 const PAID_ONLY = {
   'My Music': ['score-partwise', 'unfoldRepeats', 'importPart', 'ImportScreen'],
   'the microphone': ['getUserMedia', 'mediaDevices'],
+  /*
+   * The paid features' *words*, not their code — a leak this file could not
+   * see until 2026-08-28, because it was looking only for identifiers.
+   *
+   * The language packs are plain objects imported unconditionally, so every
+   * sentence of My Music and the course screens was shipping to the free web
+   * build in eight languages, describing a product it had no code to run.
+   * `i18n/paid.ts` moved them behind the same two literals the code uses; one
+   * string from each bucket, in a language whose pack has no other route into
+   * this build, is what proves the fold still happens.
+   *
+   * Chosen to be unmistakable: neither is a substring of any core string, and
+   * both would survive minification intact because they are string data.
+   */
+  'the paid language packs': ['Kept in My Music', 'Guardada em Minhas partituras', 'Recent sittings', 'Tenuta in Le mie partiture'],
   // The ladder key became the course key when the ladder became courses
   // (2026-08-26); the fingerprint moved with it, deliberately — the ratified
   // free-taster ruling says these tripwires move on purpose or not at all.

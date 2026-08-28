@@ -68,6 +68,59 @@ describe('the app speaks the language it was asked for', () => {
     window.history.replaceState({}, '', '/');
   });
 
+  it('opens in Spanish and Italian from their landing pages', () => {
+    window.history.replaceState({}, '', '/app/?lang=es');
+    renderApp();
+    expect(screen.getByText('Dificultad')).toBeTruthy();
+    cleanup();
+    window.history.replaceState({}, '', '/app/?lang=it');
+    renderApp();
+    expect(screen.getByText('Difficoltà')).toBeTruthy();
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('tells the two Portuguese apart, which is the whole point of splitting them', () => {
+    /*
+     * Not a formality. If the two packs ever collapse into one, this is what
+     * says so: `registo`/`registro` and `Definições`/`Configurações` are the
+     * everyday words that forked, and they sit on the home screen — the first
+     * thing anybody sees.
+     */
+    window.history.replaceState({}, '', '/app/?lang=pt-PT');
+    renderApp();
+    expect(screen.getByText('Compasso')).toBeTruthy();
+    expect(screen.getByText('Primeira vista')).toBeTruthy();
+    cleanup();
+    window.history.replaceState({}, '', '/app/?lang=pt-BR');
+    renderApp();
+    expect(screen.getByText('Fórmula de compasso')).toBeTruthy();
+    expect(screen.getByText('Leitura à primeira vista')).toBeTruthy();
+    window.history.replaceState({}, '', '/');
+  });
+
+  it('takes a regional tag from the browser on a first run', () => {
+    // `pt-BR` must not be answered with European Portuguese, and vice versa.
+    const real = Object.getOwnPropertyDescriptor(window.navigator, 'languages');
+    Object.defineProperty(window.navigator, 'languages', {
+      value: ['pt-BR', 'en'],
+      configurable: true,
+    });
+    try {
+      renderApp();
+      expect(screen.getByText('Fórmula de compasso')).toBeTruthy();
+    } finally {
+      /*
+       * Removed, not "restored". `languages` lives on the prototype, so there
+       * is no own descriptor to put back — `getOwnPropertyDescriptor` returns
+       * undefined and a conditional restore silently does nothing, leaving
+       * every later test running in Brazilian Portuguese. That is how the
+       * English test below failed the first time this was written.
+       */
+      if (real) Object.defineProperty(window.navigator, 'languages', real);
+      else Reflect.deleteProperty(window.navigator, 'languages');
+    }
+  });
+
   it('is in English when nothing asks otherwise', () => {
     renderApp();
     expect(screen.getByText('Difficulty')).toBeTruthy();

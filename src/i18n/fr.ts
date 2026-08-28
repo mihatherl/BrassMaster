@@ -17,7 +17,6 @@ export const FR: Pack = {
   'common.forget': 'Oublier',
   'common.done': 'Terminé',
   'common.clear': 'Vider',
-  'common.outputs': 'Sorties',
 
   'home.structured': 'Apprentissage guidé',
   'home.free': 'Jeu libre',
@@ -162,7 +161,6 @@ export const FR: Pack = {
   'play.continue': 'Continuer',
   'play.pause': 'Pause',
   'play.start': 'Démarrer',
-  'play.back': 'Retour',
   'play.ready': 'Prêt',
   'play.lockStopped':
     'La session s’est arrêtée quand l’écran s’est éteint — rien n’est jugé sans être vu.',
@@ -181,26 +179,6 @@ export const FR: Pack = {
   'play.calibrateNow': 'Calibrer maintenant',
   'play.later': 'Plus tard',
   'play.acceptOffset': 'Accepter le décalage actuel ({ms} ms)',
-
-  'course.back': 'Retour',
-  'course.forward': 'Avancer',
-  'course.stayHere': 'Rester ici',
-  'course.atTheBar': 'à la barre de mesure',
-  'course.whereYouAre': 'Où vous en êtes',
-  'course.suggestion': 'La suggestion',
-  'course.aimingFor': 'Votre objectif',
-  'course.progress': 'Progression',
-  'course.import': 'Importer un cours…',
-  'course.export': 'Exporter',
-  'course.delete': 'Supprimer',
-  'course.course': 'Cours',
-
-  'practice.backStep': 'Un palier en arrière',
-  'practice.forwardStep': 'Un palier en avant',
-  'practice.clearIt': 'Effacer',
-  'practice.nothingAbove': 'Rien de plus haut à viser dans ce cours.',
-  'practice.nothingSet': 'Rien de fixé. Choisissez où vous allez.',
-  'practice.progressDoor': 'Ce qui s’est amélioré, et ce qu’il reste à travailler',
 
   'results.correct': 'Juste',
   'results.wrongValves': 'Mauvais pistons',
@@ -226,22 +204,6 @@ export const FR: Pack = {
   'results.drillingNote':
     'Cumulé sur plusieurs séances à {instrument} en clé de {clef}, et orthographié dans la tonalité que vous venez de jouer.',
 
-  'progress.title': 'Progression',
-  'progress.nothingYet':
-    'Rien d’enregistré pour l’instant. Jouez quelques sessions et cette page se remplira d’elle-même.',
-  'progress.runs.one': '{n} session',
-  'progress.runs.other': '{n} sessions',
-  'progress.sittings.one': '{n} séance',
-  'progress.sittings.other': '{n} séances',
-  'progress.tally': '{runs} sur {sittings}.',
-  'progress.recent': 'Séances récentes',
-  'progress.recentNote': 'La moyenne de chaque séance, la plus récente en premier.',
-  'progress.notEnough':
-    'Trop peu pour dire ce qui est faible — quelques sessions de plus et il y aura ici quelque chose à vous dire.',
-  'progress.rhythm': 'Rythmes',
-  'progress.interval': 'Intervalles',
-  'progress.key': 'Tonalités',
-
   'outputs.title': 'Sorties',
   'outputs.intro':
     'Chaque façon d’entendre l’application est un peu en retard sur elle, et chacune d’un retard différent — un casque Bluetooth de beaucoup, un casque filaire de moins, et le haut-parleur de cet appareil de ce que coûte son matériel. Mesurez chacune une fois, et l’application avance le son d’autant chaque fois qu’elle est choisie.',
@@ -266,42 +228,6 @@ export const FR: Pack = {
     'Ou faites glisser, si le son est très décalé. Les casques Bluetooth ont souvent un cinquième de seconde de retard.',
   'calibrate.name': 'Comment s’appelle cette sortie ?',
   'calibrate.namePlaceholder': 'Casque',
-
-  'import.intro':
-    'Ouvrez une partie MusicXML — .musicxml ou .mxl, telle que l’exportent MuseScore, Sibelius ou Finale. Les reprises, les première et seconde fois et les renvois D.S. sont joués en entier. Tout le reste sera signalé plutôt que caché.',
-  'import.detail': '{part} · {bars} mesures',
-  'import.forgetNamed': 'Oublier {title}',
-  'import.reading': 'Lecture…',
-  'import.choose': 'Choisir un fichier',
-  'import.whichPart': 'Quelle partie',
-  'import.divides': 'Là où la partie se divise, jouez la',
-  'import.upper': 'Ligne supérieure',
-  'import.lower': 'Ligne inférieure',
-  'import.divisiNote':
-    'Une seule ligne est lue, pour que la notation, la lecture et ce sur quoi vous êtes jugé concordent — quelle que soit celle que votre pupitre vous a donnée. Là où les deux sont à l’octave, le doigté est de toute façon le même.',
-  'import.count': '{bars} mesures, {notes} notes — de {from}',
-  'import.asks':
-    'Demande {bpm} pulsations par minute{changes}. Le curseur de tempo reste le vôtre — les indications sont notées, pas suivies.',
-  'import.changes.one': ' et change de tempo une fois par la suite',
-  'import.changes.other': ' et change de tempo {n} fois par la suite',
-  'import.beforeYouPlay': 'Avant de jouer :',
-  'import.playIt': 'Jouer',
-  'import.chooseBars': 'Choisir des mesures',
-  'import.keep': 'Conserver',
-  'import.kept': 'Conservé dans Mes partitions',
-  'import.noStorage':
-    'Ce navigateur ne gardera rien d’une session à l’autre — une fenêtre privée, très probablement. Le morceau se jouera maintenant et disparaîtra avec l’onglet.',
-
-  'score.label': 'La partie, telle qu’imprimée. Touchez une mesure pour la choisir.',
-  'score.bar': 'Mesure {list}',
-  'score.bars': 'Mesures {list}',
-  'score.inAll': ' — {n} en tout',
-  'score.tapFirst': 'Touchez la première mesure d’un passage, puis la dernière.',
-  'score.tapLast': 'Mesure {bar} — touchez maintenant la dernière.',
-  'score.chooseSome': 'Choisir des mesures',
-  'score.practise.one': 'Travailler {n} mesure',
-  'score.practise.other': 'Travailler {n} mesures',
-  'score.startAgain': 'Recommencer',
 
   'range.choose': 'Choisir l’étendue moi-même',
   'range.lowest': 'La plus grave',

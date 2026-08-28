@@ -80,9 +80,18 @@ if (mode === 'clear') {
    * so. Replacement is all-occurrences ("Start practising" appears twice, by
    * design, and must translate twice).
    */
+  /*
+   * `lang` is the BCP-47 tag — it goes in `<html lang>`, in `hreflang`, and in
+   * the `?lang=` the app reads. `dir` is the URL path, and it is a separate
+   * field only because Portuguese is two languages here: `pt-PT` and `pt-BR`
+   * are correct tags but `/pt-PT/` is an ugly URL, so they live at `/pt/` and
+   * `/pt-br/`. Every other language leaves `dir` unset and the two are equal.
+   */
   const { LANGUAGES } = await import('../site/translations.mjs');
   const english = readFileSync(join(DIST, 'index.html'), 'utf8');
-  for (const { lang, pairs } of LANGUAGES) {
+  for (const entry of LANGUAGES) {
+    const { lang, pairs } = entry;
+    const dir = entry.dir ?? lang;
     let page = english;
     for (const [source, translated] of pairs) {
       if (!page.includes(source)) {
@@ -94,14 +103,14 @@ if (mode === 'clear') {
     page = page.replace('<html lang="en">', `<html lang="${lang}">`);
     page = page.replace(
       '<link rel="canonical" href="https://brassmaster.net/" />',
-      `<link rel="canonical" href="https://brassmaster.net/${lang}/" />`,
+      `<link rel="canonical" href="https://brassmaster.net/${dir}/" />`,
     );
     page = page.replace(
       'property="og:url" content="https://brassmaster.net/"',
-      `property="og:url" content="https://brassmaster.net/${lang}/"`,
+      `property="og:url" content="https://brassmaster.net/${dir}/"`,
     );
     page = page.replace(' href="/" class="active"', ' href="/"');
-    page = page.replace(`<a href="/${lang}/">`, `<a href="/${lang}/" class="active">`);
+    page = page.replace(`<a href="/${dir}/">`, `<a href="/${dir}/" class="active">`);
     /*
      * The half of the site that speaks tells the half that listens. Until
      * 2026-08-28 every translated page's call to action pointed at a bare
@@ -112,10 +121,10 @@ if (mode === 'clear') {
      * first visit and survives being bookmarked.
      */
     page = page.split('href="/app/"').join(`href="/app/?lang=${lang}"`);
-    mkdirSync(join(DIST, lang), { recursive: true });
-    writeFileSync(join(DIST, lang, 'index.html'), page);
+    mkdirSync(join(DIST, dir), { recursive: true });
+    writeFileSync(join(DIST, dir, 'index.html'), page);
   }
-  console.log(`landing pages: en + ${LANGUAGES.map((l) => l.lang).join(', ')}`);
+  console.log(`landing pages: en + ${LANGUAGES.map((l) => l.dir ?? l.lang).join(', ')}`);
 
   const top = readdirSync(DIST).sort().join(', ');
   console.log(`assembled ${DIST}/: ${top}`);
