@@ -25,7 +25,7 @@ import { SettingsScreen } from './SettingsScreen';
 import { recordRun } from '../storage/sessions';
 import { PracticeScreen } from './PracticeScreen';
 import { setLocale } from '../i18n';
-import type { CourseRun } from './course-run';
+import { courseKeyOf, isMinorRun, keyAnswerChanged, type CourseRun } from './course-run';
 import { ProgressScreen } from './ProgressScreen';
 
 /**
@@ -210,33 +210,43 @@ export function App() {
    * scales course at 60 must not quietly reset a tempo the player settled on
    * for themselves. See *A course chooses the settings* in `v2-design.md`.
    */
+  /**
+   * The settings a course run is generated from: the player's, with the
+   * level's overrides on top, and the key decided by whoever owns it.
+   *
+   * One function because there are now three callers — starting a run,
+   * stepping to the next level mid-stream, and rebuilding when the player
+   * answers the key at the gate — and the two that existed had already
+   * drifted into a copy with a comment saying "exactly as startCourse uses
+   * it". A third copy would have been the one that fell behind.
+   *
+   * **The key is one key, never a set.** Where the level names one it
+   * replaces the set as well, because `fifths` is derived from `keySet[0]`
+   * everywhere else and a course level in F must not leave the generator
+   * touring the player's own set from F. Where the level names none the
+   * player's course key stands — also alone, ruled 2026-08-29: "the player's
+   * own key" is singular, and inheriting free play's tour would have a level
+   * changing key mid-run because of a setting made on another screen.
+   */
+  const runSettings = useCallback(
+    (run: CourseRun, from: Settings): Settings => {
+      const { tempo, levelId: _levelId, fifths: _fifths, ...base } = run;
+      const key = courseKeyOf(run, from);
+      return { ...from, ...base, tempo, fifths: key, keySet: [key] };
+    },
+    [],
+  );
+
   const startCourse = useCallback(
     (run: CourseRun) => {
-      const { tempo, levelId, fifths, ...base } = run;
+      const { tempo, levelId } = run;
       setCourseRun(run);
       setFromCourse(true);
       setRunAt({ tempo, levelId });
-      /*
-       * The level's key, where it names one, replaces the set as well as the
-       * key — `fifths` is derived from `keySet[0]` everywhere else, and a
-       * course level in F must not leave the generator touring the player's
-       * own key set from F. A level naming no key leaves both alone, which is
-       * the ratified optional-key ruling doing its work.
-       */
-      setExercise(
-        buildFrom(
-          {
-            ...chosen,
-            ...base,
-            tempo,
-            ...(fifths === undefined ? {} : { fifths, keySet: [fifths] }),
-          },
-          randomSeed(),
-        ),
-      );
+      setExercise(buildFrom(runSettings(run, chosen), randomSeed()));
       setScreen('play');
     },
-    [buildFrom, chosen],
+    [buildFrom, chosen, runSettings],
   );
 
   const repeat = useCallback(() => {
@@ -415,12 +425,28 @@ export function App() {
            * and never for a course run, whose exercise the course built.
            * runAt follows the tempo so the skill tally records what was
            * actually played.
+           *
+           * **One exception, and it is the course's own instruction.** A level
+           * that names no key delegates the key to the player, and from
+           * 2026-08-29 the gate is where they answer. Recording that answer
+           * without rebuilding would be the precise failure `course-plan.md`
+           * forbids — *a field the app quietly ignores is worse than an absent
+           * one*: the player would pick B flat, be told they were in B flat,
+           * and read the music the course had already generated in E flat. So
+           * a key change on an open-key course level regenerates, with a fresh
+           * seed because it is different music, not the same music re-marked.
+           * A level that names its key has nothing to answer and never gets
+           * here — the control is locked.
            */
           onSettings={(next) => {
+            const keyChanged =
+              fromCourse && courseRun !== null && keyAnswerChanged(courseRun, chosen, next);
             updateSettings(next);
             setRunAt((at) => ({ ...at, tempo: next.tempo }));
             if (exercise && exercise.kind !== 'imported' && !fromCourse) {
               setExercise(buildFrom(next, exercise.seed));
+            } else if (keyChanged && courseRun) {
+              setExercise(buildFrom(runSettings(courseRun, next), randomSeed()));
             }
           }}
           /* Leaving mid-run for the calibration screen unmounts the play
@@ -442,21 +468,9 @@ export function App() {
                       instrumentId={chosen.instrumentId}
                       clef={chosen.clef}
                       {...state}
-                      /* The generator on loan, exactly as startCourse uses it:
-                         the level's key replaces the set as well as the key,
-                         and a level naming none leaves both alone. */
-                      buildRun={(run: CourseRun) => {
-                        const { tempo, levelId: _levelId, fifths, ...base } = run;
-                        return buildFrom(
-                          {
-                            ...chosen,
-                            ...base,
-                            tempo,
-                            ...(fifths === undefined ? {} : { fifths, keySet: [fifths] }),
-                          },
-                          randomSeed(),
-                        );
-                      }}
+                      /* The generator on loan, on exactly the settings
+                         `startCourse` built from — see `runSettings`. */
+                      buildRun={(run: CourseRun) => buildFrom(runSettings(run, chosen), randomSeed())}
                     />
                   </Suspense>
                 )
@@ -467,6 +481,25 @@ export function App() {
               ? (['metronomeEnabled', 'conductorEnabled'] as const).filter(
                   (key) => courseRun[key] !== undefined,
                 )
+              : undefined
+          }
+          /*
+           * The key, and who chose it — a course run only. Free play has the
+           * grid on its home screen and does not need telling.
+           *
+           * `minor` comes from the drill the *run* is playing, not from the
+           * player's settings: the signature is the same number either way
+           * and only its name changes, so a minor level must say "D minor"
+           * where a major one says "F major" over the identical `fifths`.
+           */
+          keyGate={
+            fromCourse && courseRun
+              ? {
+                  fifths: courseKeyOf(courseRun, chosen),
+                  setByCourse: courseRun.fifths !== undefined,
+                  minor: isMinorRun(courseRun),
+                  onChoose: (fifths) => updateSettings({ ...chosen, courseFifths: fifths }),
+                }
               : undefined
           }
           onAcceptOutput={() =>

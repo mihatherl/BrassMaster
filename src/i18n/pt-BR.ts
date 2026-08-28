@@ -96,6 +96,9 @@ export const PT_BR: Pack = {
   'gate.metronomeVolume': 'Volume do metrônomo',
   'gate.metronomeVolumeNote':
     'Você ouve enquanto ajusta. O clique é timbrado para passar por cima de um instrumento na sala: abaixe quando estiver lendo contra a voz do aplicativo.',
+  'gate.key': 'Tonalidade',
+  'gate.yourChoice': 'Neste nível você escolhe',
+  'gate.keyRemembered': 'Fica guardada para o próximo nível que deixar a tonalidade com você.',
   'gate.setByCourse': 'Definido pelo curso para este nível.',
   'gate.variableTempo': 'Andamento variável',
   'gate.scrollSpeed': 'Velocidade de rolagem',

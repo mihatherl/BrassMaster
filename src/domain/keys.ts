@@ -162,6 +162,26 @@ export const MAJOR_KEYS: readonly KeySignature[] = [
 ];
 
 /** How a key signature's accidentals are usually described, e.g. "2 sharps". */
+/**
+ * What to call a key signature, given whether the run is a minor one.
+ *
+ * The app stores a *signature*, not a tonic: `fifths: 0` is C major to a
+ * major drill and A minor to a minor one, and which it is called depends
+ * entirely on what is being played over it. That was already true on the home
+ * screen, where the naming lived as a local closure; it moved here on
+ * 2026-08-29 when the Ready gate gained a key control and the two screens
+ * would otherwise have had to agree by coincidence.
+ *
+ * It is also why a remembered key carries from a major level to a minor one
+ * for nothing — the number does not change, only this label does.
+ */
+export function keyNameFor(fifths: number, minor: boolean, short = false): string {
+  const key = MAJOR_KEYS.find((k) => k.fifths === fifths);
+  if (!key) return '';
+  if (minor) return short ? `${key.relativeMinor}m` : `${key.relativeMinor} minor`;
+  return short ? key.name : `${key.name} major`;
+}
+
 export function describeFifths(fifths: number): string {
   if (fifths === 0) return 'no sharps or flats';
   const count = Math.abs(fifths);

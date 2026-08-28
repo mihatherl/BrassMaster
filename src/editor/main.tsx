@@ -259,7 +259,14 @@ export function App() {
                     })
                   }
                 >
-                  <option value="">Player’s own</option>
+                  {/*
+                    Says what happens, not what it is not. "Player's own" was
+                    accurate and useless: it named a key the author could not
+                    predict and — until the gate gained a key control on
+                    2026-08-29 — the player could not reach either. Now the
+                    label can promise something, so it does.
+                  */}
+                  <option value="">Player chooses, at the gate</option>
                   {MAJOR_KEYS.map((key) => (
                     <option key={key.fifths} value={key.fifths}>
                       {key.name} major

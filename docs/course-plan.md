@@ -611,6 +611,50 @@ it deliberately ships with one axis rather than four.
 - **Nothing ships unheard** — confirmed; satisfied by construction while the
   player authors the bundled courses, including the free ones.
 
+## The key a level does not name — ruled and built 2026-08-29, from authoring
+
+The optional-key ruling ("absent means the player's own key stands") was
+correct and unreachable. Found by the author writing a real course: **the key
+grid lives on the free-play home screen**, so a course level that named no key
+took whatever was last set in the *other* mode, changeable only by leaving the
+course. The author could not tell what they were specifying and the player was
+never told what they were in — and a level that *did* name a key never said so
+either.
+
+- **The Ready gate owns the key on a course run**, and says who chose it. Named
+  by the course: shown locked with "Set by the course", the same vocabulary as
+  the pinned switches and for the reason already recorded there — *a player who
+  cannot find the control thinks the app is broken; one who sees it locked knows
+  the course chose*. Left open: a live control, labelled as theirs. It earns its
+  place by the gate's own admission rule — *changed often, and changes the run
+  about to start* — because on a course that leaves the key open it is touched
+  every level.
+- **One key, never a set.** "The player's own key" is singular. Inheriting free
+  play's `keySet` had a level touring several keys and changing key mid-run
+  because of a setting made on another screen.
+- **The answer has its own home**, `settings.courseFifths`, and does not write
+  through to `keySet`. Those are two different statements: free play's set is a
+  *tour*. Writing through would have flattened a player's four-key tour to one
+  every time they answered a course level — a setting destroyed as a side effect
+  of an unrelated screen. `materials` already set the precedent that a context
+  remembers its own choices.
+- **Answering regenerates the music.** A key recorded and not honoured is this
+  plan's own forbidden shape — *a field the app quietly ignores is worse than an
+  absent one*: the player would pick B flat, be told B flat, and read E flat.
+  The one narrow exception to "never rebuild a course run's exercise", and it is
+  the course's own instruction being carried out.
+- **The remembered key carries from a major level to a minor one untranslated**,
+  because the app stores a **signature** and not a tonic: `fifths: 0` is C major
+  over a major drill and A minor over a minor one. The player's choice survives
+  with the reading difficulty unchanged, and only the label moves. Ruled over
+  carrying the tonic (C major → C minor), which would have jumped the signature
+  three flats at a join that was only meant to change the mode.
+
+`keyNameFor` moved to `domain/keys.ts` so the gate and the home screen cannot
+name the same signature differently. `courseKeyOf`, `isMinorRun` and
+`keyAnswerChanged` live in `ui/course-run.ts` — the seam that names no course
+module, so `App` may import them in both builds. All three mutation-tested.
+
 ## Still open, and honestly so
 
 - **The suggestion bar's thresholds** — constants with a named home, tuned

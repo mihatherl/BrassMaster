@@ -19,6 +19,7 @@
  */
 
 import { type ReactNode } from 'react';
+import { keyNameFor, MAJOR_KEYS } from '../domain/keys';
 import { metreFor } from '../domain/metre';
 import { previewClick } from '../audio/metronome';
 import { styleName } from '../render/conductor';
@@ -54,6 +55,32 @@ interface ReadyControlsProps {
    * chose — and the note beside them says who did the choosing.
    */
   pinned?: readonly string[];
+  /**
+   * The key this run is in, and — the point of it — **who chose it**.
+   *
+   * Absent in free play, where the key grid lives on the home screen and this
+   * would be a second control saying the same thing. Present on a course run,
+   * always, because both answers need saying: a level that names its key was
+   * telling the player something they could not otherwise see, and a level
+   * that leaves it open was asking a question nothing was able to ask.
+   */
+  keyGate?: KeyGate;
+}
+
+export interface KeyGate {
+  /** The signature in force. */
+  fifths: number;
+  /**
+   * True when the course named it. Shown locked with "Set by the course", the
+   * same as the pinned switches and for the same stated reason — a player who
+   * cannot find the control thinks the app is broken; one who sees it locked
+   * knows the course chose.
+   */
+  setByCourse: boolean;
+  /** Name signatures as their relative minors: the run's drill is a minor one. */
+  minor: boolean;
+  /** Answer the question. Only called when the course left it open. */
+  onChoose: (fifths: number) => void;
 }
 
 /**
@@ -77,7 +104,7 @@ function Section({ title, values, children }: { title: string; values: string; c
   );
 }
 
-export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyControlsProps) {
+export function ReadyControls({ settings, onChange, onOutputs, pinned, keyGate }: ReadyControlsProps) {
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...settings, [key]: value });
   const isPinned = (key: keyof Settings) => pinned?.includes(key) ?? false;
@@ -149,6 +176,48 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
           </div>
         </div>
       </Section>
+
+      {/*
+       * Keys, on a course run only.
+       *
+       * It earns its place by the gate's own admission rule — *changed often,
+       * and changes the run about to start* — because on a course that leaves
+       * the key open it is touched at every level, and it is the one thing
+       * about the run the player could not otherwise discover. Above the
+       * Beat and Sound sections deliberately: those are how the run is heard,
+       * this is what the run *is*.
+       */}
+      {keyGate && (
+        <Section
+          title={t('gate.key')}
+          values={keyNameFor(keyGate.fifths, keyGate.minor)}
+        >
+          {keyGate.setByCourse ? (
+            <p className="field__note muted">{t('gate.setByCourse')}</p>
+          ) : (
+            <div className="field">
+              <label className="field__label" htmlFor="gate-key">
+                {t('gate.yourChoice')}
+              </label>
+              <select
+                id="gate-key"
+                value={String(keyGate.fifths)}
+                onChange={(event) => keyGate.onChoose(Number(event.target.value))}
+              >
+                {MAJOR_KEYS.map((key) => (
+                  <option key={key.fifths} value={key.fifths}>
+                    {keyNameFor(key.fifths, keyGate.minor)}
+                  </option>
+                ))}
+              </select>
+              {/* One key, not a set: the course owns the shape of the run, and
+                  a player quietly turning a level into a four-key tour is the
+                  same surprise as inheriting free play's. Ruled 2026-08-29. */}
+              <p className="field__note muted">{t('gate.keyRemembered')}</p>
+            </div>
+          )}
+        </Section>
+      )}
 
       <Section title={t('gate.beat')} values={beat}>
         {/* Two switches, one line: the pair answers one question. */}

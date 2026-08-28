@@ -140,6 +140,9 @@ export const EN = {
   'gate.metronomeVolume': 'Metronome volume',
   'gate.metronomeVolumeNote':
     'You will hear it as you move it. The click is pitched to carry over an instrument in the room — turn it down when you are reading against the app’s own voice.',
+  'gate.key': 'Key',
+  'gate.yourChoice': 'Yours to choose for this level',
+  'gate.keyRemembered': 'Remembered for the next level that leaves the key to you.',
   'gate.setByCourse': 'Set by the course for this level.',
   'gate.variableTempo': 'Variable tempo',
   'gate.scrollSpeed': 'Scroll speed',

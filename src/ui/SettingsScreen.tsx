@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
-import { describeFifths, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
+import { describeFifths, keyNameFor, MAJOR_KEYS, orderByCloseness } from '../domain/keys';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
 import { COLLECTIONS, themeById, themesOf } from '../exercise/collections';
@@ -419,12 +419,11 @@ export function SettingsScreen({
    * it always was.
    */
   const minorKeys = patternKind && drill.minor === true;
-  const keyName = (fifths: number, short = false): string => {
-    const key = MAJOR_KEYS.find((k) => k.fifths === fifths);
-    if (!key) return '';
-    if (minorKeys) return short ? `${key.relativeMinor}m` : `${key.relativeMinor} minor`;
-    return short ? key.name : `${key.name} major`;
-  };
+  // Shared with the Ready gate since 2026-08-29 — see `keyNameFor`. Two
+  // screens naming the same signature differently would be a bug nobody
+  // would think to look for.
+  const keyName = (fifths: number, short = false): string =>
+    keyNameFor(fifths, minorKeys, short);
   /*
    * The raised seventh of G sharp, D sharp and A sharp minor is a double sharp
    * in a book, and this app never prints one — it writes the natural above

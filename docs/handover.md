@@ -31,7 +31,7 @@ covers 2026-08-24 to 28: seven releases, v2.48.0 through v2.54.0.
 ## Where this stands
 
 **v2.54.0, pushed, tagged, deployed and green** — and since then, unpushed
-on this machine, the i18n work below: **1,503 tests across 73 files**.
+on this machine, the work below: **1,525 tests across 76 files**.
 The gate before any push is `npm test && npm run build && npm run lint`,
 plus `npm run check:web` and `npm run check:channel` when anything touches
 the build split. **Gate order matters now**: a plain `build` empties
@@ -128,6 +128,19 @@ Still deliberately untranslated: course content, tune and collection names,
 instrument names, the editor. Still **awaiting a native brass player's
 pass** — now seven languages of it, live. That obligation has grown with
 every session and no session can discharge it.
+
+**The key a course level does not name** (2026-08-29, v2.57.0). Found by the
+player authoring a real course: the optional-key ruling was correct and
+unreachable, because the key grid is on the free-play home screen and nothing
+in the structured flow could answer it. The **Ready gate now owns the key on a
+course run and says who chose it** — locked with "Set by the course" where the
+author named one, live where they did not. One key never a set;
+`settings.courseFifths` keeps the answer apart from free play's tour; and
+answering **regenerates the music**, which is the one exception to "never
+rebuild a course run's exercise" and is the course's own instruction being
+obeyed. The remembered key carries from a major level to a minor one
+untranslated — the app stores a signature, so C major and A minor are one
+number and only the label moves. Full reasoning in `course-plan.md`.
 
 **The road to v3.0, ruled this week**: teacher mode + the microphone *with
 its calibration* + My Music. The tuner is out (deferred to v3.x — it was

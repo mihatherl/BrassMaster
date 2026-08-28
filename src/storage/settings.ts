@@ -270,6 +270,34 @@ export interface Settings {
    */
   materials: Partial<Record<Material, MaterialChoices>>;
   /**
+   * The key the player last chose for a **course level that left the key to
+   * them**, kept apart from `keySet` on purpose.
+   *
+   * A course level may name no key — the ratified optional-key ruling — and
+   * until 2026-08-29 there was no control anywhere in the structured flow
+   * that could answer it: the key grid lives on the free-play home screen, so
+   * "the player's own key" meant "whatever you last set in the other mode",
+   * unreachable without leaving the course. The gate now asks.
+   *
+   * Its own field rather than writing through to `keySet`, because those are
+   * two different statements. Free play's `keySet` is a *tour* — an ordered
+   * set the exercise moves through — and a course level is one key at a time
+   * (ruled by the player, 2026-08-29). Writing the gate's answer into
+   * `keySet` would silently flatten a player's four-key free-play tour to
+   * one every time they answered a course level, which is a setting destroyed
+   * as a side effect of an unrelated screen. `materials` already sets the
+   * precedent: a context remembers its own choices.
+   *
+   * Absent until first answered, and then it is a signature like every other
+   * key here — which is what makes it carry across a major level to a minor
+   * one for free. `fifths` is the *signature*; the relative-minor naming is a
+   * label applied at the point of display (see `keyNameFor`). C major and A
+   * minor are the same stored number, so a player who chose C on a major
+   * level meets A minor on the next minor one with the reading difficulty
+   * unchanged — ruled by the player, 2026-08-29, over carrying the tonic.
+   */
+  courseFifths?: number;
+  /**
    * The headphones and speakers the player has calibrated, each with how far
    * behind the clock it is heard. The phone's own speaker is not on the list:
    * it is what "none of these" means, and it needs no lead.
@@ -850,6 +878,15 @@ export function sanitise(settings: Settings): Settings {
       METRONOME_VOLUME_RANGE.max,
     ),
     locale: LOCALES.some((entry) => entry.id === settings.locale) ? settings.locale : 'en',
+    /*
+     * Dropped rather than clamped when it is not a key this app has. A key
+     * outside the circle is not a near miss to be nudged back — it is a file
+     * that has been edited or has come from a later version, and the honest
+     * answer is "the player has not chosen one yet", which the gate then asks.
+     */
+    courseFifths: MAJOR_KEYS.some((key) => key.fifths === settings.courseFifths)
+      ? settings.courseFifths
+      : undefined,
     ...sanitiseOutputs(settings),
     cushionLevel: clamp(settings.cushionLevel, CUSHION_RANGE.min, CUSHION_RANGE.max),
   };

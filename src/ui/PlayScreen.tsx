@@ -25,7 +25,7 @@ import { instrumentById } from '../domain/instruments';
 import type { Transport } from '../engine/clock';
 import { ValveInput } from '../engine/input';
 import { REACTIVE_SOUND_MAX_LEAD, Session } from '../engine/session';
-import { ReadyControls } from './ReadyControls';
+import { ReadyControls, type KeyGate } from './ReadyControls';
 import { t } from '../i18n';
 import { fingeringHints, type Hints } from '../exercise/hints';
 import { soundingHeads } from '../exercise/ties';
@@ -125,6 +125,8 @@ interface PlayScreenProps {
   }) => ReactNode;
   /** Gate options the course pinned, shown disabled there. */
   coursePinned?: readonly string[];
+  /** The run's key and who chose it; absent in free play. See `KeyGate`. */
+  keyGate?: KeyGate;
 }
 
 export function PlayScreen({
@@ -140,6 +142,7 @@ export function PlayScreen({
   onAcceptOutput,
   courseControls,
   coursePinned,
+  keyGate,
 }: PlayScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
@@ -783,6 +786,7 @@ export function PlayScreen({
               onChange={onSettings}
               onOutputs={onOutputs}
               pinned={coursePinned}
+              keyGate={keyGate}
             />
           )}
           <button

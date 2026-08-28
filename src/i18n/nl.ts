@@ -83,6 +83,9 @@ export const NL: Pack = {
   'gate.metronomeVolume': 'Metronoomvolume',
   'gate.metronomeVolumeNote':
     'Je hoort het terwijl je het instelt. De klik is zo gestemd dat hij over een instrument in de kamer heen draagt — zet hem zachter als je tegen de stem van de app in leest.',
+  'gate.key': 'Toonsoort',
+  'gate.yourChoice': 'Voor dit niveau jouw keuze',
+  'gate.keyRemembered': 'Onthouden voor het volgende niveau dat de toonsoort aan jou laat.',
   'gate.setByCourse': 'Door de cursus voor dit niveau vastgelegd.',
   'gate.variableTempo': 'Wisselend tempo',
   'gate.scrollSpeed': 'Loopsnelheid',

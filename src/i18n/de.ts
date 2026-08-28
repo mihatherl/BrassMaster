@@ -86,6 +86,9 @@ export const DE: Pack = {
   'gate.metronomeVolume': 'Metronom-Lautstärke',
   'gate.metronomeVolumeNote':
     'Du hörst es, während du es einstellst. Der Klick ist so gestimmt, dass er über ein Instrument im Raum trägt — dreh ihn leiser, wenn du gegen die Stimme der App liest.',
+  'gate.key': 'Tonart',
+  'gate.yourChoice': 'Für diese Stufe deine Wahl',
+  'gate.keyRemembered': 'Wird für die nächste Stufe gemerkt, die dir die Tonart überlässt.',
   'gate.setByCourse': 'Vom Kurs für diese Stufe festgelegt.',
   'gate.variableTempo': 'Wechselndes Tempo',
   'gate.scrollSpeed': 'Lauftempo',
