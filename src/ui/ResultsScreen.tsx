@@ -15,7 +15,7 @@ import type { Exercise } from '../exercise/types';
 import { weakestNotes, type NoteStats } from '../storage/stats';
 import type { ChartNote } from '../render/note-chart';
 import { ReviewStave } from './ReviewStave';
-import { t } from '../i18n';
+import { t, tCount } from '../i18n';
 import { WeakNoteChart } from './WeakNoteChart';
 
 interface ResultsScreenProps {
@@ -136,13 +136,20 @@ export function ResultsScreen({
         <h1>{accuracy}%</h1>
         <p className="muted">
           {windowed
-            ? `Over the last ${SCORE_WINDOW_BARS} bars — ${Math.round(summary.accuracy * 100)}% across the whole run, longest streak ${summary.longestStreak}`
-            : `${summary.correct} of ${summary.total} notes, longest run ${summary.longestStreak}`}
+            ? t('results.windowed', {
+                bars: SCORE_WINDOW_BARS,
+                whole: Math.round(summary.accuracy * 100),
+                streak: summary.longestStreak,
+              })
+            : t('results.wholeRun', {
+                correct: summary.correct,
+                total: summary.total,
+                streak: summary.longestStreak,
+              })}
         </p>
         {beyondBars > 0 && (
           <p className="muted">
-            {beyondBars} bar{beyondBars === 1 ? '' : 's'} beyond the length you chose — the music
-            kept going, and so did you.
+            {tCount('results.beyond', beyondBars)}
           </p>
         )}
       </header>
@@ -164,7 +171,7 @@ export function ResultsScreen({
         </div>
         {summary.averageOffset > 0 && (
           <p className="field__note muted">
-            Average {Math.round(summary.averageOffset * 1000)} ms late on the notes you got right.
+            {t('results.averageLate', { ms: Math.round(summary.averageOffset * 1000) })}
           </p>
         )}
 
@@ -190,7 +197,7 @@ export function ResultsScreen({
           </label>
         ) : (
           <p className="field__note muted">
-            Nothing was played, so this run is not counted towards your progress.
+            {t('results.notCounted')}
           </p>
         )}
       </section>
@@ -217,24 +224,23 @@ export function ResultsScreen({
       </div>
 
       <section className="panel">
-        <h2>What you played</h2>
+        <h2>{t('results.whatYouPlayed')}</h2>
         <ReviewStave exercise={shown} verdicts={verdicts} />
         <p className="field__note muted">
           {summary.correct === summary.total
-            ? 'Every note in green — nothing to correct.'
-            : 'The fingering under a note is the one it wanted.'}
+            ? t('results.allGreen')
+            : t('results.fingeringNote')}
         </p>
       </section>
 
       {weakest.length > 0 && (
         <section className="panel">
-          <h2>Worth drilling</h2>
+          <h2>{t('results.worthDrilling')}</h2>
           {/* A tally of pitches rather than a timeline, so it has no beat to
               ask about: it is spelled in the key the exercise opened in. */}
           <WeakNoteChart notes={chart} clef={exercise.clef} fifths={keyAt(exercise.keys, 0)} />
           <p className="field__note muted">
-            Accumulated across sessions on {instrument.name} in {exercise.clef} clef, and spelled
-            in the key you have just played.
+            {t('results.drillingNote', { instrument: instrument.name, clef: exercise.clef })}
           </p>
         </section>
       )}

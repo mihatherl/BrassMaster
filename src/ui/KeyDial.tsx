@@ -24,6 +24,7 @@
 import type { CSSProperties } from 'react';
 import { describeFifths, MAJOR_KEYS } from '../domain/keys';
 import { useDial } from './useDial';
+import { t } from '../i18n';
 
 /**
  * Travel to one step round the circle of fifths, in CSS pixels.
@@ -94,7 +95,7 @@ export function KeyDial({ fifths, onChange, onCommit, fromBar }: KeyDialProps) {
         style={{ '--phase': `${phase}px` } as CSSProperties}
         role="spinbutton"
         tabIndex={0}
-        aria-label="Key"
+        aria-label={t('dial.key')}
         aria-valuemin={MIN_FIFTHS}
         aria-valuemax={MAX_FIFTHS}
         aria-valuenow={fifths}

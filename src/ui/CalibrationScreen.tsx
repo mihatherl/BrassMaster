@@ -43,6 +43,7 @@ import { generateExercise } from '../exercise/generate';
 import { Transport } from '../engine/clock';
 import { currentTheme, StaveRenderer } from '../render/surface';
 import { AUDIO_LEAD_RANGE, type Settings } from '../storage/settings';
+import { t } from '../i18n';
 
 /**
  * Crotchets a minute while calibrating.
@@ -186,12 +187,8 @@ export function CalibrationScreen({ initial, settings, onSave, onCancel }: Calib
   return (
     <div className="screen">
       <header className="masthead">
-        <h1>{initial.id ? `Measure ${initial.name}` : 'Add an output'}</h1>
-        <p>
-          Listen through the output you want to measure. Each note should sound at the moment its
-          notehead crosses the line — if the sound arrives after what you see, bring it forward
-          until the two land together.
-        </p>
+        <h1>{initial.id ? t('calibrate.title', { name: initial.name }) : t('outputs.add')}</h1>
+        <p>{t('calibrate.intro')}</p>
       </header>
 
       <div className="calibrate">
@@ -203,16 +200,16 @@ export function CalibrationScreen({ initial, settings, onSave, onCancel }: Calib
             settle late. */}
         <div className="calibrate__nudges">
           <button type="button" className="button" onClick={() => nudge(NUDGE_MS)}>
-            Sound is late — bring it forward
+            {t('calibrate.late')}
           </button>
           <button type="button" className="button" onClick={() => nudge(-NUDGE_MS)}>
-            Sound is early — push it back
+            {t('calibrate.early')}
           </button>
         </div>
 
         <label className="field">
           <span className="field__label">
-            Sound brought forward <strong>{leadMs}</strong> ms
+            {t('calibrate.lead')} <strong>{leadMs}</strong> ms
           </span>
           <input
             type="range"
@@ -221,21 +218,18 @@ export function CalibrationScreen({ initial, settings, onSave, onCancel }: Calib
             step={5}
             value={leadMs}
             onChange={(event) => setLeadMs(Number(event.target.value))}
-            aria-label="Sound brought forward, in milliseconds"
+            aria-label={t('calibrate.leadAria')}
           />
-          <p className="field__note muted">
-            Or drag, if the sound is a long way out. Bluetooth headphones are often a fifth of a
-            second behind.
-          </p>
+          <p className="field__note muted">{t('calibrate.drag')}</p>
         </label>
 
         {!initial.id && (
           <label className="field">
-            <span className="field__label">What is this output called?</span>
+            <span className="field__label">{t('calibrate.name')}</span>
             <input
               type="text"
               value={name}
-              placeholder="Headphones"
+              placeholder={t('calibrate.namePlaceholder')}
               onChange={(event) => setName(event.target.value)}
             />
           </label>
@@ -248,10 +242,10 @@ export function CalibrationScreen({ initial, settings, onSave, onCancel }: Calib
           className="button button--primary button--large"
           onClick={() => onSave({ id: initial.id, name, leadMs })}
         >
-          Save
+          {t('common.save')}
         </button>
         <button type="button" className="button button--quiet" onClick={onCancel}>
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </div>

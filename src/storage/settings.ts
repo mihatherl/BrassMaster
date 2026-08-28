@@ -23,7 +23,7 @@ import type { ExerciseKind } from '../exercise/types';
 import { DRILLS, type DrillId, type PatternRegister } from '../exercise/generate';
 import { DEFAULT_CUSHION } from '../audio/following-voice';
 import { METRONOME_VOLUME_RANGE } from '../audio/metronome';
-import { LOCALES } from '../i18n';
+import { LOCALES, localeFromBrowser, localeFromUrl } from '../i18n';
 
 // Re-exported from the domain, where the tempo plan clamps against the same
 // figures; the settings screen was this range's first customer, not its owner.
@@ -615,10 +615,37 @@ export const TIME_SIGNATURES = [
   { beatsPerBar: 9, beatUnit: 8, label: '9/8' },
 ] as const;
 
+/**
+ * Which language this visit is in, from the three things that can say so.
+ *
+ * Order is by freshness of intent, not by convenience. A `?lang=` in the URL
+ * is the visitor pressing a button on a page written in that language, and
+ * outranks a choice made on an earlier visit — the landing page and the app
+ * are one site, and until 2026-08-28 the app could not hear it speak. A
+ * stored choice outranks the browser, because the selector is the visitor
+ * overriding exactly this guess. The browser is consulted only on a first
+ * run, where the alternative is showing a German speaker English and hoping
+ * they find the selector.
+ */
+function chooseLocale(stored: string | undefined): string {
+  const asked = typeof location === 'undefined' ? null : localeFromUrl(location.search);
+  if (asked) return asked;
+  /*
+   * `stored === undefined` means a first run — no settings file at all — and
+   * only there does the browser get a vote. A returning player keeps what
+   * they had, including a file written before this field existed: weeks of
+   * using the app in English is a choice too, and turning it German on an
+   * update because the browser is `de-AT` would be the app overruling them.
+   */
+  if (stored !== undefined) return stored;
+  const languages = typeof navigator === 'undefined' ? [] : (navigator.languages ?? []);
+  return localeFromBrowser(languages) ?? DEFAULT_SETTINGS.locale;
+}
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
+    if (!raw) return { ...DEFAULT_SETTINGS, locale: chooseLocale(undefined) };
 
     const stored = JSON.parse(raw) as Partial<Settings> & { playbackEnabled?: boolean };
     const merged = { ...DEFAULT_SETTINGS, ...stored };
@@ -634,6 +661,8 @@ export function loadSettings(): Settings {
     // first switch, which is what always happened, rather than sight-reading
     // jumping to E flat and Easy under them.
     if (stored.materials === undefined) merged.materials = {};
+
+    merged.locale = chooseLocale(stored.locale ?? DEFAULT_SETTINGS.locale);
 
     return sanitise(merged);
   } catch {

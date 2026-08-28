@@ -7,6 +7,7 @@
  */
 
 import { maskToValves } from '../domain/fingering';
+import { t } from '../i18n';
 
 interface ValvePadProps {
   mask: number;
@@ -22,7 +23,7 @@ export function ValvePad({ mask, onPress, onRelease, disabled }: ValvePadProps) 
   const held = new Set(maskToValves(mask));
 
   return (
-    <div className="valve-pad" role="group" aria-label="Valves">
+    <div className="valve-pad" role="group" aria-label={t('dial.valves')}>
       {VALVES.map((valve) => (
         <button
           key={valve}

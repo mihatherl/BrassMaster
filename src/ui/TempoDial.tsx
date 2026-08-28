@@ -24,6 +24,7 @@
 import type { CSSProperties } from 'react';
 import { TEMPO_RANGE } from '../domain/tempo';
 import { useDial } from './useDial';
+import { t } from '../i18n';
 
 /**
  * Travel to one beat a minute, in CSS pixels.
@@ -90,11 +91,11 @@ export function TempoDial({ tempo, onChange, compound }: TempoDialProps) {
         style={{ '--ridge': `${RIDGE_PX}px`, '--phase': `${phase}px` } as CSSProperties}
         role="spinbutton"
         tabIndex={0}
-        aria-label="Tempo"
+        aria-label={t('dial.tempo')}
         aria-valuemin={TEMPO_RANGE.min}
         aria-valuemax={TEMPO_RANGE.max}
         aria-valuenow={tempo}
-        aria-valuetext={`${tempo} beats per minute`}
+        aria-valuetext={t('dial.tempoValue', { n: tempo })}
         {...dial.handlers}
       >
         <span className="tempo-dial__face" aria-hidden="true">

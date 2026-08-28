@@ -11,7 +11,7 @@ import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
-import { LOCALES, t, type StringKey } from '../i18n';
+import { LOCALES, t, tCount, type StringKey } from '../i18n';
 import type { ExerciseKind } from '../exercise/types';
 import { RangePicker } from './RangePicker';
 import {
@@ -227,11 +227,10 @@ function DefinedPicker({
   const edit = (changes: Partial<Settings>) => onChange(sanitise({ ...settings, ...changes }));
 
   return (
-    <div className="sheet" role="dialog" aria-modal="true" aria-label="Choose tunes and keys">
+    <div className="sheet" role="dialog" aria-modal="true" aria-label={t('picker.title')}>
       <div className="picker__head">
         <p className="field__note muted">
-          Not every tune fits every key on every instrument. Nominate keys here, and each tune
-          below offers the ones it can play on {instrument.name}.
+          {t('picker.note', { instrument: instrument.name })}
         </p>
         <KeysGrid
           keySet={settings.keySet}
@@ -242,7 +241,7 @@ function DefinedPicker({
 
       <div className="sheet__body picker">
         <div className="picker__column">
-          <h3 className="picker__heading">Available</h3>
+          <h3 className="picker__heading">{t('picker.available')}</h3>
           <div className="picker__list">
             {groups.map(({ collection, themes }) => (
               <div key={collection.id}>
@@ -317,10 +316,7 @@ function DefinedPicker({
           </h3>
           <div className="picker__list">
             {steps.length === 0 && (
-              <p className="field__note muted">
-                Tap a tune, then one of its keys, to add a step. The same tune may go in twice —
-                in two keys, or the same one.
-              </p>
+              <p className="field__note muted">{t('picker.steps')}</p>
             )}
             {steps.map((step, at) => {
               const theme = themeById(step.id);
@@ -354,10 +350,10 @@ function DefinedPicker({
           className="button button--quiet"
           onClick={() => edit({ themeSteps: [] })}
         >
-          Clear
+          {t('common.clear')}
         </button>
         <button type="button" className="button button--primary" onClick={onClose}>
-          Done
+          {t('common.done')}
         </button>
       </div>
     </div>
@@ -529,7 +525,7 @@ export function SettingsScreen({
    */
   const keysField = (
     <div className="field">
-      <span className="field__label">Keys</span>
+      <span className="field__label">{t('home.keys')}</span>
       {/*
         One control for keys, not two.
 
@@ -554,15 +550,16 @@ export function SettingsScreen({
               opening key — this used to live on the panel's summary line, and
               when the panel went (2026-08-23) it was the one thing the summary
               said that nothing else did. */}
-          Plays {orderByCloseness(settings.fifths, settings.keySet)
-            .map((f) => keyName(f, true))
-            .join(' → ')}, changing key as it goes.
+          {t('home.keysRoute', {
+            route: orderByCloseness(settings.fifths, settings.keySet)
+              .map((f) => keyName(f, true))
+              .join(' → '),
+          })}
         </p>
       )}
       {naturalForDoubleSharp && (
         <p className="field__note muted">
-          A book writes the raised seventh of {keyName(settings.fifths)} as a double sharp. This app
-          never prints one, so it is written as the natural above.
+          {t('home.doubleSharp', { key: keyName(settings.fifths) })}
         </p>
       )}
     </div>
@@ -570,7 +567,7 @@ export function SettingsScreen({
 
   const drillField = (
     <div className="field">
-      <span className="field__label">Drill</span>
+      <span className="field__label">{t('home.drill')}</span>
       <div className="drills">
         {DRILLS.map((option) => (
           <button
@@ -618,7 +615,7 @@ export function SettingsScreen({
 
   const sourceField = (
     <div className="field">
-      <span className="field__label">Tunes from</span>
+      <span className="field__label">{t('home.tunesFrom')}</span>
       <div className="chips">
         <button
           type="button"
@@ -628,7 +625,7 @@ export function SettingsScreen({
             onChange({ ...settings, collectionIds: [], themeSteps: [], selection: 'medley' })
           }
         >
-          Composed
+          {t('home.composed')}
         </button>
         {COLLECTIONS.map((collection) => {
           const on = chosenIds.includes(collection.id);
@@ -647,19 +644,13 @@ export function SettingsScreen({
         })}
       </div>
       {chosenIds.length === 0 ? (
-        <p className="field__note muted">
-          Fresh tunes written for this run. Choose one or more libraries to play written music
-          instead.
-        </p>
+        <p className="field__note muted">{t('home.composedNote')}</p>
       ) : (
         /* Only the medley can come up empty here — a defined run with no
            steps left is a medley again by `sanitise`'s rule, and a step
            cannot be built that will not play. */
         playable === 0 && (
-          <p className="field__note muted">
-            Nothing here is written at this level, so composed tunes will play instead. Try
-            another level.
-          </p>
+          <p className="field__note muted">{t('home.nothingAtLevel')}</p>
         )
       )}
     </div>
@@ -675,7 +666,7 @@ export function SettingsScreen({
    */
   const selectionField = chosenIds.length > 0 ? (
     <div className="field">
-      <span className="field__label">Selection</span>
+      <span className="field__label">{t('home.selection')}</span>
       <div className="chips">
         <button
           type="button"
@@ -683,7 +674,7 @@ export function SettingsScreen({
           className={`chip ${!defined ? 'is-selected' : ''}`}
           onClick={() => onChange({ ...settings, selection: 'medley' })}
         >
-          Random medley
+          {t('home.medley')}
         </button>
         <button
           type="button"
@@ -691,21 +682,19 @@ export function SettingsScreen({
           className={`chip ${defined ? 'is-selected' : ''}`}
           onClick={() => setPicking(true)}
         >
-          Defined
+          {t('home.defined')}
           {steps.length > 0 && <span className="chip__count">{steps.length}</span>}
         </button>
       </div>
       <p className="field__note muted">
-        {defined
-          ? `Playing ${steps.length} ${steps.length === 1 ? 'step' : 'steps'} in the order you set them, each in its own key.`
-          : 'Whatever is in the chosen libraries, at the chosen level.'}
+        {defined ? tCount('home.playingSteps', steps.length) : t('home.medleyNote')}
       </p>
     </div>
   ) : null;
 
   const difficultyField = (
         <div className="field">
-          <span className="field__label">Difficulty</span>
+          <span className="field__label">{t('home.difficulty')}</span>
           <div className="segmented segmented--row">
             {DIFFICULTIES.map((option) => (
               <button
@@ -718,18 +707,24 @@ export function SettingsScreen({
               >
                 {/* For scales and arpeggios the useful thing to know is how far
                     the pattern reaches, not what the level is called. */}
-                {patternKind ? option.patterns.label : option.name}
+                {t(
+                  `difficulty.${option.id}${patternKind ? '.patterns' : ''}` as StringKey,
+                )}
               </button>
             ))}
           </div>
           <p className="field__note muted">
-            {patternKind ? difficulty.patterns.blurb : difficulty.blurb}
+            {t(
+              `difficulty.${difficulty.id}${patternKind ? '.patternsBlurb' : '.blurb'}` as StringKey,
+            )}
           </p>
           {patternKind && shortenedSpan && (
             <p className="field__note muted">
-              {instrument.name} in {keyName(settings.fifths)} has only room for {shortenedSpan}, so
-              that is what you will get — the drill&apos;s starting note sits too high for
-              anything further.
+              {t('home.shortenedSpan', {
+                instrument: instrument.name,
+                key: keyName(settings.fifths),
+                span: shortenedSpan,
+              })}
             </p>
           )}
         </div>
@@ -737,7 +732,7 @@ export function SettingsScreen({
 
   const timeSignatureField = (
     <label className="field field--beside">
-      <span className="field__label">Time signature</span>
+      <span className="field__label">{t('home.timeSignature')}</span>
       <select
         value={`${settings.beatsPerBar}/${settings.beatUnit}`}
         onChange={(event) => {
@@ -766,7 +761,7 @@ export function SettingsScreen({
 
   const registerField = (
     <div className="field">
-      <span className="field__label">Register</span>
+      <span className="field__label">{t('home.register')}</span>
       <div className="segmented">
         {REGISTERS.map((option) => (
           <button
@@ -775,7 +770,7 @@ export function SettingsScreen({
             className={`segmented__option ${settings.register === option.id ? 'is-selected' : ''}`}
             onClick={() => update('register', option.id)}
           >
-            {option.label}
+            {t(`register.${option.id}` as StringKey)}
           </button>
         ))}
       </div>
@@ -868,7 +863,7 @@ export function SettingsScreen({
       {showInstrument && (
         <div className="instrument-sheet">
           <label className="field">
-            <span className="field__label">Instrument</span>
+            <span className="field__label">{t('home.instrument')}</span>
             <select
               value={settings.instrumentId}
               onChange={(event) => {
@@ -888,7 +883,7 @@ export function SettingsScreen({
           </label>
 
           <div className="field">
-            <span className="field__label">Clef</span>
+            <span className="field__label">{t('home.clef')}</span>
             <div className="segmented">
               {clefs.map((clef) => (
                 <button
@@ -897,16 +892,17 @@ export function SettingsScreen({
                   className={`segmented__option ${settings.clef === clef ? 'is-selected' : ''}`}
                   onClick={() => update('clef', clef)}
                 >
-                  {clef === 'treble' ? 'Treble' : 'Bass'}
+                  {clef === 'treble' ? t('clef.treble') : t('clef.bass')}
                 </button>
               ))}
             </div>
           </div>
 
           <p className="field__note muted">
-            Written range {formatPitch(spellInKey(low, settings.fifths))} to{' '}
-            {formatPitch(spellInKey(high, settings.fifths))}
-            {settings.clef === 'bass' ? ' (concert pitch)' : ''}.
+            {t(settings.clef === 'bass' ? 'home.writtenRangeConcert' : 'home.writtenRange', {
+              low: formatPitch(spellInKey(low, settings.fifths)),
+              high: formatPitch(spellInKey(high, settings.fifths)),
+            })}
           </p>
         </div>
       )}
@@ -979,7 +975,7 @@ export function SettingsScreen({
           ))}
         </div>
 
-        <p className="muted mode-blurb">{material.blurb}</p>
+        <p className="muted mode-blurb">{t(`kind.${material.id}.blurb` as StringKey)}</p>
 
         <div className="mode__body">
           {/* Which shape, before which key: the drill is what the tab *is*,
@@ -1019,7 +1015,7 @@ export function SettingsScreen({
                 checked={settings.weakNoteDrilling}
                 onChange={(event) => update('weakNoteDrilling', event.target.checked)}
               />
-              <span>Favour notes I get wrong</span>
+              <span>{t('home.favourWrong')}</span>
             </label>
           )}
         </div>

@@ -604,3 +604,58 @@ describe('picked tunes', () => {
     expect(DEFAULT_SETTINGS.selection).toBe('medley');
   });
 });
+
+/**
+ * The seam the player found on 2026-08-28: brassmaster.net serves a whole
+ * German landing page at `/de/`, and its call to action dropped the reader
+ * into an English app. Nothing was lost in transit — the two halves of the
+ * site had never been joined, and no amount of pack coverage would have
+ * joined them. `site.mjs` writes `?lang=` into the translated pages' links;
+ * these are the rules for reading it.
+ */
+describe('the language a visitor arrives in', () => {
+  const at = (search: string) => {
+    // happy-dom keeps `location.search` writable through the URL.
+    window.history.replaceState({}, '', `/app/${search}`);
+  };
+
+  afterEach(() => at(''));
+
+  it('takes the language the landing page sent, on a first visit', () => {
+    at('?lang=de');
+    expect(loadSettings().locale).toBe('de');
+  });
+
+  it('lets that outrank a choice made on an earlier visit', () => {
+    /*
+     * Freshness, not stubbornness: following a link from a page written in
+     * one language is the most recent thing the visitor has said about which
+     * language they want, and it is said by pressing a button.
+     */
+    store({ locale: 'en', tempo: 96 });
+    at('?lang=fr');
+    expect(loadSettings().locale).toBe('fr');
+  });
+
+  it('ignores a language it has no pack for, rather than blanking the app', () => {
+    store({ locale: 'de' });
+    at('?lang=eo');
+    expect(loadSettings().locale).toBe('de');
+  });
+
+  it('keeps a returning player’s language when the URL says nothing', () => {
+    store({ locale: 'nl' });
+    expect(loadSettings().locale).toBe('nl');
+  });
+
+  it('leaves a settings file written before locales existed in English', () => {
+    /*
+     * The browser gets a vote only on a genuine first run. Somebody who has
+     * used the app in English for weeks and updates it should not find it in
+     * German because their phone is set to `de-AT` — weeks of use is a choice
+     * too, and this is the app overruling them if it fires here.
+     */
+    store({ tempo: 96 });
+    expect(loadSettings().locale).toBe('en');
+  });
+});

@@ -315,7 +315,7 @@ export function PracticeScreen({
             disabled={atBottom}
             onClick={() => move('back')}
           >
-            Back a step
+            {t('practice.backStep')}
           </button>
           <button
             type="button"
@@ -323,7 +323,7 @@ export function PracticeScreen({
             disabled={atTop}
             onClick={() => move('forward')}
           >
-            Forward a step
+            {t('practice.forwardStep')}
           </button>
         </div>
       </section>
@@ -377,14 +377,14 @@ export function PracticeScreen({
               </div>
             )}
             <button type="button" className="button" onClick={() => setGoal(undefined)}>
-              Clear it
+              {t('practice.clearIt')}
             </button>
           </>
         ) : above.length === 0 ? (
-          <p className="practice__note">Nothing further up this course to aim at.</p>
+          <p className="practice__note">{t('practice.nothingAbove')}</p>
         ) : (
           <>
-            <p className="practice__note">Nothing set. Pick somewhere to head for.</p>
+            <p className="practice__note">{t('practice.nothingSet')}</p>
             <div className="segmented segmented--wrap">
               {above.map((candidate) => (
                 <button
@@ -422,12 +422,12 @@ export function PracticeScreen({
       </button>
       <button type="button" className="entry practice__door" onClick={onProgress}>
         <span className="entry__title">{t('course.progress')}</span>
-        <span className="entry__detail">What has improved, and what to work on</span>
+        <span className="entry__detail">{t('practice.progressDoor')}</span>
       </button>
 
       {!embedded && onBack && (
         <button type="button" className="button button--quiet" onClick={onBack}>
-          Back
+          {t('common.back')}
         </button>
       )}
     </>

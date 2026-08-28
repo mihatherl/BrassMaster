@@ -15,6 +15,7 @@ import {
 } from '../storage/library';
 import { openPiece, savePiece } from '../storage/pieces';
 import { ScorePicker } from './ScorePicker';
+import { t, tCount } from '../i18n';
 
 /**
  * My Music: choosing a file and reading a part out of it.
@@ -303,12 +304,8 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
   return (
     <div className="screen">
       <header className="masthead">
-        <h1>My Music</h1>
-        <p>
-          Open a MusicXML part — <code>.musicxml</code> or <code>.mxl</code>, as exported by
-          MuseScore, Sibelius or Finale. Repeats, first- and second-time bars and D.S. jumps are
-          played out in full. Anything else will say so rather than being hidden from you.
-        </p>
+        <h1>{t('home.myMusic')}</h1>
+        <p>{t('import.intro')}</p>
       </header>
 
       {library.length > 0 && (
@@ -323,16 +320,16 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
               >
                 <span className="library__title">{piece.title}</span>
                 <span className="library__detail">
-                  {piece.partName} · {piece.bars} bars
+                  {t('import.detail', { part: piece.partName, bars: piece.bars })}
                 </span>
               </button>
               <button
                 type="button"
                 className="button button--quiet library__forget"
                 onClick={() => void forget(piece)}
-                aria-label={`Forget ${piece.title}`}
+                aria-label={t('import.forgetNamed', { title: piece.title })}
               >
-                Forget
+                {t('common.forget')}
               </button>
             </li>
           ))}
@@ -340,7 +337,7 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
       )}
 
       <label className="button button--primary button--large import__choose">
-        {busy ? 'Reading…' : 'Choose a file'}
+        {busy ? t('import.reading') : t('import.choose')}
         {/*
           * No `accept` filter, deliberately.
           *
@@ -372,7 +369,7 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
 
       {loaded && loaded.names.length > 1 && (
         <label className="field">
-          <span className="field__label">Which part</span>
+          <span className="field__label">{t('import.whichPart')}</span>
           <select
             value={partIndex}
             onChange={(event) => {
@@ -392,7 +389,7 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
 
       {loaded && read?.divides && (
         <label className="field">
-          <span className="field__label">Where the part divides, play the</span>
+          <span className="field__label">{t('import.divides')}</span>
           <select
             value={divisi}
             onChange={(event) => {
@@ -401,14 +398,10 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
               readPart(loaded, partIndex, next);
             }}
           >
-            <option value="upper">Upper line</option>
-            <option value="lower">Lower line</option>
+            <option value="upper">{t('import.upper')}</option>
+            <option value="lower">{t('import.lower')}</option>
           </select>
-          <p className="field__note">
-            One line is read, so the notation, the playback and what you are marked against all
-            agree — whichever your section gave you. Where the two are an octave apart the
-            fingering is the same either way.
-          </p>
+          <p className="field__note">{t('import.divisiNote')}</p>
         </label>
       )}
 
@@ -416,8 +409,11 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
         <section className="import__summary">
           <h2>{read.part}</h2>
           <p className="import__count">
-            {barCount(read.exercise.metres, read.exercise.totalBeats)} bars,{' '}
-            {read.exercise.notes.length} notes — from {read.from}
+            {t('import.count', {
+              bars: barCount(read.exercise.metres, read.exercise.totalBeats),
+              notes: read.exercise.notes.length,
+              from: read.from,
+            })}
           </p>
           {/*
             * The bar count is the *played* one, which is larger than the
@@ -435,10 +431,11 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
                 * ruling nobody has made. Never show one thing and hold
                 * another.
                 */}
-              Asks {Math.round(read.tempos[0].bpm)} beats a minute
-              {read.tempos.length > 1 &&
-                ` and changes tempo ${read.tempos.length - 1} time${read.tempos.length > 2 ? 's' : ''} later`}
-              . The tempo dial stays yours — the marks are noted, not obeyed.
+              {t('import.asks', {
+                bpm: Math.round(read.tempos[0].bpm),
+                changes:
+                  read.tempos.length > 1 ? tCount('import.changes', read.tempos.length - 1) : '',
+              })}
             </p>
           )}
 
@@ -456,7 +453,7 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
                 * app made would be telling the player the wrong thing about
                 * whose problem it is.
                 */}
-              <p className="import__warnings-heading">Before you play:</p>
+              <p className="import__warnings-heading">{t('import.beforeYouPlay')}</p>
               <ul className="import__warnings">
                 {read.problems.map((line) => (
                   <li key={line}>{line}</li>
@@ -474,29 +471,26 @@ export function ImportScreen({ settings, onPlay, onBack }: ImportScreenProps) {
             className="button button--primary button--large"
             onClick={() => onPlay(read.exercise)}
           >
-            Play it
+            {t('import.playIt')}
           </button>
         )}
         {read && (
           // Practising a passage is not a lesser way of opening a piece, so it
           // sits beside Play it rather than under a heading of its own.
           <button type="button" className="button" onClick={choosebars}>
-            Choose bars
+            {t('import.chooseBars')}
           </button>
         )}
         {read && (
           <button type="button" className="button" onClick={() => void keep()} disabled={saved}>
-            {saved ? 'Kept in My Music' : 'Keep it'}
+            {saved ? t('import.kept') : t('import.keep')}
           </button>
         )}
         {read && !storageAvailable() && (
-          <p className="field__note">
-            This browser will not keep anything between sessions — a private window, most likely.
-            The piece will play now and be gone when the tab is.
-          </p>
+          <p className="field__note">{t('import.noStorage')}</p>
         )}
         <button type="button" className="button button--quiet" onClick={onBack}>
-          Back
+          {t('common.back')}
         </button>
       </div>
     </div>

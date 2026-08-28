@@ -24,6 +24,7 @@ import { describeSkill, type SkillDimension } from '../exercise/attributes';
 import { loadSkills, weakestIn, type SkillStats } from '../storage/skills';
 import { loadSessions, meanAccuracy, type Session } from '../storage/sessions';
 import type { Clef } from '../domain/instruments';
+import { localeTag, t, tCount, type StringKey } from '../i18n';
 
 interface ProgressScreenProps {
   instrumentId: string;
@@ -39,10 +40,10 @@ interface ProgressScreenProps {
  * shown as a pair below rather than ranked. `tempo` is left out entirely — the
  * ladder is already the thing that says whether speed is the problem.
  */
-const RANKED: ReadonlyArray<{ dimension: SkillDimension; heading: string }> = [
-  { dimension: 'rhythm', heading: 'Rhythms' },
-  { dimension: 'interval', heading: 'Intervals' },
-  { dimension: 'key', heading: 'Keys' },
+const RANKED: ReadonlyArray<{ dimension: SkillDimension }> = [
+  { dimension: 'rhythm' },
+  { dimension: 'interval' },
+  { dimension: 'key' },
 ];
 
 /** A percentage, or a dash where there is not enough to say. */
@@ -50,12 +51,12 @@ function percent(value: number | null): string {
   return value === null ? '–' : `${Math.round(value * 100)}%`;
 }
 
-function Weakest({ stats, dimension, heading }: { stats: SkillStats } & (typeof RANKED)[number]) {
+function Weakest({ stats, dimension }: { stats: SkillStats } & (typeof RANKED)[number]) {
   const worst = weakestIn(stats, dimension, 3);
   if (worst.length === 0) return null;
   return (
     <section className="panel">
-      <h2>{heading}</h2>
+      <h2>{t(`progress.${dimension}` as StringKey)}</h2>
       <ul className="report__list">
         {worst.map(({ key, accuracy }) => (
           <li key={key} className="report__row">
@@ -71,8 +72,18 @@ function Weakest({ stats, dimension, heading }: { stats: SkillStats } & (typeof 
   );
 }
 
+/*
+ * Named in the app's language, not the browser's. `undefined` here handed the
+ * date to whatever the *browser* was set to, so a German interface listed its
+ * sittings under "Tue" and "Wed" — the same half-translated seam the buttons
+ * had, in the one place nothing on screen could explain it.
+ */
 function whenDay(at: number): string {
-  return new Date(at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  return new Date(at).toLocaleDateString(localeTag(), {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 export function ProgressScreen({ instrumentId, clef, onBack }: ProgressScreenProps) {
@@ -89,23 +100,23 @@ export function ProgressScreen({ instrumentId, clef, onBack }: ProgressScreenPro
   return (
     <div className="screen">
       <header className="masthead">
-        <h1>Progress</h1>
+        <h1>{t('progress.title')}</h1>
       </header>
 
       {runs === 0 ? (
-        <p className="practice__note">
-          Nothing recorded yet. Play a few runs and this fills itself in.
-        </p>
+        <p className="practice__note">{t('progress.nothingYet')}</p>
       ) : (
         <p className="practice__note">
-          {runs} {runs === 1 ? 'run' : 'runs'} across {sessions.length}{' '}
-          {sessions.length === 1 ? 'sitting' : 'sittings'}.
+          {t('progress.tally', {
+            runs: tCount('progress.runs', runs),
+            sittings: tCount('progress.sittings', sessions.length),
+          })}
         </p>
       )}
 
       {recent.length > 0 && (
         <section className="panel">
-          <h2>Recent sittings</h2>
+          <h2>{t('progress.recent')}</h2>
           <ul className="report__list">
             {recent.map((session) => (
               <li key={session.startedAt} className="report__row">
@@ -117,23 +128,18 @@ export function ProgressScreen({ instrumentId, clef, onBack }: ProgressScreenPro
               </li>
             ))}
           </ul>
-          <p className="practice__note">
-            The average of each sitting&rsquo;s runs, newest first.
-          </p>
+          <p className="practice__note">{t('progress.recentNote')}</p>
         </section>
       )}
 
       {anything ? (
         RANKED.map((entry) => <Weakest key={entry.dimension} stats={stats} {...entry} />)
       ) : runs > 0 ? (
-        <p className="practice__note">
-          Not enough yet to say what is weak — a few more runs and this will have something
-          worth telling you.
-        </p>
+        <p className="practice__note">{t('progress.notEnough')}</p>
       ) : null}
 
       <button type="button" className="button button--quiet" onClick={onBack}>
-        Back
+        {t('common.back')}
       </button>
     </div>
   );

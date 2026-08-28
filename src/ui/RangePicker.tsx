@@ -37,6 +37,7 @@ import { formatPitch } from '../domain/pitch';
 import { drawRangeStave } from '../render/range-stave';
 import { NoteDial } from './NoteDial';
 import { StaveCanvas } from './StaveCanvas';
+import { t } from '../i18n';
 
 interface RangePickerProps {
   instrument: Instrument;
@@ -103,7 +104,7 @@ export function RangePicker({ instrument, clef, fifths, range, onChange }: Range
             onChange(event.target.checked ? { low: lowest, high: highest } : null)
           }
         />
-        <span>Choose the range myself</span>
+        <span>{t('range.choose')}</span>
       </label>
 
       {range !== null && (
@@ -115,7 +116,7 @@ export function RangePicker({ instrument, clef, fifths, range, onChange }: Range
           */}
           <div className="range">
             <NoteDial
-              label="Lowest"
+              label={t('range.lowest')}
               values={ladder}
               value={range.low}
               min={lowest}
@@ -127,11 +128,11 @@ export function RangePicker({ instrument, clef, fifths, range, onChange }: Range
             <StaveCanvas
               className="range__stave"
               draw={draw}
-              label={`Range: ${name(range.low)} to ${name(range.high)}`}
+              label={t('range.stave', { low: name(range.low), high: name(range.high) })}
             />
 
             <NoteDial
-              label="Highest"
+              label={t('range.highest')}
               values={ladder}
               value={range.high}
               min={range.low}
@@ -144,8 +145,7 @@ export function RangePicker({ instrument, clef, fifths, range, onChange }: Range
           <p className="field__note muted">
             {/* What the choice actually amounts to, since a pair of note names
                 does not say how much of the horn it covers. */}
-            {describeSpan(range.high - range.low)} — every note in it, not
-            favouring the middle.
+            {t('range.note', { span: describeSpan(range.high - range.low) })}
           </p>
         </>
       )}

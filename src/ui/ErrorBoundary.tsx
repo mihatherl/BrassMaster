@@ -19,6 +19,7 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { t } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -57,15 +58,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="screen error-screen">
-        <h1>Something broke</h1>
-        <p>
-          The app stopped rather than showing you something wrong. This is a
-          fault worth reporting — the message below is the useful part.
-        </p>
+        <h1>{t('error.title')}</h1>
+        <p>{t('error.body')}</p>
         <pre className="error-screen__message">{this.state.message}</pre>
         {this.state.where ? <pre className="error-screen__where">{this.state.where}</pre> : null}
         <p className="error-screen__version">
-          version {__APP_VERSION__} · built {__BUILD_TIME__}
+          {t('error.version', { version: __APP_VERSION__, built: __BUILD_TIME__ })}
         </p>
         <button
           type="button"
@@ -74,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
             this.props.onReset?.();
           }}
         >
-          Back to the start
+          {t('error.back')}
         </button>
       </div>
     );

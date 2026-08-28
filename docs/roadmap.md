@@ -915,21 +915,50 @@ with no figure to measure the spend against. **Ads make sense once the paid
 Android app is on sale and a click has a value.** Doing it in the other order
 buys traffic for the worst version of the product.
 
-**7.6 Language packs — partial by ruling, 2026-08-28.** The player's scope:
-the landing page and "the various labels and buttons throughout the different
-forms", with what cannot change named as such — course content, theme names,
-the long teaching prose, the corpus blurbs (pinned by their own guards), the
-editor. Built the same day: `i18n/` with English as source of truth and
-per-key fallback (an incomplete pack degrades to mixed, never to broken), a
-selector up the top of the home screen, and **German, Dutch and French** as
-pilots. The landing page translates as *whole pages* — `/de/`, `/nl/`,
-`/fr/`, generated at assemble with hreflang and sitemap entries, each its own
-search surface, and the build **fails by name** when the English copy drifts
-from a pack. Standing obligations: **every pack wants a native brass
-player's pass** (the ear rule's linguistic twin — drafted by the assistant,
-native in none of them); new labels should go through `t()` as they are
-written; and the **US-English duration-name fork** (crotchet/quarter note)
-remains open and is the cheapest locale with the largest audience.
+**7.6 Language packs — re-ruled the same day they were built, 2026-08-28.**
+The morning's scope was "the various labels and buttons throughout the
+different forms". By evening the player had played it in German and it had
+not met even that: 52 keys, **six of twenty-three components calling `t()`**,
+and *"Back" a button on six screens with one of them translating*. The
+landing page, meanwhile, sent a German reader to a bare `/app/` and the app
+opened in English — the two halves of the site had never been joined, so no
+amount of pack coverage would have fixed what he saw first.
+
+**Re-ruled: all static text that ships with the app, prose included.** What
+still cannot change is what the player or the corpus wrote — course content,
+tune and collection names, instrument names, the editor. Built the same
+evening, three parts:
+
+- **The handoff.** `site.mjs` writes `?lang=` into the translated pages'
+  links; `loadSettings` reads it, and on a genuine first run falls back to
+  `navigator.languages` matched on the primary subtag. Order is by freshness
+  of intent — URL, then stored choice, then browser — and the browser gets no
+  vote for a returning player, because weeks of using the app in English is a
+  choice too.
+- **The sweep.** 244 keys, every screen, **all three packs complete** — a
+  partial pack is precisely how one screen came to disagree with the next.
+  Placeholders (`{n}`) rather than concatenation, because word order is the
+  first thing a translation changes; `tCount` for singular/plural. Domain
+  labels (difficulty names, drills, registers, modes, conductor styles) keep
+  their English in their tables — other guards pin those to what the
+  generator can play — and render through keys derived from their ids.
+- **The guard, which is the part that makes it stay done.**
+  `i18n/coverage.test.ts` fails **by name** on a string that skipped `t()`, a
+  key a pack lacks, a placeholder a translation dropped, or a domain label
+  that has drifted from its key. The landing page has had this since it was
+  built; the app had none, which is exactly why coverage rotted to a third
+  inside one day. Mutation-tested on all four. Its `DELIBERATELY_ENGLISH` set
+  is three entries — the product name, units, and a licence attribution —
+  and adding to it is a decision not to translate something.
+
+Standing obligations: **every pack wants a native brass player's pass** (the
+ear rule's linguistic twin — drafted by the assistant, native in none of
+them, and now four times as much text to get wrong); the **US-English
+duration-name fork** (crotchet/quarter note) remains open and is the cheapest
+locale with the largest audience; and `describeSkill`'s notation vocabulary
+on the Progress report is **the one deliberate gap left**, because
+translating "dotted quaver" is the same question the US fork asks and should
+be answered once, for both.
 
 **7.5 The Play listing is a discovery surface too**, and it is not ready to be
 one: internal track, placeholder name, and the content rating, data safety and

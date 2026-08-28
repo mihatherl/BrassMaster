@@ -93,12 +93,12 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
    */
   const beat =
     settings.metronomeEnabled && settings.conductorEnabled
-      ? 'Metronome + conductor'
+      ? t('beat.both')
       : settings.metronomeEnabled
-        ? 'Metronome'
+        ? t('gate.metronome')
         : settings.conductorEnabled
-          ? 'Conductor'
-          : 'Nothing keeps time';
+          ? t('gate.conductor')
+          : t('beat.none');
 
   return (
     <div className="ready-controls">
@@ -125,7 +125,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
         />
         {metre.isCompound && (
           <p className="field__note muted">
-            Dotted crotchets — {metre.pulsesPerBar} to the bar, the beat you count.
+            {t('gate.compound', { n: metre.pulsesPerBar })}
           </p>
         )}
       </label>
@@ -173,7 +173,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
           </label>
         </div>
         {(isPinned('metronomeEnabled') || isPinned('conductorEnabled')) && (
-          <p className="field__note muted">Set by the course for this level.</p>
+          <p className="field__note muted">{t('gate.setByCourse')}</p>
         )}
 
         {/*
@@ -201,11 +201,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
                 previewClick(volume);
               }}
             />
-            <p className="field__note muted">
-              You will hear it as you move it. The click is pitched to carry over an
-              instrument in the room — turn it down when you are reading against the
-              app's own voice.
-            </p>
+            <p className="field__note muted">{t('gate.metronomeVolumeNote')}</p>
           </label>
         )}
       </Section>
@@ -232,7 +228,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
 
       <Section
         title={t('gate.fingerings')}
-        values={FINGERING_MODES.find((m) => m.id === settings.fingerings)?.name ?? ''}
+        values={t(`fingerings.${settings.fingerings}` as StringKey)}
       >
         <div className="field">
           <div className="cards cards--two">
@@ -243,7 +239,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
                 className={`card card--compact ${settings.fingerings === choice.id ? 'is-selected' : ''}`}
                 onClick={() => update('fingerings', choice.id)}
               >
-                <strong>{choice.name}</strong>
+                <strong>{t(`fingerings.${choice.id}` as StringKey)}</strong>
               </button>
             ))}
           </div>
@@ -257,13 +253,13 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
             checked={settings.variableTempo}
             onChange={(event) => update('variableTempo', event.target.checked)}
           />
-          <span>Variable tempo</span>
+          <span>{t('gate.variableTempo')}</span>
         </label>
 
         {settings.readingMode === 'scrolling' && (
           <label className="field">
             <span className="field__label">
-              Scroll speed <strong>{settings.scrollSpeed}</strong>
+              {t('gate.scrollSpeed')} <strong>{settings.scrollSpeed}</strong>
             </span>
             <input
               type="range"
@@ -273,16 +269,15 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
               value={settings.scrollSpeed}
               onChange={(event) => update('scrollSpeed', Number(event.target.value))}
             />
-            <p className="field__note muted">
-              How fast the music travels, whatever the tempo. Spacing follows it.
-            </p>
+            <p className="field__note muted">{t('gate.scrollSpeedNote')}</p>
           </label>
         )}
 
         {settings.conductorEnabled && (
           <label className="field">
             <span className="field__label">
-              Conductor style <strong>{styleName(settings.conductorStyle)}</strong>
+              {t('gate.conductorStyle')}{' '}
+              <strong>{t(`conductorStyle.${styleName(settings.conductorStyle)}` as StringKey)}</strong>
             </span>
             <input
               type="range"
@@ -292,16 +287,14 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
               value={settings.conductorStyle}
               onChange={(event) => update('conductorStyle', Number(event.target.value))}
             />
-            <p className="field__note muted">
-              How sharply the beat lands. Smooth is harder to follow, and meant to be.
-            </p>
+            <p className="field__note muted">{t('gate.conductorStyleNote')}</p>
           </label>
         )}
 
         {settings.playbackMode !== 'off' && (
           <label className="field">
             <span className="field__label">
-              Cushion <strong>{Math.round(settings.cushionLevel * 100)}%</strong>
+              {t('gate.cushion')} <strong>{Math.round(settings.cushionLevel * 100)}%</strong>
             </span>
             <input
               type="range"
@@ -311,16 +304,10 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
               value={Math.round(settings.cushionLevel * 100)}
               onChange={(event) => update('cushionLevel', Number(event.target.value) / 100)}
             />
-            <p className="field__note muted">
-              How loud the soft sound behind a note is until you finger it right, against the
-              instrument that takes over when you do.
-            </p>
+            <p className="field__note muted">{t('gate.cushionNote')}</p>
             {audioLeadFor(settings) > REACTIVE_SOUND_MAX_LEAD && (
               <p className="field__note muted">
-                Off on this output: its sound arrives{' '}
-                {Math.round(audioLeadFor(settings) * 1000)}ms late, so the instrument taking
-                over would be heard long after the fingering it answers. The judgement shows on
-                the screen instead.
+                {t('gate.cushionOff', { ms: Math.round(audioLeadFor(settings) * 1000) })}
               </p>
             )}
           </label>
@@ -328,7 +315,7 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
 
         <label className="field">
           <span className="field__label">
-            Timing tolerance{' '}
+            {t('gate.timingTolerance')}{' '}
             <strong>
               ±{Math.round(toleranceFor(60 / settings.tempo, settings.timingTolerance) * 1000)}{' '}
               ms
@@ -345,14 +332,14 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned }: ReadyCo
         </label>
 
         <label className="field">
-          <span className="field__label">Count-in</span>
+          <span className="field__label">{t('gate.countIn')}</span>
           <select
             value={settings.countInBars}
             onChange={(event) => update('countInBars', Number(event.target.value))}
           >
-            <option value={0}>None</option>
-            <option value={1}>1 bar</option>
-            <option value={2}>2 bars</option>
+            <option value={0}>{t('gate.countIn.none')}</option>
+            <option value={1}>{t('gate.countIn.1')}</option>
+            <option value={2}>{t('gate.countIn.2')}</option>
           </select>
         </label>
 

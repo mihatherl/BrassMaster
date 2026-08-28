@@ -102,6 +102,16 @@ if (mode === 'clear') {
     );
     page = page.replace(' href="/" class="active"', ' href="/"');
     page = page.replace(`<a href="/${lang}/">`, `<a href="/${lang}/" class="active">`);
+    /*
+     * The half of the site that speaks tells the half that listens. Until
+     * 2026-08-28 every translated page's call to action pointed at a bare
+     * `/app/`, so a German reader pressed a German button and arrived in an
+     * English app — the two halves were never joined, and no amount of pack
+     * coverage would have joined them. `?lang=` is read once by
+     * `loadSettings` and written to settings, so it costs nothing after the
+     * first visit and survives being bookmarked.
+     */
+    page = page.split('href="/app/"').join(`href="/app/?lang=${lang}"`);
     mkdirSync(join(DIST, lang), { recursive: true });
     writeFileSync(join(DIST, lang, 'index.html'), page);
   }

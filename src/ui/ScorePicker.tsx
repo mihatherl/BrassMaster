@@ -25,6 +25,7 @@ import type { BarSpan, ImportedBar } from '../import/part';
 import type { Exercise } from '../exercise/types';
 import { lengthOf, tapBar } from './selection';
 import { StaveCanvas } from './StaveCanvas';
+import { t, tCount } from '../i18n';
 
 interface ScorePickerProps {
   /** The part as printed, which is what is drawn and what bars are counted in. */
@@ -114,7 +115,7 @@ export function ScorePicker({ exercise, bars, onPractise, onBack, title }: Score
         className="score-picker"
         draw={draw}
         onPick={onPick}
-        label="The part, as printed. Tap a bar to choose it."
+        label={t('score.label')}
       />
 
       <div className="actions actions--sticky">
@@ -133,17 +134,14 @@ export function ScorePicker({ exercise, bars, onPractise, onBack, title }: Score
           against the part on the stand.
         */}
         <p className="field__note picker__status">
-          {spans.length > 0 ? (
-            <>
-              {spans.length === 1 && lengthOf(spans[0]) === 1 ? 'Bar ' : 'Bars '}
-              {spans.map(nameOf).join(', ')}
-              {chosen > 1 && ` — ${chosen} in all`}
-            </>
-          ) : anchor === null ? (
-            'Tap the first bar of a run, then the last.'
-          ) : (
-            `Bar ${bars[anchor]?.number ?? anchor + 1} — now tap the last bar.`
-          )}
+          {spans.length > 0
+            ? t(
+                spans.length === 1 && lengthOf(spans[0]) === 1 ? 'score.bar' : 'score.bars',
+                { list: spans.map(nameOf).join(', ') },
+              ) + (chosen > 1 ? t('score.inAll', { n: chosen }) : '')
+            : anchor === null
+              ? t('score.tapFirst')
+              : t('score.tapLast', { bar: bars[anchor]?.number ?? anchor + 1 })}
         </p>
         <button
           type="button"
@@ -151,9 +149,7 @@ export function ScorePicker({ exercise, bars, onPractise, onBack, title }: Score
           disabled={spans.length === 0}
           onClick={() => onPractise(spans)}
         >
-          {spans.length === 0
-            ? 'Choose some bars'
-            : `Practise ${chosen} ${chosen === 1 ? 'bar' : 'bars'}`}
+          {spans.length === 0 ? t('score.chooseSome') : tCount('score.practise', chosen)}
         </button>
         {/* Always here, disabled when there is nothing to clear. Coming and
             going would change the height of the strip, which is the thing that
@@ -167,10 +163,10 @@ export function ScorePicker({ exercise, bars, onPractise, onBack, title }: Score
             setAnchor(null);
           }}
         >
-          Start again
+          {t('score.startAgain')}
         </button>
         <button type="button" className="button button--quiet" onClick={onBack}>
-          Back
+          {t('common.back')}
         </button>
       </div>
     </div>

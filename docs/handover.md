@@ -30,10 +30,11 @@ covers 2026-08-24 to 28: seven releases, v2.48.0 through v2.54.0.
 
 ## Where this stands
 
-**v2.54.0, pushed, tagged, deployed and green** — 1,386 tests across 70
-files. The gate before any push is `npm test && npm run build && npm run
-lint`, plus `npm run check:web` and `npm run check:channel` when anything
-touches the build split. **Gate order matters now**: a plain `build` empties
+**v2.54.0, pushed, tagged, deployed and green** — and since then, unpushed
+on this machine, the i18n rebuild below: **1,476 tests across 71 files**.
+The gate before any push is `npm test && npm run build && npm run lint`,
+plus `npm run check:web` and `npm run check:channel` when anything touches
+the build split. **Gate order matters now**: a plain `build` empties
 `dist/`, so run `build` → `build:web` → the checks → **`build:dev` last**,
 which restores the tailnet copy on 4173 (`vite preview` serves whatever sits
 in `dist/`, and this has bitten four sessions).
@@ -89,13 +90,28 @@ notes (the Jingle Bells fix). The metronome has a player-set level with a
 preview click that is the real `Metronome`, scheduled 80 ms ahead of its own
 volume ramp.
 
-**Partial i18n** (roadmap § 7.6): labels and buttons through `t()`
-(`src/i18n/`), a selector up the top of the home masthead, German/Dutch/
-French pilots **awaiting a native brass player's pass** — the ear rule's
-linguistic twin; the assistant who drafted them is native in none. English
-is per-key fallback, so an incomplete pack degrades to mixed, never broken.
-Deliberately untranslated: course content, theme names, the teaching prose,
-the corpus blurbs (their guards pin them), the editor.
+**i18n, built and then rebuilt the same day** (roadmap § 7.6). The morning's
+version was scoped to labels and buttons and did not reach even that; the
+player played it in German that evening and found the fault the tests could
+not: *"Back" was a button on six screens and one of them translated*, and the
+German landing page dropped its reader into an English app. Now: **244 keys,
+every screen, all three packs complete**, `?lang=` carried from `/de/` into
+`/app/` and `navigator.languages` consulted on a first run only.
+
+**The part to keep is the guard, not the translations.**
+`i18n/coverage.test.ts` reads every `ui/*.tsx` and fails **by name** on a
+string that skipped `t()` — plus a key a pack lacks, a placeholder a
+translation dropped, and a domain label drifted from its key. Mutation-tested
+on all four. The landing page has had this check since it was built
+(`site.mjs` refuses to assemble on drift); the app had none, and that
+asymmetry is the entire explanation for how coverage got to a third while
+1,386 tests stayed green. **A build-time rule needs a build-time check** —
+the same sentence `check:web` is there for.
+
+Still deliberately untranslated: course content, tune and collection names,
+instrument names, the editor. Still **awaiting a native brass player's
+pass**, now over four times as much text — the ear rule's linguistic twin,
+and the assistant who drafted these is native in none of them.
 
 **The road to v3.0, ruled this week**: teacher mode + the microphone *with
 its calibration* + My Music. The tuner is out (deferred to v3.x — it was
@@ -125,6 +141,15 @@ sleeps** — 4.2 was a proof about the player, proved; do not upload AABs.
 - **The transient veto must be module-scope**: every passage rebuilds the
   component, and a veto a rebuild forgot nags two bars later; storage would
   make permanent what the ruling says is transient.
+- **A feature with no guard is a feature that decays, and i18n proved it in
+  under a day.** The morning shipped a translation mechanism whose own design
+  note explained why partial coverage was acceptable ("degrades to mixed,
+  never broken"); by evening the coverage was a third and the note was
+  excusing the rot rather than describing it. Nothing failed, because nothing
+  was checking. The landing page could not have this bug — `site.mjs` had a
+  drift check from its first commit. **When a rule lives outside the type
+  system, write the check in the same sitting as the rule**, or the next
+  session inherits a claim rather than a fact.
 
 ## What is deliberately left open
 
@@ -136,8 +161,13 @@ sleeps** — 4.2 was a proof about the player, proved; do not upload AABs.
   levels and their order are the player's intuition, in the editor or in
   `courses/common-keys.ts`. Nothing ships unheard — satisfied by
   construction if he authors them.
-- **Native review of the three language packs**, and the open **US-English
-  fork** (crotchet → quarter note): smallest pack, largest Play audience.
+- **Native review of the three language packs** — now 244 keys each rather
+  than 52, so this obligation grew with the sweep and is the largest open
+  item that no session can discharge. The open **US-English fork**
+  (crotchet → quarter note) is still the smallest pack and the largest Play
+  audience, and it should be answered together with `describeSkill`'s
+  notation vocabulary on the Progress report — the one string set the sweep
+  deliberately left English, because both ask the same question.
 - **Request indexing** for `/de/` `/nl/` `/fr/` in Search Console (the
   sitemap lists them; a nudge is faster).
 - **Pins do not switch mid-stream**: a level join changes pinned options only

@@ -671,7 +671,7 @@ export function PlayScreen({
   const leadNote =
     activeOutput && activeOutput.leadMs > 0 && onOutputs ? (
       <button type="button" className="play-lead" onClick={onOutputs}>
-        Sound brought forward {activeOutput.leadMs} ms for {activeOutput.name}
+        {t('play.leadNote', { ms: activeOutput.leadMs, name: activeOutput.name })}
       </button>
     ) : null;
 
@@ -705,11 +705,12 @@ export function PlayScreen({
             aria-labelledby="calibration-warning"
           >
             <div className="modal__box">
-              <h2 id="calibration-warning">Calibration Required</h2>
-              <p>Calibrate your speakers or headphones with the beat for best user experience.</p>
+              <h2 id="calibration-warning">{t('play.calibrationTitle')}</h2>
+              <p>{t('play.calibrationBody')}</p>
               <p className="muted">
-                You can measure {activeOutput?.name ?? 'an output'} at any time from{' '}
-                <strong>Outputs</strong>, in the Advanced menu.
+                {t('play.calibrationWhere', {
+                  output: activeOutput?.name ?? t('play.anOutput'),
+                })}
               </p>
               <div className="modal__actions">
                 {onOutputs && (
@@ -721,7 +722,7 @@ export function PlayScreen({
                       onOutputs();
                     }}
                   >
-                    Calibrate Now
+                    {t('play.calibrateNow')}
                   </button>
                 )}
                 <button
@@ -732,7 +733,7 @@ export function PlayScreen({
                     beginRun();
                   }}
                 >
-                  Later
+                  {t('play.later')}
                 </button>
                 {/* Accepting counts as a measurement, so it is not asked again:
                     the player has been asked and has answered. */}
@@ -745,18 +746,16 @@ export function PlayScreen({
                     beginRun();
                   }}
                 >
-                  Accept current offset ({activeOutput?.leadMs ?? 0}ms)
+                  {t('play.acceptOffset', { ms: activeOutput?.leadMs ?? 0 })}
                 </button>
               </div>
             </div>
           </div>
         )}
         <div className="start-gate">
-          <h2>Ready</h2>
+          <h2>{t('play.ready')}</h2>
           {lockStopped && (
-            <p className="muted">
-              The run stopped when the screen went dark — nothing is judged unseen.
-            </p>
+            <p className="muted">{t('play.lockStopped')}</p>
           )}
           {/*
            * Start first, settings under it (asked for by the player,
@@ -774,7 +773,7 @@ export function PlayScreen({
             disabled={loading}
             onClick={start}
           >
-            {loading ? 'Loading instrument…' : t('play.tapToStart')}
+            {loading ? t('play.loading') : t('play.tapToStart')}
           </button>
           {/* How this run will go, editable at the door — see ReadyControls
               for the admission rule that keeps this face short. */}
@@ -793,7 +792,7 @@ export function PlayScreen({
             onClick={onExit}
           >
             {/* Not "Back to settings" any more: these are the settings. */}
-            Back
+            {t('common.back')}
           </button>
           {/* The lead note used to sit here too; the ReadyControls status line
               says the same thing with the unmeasured case besides. It remains
@@ -808,21 +807,18 @@ export function PlayScreen({
     return (
       <div className="screen screen--centred">
         <div className="start-gate">
-          <h2>Audio didn’t start</h2>
-          <p className="muted">
-            The phone stopped the sound before the exercise got going — it does this after the app
-            has been away — which leaves the count-in stuck. Try again starts the sound afresh.
-          </p>
+          <h2>{t('play.stalled')}</h2>
+          <p className="muted">{t('play.stalledNote')}</p>
           <button
             type="button"
             className="button button--primary button--large"
             disabled={loading}
             onClick={beginRun}
           >
-            {loading ? 'Starting…' : 'Try again'}
+            {loading ? t('play.starting') : t('play.tryAgain')}
           </button>
           <button type="button" className="button button--quiet" onClick={onExit}>
-            Back
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -944,14 +940,14 @@ export function PlayScreen({
           <PressButton
             className="button play-step play-step--back"
             onPress={() => goBack(1)}
-            label="Back one bar"
+            label={t('play.backOneBar')}
           >
             <span aria-hidden="true">◀1</span>
           </PressButton>
           <PressButton
             className="button play-step play-step--back"
             onPress={() => goBack(5)}
-            label="Back five bars"
+            label={t('play.backFiveBars')}
           >
             <span aria-hidden="true">◀5</span>
           </PressButton>

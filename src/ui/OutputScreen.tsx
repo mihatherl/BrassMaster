@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { unlockAudio } from '../audio/context';
 import { CalibrationScreen, type Calibration } from './CalibrationScreen';
+import { t } from '../i18n';
 import {
   DEVICE_OUTPUT_ID,
   type AudioOutput,
@@ -139,19 +140,9 @@ export function OutputScreen({ settings, onChange, onBack, routeName }: OutputSc
   return (
     <div className="screen">
       <header className="masthead">
-        <h1>Outputs</h1>
-        <p>
-          Every way of hearing the app is a little behind it, and each one by a different amount —
-          Bluetooth headphones by a lot, wired ones by less, and this device&apos;s own speaker by
-          whatever its hardware costs. Measure each one once, and the app brings the sound forward
-          by that much whenever it is chosen.
-        </p>
-        <p>
-          Choosing here does not move the sound. Your phone decides where it plays — plug in
-          headphones and it plays through them, whatever is selected below. The choice tells the
-          app which output is actually in your ears, so the right correction is in force; when you
-          switch to another, say so here, because the app cannot notice on its own.
-        </p>
+        <h1>{t('outputs.title')}</h1>
+        <p>{t('outputs.intro')}</p>
+        <p>{t('outputs.choosing')}</p>
       </header>
 
       <ul className="library">
@@ -166,17 +157,20 @@ export function OutputScreen({ settings, onChange, onBack, routeName }: OutputSc
               <span className="library__title">{output.name}</span>
               <span className="library__detail">
                 {output.calibrations === 0
-                  ? 'Not measured yet'
-                  : `Sound brought forward ${output.leadMs} ms`}
+                  ? t('outputs.notMeasured')
+                  : t('outputs.lead', { ms: output.leadMs })}
               </span>
             </button>
             <button
               type="button"
               className="button button--quiet library__forget"
               onClick={() => begin(output)}
-              aria-label={`Measure ${output.name}${output.calibrations === 0 ? '' : ' again'}`}
+              aria-label={t(
+                output.calibrations === 0 ? 'outputs.measureNamed' : 'outputs.measureNamedAgain',
+                { name: output.name },
+              )}
             >
-              Measure
+              {t('outputs.measure')}
             </button>
             {/* The device's own speaker is the one output every player
                 certainly has, and where the app falls back to. */}
@@ -185,9 +179,9 @@ export function OutputScreen({ settings, onChange, onBack, routeName }: OutputSc
                 type="button"
                 className="button button--quiet library__forget"
                 onClick={() => forget(output.id)}
-                aria-label={`Forget ${output.name}`}
+                aria-label={t('outputs.forgetNamed', { name: output.name })}
               >
-                Forget
+                {t('common.forget')}
               </button>
             )}
           </li>
@@ -200,10 +194,10 @@ export function OutputScreen({ settings, onChange, onBack, routeName }: OutputSc
           className="button button--primary button--large"
           onClick={() => begin()}
         >
-          Add an output
+          {t('outputs.add')}
         </button>
         <button type="button" className="button button--quiet" onClick={onBack}>
-          Back
+          {t('common.back')}
         </button>
       </div>
     </div>
