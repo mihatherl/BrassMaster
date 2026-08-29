@@ -110,7 +110,7 @@ describe('dragging a divider', () => {
   it('moves a divider that has no foreign boundary anywhere near it', () => {
     const fragment = sixStages();
     const { resolved, layout } = drag(fragment, 'tempo', 1, 12 / 48);
-    expect(resolved).toEqual({ kind: 'redistribute', bar: 12, x: 12 / 48 });
+    expect(resolved).toEqual({ bar: 12, x: 12 / 48, aligned: false });
     const after = layoutOf(applyBarDrag(fragment, layout, 'tempo', 1, resolved!), RULE, {});
     expect(after.segments.map((s) => s.bars)).toEqual([12, 4, 8, 8, 8, 8]);
   });
@@ -127,10 +127,45 @@ describe('dragging a divider', () => {
     const fragment = sixStages();
     const { resolved, layout } = drag(fragment, 'tempo', 1, 10 / 48);
     const next = applyBarDrag(fragment, layout, 'tempo', 1, resolved!);
+    // Keyed by the bars they now begin at: stored positions are renumbered
+    // onto the layout, which is ordinal at runtime and legible in the file.
     expect(next.segmentRules).toEqual([
       { at: 0, minBars: 10 },
-      { at: 1 / 6, minBars: 6 },
+      { at: 10 / 48, minBars: 6 },
     ]);
+  });
+
+  /*
+   * The player's ruling of 2026-08-29: the only fence is this axis's own
+   * neighbours. A conductor divider used to be penned in by the tempo steps
+   * either side of it — it could not be moved past them, which is not a
+   * limit anything about the music imposes.
+   */
+  it('moves clean across another axis’s boundaries', () => {
+    const fragment: TimelineFragment = {
+      axes: [
+        sixStages().axes[0],
+        {
+          axis: 'conductorEnabled',
+          divisions: [
+            { at: 0, value: true },
+            { at: 0.55, value: false },
+          ],
+        },
+      ],
+    };
+    const layout = layoutOf(fragment, RULE, {});
+    // Seven stages of eight bars; the conductor changes at bar 32.
+    expect(layout.totalBars).toBe(56);
+    expect(layout.segments.find((s) => Math.abs(s.at - 0.55) < 1e-9)!.barStart).toBe(32);
+
+    // Dragged back to bar 6 — past four tempo dividers.
+    const resolved = resolveBarDrag(fragment, layout, 'conductorEnabled', 1, 6 / 56)!;
+    expect(resolved.bar).toBe(6);
+    const after = layoutOf(applyBarDrag(fragment, layout, 'conductorEnabled', 1, resolved), RULE, {});
+    expect(after.totalBars).toBe(56);
+    // The stage it left closes up; the stage it lands in splits at bar 6.
+    expect(after.segments.map((s) => s.bars)).toEqual([6, 2, 8, 8, 16, 8, 8]);
   });
 
   it('stops a stage being squeezed below a bar, and stops nowhere else', () => {
@@ -183,7 +218,6 @@ describe('dragging a divider', () => {
     // never merged — two tempo values cannot begin at one bar.
     const fragment = sixStages();
     const { resolved } = drag(fragment, 'tempo', 2, 8 / 48);
-    expect(resolved!.kind).toBe('redistribute');
     expect(resolved!.bar).toBe(9);
   });
 
@@ -212,12 +246,13 @@ describe('dragging a divider', () => {
     };
     const layout = layoutOf(fragment, RULE, {});
     expect(layout.segments.map((s) => s.bars)).toEqual([8, 8, 8]);
-    // Tempo's divider (bar 16) dragged left onto reading's (bar 8).
-    const resolved = resolveBarDrag(fragment, layout, 'tempo', 1, 0)!;
-    expect(resolved.kind).toBe('merge');
+    // Tempo's divider (bar 16) dragged onto reading's (bar 8).
+    const resolved = resolveBarDrag(fragment, layout, 'tempo', 1, 8 / 24)!;
     expect(resolved.bar).toBe(8);
+    expect(resolved.aligned).toBe(true);
     const next = applyBarDrag(fragment, layout, 'tempo', 1, resolved);
-    expect(boundariesOf(next.axes)).toEqual([0, 0.25]);
+    // One boundary where there were two: both axes now change at bar 9.
+    expect(boundariesOf(next.axes)).toEqual([0, 1 / 3]);
     const after = layoutOf(next, RULE, {});
     expect(after.totalBars).toBe(24);
     expect(after.segments.map((s) => s.bars)).toEqual([8, 16]);
@@ -246,7 +281,7 @@ describe('dragging a divider', () => {
     expect(layout.segments).toHaveLength(2);
     // Reading's divider pulled right, four bars into the second stage.
     const resolved = resolveBarDrag(fragment, layout, 'readingMode', 1, 12 / 16)!;
-    expect(resolved.kind).toBe('separate');
+    expect(resolved.aligned).toBe(false);
     const after = layoutOf(applyBarDrag(fragment, layout, 'readingMode', 1, resolved), RULE, {});
     expect(after.totalBars).toBe(16);
     expect(after.segments.map((s) => s.bars)).toEqual([8, 4, 4]);

@@ -104,6 +104,21 @@ const NUMERIC: readonly AxisId[] = ['tempo', 'bars', 'cycles', 'themeCount'];
 const GAP_BELOW_CHIP = 34;
 
 /**
+ * Hues for the stage blocks, walked in order along each axis so neighbours
+ * never share one (the player's ruling of 2026-08-29, replacing the little
+ * red marks and the loose labels under them). Semi-transparent, so one set
+ * of hues carries both themes: the block tints whatever the page is.
+ */
+const STAGE_HUES = [210, 145, 35, 275, 0, 185, 95, 320];
+const stageTint = (index: number) => {
+  const hue = STAGE_HUES[index % STAGE_HUES.length];
+  return {
+    background: `hsl(${hue} 60% 50% / 0.22)`,
+    borderColor: `hsl(${hue} 60% 55% / 0.85)`,
+  };
+};
+
+/**
  * The reaches a drill is asked for, in the player's own words. Semitones are
  * the schema's unit (7 a fifth, 12 an octave) but nobody authors in them —
  * the from/to generator once wrote figures like "16 semitones" here, which
@@ -427,13 +442,13 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
               <div className="tl-axis__bar" style={{ gridRow: axisRow + 2 }}>
                 <div className="tl-axis__line" />
                 {/*
-                 * A value is drawn as a BLOCK spanning to this axis's own
-                 * next division — not as a mark at a point. The player's
-                 * report of 2026-08-29: a division on another axis left a
-                 * gap in this one, as though the tempo stopped applying
-                 * there. It never did; the label simply had nowhere to be.
-                 * A block rolls across every boundary that is not its own,
-                 * which is what "in force until it changes" looks like.
+                 * A stage is a coloured rounded block spanning the bars its
+                 * value is in force for — so it rolls across every boundary
+                 * that is not its own, and its own left edge is the divider.
+                 * The value, its spinner and the delete button live INSIDE
+                 * the block (the player's ruling of 2026-08-29): a mark on a
+                 * line with a label loose underneath read as two things,
+                 * and the label had nowhere to sit on a narrow stage.
                  */}
                 {axis.divisions.map((division, index) => {
                   const start = xOfAt(shown, division.at);
@@ -443,7 +458,11 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                     <div
                       className={`tl-span ${index === 0 ? 'is-first' : ''}`}
                       key={index}
-                      style={{ left: `${start * 100}%`, width: `${(end - start) * 100}%` }}
+                      style={{
+                        left: `${start * 100}%`,
+                        width: `${(end - start) * 100}%`,
+                        ...stageTint(index),
+                      }}
                     >
                       {index > 0 && (
                         <DragHandle
@@ -466,7 +485,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                           onCancel={() => setDrag(null)}
                         />
                       )}
-                      <div className="tl-span__value">
+                      <div className="tl-span__body">
                         <DivisionValue
                           axisId={axis.axis}
                           value={division.value}
@@ -602,7 +621,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
               })}
             {drag && (
               <div
-                className={`tl__guide ${drag.kind === 'merge' ? 'is-snapped' : ''}`}
+                className={`tl__guide ${drag.aligned ? 'is-snapped' : ''}`}
                 style={{ left: `${drag.x * 100}%` }}
               />
             )}

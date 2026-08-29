@@ -354,6 +354,15 @@ their own axis changes**, which fixes the reported "gap" where another
 axis's division made a tempo look inapplicable. Full reasoning in
 `level-axes-plan.md` § *The x-axis, ruled twice in one evening*.
 
+**The drag's only fence is its own axis (v2.63.0).** A conductor divider
+could not be moved past the tempo steps either side of it — the drag was
+bounded by the adjacent *timeline* segments rather than by the axis's own
+neighbours. One operation now covers every drag (take the divider out, put
+it back where it was dropped), so a divider crosses foreign boundaries
+freely and lands on them to align. Stages are **coloured rounded blocks
+carrying their own value, spinner and delete button**, double height, in
+place of the red marks and loose labels.
+
 **A score window is not a wall (v2.62.1).** It used to floor the drag, so a
 divider could not be brought within four bars — the level default's window —
 of its neighbour, stopped by a figure the author never set. `fitRule` bends

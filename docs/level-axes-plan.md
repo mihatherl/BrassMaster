@@ -286,7 +286,23 @@ writes through it too.
 **A value is drawn as a block**, spanning until *its own* axis changes
 again — not as a mark at a point. Found by the player: a division on
 another axis left a gap in this one, as though the tempo had stopped
-applying there. It never had; the label simply had nowhere to be.
+applying there. It never had; the label simply had nowhere to be. The
+block is a coloured rounded rectangle, double height, **carrying its own
+value, spinner and delete button** (ruled the same evening): a mark on a
+line with a label loose beneath it read as two things, and on a narrow
+stage the label had nowhere to sit. Hues walk a fixed list along each
+axis so neighbouring stages never share one.
+
+**The only fence on a drag is the axis's own neighbours** (ruled after a
+conductor divider was found penned in by the tempo steps either side of
+it). A value must begin after the one before it and before the one after
+it; every *other* axis's boundary is a place a divider may land, never a
+wall. So one operation covers every drag: **take the divider out and put
+it back where it was dropped** — out merges the stage it began into the
+one before (unless another axis holds that boundary too), back in either
+lands on an existing boundary or splits the stage it falls in. Stored
+positions are renumbered onto the bars they begin at, which is ordinal at
+runtime and leaves a saved file reading as the picture looks.
 
 `moveDivision`'s rule-carrying semantics went with the percent era: under
 bars a rule *is* a length, so what a move does to the rules depends on what

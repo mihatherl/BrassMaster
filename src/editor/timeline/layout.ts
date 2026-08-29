@@ -32,7 +32,7 @@
  */
 
 import { metreFor } from '../../domain/metre';
-import { boundariesOf, clearRule, setRule, type AxisId, type TimelineFragment } from './axis-model';
+import { boundariesOf, type AxisId, type TimelineFragment } from './axis-model';
 
 /** Where no tempo is named anywhere, the estimate stands on this and says so. */
 export const ASSUMED_TEMPO = 80;
@@ -96,6 +96,8 @@ export interface Layout {
   segments: SegmentLayout[];
   totalBars: number;
   totalSeconds: number;
+  /** The level default these segments fell back to, for writing rules back. */
+  levelRule: SegmentRuleShape;
 }
 
 /** The value the named axis has in force at a boundary, read left. */
@@ -169,6 +171,7 @@ export function layoutOf(
     })),
     totalBars,
     totalSeconds: segments.reduce((sum, segment) => sum + segment.seconds, 0),
+    levelRule,
   };
 }
 
@@ -185,38 +188,31 @@ export function formatSeconds(seconds: number): string {
 }
 
 export interface BarDrag {
-  /**
-   * What dropping here would do.
-   *
-   * `redistribute` — the ordinary case: bars move from one side of the
-   * divider to the other. `merge` — the segment between this divider and
-   * its neighbour has been squeezed to nothing, so the two boundaries
-   * become one and the axes change together there. `separate` — this
-   * divider shares a boundary with another axis and is being pulled off it,
-   * splitting the segment it lands in.
-   */
-  kind: 'redistribute' | 'merge' | 'separate';
   /** The bar the divider lands on, counted from the start of the level. */
   bar: number;
   /** Where the guide draws, as a fraction of the level. */
   x: number;
+  /** True when it lands on a bar another axis already changes at. */
+  aligned: boolean;
 }
 
-/** Which boundary index a division sits on, or -1. */
-function boundaryIndex(layout: Layout, at: number): number {
-  return layout.segments.findIndex((segment) => same(segment.at, at));
+/** Which bar a stored boundary begins at. */
+function barOfAt(layout: Layout, at: number): number {
+  const segment = layout.segments.find((candidate) => same(candidate.at, at));
+  return segment ? segment.barStart : layout.totalBars;
 }
 
 /**
  * What a pointer position means for a divider in flight.
  *
- * A divider lives between two stages and owns the border between them: drag
- * it and bars cross that border, one whole bar at a time — the unit the
- * picture is drawn in, so a divider can never land anywhere the music
- * cannot. It stops where a stage would be squeezed below one bar (or below
- * its own score window, which is a longer ask), except where squeezing the
- * last bar out would put it exactly on a neighbouring boundary, which is
+ * **The only fence is this axis's own neighbours** (the player's ruling of
+ * 2026-08-29, on finding a conductor divider penned in by the tempo steps
+ * either side of it). A value must begin after the one before it and before
+ * the one after it, and that is all: every *other* axis's boundary is a
+ * place this divider may land, never a wall it stops at. Landing on one is
  * how two axes come to change at the same bar.
+ *
+ * Bars are whole, so a drop always lands on a bar line the music has.
  */
 export function resolveBarDrag(
   fragment: TimelineFragment,
@@ -227,54 +223,38 @@ export function resolveBarDrag(
 ): BarDrag | null {
   const axis = fragment.axes.find((a) => a.axis === axisId);
   const division = axis?.divisions[index];
+  // The division an axis opens with is the start of the level, not a divider.
   if (!axis || !division || index <= 0) return null;
-  const b = boundaryIndex(layout, division.at);
-  if (b <= 0) return null;
 
-  const left = layout.segments[b - 1];
-  const right = layout.segments[b];
-  const beyond = layout.segments[b + 1];
-  const low = left.barStart;
-  const high = right.barStart + right.bars;
+  const previous = barOfAt(layout, axis.divisions[index - 1].at);
+  const next =
+    index + 1 < axis.divisions.length
+      ? barOfAt(layout, axis.divisions[index + 1].at)
+      : layout.totalBars;
+  const bar = clamp(Math.round(pointerX * layout.totalBars), previous + 1, next - 1);
 
-  /*
-   * A boundary this divider shares with another axis cannot be dragged away
-   * wholesale — the other axis still changes there — so the drag pulls this
-   * divider off it instead, splitting whichever stage it lands in.
-   */
-  const shared = fragment.axes.some(
-    (other) =>
-      other.axis !== axisId && other.divisions.some((d) => same(d.at, division.at)),
-  );
-  /** Two divisions of one axis may never sit on the same bar. */
-  const ownBoundary = (at: number) => axis.divisions.some((d) => same(d.at, at));
-  /*
-   * One bar is the floor, and the only one: a stage's score window bends to
-   * fit the stage (`fitRule`) rather than fencing the drag off from it.
-   */
-  const raw = Math.round(pointerX * layout.totalBars);
-  if (!shared && raw <= low && !ownBoundary(left.at)) {
-    return { kind: 'merge', bar: low, x: low / layout.totalBars };
-  }
-  if (!shared && beyond && raw >= high && !ownBoundary(beyond.at)) {
-    return { kind: 'merge', bar: high, x: high / layout.totalBars };
-  }
-  const bar = clamp(raw, low + 1, high - 1);
+  const landing = layout.segments.find((segment) => segment.barStart === bar);
   return {
-    kind: shared ? 'separate' : 'redistribute',
     bar,
     x: bar / layout.totalBars,
+    aligned: landing !== undefined && !same(landing.at, division.at),
   };
 }
 
 /**
- * The drop, written into the document — as bars in the two rules the
- * divider stands between, which is the whole of what a drag means now.
+ * The drop, written into the document.
  *
- * Nothing else is touched: the stages either side of the border change
- * length, every other stage keeps the rule its author gave it, and the
- * level's total is unchanged because the bars crossed the border rather
- * than appearing.
+ * One operation, whatever the drag looked like: **take the divider out and
+ * put it back where it was dropped.** Taking it out merges the stage it
+ * began into the one before it (unless another axis holds that boundary
+ * too, in which case nothing merges); putting it back either lands on a
+ * boundary that is already there — the two axes now change at the same bar —
+ * or splits the stage it lands in. Every other stage keeps its bars and its
+ * place, so the level is exactly as long as it was: bars crossed a border
+ * rather than appearing.
+ *
+ * Only the rules whose stage actually changed length are written, and a
+ * stage that sits at the level default is left to it.
  */
 export function applyBarDrag(
   fragment: TimelineFragment,
@@ -286,91 +266,98 @@ export function applyBarDrag(
   const axis = fragment.axes.find((a) => a.axis === axisId);
   const division = axis?.divisions[index];
   if (!axis || !division) return fragment;
-  const b = boundaryIndex(layout, division.at);
+  const b = layout.segments.findIndex((segment) => same(segment.at, division.at));
   if (b <= 0) return fragment;
 
-  const left = layout.segments[b - 1];
-  const right = layout.segments[b];
-  const beyond = layout.segments[b + 1];
-  const pair = left.bars + right.bars;
+  const shared = fragment.axes.some(
+    (other) =>
+      other.axis !== axisId && other.divisions.some((d) => same(d.at, division.at)),
+  );
 
-  if (drag.kind === 'redistribute') {
-    const leftBars = drag.bar - left.barStart;
-    let next = setRule(fragment, left.at, fitRule(left.rule, leftBars));
-    return setRule(next, right.at, fitRule(right.rule, pair - leftBars));
+  interface Stage {
+    at: number;
+    bars: number;
+    rule: SegmentRuleShape;
   }
 
-  if (drag.kind === 'merge') {
-    /*
-     * The stage between the two boundaries has been squeezed out. The
-     * divider joins the boundary it was pushed against; the stage that
-     * survives keeps every bar the pair had, so the level is no shorter for
-     * the merge, and the rule keyed at the vanished boundary goes with it.
-     */
-    const joinsLeft = drag.bar === left.barStart;
-    let next = setDivisionAt(
-      fragment,
-      axisId,
-      index,
-      joinsLeft ? left.at : (beyond?.at ?? right.at),
-    );
-    // Either way the boundary this divider held is gone and the stage that
-    // begins at the boundary to its left is the one that survives, so it
-    // keeps its own rule and the pair's whole length.
-    next = clearRule(next, right.at);
-    return setRule(next, left.at, fitRule(left.rule, pair));
+  // Out: the stage this divider began is absorbed by the one before it.
+  const base: Stage[] = [];
+  layout.segments.forEach((segment, i) => {
+    if (i === b && !shared) base[base.length - 1].bars += segment.bars;
+    else base.push({ at: segment.at, bars: segment.bars, rule: segment.rule });
+  });
+
+  // Back in, at the bar it was dropped on.
+  const starts: number[] = [];
+  let offset = 0;
+  for (const stage of base) {
+    starts.push(offset);
+    offset += stage.bars;
+  }
+  const landing = starts.indexOf(drag.bar);
+  let planned: Stage[];
+  /** The stage this divider now begins, by its position before renumbering. */
+  let landedOn: number;
+  if (landing >= 0) {
+    planned = base;
+    landedOn = base[landing].at;
+  } else {
+    let host = 0;
+    for (let i = 0; i < base.length; i += 1) if (starts[i] < drag.bar) host = i;
+    const first = drag.bar - starts[host];
+    const after = host + 1 < base.length ? base[host + 1].at : 1;
+    landedOn = (base[host].at + after) / 2;
+    planned = [
+      ...base.slice(0, host),
+      { at: base[host].at, bars: first, rule: base[host].rule },
+      { at: landedOn, bars: base[host].bars - first, rule: base[host].rule },
+      ...base.slice(host + 1),
+    ];
   }
 
   /*
-   * Pulled off a shared boundary: a new boundary is born where it lands,
-   * and the stage it lands in gives up the bars on the far side of it.
+   * Stored positions are renormalised onto the bars they now begin at.
+   * `at` is ordinal at runtime, so this changes nothing about what plays —
+   * but distinct stages are distinct bars, which keeps two divisions from
+   * ever landing on one `at` after a long evening of halving midpoints, and
+   * leaves a saved document reading as the picture looks.
    */
-  const inLeft = drag.bar < right.barStart;
-  const host = inLeft ? left : right;
-  const after = inLeft ? right.at : (beyond?.at ?? 1);
-  const newAt = (host.at + after) / 2;
-  const firstBars = drag.bar - host.barStart;
-  let next = setDivisionAt(fragment, axisId, index, newAt);
-  next = setRule(next, host.at, fitRule(host.rule, firstBars));
-  return setRule(next, newAt, fitRule(host.rule, host.bars - firstBars));
+  const total = planned.reduce((sum, stage) => sum + stage.bars, 0);
+  let running = 0;
+  const remapped = planned.map((stage) => {
+    const at = running / total;
+    running += stage.bars;
+    return { ...stage, from: stage.at, at };
+  });
+
+  const renumbered = (from: number, fallback: number) =>
+    remapped.find((stage) => same(stage.from, from))?.at ?? fallback;
+  const axes = fragment.axes.map((candidate) => ({
+    ...candidate,
+    divisions: candidate.divisions
+      .map((d, i) =>
+        candidate.axis === axisId && i === index
+          ? // The dragged one goes to the stage it landed on; every other
+            // division stays on its own boundary, wherever that renumbered to.
+            { ...d, at: renumbered(landedOn, d.at) }
+          : { ...d, at: renumbered(d.at, d.at) },
+      )
+      .sort((a, c) => a.at - c.at),
+  }));
+
+  const defaultBars = Math.max(
+    layout.levelRule.minBars,
+    layout.levelRule.score?.overBars ?? 0,
+  );
+  const segmentRules = remapped.flatMap((stage) => {
+    const authored = fragment.segmentRules?.find((rule) => same(rule.at, stage.from));
+    if (!authored && stage.bars === defaultBars) return [];
+    return [{ at: stage.at, ...fitRule(stage.rule, stage.bars) }];
+  });
+
+  return { axes, ...(segmentRules.length ? { segmentRules } : {}) };
 }
 
-/**
- * Moves a division to a stored position, and nothing else.
- *
- * The rule-carrying `moveDivision` this replaces belonged to the percent
- * era, where a rule and a position were independent things. Under bars a
- * rule *is* a length, so what a move does to the rules depends on what the
- * move meant — which is why the three cases above write them themselves.
- */
-export function setDivisionAt(
-  fragment: TimelineFragment,
-  axisId: AxisId,
-  index: number,
-  at: number,
-): TimelineFragment {
-  return {
-    ...fragment,
-    axes: fragment.axes.map((axis) =>
-      axis.axis === axisId
-        ? {
-            ...axis,
-            divisions: axis.divisions
-              .map((division, i) => (i === index ? { ...division, at } : division))
-              .sort((a, c) => a.at - c.at),
-          }
-        : axis,
-    ),
-  };
-}
-
-/**
- * Where a new division goes: the start of the longest stage's second half,
- * so the insert lands somewhere visible and the author can drag it from
- * there. The stage it splits keeps its own length and the new one takes the
- * level default — adding a stage lengthens the level, exactly as deleting
- * one shortens it.
- */
 export function insertAt(layout: Layout): number {
   let widest = layout.segments[0];
   for (const segment of layout.segments) {

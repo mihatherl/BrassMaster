@@ -577,17 +577,25 @@ style.textContent = `
   .tl-gen label { flex-direction: row; align-items: center; gap: 0.25rem; }
   .tl-gen input[type=number] { width: 3.2rem; }
 
-  .tl-axis__bar { grid-column: 2; position: relative; min-height: 4.2rem; }
-  .tl-axis__line { position: absolute; left: 0; right: 0; top: 0.15rem; height: 1.15rem; background: currentColor; opacity: 0.07; border-radius: 4px; }
-  /* A value is a BLOCK spanning the bars it is in force for, so it rolls
-     across every boundary that belongs to another axis. */
-  .tl-span { position: absolute; top: 0.15rem; height: 1.15rem; border-radius: 4px; background: #8882; border: 1px solid #8886; border-left: 3px solid #c0392b; box-sizing: border-box; }
-  .tl-span.is-first { border-left-color: #8886; }
-  .tl-handle { position: absolute; top: -0.15rem; left: -0.75rem; width: 1.5rem; height: 1.45rem; padding: 0; border: none; background: none; cursor: ew-resize; font-weight: 700; color: #c0392b; touch-action: none; z-index: 3; }
-  .tl-span__value { position: absolute; top: 1.35rem; left: 0; display: flex; gap: 0.15rem; align-items: start; z-index: 2; }
-  .tl-value { width: 3.4rem; font-size: 0.8rem; }
-  select.tl-value { width: auto; max-width: 7.5rem; }
-  .tl-span__delete { padding: 0 0.3rem; opacity: 0.6; }
+  .tl-axis__bar { grid-column: 2; position: relative; min-height: 2.9rem; }
+  .tl-axis__line { position: absolute; left: 0; right: 0; top: 0.15rem; bottom: 0.15rem; background: currentColor; opacity: 0.05; border-radius: 8px; }
+  /*
+   * A stage is a coloured rounded block spanning the bars its value holds
+   * for — so it rolls across every boundary that is not its own — and it
+   * carries its own controls, which the loose labels under the old line
+   * could not do on a narrow stage.
+   */
+  .tl-span { position: absolute; top: 0.15rem; bottom: 0.15rem; border-radius: 8px; border: 1px solid; box-sizing: border-box; display: flex; align-items: center; gap: 0.2rem; padding: 0 0.25rem 0 0.45rem; overflow: hidden; min-width: 0; }
+  .tl-span__body { display: flex; align-items: center; gap: 0.2rem; min-width: 0; }
+  /* The block's own left edge is the divider: a grab strip over it. */
+  .tl-handle { position: absolute; left: -0.35rem; top: 0; bottom: 0; width: 0.85rem; padding: 0; border: none; background: none; color: transparent; cursor: ew-resize; touch-action: none; z-index: 3; }
+  .tl-handle:hover, .tl-handle:focus-visible { background: #c0392b44; border-radius: 4px; }
+  /* The input[type=number] rule above is (0,1,1), so a bare class loses to
+     it — this must match specificity to narrow a spinner inside a block. */
+  input.tl-value { width: 3.2rem; font-size: 0.8rem; }
+  select.tl-value { width: auto; max-width: 7rem; font-size: 0.8rem; }
+  .tl-span__delete { padding: 0 0.25rem; opacity: 0.55; line-height: 1; }
+  .tl-span__delete:hover { opacity: 1; }
   .tl-axis__add { position: absolute; right: -1.4rem; top: 0.1rem; padding: 0 0.5rem; }
 
   /* The common timeline, made visible. */
