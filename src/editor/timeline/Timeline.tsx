@@ -19,7 +19,7 @@
  * reader can never see the forbidden overlap.
  */
 
-import { useRef, useState, type ReactElement } from 'react';
+import { Fragment, useRef, useState, type ReactElement } from 'react';
 import { AXIS_MATERIALS, DEFAULT_RULE, type AxisId, type LevelKind } from '../../exercise/course';
 import { MAJOR_KEYS } from '../../domain/keys';
 import { OFFERED_METRES } from '../../domain/metre';
@@ -88,7 +88,21 @@ const BASE_FIELD: Partial<Record<AxisId, string>> = {
   intervals: 'intervals',
 };
 
-const NUMERIC: readonly AxisId[] = ['tempo', 'bars', 'cycles', 'themeCount', 'span'];
+const NUMERIC: readonly AxisId[] = ['tempo', 'bars', 'cycles', 'themeCount'];
+
+/**
+ * The reaches a drill is asked for, in the player's own words. Semitones are
+ * the schema's unit (7 a fifth, 12 an octave) but nobody authors in them —
+ * the from/to generator once wrote figures like "16 semitones" here, which
+ * is legal and musically odd, so Reach speaks intervals instead. A figure an
+ * old document carries that is not on this list still shows, as itself.
+ */
+const REACHES: ReadonlyArray<{ semitones: number; name: string }> = [
+  { semitones: 7, name: 'a fifth' },
+  { semitones: 12, name: 'one octave' },
+  { semitones: 19, name: 'an octave and a fifth' },
+  { semitones: 24, name: 'two octaves' },
+];
 
 interface TimelineProps {
   kind: LevelKind;
@@ -271,126 +285,347 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
   const shownAt = (axisId: AxisId, index: number, at: number) =>
     drag && drag.axisId === axisId && drag.index === index ? drag.at : at;
 
+  /*
+   * The Visio moment: while a division is in flight, a guide runs the full
+   * height of the graph at its position, and lights up the instant the drag
+   * has snapped onto another axis's boundary — so "these bars share one
+   * timeline" is something the hand feels and the eye confirms, not
+   * something the layout merely implies.
+   */
+  const dragSnapped =
+    drag !== null &&
+    axes.some(
+      (axis) =>
+        axis.axis !== drag.axisId &&
+        axis.divisions.some((division) => Math.abs(division.at - drag.at) < 1e-9),
+    );
+
   return (
     <div className="tl">
-      <div className="tl__head">
-        <span className="tl__title">Level progression</span>
-        <span className="tl__ruler">
-          <span>0%</span>
-          <span>50%</span>
-          <span>100%</span>
-        </span>
-      </div>
-
-      {axes.map((axis) => (
-        <div className="tl-axis" key={axis.axis}>
-          <div className="tl-axis__panel">
-            <div className="tl-axis__name">
-              <strong>{AXIS_LABELS[axis.axis]}</strong>
-              <button
-                type="button"
-                title="Remove this axis"
-                onClick={() => apply(removeAxis(fragment, axis.axis))}
-              >
-                ×
-              </button>
-            </div>
-            {NUMERIC.includes(axis.axis) && (
-              <NumericGenerator
-                axis={axis}
-                onGenerate={(divisions) =>
-                  apply({
-                    ...removeAxis(fragment, axis.axis),
-                    axes: [
-                      ...removeAxis(fragment, axis.axis).axes,
-                      { axis: axis.axis, divisions },
-                    ],
-                  })
-                }
-              />
-            )}
-            {axis.axis === 'range' && (
-              <RangeGenerator
-                fifths={previewFifths}
-                compass={compass}
-                onGenerate={(divisions) =>
-                  apply({
-                    ...removeAxis(fragment, 'range'),
-                    axes: [...removeAxis(fragment, 'range').axes, { axis: 'range', divisions }],
-                  })
-                }
-              />
-            )}
+      {/*
+       * One grid, two columns: every axis's parameters on one line at the
+       * left, every bar sharing the same right-hand column — so the bars
+       * start and end together and the boundary lines below can run through
+       * all of them. Wide by design; the wrapper scrolls sideways on a small
+       * screen rather than folding the panels back into three lines.
+       */}
+      <div className="tl__scroll">
+        <div className="tl__grid">
+          <div className="tl__corner">Level progression</div>
+          <div className="tl__ruler">
+            {[0, 25, 50, 75, 100].map((percent) => (
+              <span key={percent} style={{ left: `${percent}%` }}>
+                {percent}%
+              </span>
+            ))}
           </div>
-          <div className="tl-axis__bar">
-            <div className="tl-axis__line" />
-            {axis.divisions.map((division, index) => {
-              const at = shownAt(axis.axis, index, division.at);
+
+          {axes.map((axis, axisRow) => (
+            <Fragment key={axis.axis}>
+              {/* Explicit coordinates, not auto-placement: the lines overlay
+                  below is explicitly placed across column 2, and auto-placed
+                  items refuse to share its cells — they cascaded into column
+                  1, stacking the bars under the panels. Explicit items may
+                  overlap, which is the whole point of an overlay. */}
+              <div className="tl-axis__panel" style={{ gridRow: axisRow + 2 }}>
+                <button
+                  type="button"
+                  title="Remove this axis"
+                  onClick={() => apply(removeAxis(fragment, axis.axis))}
+                >
+                  ×
+                </button>
+                <strong className="tl-axis__name">{AXIS_LABELS[axis.axis]}</strong>
+                {NUMERIC.includes(axis.axis) && (
+                  <NumericGenerator
+                    axis={axis}
+                    onGenerate={(divisions) =>
+                      apply({
+                        ...removeAxis(fragment, axis.axis),
+                        axes: [
+                          ...removeAxis(fragment, axis.axis).axes,
+                          { axis: axis.axis, divisions },
+                        ],
+                      })
+                    }
+                  />
+                )}
+                {axis.axis === 'range' && (
+                  <RangeGenerator
+                    fifths={previewFifths}
+                    compass={compass}
+                    onGenerate={(divisions) =>
+                      apply({
+                        ...removeAxis(fragment, 'range'),
+                        axes: [
+                          ...removeAxis(fragment, 'range').axes,
+                          { axis: 'range', divisions },
+                        ],
+                      })
+                    }
+                  />
+                )}
+              </div>
+              <div className="tl-axis__bar" style={{ gridRow: axisRow + 2 }}>
+                <div className="tl-axis__line" />
+                {axis.divisions.map((division, index) => {
+                  const at = shownAt(axis.axis, index, division.at);
+                  return (
+                    <div className="tl-division" key={index} style={{ left: `${at * 100}%` }}>
+                      {index > 0 && (
+                        <DragHandle
+                          onDrag={(fraction) =>
+                            setDrag({
+                              axisId: axis.axis,
+                              index,
+                              at: snapDivision(fragment, axis.axis, index, fraction),
+                            })
+                          }
+                          onCommit={() => {
+                            if (drag) apply(moveDivision(fragment, axis.axis, index, drag.at));
+                            setDrag(null);
+                          }}
+                          onCancel={() => setDrag(null)}
+                        />
+                      )}
+                      <div className="tl-division__value">
+                        <DivisionValue
+                          axisId={axis.axis}
+                          value={division.value}
+                          onChange={(value) =>
+                            apply(setDivisionValue(fragment, axis.axis, index, value))
+                          }
+                          instrumentId={previewInstrument}
+                          clef={previewClef}
+                          fifths={previewFifths}
+                        />
+                        {index > 0 && (
+                          <button
+                            type="button"
+                            className="tl-division__delete"
+                            title="Delete this division"
+                            onClick={() => apply(deleteDivision(fragment, axis.axis, index))}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="tl-axis__add"
+                  title="Add a division"
+                  onClick={() => {
+                    /* Into the middle of the widest gap, wearing the value in
+                       force there — a division that changes nothing until the
+                       author edits it, which is the least surprising insert. */
+                    const ats = [...axis.divisions.map((d) => d.at), 1];
+                    let widest = 0;
+                    for (let i = 1; i < ats.length; i++) {
+                      if (ats[i] - ats[i - 1] > ats[widest + 1] - ats[widest]) widest = i - 1;
+                    }
+                    const at = (ats[widest] + ats[widest + 1]) / 2;
+                    apply(addDivision(fragment, axis.axis, at, axis.divisions[widest].value));
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </Fragment>
+          ))}
+
+          <div className="tl-rules__label" style={{ gridRow: axes.length + 2 }}>
+            Progression rules
+            <span className="muted">per segment</span>
+          </div>
+          <div className="tl-rules__row" style={{ gridRow: axes.length + 2 }}>
+            {boundaries.map((at, i) => {
+              const override = fragment.segmentRules?.find((r) => Math.abs(r.at - at) < 1e-9);
+              const effective = override ?? levelRule;
               return (
-                <div className="tl-division" key={index} style={{ left: `${at * 100}%` }}>
-                  {index > 0 && (
-                    <DragHandle
-                      onDrag={(fraction) =>
-                        setDrag({
-                          axisId: axis.axis,
-                          index,
-                          at: snapDivision(fragment, axis.axis, index, fraction),
-                        })
+                <div
+                  className={`tl-cell ${override ? 'is-authored' : 'is-default'}`}
+                  key={i}
+                  style={{ flexGrow: Math.max(widths[i], 0.02), flexBasis: 0 }}
+                  title={
+                    override
+                      ? 'This segment’s own rule'
+                      : 'The level default — edit to give this segment its own'
+                  }
+                >
+                  <label>
+                    bars
+                    <input
+                      type="number"
+                      min={1}
+                      value={override ? override.minBars : ''}
+                      placeholder={String(levelRule.minBars)}
+                      onChange={(e) =>
+                        e.target.value
+                          ? apply(
+                              setRule(fragment, at, {
+                                ...effective,
+                                minBars: Math.max(1, Number(e.target.value)),
+                              }),
+                            )
+                          : apply(clearRule(fragment, at))
                       }
-                      onCommit={() => {
-                        if (drag) apply(moveDivision(fragment, axis.axis, index, drag.at));
-                        setDrag(null);
+                    />
+                  </label>
+                  <label>
+                    score
+                    <input
+                      type="text"
+                      value={
+                        override
+                          ? override.score
+                            ? `${Math.round(override.score.atLeast * 100)}/${override.score.overBars}`
+                            : 'n/a'
+                          : ''
+                      }
+                      placeholder={
+                        levelRule.score
+                          ? `${Math.round(levelRule.score.atLeast * 100)}/${levelRule.score.overBars}`
+                          : 'n/a'
+                      }
+                      title="Percent over bars, like 80/2 — or n/a for time served alone"
+                      onChange={(e) => {
+                        const text = e.target.value.trim();
+                        if (!text) return apply(clearRule(fragment, at));
+                        if (text === 'n/a' || text === 'na') {
+                          return apply(setRule(fragment, at, { minBars: effective.minBars }));
+                        }
+                        const match = /^(\d{1,3})\s*\/\s*(\d+)$/.exec(text);
+                        if (!match) return; // half-typed; the placeholder shape explains
+                        apply(
+                          setRule(fragment, at, {
+                            minBars: effective.minBars,
+                            score: {
+                              atLeast: Math.min(1, Math.max(0.01, Number(match[1]) / 100)),
+                              overBars: Math.max(1, Number(match[2])),
+                            },
+                          }),
+                        );
                       }}
-                      onCancel={() => setDrag(null)}
                     />
+                  </label>
+                  {override && (
+                    <button
+                      type="button"
+                      className="tl-cell__clear"
+                      title="Back to the level default"
+                      onClick={() => apply(clearRule(fragment, at))}
+                    >
+                      ×
+                    </button>
                   )}
-                  <div className="tl-division__value">
-                    <DivisionValue
-                      axisId={axis.axis}
-                      value={division.value}
-                      onChange={(value) =>
-                        apply(setDivisionValue(fragment, axis.axis, index, value))
-                      }
-                      instrumentId={previewInstrument}
-                      clef={previewClef}
-                      fifths={previewFifths}
-                    />
-                    {index > 0 && (
-                      <button
-                        type="button"
-                        className="tl-division__delete"
-                        title="Delete this division"
-                        onClick={() => apply(deleteDivision(fragment, axis.axis, index))}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
                 </div>
               );
             })}
-            <button
-              type="button"
-              className="tl-axis__add"
-              title="Add a division"
-              onClick={() => {
-                /* Into the middle of the widest gap, wearing the value in
-                   force there — a division that changes nothing until the
-                   author edits it, which is the least surprising insert. */
-                const ats = [...axis.divisions.map((d) => d.at), 1];
-                let widest = 0;
-                for (let i = 1; i < ats.length; i++) {
-                  if (ats[i] - ats[i - 1] > ats[widest + 1] - ats[widest]) widest = i - 1;
-                }
-                const at = (ats[widest] + ats[widest + 1]) / 2;
-                apply(addDivision(fragment, axis.axis, at, axis.divisions[widest].value));
-              }}
-            >
-              +
-            </button>
+          </div>
+
+          {/*
+           * The common timeline, made visible: a faint line through every
+           * bar at every boundary (stronger where two axes share one), and
+           * the drag guide over the lot. Painted last, over the grid,
+           * pointer-transparent.
+           */}
+          <div
+            className="tl__lines"
+            style={{ gridRow: `2 / ${3 + axes.length}` }}
+            aria-hidden="true"
+          >
+            {boundaries
+              .filter((at) => at > 0)
+              .map((at) => {
+                const holders = axes.filter((axis) =>
+                  axis.divisions.some((division) => Math.abs(division.at - at) < 1e-9),
+                ).length;
+                return (
+                  <div
+                    key={at}
+                    className={`tl__line ${holders > 1 ? 'is-shared' : ''}`}
+                    style={{ left: `${at * 100}%` }}
+                  />
+                );
+              })}
+            {drag && (
+              <div
+                className={`tl__guide ${dragSnapped ? 'is-snapped' : ''}`}
+                style={{ left: `${drag.at * 100}%` }}
+              />
+            )}
           </div>
         </div>
-      ))}
+      </div>
+
+      <div className="tl-rules__default">
+        <span>Progression rules — level default:</span>
+        <label>
+          after
+          <input
+            type="number"
+            min={1}
+            value={levelRule.minBars}
+            onChange={(e) =>
+              onPatch({
+                rules: {
+                  minBars: Math.max(1, Number(e.target.value)),
+                  ...(levelRule.score ? { score: levelRule.score } : {}),
+                },
+              })
+            }
+          />
+          bars
+        </label>
+        <label>
+          , every one of the last
+          <input
+            type="number"
+            min={1}
+            value={levelRule.score?.overBars ?? ''}
+            placeholder="n/a"
+            onChange={(e) =>
+              onPatch({
+                rules: {
+                  minBars: levelRule.minBars,
+                  ...(e.target.value
+                    ? {
+                        score: {
+                          atLeast: levelRule.score?.atLeast ?? 0.85,
+                          overBars: Math.max(1, Number(e.target.value)),
+                        },
+                      }
+                    : {}),
+                },
+              })
+            }
+          />
+          bars at ≥
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={levelRule.score ? Math.round(levelRule.score.atLeast * 100) : ''}
+            placeholder="n/a"
+            disabled={!levelRule.score}
+            onChange={(e) =>
+              onPatch({
+                rules: {
+                  minBars: levelRule.minBars,
+                  score: {
+                    atLeast: Math.min(1, Math.max(0.01, Number(e.target.value) / 100)),
+                    overBars: levelRule.score?.overBars ?? 4,
+                  },
+                },
+              })
+            }
+          />
+          %
+        </label>
+      </div>
 
       <div className="tl__controls">
         <label>
@@ -436,159 +671,6 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
             </span>
           </>
         )}
-      </div>
-
-      <div className="tl-rules">
-        <div className="tl-rules__default">
-          <span>Progression rules — level default:</span>
-          <label>
-            after
-            <input
-              type="number"
-              min={1}
-              value={levelRule.minBars}
-              onChange={(e) =>
-                onPatch({
-                  rules: {
-                    minBars: Math.max(1, Number(e.target.value)),
-                    ...(levelRule.score ? { score: levelRule.score } : {}),
-                  },
-                })
-              }
-            />
-            bars
-          </label>
-          <label>
-            , every one of the last
-            <input
-              type="number"
-              min={1}
-              value={levelRule.score?.overBars ?? ''}
-              placeholder="n/a"
-              onChange={(e) =>
-                onPatch({
-                  rules: {
-                    minBars: levelRule.minBars,
-                    ...(e.target.value
-                      ? {
-                          score: {
-                            atLeast: levelRule.score?.atLeast ?? 0.85,
-                            overBars: Math.max(1, Number(e.target.value)),
-                          },
-                        }
-                      : {}),
-                  },
-                })
-              }
-            />
-            bars at ≥
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={levelRule.score ? Math.round(levelRule.score.atLeast * 100) : ''}
-              placeholder="n/a"
-              disabled={!levelRule.score}
-              onChange={(e) =>
-                onPatch({
-                  rules: {
-                    minBars: levelRule.minBars,
-                    score: {
-                      atLeast: Math.min(1, Math.max(0.01, Number(e.target.value) / 100)),
-                      overBars: levelRule.score?.overBars ?? 4,
-                    },
-                  },
-                })
-              }
-            />
-            %
-          </label>
-        </div>
-        <div className="tl-rules__row">
-          {boundaries.map((at, i) => {
-            const override = fragment.segmentRules?.find((r) => Math.abs(r.at - at) < 1e-9);
-            const effective = override ?? levelRule;
-            return (
-              <div
-                className={`tl-cell ${override ? 'is-authored' : 'is-default'}`}
-                key={i}
-                style={{ flexGrow: Math.max(widths[i], 0.02), flexBasis: 0 }}
-                title={
-                  override
-                    ? 'This segment’s own rule'
-                    : 'The level default — edit to give this segment its own'
-                }
-              >
-                <label>
-                  bars
-                  <input
-                    type="number"
-                    min={1}
-                    value={override ? override.minBars : ''}
-                    placeholder={String(levelRule.minBars)}
-                    onChange={(e) =>
-                      e.target.value
-                        ? apply(
-                            setRule(fragment, at, {
-                              ...effective,
-                              minBars: Math.max(1, Number(e.target.value)),
-                            }),
-                          )
-                        : apply(clearRule(fragment, at))
-                    }
-                  />
-                </label>
-                <label>
-                  score
-                  <input
-                    type="text"
-                    value={
-                      override
-                        ? override.score
-                          ? `${Math.round(override.score.atLeast * 100)}/${override.score.overBars}`
-                          : 'n/a'
-                        : ''
-                    }
-                    placeholder={
-                      levelRule.score
-                        ? `${Math.round(levelRule.score.atLeast * 100)}/${levelRule.score.overBars}`
-                        : 'n/a'
-                    }
-                    title="Percent over bars, like 80/2 — or n/a for time served alone"
-                    onChange={(e) => {
-                      const text = e.target.value.trim();
-                      if (!text) return apply(clearRule(fragment, at));
-                      if (text === 'n/a' || text === 'na') {
-                        return apply(setRule(fragment, at, { minBars: effective.minBars }));
-                      }
-                      const match = /^(\d{1,3})\s*\/\s*(\d+)$/.exec(text);
-                      if (!match) return; // half-typed; the placeholder shape explains
-                      apply(
-                        setRule(fragment, at, {
-                          minBars: effective.minBars,
-                          score: {
-                            atLeast: Math.min(1, Math.max(0.01, Number(match[1]) / 100)),
-                            overBars: Math.max(1, Number(match[2])),
-                          },
-                        }),
-                      );
-                    }}
-                  />
-                </label>
-                {override && (
-                  <button
-                    type="button"
-                    className="tl-cell__clear"
-                    title="Back to the level default"
-                    onClick={() => apply(clearRule(fragment, at))}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
@@ -768,6 +850,24 @@ function DivisionValue({
         {MAJOR_KEYS.map((key) => (
           <option key={key.fifths} value={key.fifths}>
             {key.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  if (axisId === 'span') {
+    const chosen = typeof value === 'number' ? value : 12;
+    const named = REACHES.some((reach) => reach.semitones === chosen);
+    return (
+      <select
+        className="tl-value"
+        value={String(chosen)}
+        onChange={(e) => onChange(Number(e.target.value))}
+      >
+        {!named && <option value={chosen}>{chosen} semitones</option>}
+        {REACHES.map((reach) => (
+          <option key={reach.semitones} value={reach.semitones}>
+            {reach.name}
           </option>
         ))}
       </select>

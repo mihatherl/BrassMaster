@@ -45,8 +45,13 @@ export interface TimelineFragment {
 
 /** Two boundaries closer than this are the same boundary — the reader's own figure. */
 const EPSILON = 1e-9;
-/** How close a drag must come to another axis's boundary to join it. */
-export const SNAP_TO_BOUNDARY = 0.01;
+/**
+ * How close a drag must come to another axis's boundary to join it. Widened
+ * from 1% on the player's UAT (2026-08-29): joining boundaries is the
+ * gesture that makes segments, and it should feel like Visio's alignment —
+ * the guide the timeline draws lights up when this catches.
+ */
+export const SNAP_TO_BOUNDARY = 0.02;
 /** The grid a free drag lands on. */
 export const SNAP_GRID = 0.005;
 /** No two divisions of one axis closer than this — a sliver segment is a mis-drag. */

@@ -294,6 +294,20 @@ add-axis picker unpins it into the graph atomically. Opening an old file
 modernises it through `readCourse` itself (`editor/document.ts`); the editor
 saves new-format only.
 
+**First UAT round (v2.61.1), same evening:** the player's pass reshaped the
+timeline into a true grid — panel column left with each axis's parameters on
+one line, one shared bar column so every bar starts and ends together, faint
+boundary lines through bars and rules table alike, and a Visio-style
+full-height drag guide that lights up when a divider snaps onto another
+axis's boundary (radius widened to 2%). The build's first version had the
+bars stacking under the panels: the lines overlay was explicitly placed into
+the grid's second column, and auto-placed items refuse to share cells with
+an explicitly placed one — everything now carries explicit coordinates.
+Reach also stopped speaking semitones: its divisions and header are named
+intervals (a fifth / one octave / an octave and a fifth / two octaves), and
+its from/to generator row is gone, because a linear run of semitone counts
+wrote figures like "16 semitones" that are legal and musically odd.
+
 **What is actually next now: the curriculum.** The machinery is built and
 green but UNPLAYED — the checkpoint the build plan named still stands: the
 player plays the bundled course for parity (it should feel identical), then

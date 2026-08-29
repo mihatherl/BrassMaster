@@ -365,20 +365,25 @@ export function App() {
               </label>
               {kind === 'drills' && (
                 <label>
-                  Reach (semitones)
-                  <input
-                    type="number"
-                    min={1}
-                    placeholder={axisIds.has('span') ? 'on the timeline' : 'difficulty’s'}
-                    disabled={axisIds.has('span')}
+                  Reach
+                  <select
                     value={String(base.spanSemitones ?? '')}
+                    disabled={axisIds.has('span')}
                     onChange={(e) =>
                       patchIn(index, 'base', {
                         spanSemitones:
                           e.target.value === '' ? undefined : Number(e.target.value),
                       })
                     }
-                  />
+                  >
+                    <option value="">
+                      {axisIds.has('span') ? 'On the timeline' : 'Difficulty’s own'}
+                    </option>
+                    <option value="7">A fifth</option>
+                    <option value="12">One octave</option>
+                    <option value="19">An octave and a fifth</option>
+                    <option value="24">Two octaves</option>
+                  </select>
                 </label>
               )}
               {kind !== 'drills' && (
@@ -526,7 +531,7 @@ style.textContent = `
   :root { color-scheme: light dark; }
   body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #faf7f1; color: #23201b; }
   @media (prefers-color-scheme: dark) { body { background: #1c1a17; color: #ece7de; } }
-  .editor { max-width: 60rem; margin: 0 auto; padding: 1rem 1.5rem 4rem; }
+  .editor { max-width: 82rem; margin: 0 auto; padding: 1rem 1.5rem 4rem; }
   .editor > header { display: flex; gap: 0.75rem; align-items: baseline; }
   .editor > header h1 { font-size: 1.4rem; margin: 0.5rem 0; }
   .file { opacity: 0.6; flex: 1; }
@@ -548,25 +553,47 @@ style.textContent = `
   .add { margin-top: 0.5rem; }
   footer { margin-top: 2rem; }
 
-  /* The timeline: one bar per axis, divisions dragged along it, rules below. */
+  /*
+   * The timeline as one GRID (player's UAT, 2026-08-29): a panel column at
+   * the left with each axis's parameters on a single line, and one shared
+   * bar column so every bar starts and ends together — the common timeline
+   * the drawing meant. Boundary lines run through the whole graph, and a
+   * drag guide runs its full height, lighting up when it snaps onto another
+   * axis's divider. Wide by design: the wrapper scrolls sideways on a small
+   * screen rather than folding the panels back into three lines.
+   */
   .tl { margin-top: 0.75rem; border-top: 1px dashed #8886; padding-top: 0.5rem; }
-  .tl__head { display: flex; align-items: baseline; gap: 1rem; }
-  .tl__title { font-weight: 700; font-size: 0.9rem; }
-  .tl__ruler { flex: 1; display: flex; justify-content: space-between; opacity: 0.5; font-size: 0.75rem; max-width: calc(100% - 14rem); margin-left: auto; }
-  .tl-axis { display: flex; gap: 0.75rem; align-items: stretch; margin: 0.9rem 0; }
-  .tl-axis__panel { flex: 0 0 13rem; display: flex; flex-direction: column; gap: 0.3rem; }
-  .tl-axis__name { display: flex; gap: 0.5rem; align-items: center; }
-  .tl-gen { display: flex; gap: 0.4rem; align-items: end; flex-wrap: wrap; }
-  .tl-gen input[type=number] { width: 3.4rem; }
-  .tl-axis__bar { position: relative; flex: 1; min-height: 4.4rem; }
+  .tl__scroll { overflow-x: auto; padding-bottom: 0.25rem; }
+  .tl__grid { display: grid; grid-template-columns: max-content minmax(34rem, 1fr); column-gap: 1rem; row-gap: 1.1rem; position: relative; min-width: 56rem; padding-right: 1.5rem; }
+  .tl__corner { grid-column: 1; grid-row: 1; font-weight: 700; font-size: 0.9rem; align-self: end; }
+  .tl__ruler { grid-column: 2; grid-row: 1; position: relative; height: 1.1rem; opacity: 0.55; font-size: 0.72rem; border-bottom: 1px solid #8886; }
+  .tl__ruler span { position: absolute; bottom: 0.1rem; transform: translateX(-50%); }
+  .tl__ruler span:first-child { transform: none; }
+  .tl__ruler span:last-child { transform: translateX(-100%); }
+
+  .tl-axis__panel { grid-column: 1; display: flex; gap: 0.5rem; align-items: center; white-space: nowrap; border-right: 2px solid #8885; padding-right: 0.75rem; }
+  .tl-axis__name { min-width: 5.5rem; }
+  .tl-gen { display: flex; gap: 0.4rem; align-items: center; }
+  .tl-gen label { flex-direction: row; align-items: center; gap: 0.25rem; }
+  .tl-gen input[type=number] { width: 3.2rem; }
+
+  .tl-axis__bar { grid-column: 2; position: relative; min-height: 4.2rem; }
   .tl-axis__line { position: absolute; left: 0; right: 0; top: 0.55rem; height: 4px; background: currentColor; opacity: 0.75; border-radius: 2px; }
   .tl-division { position: absolute; top: 0; transform: translateX(-2px); }
-  .tl-handle { position: absolute; top: 0; left: 0; width: 1.2rem; height: 1.2rem; padding: 0; margin-left: -0.6rem; border: none; background: none; cursor: ew-resize; font-weight: 700; color: #c0392b; touch-action: none; }
-  .tl-division__value { position: absolute; top: 1.3rem; left: 0; display: flex; gap: 0.15rem; align-items: start; }
+  .tl-handle { position: absolute; top: 0; left: 0; width: 1.4rem; height: 1.4rem; padding: 0; margin-left: -0.7rem; border: none; background: none; cursor: ew-resize; font-weight: 700; color: #c0392b; touch-action: none; z-index: 2; }
+  .tl-division__value { position: absolute; top: 1.3rem; left: 0; display: flex; gap: 0.15rem; align-items: start; z-index: 2; }
   .tl-value { width: 4.2rem; font-size: 0.8rem; }
-  select.tl-value { width: auto; max-width: 6.5rem; }
+  select.tl-value { width: auto; max-width: 7.5rem; }
   .tl-division__delete { padding: 0 0.3rem; opacity: 0.6; }
-  .tl-axis__add { position: absolute; right: -0.2rem; top: 0.1rem; padding: 0 0.5rem; }
+  .tl-axis__add { position: absolute; right: -1.4rem; top: 0.1rem; padding: 0 0.5rem; }
+
+  /* The common timeline, made visible. */
+  .tl__lines { grid-column: 2; position: relative; pointer-events: none; z-index: 1; }
+  .tl__line { position: absolute; top: -0.55rem; bottom: -0.55rem; width: 1px; background: currentColor; opacity: 0.22; }
+  .tl__line.is-shared { width: 2px; opacity: 0.3; }
+  .tl__guide { position: absolute; top: -1.65rem; bottom: -0.55rem; width: 1px; background: #c0392b; opacity: 0.55; }
+  .tl__guide.is-snapped { width: 3px; opacity: 1; box-shadow: 0 0 6px #c0392b88; }
+
   .tl__controls { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin: 0.5rem 0; }
   .tl-range { display: flex; flex-direction: column; gap: 0.15rem; width: 8rem; }
   .tl-range__figure { width: 8rem; }
@@ -578,14 +605,16 @@ style.textContent = `
   .tl-pool input[type=number] { width: 2.6rem; }
   .tl-pool__degrees { display: flex; gap: 0.25rem; }
   .tl-pool__degrees label { flex-direction: row; align-items: center; gap: 0.1rem; }
-  .tl-rules { margin-top: 3.2rem; }
-  .tl-rules__default { display: flex; gap: 0.4rem; align-items: end; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 0.3rem; }
+
+  .tl-rules__label { grid-column: 1; display: flex; flex-direction: column; gap: 0.1rem; justify-content: center; font-weight: 700; font-size: 0.85rem; border-right: 2px solid #8885; padding-right: 0.75rem; white-space: nowrap; }
+  .tl-rules__label .muted { font-weight: 400; }
+  .tl-rules__default { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; font-size: 0.85rem; margin: 0.6rem 0 0.3rem; }
   .tl-rules__default label { flex-direction: row; align-items: center; gap: 0.3rem; }
   .tl-rules__default input { width: 3.2rem; }
-  .tl-rules__row { display: flex; gap: 2px; margin-left: 13.75rem; }
-  .tl-cell { position: relative; border: 1px solid #8886; border-radius: 5px; padding: 0.25rem 0.35rem; display: flex; gap: 0.4rem; min-width: 0; }
+  .tl-rules__row { grid-column: 2; display: flex; gap: 2px; }
+  .tl-cell { position: relative; border: 1px solid #8886; border-radius: 5px; padding: 0.25rem 0.35rem; display: flex; gap: 0.3rem; min-width: 0; overflow: hidden; }
   .tl-cell label { font-size: 0.7rem; min-width: 0; }
-  .tl-cell input { width: 100%; min-width: 2.2rem; font-size: 0.75rem; }
+  .tl-cell input { width: 100%; min-width: 1.5rem; font-size: 0.75rem; }
   .tl-cell.is-default input { opacity: 0.65; }
   .tl-cell.is-authored { border-color: #b8a; }
   .tl-cell__clear { position: absolute; top: -0.5rem; right: -0.3rem; padding: 0 0.3rem; font-size: 0.7rem; }
