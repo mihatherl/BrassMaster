@@ -346,6 +346,17 @@ silence about it would be the failure the reader exists to prevent.
   an *Override* button that takes a copy into the level. It has to be drawn
   there: an inherited axis shapes the level's stages as surely as its own.
 
+**Boundaries are ticked in the ruler, not drawn through the graph** (ruled
+2026-08-30). Full-height lines earned their place when an axis was a thin
+bar with labels loose beneath it; once a stage became a block, a line that
+coincided with a block edge only repeated it, and the informative case — a
+boundary falling *inside* a block, where another axis changes — did not
+justify cutting through every colour. The ticks sit at the scale's own
+edge, and a stage's value slides hard against its left edge, compressing
+as its boundaries close in: below five rems the block gives up its delete
+button before its number, because the number is what the author is reading
+and the chip below still carries the bars.
+
 One consequence worth knowing: while a level carries an inherited axis, a
 drag does not renumber stored positions — those belong to the course
 document, and renumbering half of a shared set would leave the two

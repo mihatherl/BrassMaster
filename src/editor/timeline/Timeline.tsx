@@ -416,6 +416,17 @@ export function Timeline({
                 </span>
               );
             })}
+            {/* Where the level's stages actually divide — the union of every
+                axis's edges, which is what the rules below are counted in. */}
+            {shown.segments
+              .filter((segment) => segment.at > 0)
+              .map((segment) => (
+                <i
+                  key={segment.at}
+                  className="tl__tick"
+                  style={{ left: `${segment.x0 * 100}%` }}
+                />
+              ))}
           </div>
 
           {shownAxes.map((axis, axisRow) => (
@@ -652,32 +663,17 @@ export function Timeline({
           )}
 
           {/*
-           * The common timeline, made visible: a faint line through every
-           * bar at every boundary (stronger where two axes share one), and
-           * the drag guide over the lot. Painted last, over the grid,
-           * pointer-transparent.
+           * The drag guide, full height so a divider in flight can be lined
+           * up against every other row. The boundaries themselves are ticked
+           * in the ruler above rather than drawn through the graph: a stage
+           * is a block now, so its edges already show where it changes, and
+           * a line through the colour only repeated them.
            */}
           <div
             className="tl__lines"
             style={{ gridRow: `2 / ${3 + shownAxes.length}` }}
             aria-hidden="true"
           >
-            {shown.segments
-              .filter((segment) => segment.at > 0)
-              .map((segment) => {
-                const holders = shownAxes.filter((axis) =>
-                  axis.divisions.some(
-                    (division) => Math.abs(division.at - segment.at) < 1e-9,
-                  ),
-                ).length;
-                return (
-                  <div
-                    key={segment.at}
-                    className={`tl__line ${holders > 1 ? 'is-shared' : ''}`}
-                    style={{ left: `${segment.x0 * 100}%` }}
-                  />
-                );
-              })}
             {drag && (
               <div
                 className={`tl__guide ${drag.aligned ? 'is-snapped' : ''}`}

@@ -402,23 +402,27 @@ style.textContent = `
    * carries its own controls, which the loose labels under the old line
    * could not do on a narrow stage.
    */
-  .tl-span { position: absolute; top: 0.15rem; bottom: 0.15rem; border-radius: 8px; border: 1px solid; box-sizing: border-box; display: flex; align-items: center; gap: 0.2rem; padding: 0 0.25rem 0 0.45rem; overflow: hidden; min-width: 0; }
-  .tl-span__body { display: flex; align-items: center; gap: 0.2rem; min-width: 0; }
-  /* The block's own left edge is the divider: a grab strip over it. */
-  .tl-handle { position: absolute; left: -0.35rem; top: 0; bottom: 0; width: 0.85rem; padding: 0; border: none; background: none; color: transparent; cursor: ew-resize; touch-action: none; z-index: 3; }
+  .tl-span { position: absolute; top: 0.15rem; bottom: 0.15rem; border-radius: 8px; border: 1px solid; box-sizing: border-box; display: flex; align-items: center; gap: 0.15rem; padding: 0 0.15rem 0 0.3rem; overflow: hidden; min-width: 0; container-type: inline-size; }
+  /* Squeezed hard, a stage gives up its delete button before its value:
+     the number is what the author is reading, and the chip below still
+     carries the bars. */
+  @container (max-width: 5rem) { .tl-span__delete { display: none; } }
+  .tl-span__body { display: flex; align-items: center; gap: 0.15rem; min-width: 0; flex: 1; }
+  /* The block's own left edge is the divider: a narrow grab strip over it,
+     narrow so the value can sit hard against the edge behind it. */
+  .tl-handle { position: absolute; left: -0.3rem; top: 0; bottom: 0; width: 0.6rem; padding: 0; border: none; background: none; color: transparent; cursor: ew-resize; touch-action: none; z-index: 3; }
   .tl-handle:hover, .tl-handle:focus-visible { background: #c0392b44; border-radius: 4px; }
   /* The input[type=number] rule above is (0,1,1), so a bare class loses to
      it — this must match specificity to narrow a spinner inside a block. */
-  input.tl-value { width: 3.2rem; font-size: 0.8rem; }
-  select.tl-value { width: auto; max-width: 7rem; font-size: 0.8rem; }
-  .tl-span__delete { padding: 0 0.25rem; opacity: 0.55; line-height: 1; }
+  input.tl-value { width: 3.2rem; min-width: 1.5rem; font-size: 0.8rem; }
+  select.tl-value { width: auto; max-width: 7rem; min-width: 0; font-size: 0.8rem; }
+  .tl-span__delete { padding: 0 0.2rem; opacity: 0.55; line-height: 1; flex: 0 0 auto; }
   .tl-span__delete:hover { opacity: 1; }
   .tl-axis__add { position: absolute; right: -1.4rem; top: 0.1rem; padding: 0 0.5rem; }
 
   /* The common timeline, made visible. */
   .tl__lines { grid-column: 2; position: relative; pointer-events: none; z-index: 1; }
-  .tl__line { position: absolute; top: -0.55rem; bottom: -0.55rem; width: 1px; background: currentColor; opacity: 0.22; }
-  .tl__line.is-shared { width: 2px; opacity: 0.3; }
+  .tl__tick { position: absolute; bottom: 0; width: 1px; height: 0.45rem; background: currentColor; opacity: 0.45; }
   .tl__guide { position: absolute; top: -1.65rem; bottom: -0.55rem; width: 1px; background: #c0392b; opacity: 0.55; }
   .tl__guide.is-snapped { width: 3px; opacity: 1; box-shadow: 0 0 6px #c0392b88; }
 
