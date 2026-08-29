@@ -354,6 +354,22 @@ their own axis changes**, which fixes the reported "gap" where another
 axis's division made a tempo look inapplicable. Full reasoning in
 `level-axes-plan.md` § *The x-axis, ruled twice in one evening*.
 
+**Editor polish (v2.64.2):** boundary marks became ruler ticks rather than
+lines through the coloured stages; a stage's value sits flush at its left
+edge and compresses (giving up its × below 5rem) as its boundaries close
+in; the generator reads **"Auto generate [n] divisions"** with the count
+editable on the button and no separate steps field; regenerating keeps the
+axis **in place** (it used to be removed and re-appended, sending the row to
+the bottom every press); and *add an axis* is a **ghost row at the foot of
+the grid** rather than a control under the page.
+
+**A CSS lesson worth the space:** two rules — the `fieldset.tl-span__body`
+reset and `.tl-span.is-ghost` — were silently lost when a later edit
+rewrote the block they sat in, and nothing failed. The ghost test asserted
+the *class*, not the appearance, so an unstyled ghost passed. A browser
+measurement caught it (a value 21px from an edge that should have been 4).
+**Where a look is the feature, measure the look**, not the class name.
+
 **Course defaults (v2.64.0).** A course may now say anything a level says,
 once — material, difficulty, every header scalar, the default rule,
 `endless`, and **axes**. Resolution is `resolveLevelDocument` in

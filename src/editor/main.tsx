@@ -402,12 +402,18 @@ style.textContent = `
    * carries its own controls, which the loose labels under the old line
    * could not do on a narrow stage.
    */
-  .tl-span { position: absolute; top: 0.15rem; bottom: 0.15rem; border-radius: 8px; border: 1px solid; box-sizing: border-box; display: flex; align-items: center; gap: 0.15rem; padding: 0 0.15rem 0 0.3rem; overflow: hidden; min-width: 0; container-type: inline-size; }
+  .tl-span { position: absolute; top: 0.15rem; bottom: 0.15rem; border-radius: 8px; border: 1px solid; box-sizing: border-box; display: flex; align-items: center; gap: 0.15rem; padding: 0 0.15rem 0 0.2rem; overflow: hidden; min-width: 0; container-type: inline-size; }
   /* Squeezed hard, a stage gives up its delete button before its value:
      the number is what the author is reading, and the chip below still
      carries the bars. */
   @container (max-width: 5rem) { .tl-span__delete { display: none; } }
-  .tl-span__body { display: flex; align-items: center; gap: 0.15rem; min-width: 0; flex: 1; }
+  /* A fieldset, so an inherited axis's controls disable in one stroke —
+     which drags in the browser's own padding, border and margin, and put
+     the value 16px from the edge until this said otherwise. */
+  fieldset.tl-span__body { display: flex; align-items: center; gap: 0.15rem; min-width: 0; flex: 1; border: 0; padding: 0; margin: 0; }
+  /* Inherited from the course: drawn, because it shapes this level's
+     stages — but not this level's to edit until it takes a copy. */
+  .tl-span.is-ghost { opacity: 0.55; border-style: dashed; }
   /* The block's own left edge is the divider: a narrow grab strip over it,
      narrow so the value can sit hard against the edge behind it. */
   .tl-handle { position: absolute; left: -0.3rem; top: 0; bottom: 0; width: 0.6rem; padding: 0; border: none; background: none; color: transparent; cursor: ew-resize; touch-action: none; z-index: 3; }
@@ -427,6 +433,13 @@ style.textContent = `
   .tl__guide.is-snapped { width: 3px; opacity: 1; box-shadow: 0 0 6px #c0392b88; }
 
   .tl__controls { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin: 0.5rem 0; }
+  /* The last row of the grid: a ghost stage that adds an axis, so the way
+     to grow the graph sits in the graph rather than below it. */
+  .tl-add { grid-column: 2; position: relative; min-height: 2.1rem; }
+  .tl-add__ghost { position: absolute; inset: 0.15rem 0; border: 1px dashed #8888; border-radius: 8px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.8rem; opacity: 0.75; cursor: pointer; }
+  .tl-add__ghost:hover { opacity: 1; border-color: #b8a; }
+  .tl-gen__auto { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
+  .tl-gen__auto input[type=number] { width: 2.8rem; font-size: 0.8rem; padding: 0.1rem 0.2rem; }
   .tl-range { display: flex; flex-direction: column; gap: 0.15rem; width: 8rem; }
   .tl-range__figure { width: 8rem; }
   .stave-figure__canvas, .tl-range__figure canvas { display: block; width: 100%; }

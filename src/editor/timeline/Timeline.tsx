@@ -341,6 +341,20 @@ export function Timeline({
     });
   };
 
+  /**
+   * A regenerated axis keeps its place. It used to be removed and pushed
+   * back on the end, which sent its row to the bottom of the graph every
+   * time the author pressed the button — while the removal is still what
+   * clears the rules of any boundary the new sequence does not have.
+   */
+  const regenerate = (axisId: AxisId, divisions: RawAxis['divisions']) => {
+    const at = fragment.axes.findIndex((axis) => axis.axis === axisId);
+    const cleaned = removeAxis(fragment, axisId);
+    const axes = [...cleaned.axes];
+    axes.splice(at, 0, { axis: axisId, divisions });
+    apply({ ...cleaned, axes });
+  };
+
   const offered = (Object.keys(AXIS_MATERIALS) as AxisId[]).filter(
     (axisId) =>
       (kind === 'any' || AXIS_MATERIALS[axisId].includes(kind)) &&
@@ -462,30 +476,14 @@ export function Timeline({
                 {NUMERIC.includes(axis.axis) && !isInherited(axis.axis) && (
                   <NumericGenerator
                     axis={axis}
-                    onGenerate={(divisions) =>
-                      apply({
-                        ...removeAxis(fragment, axis.axis),
-                        axes: [
-                          ...removeAxis(fragment, axis.axis).axes,
-                          { axis: axis.axis, divisions },
-                        ],
-                      })
-                    }
+                    onGenerate={(divisions) => regenerate(axis.axis, divisions)}
                   />
                 )}
                 {axis.axis === 'range' && !isInherited(axis.axis) && (
                   <RangeGenerator
                     fifths={previewFifths}
                     compass={compass}
-                    onGenerate={(divisions) =>
-                      apply({
-                        ...removeAxis(fragment, 'range'),
-                        axes: [
-                          ...removeAxis(fragment, 'range').axes,
-                          { axis: 'range', divisions },
-                        ],
-                      })
-                    }
+                    onGenerate={(divisions) => regenerate('range', divisions)}
                   />
                 )}
               </div>
@@ -600,14 +598,40 @@ export function Timeline({
             </Fragment>
           ))}
 
+          {/*
+           * The way to grow the graph, in the graph: a ghost stage on the
+           * row below the last axis. It sat under the whole page until
+           * 2026-08-30, which is a long way from the thing it adds to.
+           */}
+          <div className="tl-axis__panel" style={{ gridRow: shownAxes.length + 2 }}>
+            <strong className="tl-axis__name muted">New axis</strong>
+          </div>
+          <div className="tl-add" style={{ gridRow: shownAxes.length + 2 }}>
+            <label className="tl-add__ghost">
+              Click here to add a new axis
+              <select
+                value=""
+                onChange={(e) => e.target.value && promote(e.target.value as AxisId)}
+              >
+                <option value="">choose…</option>
+                {offered.map((axisId) => (
+                  <option key={axisId} value={axisId}>
+                    {AXIS_LABELS[axisId]}
+                    {pinnedValue(level, axisId) !== undefined ? ' — pinned; moving it here unpins' : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           {showSegmentRules && (
-          <div className="tl-rules__label" style={{ gridRow: shownAxes.length + 2 }}>
+          <div className="tl-rules__label" style={{ gridRow: shownAxes.length + 3 }}>
             Progression rules
             <span className="muted">per segment</span>
           </div>
           )}
           {showSegmentRules && (
-          <div className="tl-rules__row" style={{ gridRow: shownAxes.length + 2 }}>
+          <div className="tl-rules__row" style={{ gridRow: shownAxes.length + 3 }}>
             {/*
              * Chips, not a cramped form: each segment shows its whole story
              * in one line — the bars its rule asks for, the score if any,
@@ -762,21 +786,6 @@ export function Timeline({
       </div>
 
       <div className="tl__controls">
-        <label>
-          Add an axis
-          <select
-            value=""
-            onChange={(e) => e.target.value && promote(e.target.value as AxisId)}
-          >
-            <option value="">choose…</option>
-            {offered.map((axisId) => (
-              <option key={axisId} value={axisId}>
-                {AXIS_LABELS[axisId]}
-                {pinnedValue(level, axisId) !== undefined ? ' — pinned; moving it here unpins' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
         {(axes.some((a) => a.axis === 'range') || kind === 'phrases') && (
           <>
             <label>
@@ -854,7 +863,45 @@ function DragHandle({
   );
 }
 
-/** From | to | steps for the numeric axes, regenerating the whole sequence. */
+/**
+ * From, to, and a button that says what it will do — "Auto generate 6
+ * divisions", with the count editable on the button itself. The count was a
+ * third labelled field beside two others until 2026-08-30, which read as
+ * one more number to fill in rather than as the shape of the action.
+ */
+function CountButton({
+  count,
+  onCount,
+  onGenerate,
+}: {
+  count: string;
+  onCount: (value: string) => void;
+  onGenerate: () => void;
+}): ReactElement {
+  /*
+   * The number lives inside the button, so its own clicks and keys must not
+   * reach the button — otherwise typing a digit would regenerate.
+   */
+  const swallow = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  return (
+    <button type="button" className="tl-gen__auto" onClick={onGenerate}>
+      Auto generate
+      <input
+        type="number"
+        min={1}
+        value={count}
+        onChange={(e) => onCount(e.target.value)}
+        onClick={swallow}
+        onMouseDown={swallow}
+        onKeyDown={swallow}
+        title="How many divisions to write"
+      />
+      divisions
+    </button>
+  );
+}
+
+/** From and to for the numeric axes, regenerating the whole sequence. */
 function NumericGenerator({
   axis,
   onGenerate,
@@ -877,16 +924,11 @@ function NumericGenerator({
         to
         <input type="number" value={to} onChange={(e) => setTo(e.target.value)} />
       </label>
-      <label>
-        steps
-        <input type="number" min={1} value={steps} onChange={(e) => setSteps(e.target.value)} />
-      </label>
-      <button
-        type="button"
-        onClick={() => onGenerate(numericDivisions(Number(from), Number(to), Number(steps)))}
-      >
-        Generate
-      </button>
+      <CountButton
+        count={steps}
+        onCount={setSteps}
+        onGenerate={() => onGenerate(numericDivisions(Number(from), Number(to), Number(steps)))}
+      />
     </div>
   );
 }
@@ -917,10 +959,6 @@ function RangeGenerator({
         <input type="number" value={high} onChange={(e) => setHigh(e.target.value)} />
       </label>
       <label>
-        steps
-        <input type="number" min={1} value={steps} onChange={(e) => setSteps(e.target.value)} />
-      </label>
-      <label>
         bias
         <select value={bias} onChange={(e) => setBias(e.target.value as typeof bias)}>
           <option value="both">both (down first)</option>
@@ -928,9 +966,10 @@ function RangeGenerator({
           <option value="down">down</option>
         </select>
       </label>
-      <button
-        type="button"
-        onClick={() =>
+      <CountButton
+        count={steps}
+        onCount={setSteps}
+        onGenerate={() =>
           onGenerate(
             rangeDivisions({
               fifths,
@@ -941,9 +980,7 @@ function RangeGenerator({
             }),
           )
         }
-      >
-        Generate
-      </button>
+      />
     </div>
   );
 }

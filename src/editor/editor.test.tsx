@@ -156,7 +156,7 @@ describe('the timeline', () => {
 
   it('offers only the axes the material can play, and not those already drawn', () => {
     render(<Timeline kind="phrases" level={LEVEL} onPatch={vi.fn()} />);
-    const picker = screen.getByLabelText(/add an axis/i) as HTMLSelectElement;
+    const picker = screen.getByLabelText(/add a new axis/i) as HTMLSelectElement;
     const offered = [...picker.options].map((option) => option.value).filter(Boolean);
     expect(offered).toContain('range');
     expect(offered).toContain('intervals');
@@ -174,7 +174,7 @@ describe('the timeline', () => {
         onPatch={onPatch}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/add an axis/i), {
+    fireEvent.change(screen.getByLabelText(/add a new axis/i), {
       target: { value: 'metronomeEnabled' },
     });
     const patch = onPatch.mock.calls[0][0];
