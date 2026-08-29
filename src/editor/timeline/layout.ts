@@ -262,6 +262,13 @@ export function applyBarDrag(
   axisId: AxisId,
   index: number,
   drag: BarDrag,
+  /**
+   * Whether stored positions may be renumbered onto their bars. False where
+   * the timeline carries an axis inherited from the course: those positions
+   * belong to the course document, and renumbering half of a shared set
+   * would leave the two disagreeing about which boundaries coincide.
+   */
+  renumber = true,
 ): TimelineFragment {
   const axis = fragment.axes.find((a) => a.axis === axisId);
   const division = axis?.divisions[index];
@@ -325,7 +332,7 @@ export function applyBarDrag(
   const total = planned.reduce((sum, stage) => sum + stage.bars, 0);
   let running = 0;
   const remapped = planned.map((stage) => {
-    const at = running / total;
+    const at = renumber ? running / total : stage.at;
     running += stage.bars;
     return { ...stage, from: stage.at, at };
   });

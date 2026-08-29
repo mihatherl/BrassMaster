@@ -354,6 +354,18 @@ their own axis changes**, which fixes the reported "gap" where another
 axis's division made a tempo look inapplicable. Full reasoning in
 `level-axes-plan.md` § *The x-axis, ruled twice in one evening*.
 
+**Course defaults (v2.64.0).** A course may now say anything a level says,
+once — material, difficulty, every header scalar, the default rule,
+`endless`, and **axes**. Resolution is `resolveLevelDocument` in
+`course.ts`, run on the plain document before validation, so **the runtime
+never learns inheritance exists**: `readCourse` still hands out levels that
+say the whole of what they play. A level that states a parameter states it
+entirely (a scalar replaces an inherited axis and vice versa). Name, note
+and `segmentRules` never inherit. In the editor a scalar's inheritance
+shows in its empty option ("Course default: off") and an axis's shows as a
+**ghosted row in the level's own timeline with an Override button** — two
+mechanisms, because a dropdown can name a value but not a shape.
+
 **The drag's only fence is its own axis (v2.63.0).** A conductor divider
 could not be moved past the tempo steps either side of it — the drag was
 bounded by the adjacent *timeline* segments rather than by the axis's own

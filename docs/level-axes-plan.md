@@ -309,6 +309,48 @@ bars a rule *is* a length, so what a move does to the rules depends on what
 the move meant, and the three answers live in `layout.ts`'s `applyBarDrag`.
 Splitting-inherits and deleting-keeps-the-left-rule stand, in `axis-model`.
 
+## Course defaults, and how a level shows what it inherits (2026-08-29)
+
+**A course may say anything a level says, once.** The same vocabulary at
+the scope above: the material and its difficulty, every header scalar, the
+default progression rule, `endless` — and **axes**, because a course may
+hand its levels a whole progression rather than a value.
+
+The rule is one line: **a level that states a parameter states it
+entirely.** A scalar at the level replaces an axis at the course and the
+other way about, because the trichotomy is per parameter — inheriting half
+of one would be a fourth state nobody could read off the page. Resolution
+happens in `resolveLevelDocument`, on the plain document, *before*
+validation: `readCourse` hands out levels that already say everything they
+play, so `runFor`, the segments, the stepping and the gate never learn that
+inheritance exists.
+
+Two deliberately do not inherit: a level's **name and note**, which are what
+a level *is*; and its **`segmentRules`**, which are keyed to boundaries that
+only exist once a level's own axes are counted in. The default rule
+(`rules`) does inherit, and is the useful half.
+
+A default only reaches levels whose material can play it — a range default
+passes over a drills level rather than refusing the document — but a
+default **no** level's material could play is refused by name, because
+silence about it would be the failure the reader exists to prevent.
+
+**The two mechanisms, which the player asked to differ:**
+
+- a **scalar** shows in the control's empty option — "Course default: off"
+  in place of "Player's choice" — with the control marked as taking rather
+  than stating it. Picking a value overrides for that level alone; picking
+  the empty option hands it back.
+- an **axis** cannot show in a dropdown, because it is a shape and not a
+  value. It shows **in the level's own timeline**, ghosted and locked, with
+  an *Override* button that takes a copy into the level. It has to be drawn
+  there: an inherited axis shapes the level's stages as surely as its own.
+
+One consequence worth knowing: while a level carries an inherited axis, a
+drag does not renumber stored positions — those belong to the course
+document, and renumbering half of a shared set would leave the two
+disagreeing about which boundaries coincide.
+
 ## Still open after the build
 
 - **Support presets.** Per-setting promotion deliberately shipped without a

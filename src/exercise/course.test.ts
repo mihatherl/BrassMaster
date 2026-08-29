@@ -320,6 +320,149 @@ describe('the trichotomy: pinned, progressing, or the player’s', () => {
   });
 });
 
+describe('course defaults, inherited by the levels', () => {
+  /** A course that says things once, and two levels that mostly do not. */
+  function inheriting(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      id: 'inherit-course',
+      name: 'Inheriting',
+      blurb: '',
+      schemaVersion: 1,
+      base: { kind: 'drills', drillId: 'major-scale', difficultyId: 'easy' },
+      metronomeEnabled: false,
+      rules: { minBars: 6 },
+      axes: [
+        {
+          axis: 'tempo',
+          divisions: [
+            { at: 0, value: 60 },
+            { at: 0.5, value: 72 },
+          ],
+        },
+      ],
+      levels: [
+        { id: 'one', name: 'One' },
+        { id: 'two', name: 'Two' },
+      ],
+      ...overrides,
+    };
+  }
+
+  it('gives every level the material, the pins, the rule and the axes', () => {
+    const course = read(inheriting());
+    for (const level of course.levels) {
+      expect(level.base.kind).toBe('drills');
+      expect(level.base.drillId).toBe('major-scale');
+      expect(level.metronomeEnabled).toBe(false);
+      expect(level.rules).toEqual({ minBars: 6 });
+      expect(level.segments.map((s) => s.values.tempo)).toEqual([60, 72]);
+    }
+  });
+
+  it('lets a level override a scalar, and only that level', () => {
+    const document = inheriting();
+    (document.levels as Record<string, unknown>[])[1].metronomeEnabled = true;
+    const course = read(document);
+    expect(course.levels[0].metronomeEnabled).toBe(false);
+    expect(course.levels[1].metronomeEnabled).toBe(true);
+  });
+
+  /*
+   * The trichotomy is per parameter, so a level that states one states it
+   * entirely: inheriting half of an axis while pinning the other half would
+   * be a fourth state nobody could read off the page.
+   */
+  it('lets a level’s scalar replace the course’s axis outright', () => {
+    const document = inheriting();
+    (document.levels as Record<string, unknown>[])[0].tempo = 88;
+    const course = read(document);
+    expect(course.levels[0].axes).toBeUndefined();
+    expect(course.levels[0].tempo).toBe(88);
+    expect(course.levels[0].segments).toHaveLength(1);
+    // The other level still walks the course's tempo.
+    expect(course.levels[1].segments.map((s) => s.values.tempo)).toEqual([60, 72]);
+  });
+
+  it('lets a level’s axis replace the course’s scalar outright', () => {
+    const document = inheriting({ tempo: 66, axes: undefined });
+    (document.levels as Record<string, unknown>[])[0].axes = [
+      {
+        axis: 'tempo',
+        divisions: [
+          { at: 0, value: 80 },
+          { at: 0.5, value: 90 },
+        ],
+      },
+    ];
+    const course = read(document);
+    expect(course.levels[0].tempo).toBeUndefined();
+    expect(course.levels[0].segments.map((s) => s.values.tempo)).toEqual([80, 90]);
+    expect(course.levels[1].tempo).toBe(66);
+  });
+
+  it('adds an inherited axis to the level’s own, sharing the timeline', () => {
+    const document = inheriting();
+    (document.levels as Record<string, unknown>[])[0].axes = [
+      {
+        axis: 'register',
+        divisions: [
+          { at: 0, value: 'middle' },
+          { at: 0.25, value: 'high' },
+        ],
+      },
+    ];
+    const course = read(document);
+    // Boundaries at 0, 0.25 (the level's) and 0.5 (the course's): three.
+    expect(course.levels[0].segments).toHaveLength(3);
+    expect(course.levels[0].segments.map((s) => s.values.register)).toEqual([
+      'middle',
+      'high',
+      'high',
+    ]);
+    expect(course.levels[0].segments.map((s) => s.values.tempo)).toEqual([60, 60, 72]);
+  });
+
+  it('passes a default over a level whose material cannot play it', () => {
+    // A range default is sight-reading's; the drills level simply does not
+    // take it, rather than the document being refused.
+    const document = inheriting({
+      base: { kind: 'drills', drillId: 'major-scale', difficultyId: 'easy' },
+      levels: [
+        { id: 'one', name: 'One' },
+        { id: 'two', name: 'Two', base: { kind: 'phrases' } },
+      ],
+    });
+    document.base = { ...(document.base as object), range: { low: 60, high: 72 } };
+    const course = read(document);
+    expect(course.levels[0].base.range).toBeUndefined();
+    expect(course.levels[1].base.range).toEqual({ low: 60, high: 72 });
+  });
+
+  it('refuses a default no level in the course can play', () => {
+    const document = inheriting();
+    document.base = { ...(document.base as object), range: { low: 60, high: 72 } };
+    expect(errorOf(document)).toBe(
+      'course "inherit-course" defaults range, which no level in it can play',
+    );
+  });
+
+  it('refuses a course that both pins a parameter and moves it', () => {
+    expect(errorOf(inheriting({ tempo: 66 }))).toContain(
+      'both sets tempo and moves it on an axis',
+    );
+  });
+
+  it('never inherits a level’s own identity, or rules keyed to its boundaries', () => {
+    const document = inheriting({
+      note: 'a course-level note',
+      segmentRules: [{ at: 0, minBars: 3 }],
+    });
+    const course = read(document);
+    expect(course.levels[0].note).toBeUndefined();
+    expect(course.levels[0].segmentRules).toBeUndefined();
+  });
+});
+
 describe('the refuse-by-name matrix', () => {
   /** One well-formed division per axis, to make each axis readable at all. */
   const GOOD_DIVISION: Record<AxisId, unknown> = {

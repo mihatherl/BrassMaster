@@ -709,6 +709,120 @@ function axisFromLegacyBand(band: Record<string, unknown>): Axis | null {
   return { axis: 'tempo', divisions };
 }
 
+/* ------------------------------------------------------------------ */
+/* Course defaults — said once, for every level that does not say it    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Parameters a course may default that are not axis-capable: the material
+ * itself, its difficulty and its drill. A level that omits them takes the
+ * course's, which is what stops a twelve-level scales course repeating
+ * "drills / major scale / easy" twelve times.
+ */
+const PLAIN_DEFAULTS = ['kind', 'difficultyId', 'drillId'] as const;
+
+/** Whether a scope states a parameter at all — as a scalar or as an axis. */
+function states(
+  scope: { fields: Record<string, unknown>; base: Record<string, unknown>; axes: unknown[] },
+  axisId: AxisId,
+): boolean {
+  const spec = AXES[axisId];
+  const scalar = spec.home === 'base' ? scope.base[spec.field] : scope.fields[spec.field];
+  if (scalar !== undefined) return true;
+  return scope.axes.some(
+    (axis) =>
+      typeof axis === 'object' &&
+      axis !== null &&
+      (axis as Record<string, unknown>).axis === axisId,
+  );
+}
+
+/**
+ * A level with the course's defaults filled in — the whole of inheritance,
+ * done here on the plain document so that **nothing downstream knows about
+ * it**. `readCourse` hands out levels that already say everything they
+ * play; `runFor`, the segments, the stepping and the gate are untouched.
+ *
+ * The rule is one line: **a level that states a parameter states it
+ * entirely.** A scalar at the level overrides an axis at the course and
+ * the other way about, because the trichotomy is per parameter and a
+ * parameter is pinned, progressing, or the player's — inheriting half of
+ * one would be a fourth state nobody could read off the page.
+ *
+ * Two things deliberately do not inherit: a level's `name` and `note`,
+ * which are what a level *is*, and its `segmentRules`, which are keyed to
+ * boundaries that only exist once a level's own axes are in. The default
+ * progression rule (`rules`) does inherit, and is the useful half anyway.
+ *
+ * Exported because the editor shows what a level inherits and offers to
+ * override it — and two implementations of this would eventually disagree
+ * about what the player is actually playing.
+ */
+export function resolveLevelDocument(
+  doc: Record<string, unknown>,
+  rawLevel: Record<string, unknown>,
+): Record<string, unknown> {
+  const courseBase = (doc.base ?? {}) as Record<string, unknown>;
+  const levelBase = (rawLevel.base ?? {}) as Record<string, unknown>;
+  const courseAxes = Array.isArray(doc.axes) ? (doc.axes as unknown[]) : [];
+  const levelAxes = Array.isArray(rawLevel.axes) ? (rawLevel.axes as unknown[]) : [];
+  // The old course-wide `pinned` is a pair of scalar defaults wearing an
+  // older name, so it joins the course's own fields rather than a branch.
+  const courseFields: Record<string, unknown> = { ...legacyPinned(doc.pinned), ...doc };
+  const course = { fields: courseFields, base: courseBase, axes: courseAxes };
+  // A level's own legacy `pinned` is a statement too, or a course default
+  // would out-rank the very thing it was written to be overridden by.
+  const level = {
+    fields: { ...legacyPinned(rawLevel.pinned), ...rawLevel } as Record<string, unknown>,
+    base: levelBase,
+    axes: levelAxes,
+  };
+
+  const kind = (levelBase.kind ?? courseBase.kind) as LevelKind | undefined;
+  /** A default only reaches levels whose material can play it. */
+  const playable = (axisId: AxisId) =>
+    kind !== undefined && AXIS_MATERIALS[axisId].includes(kind);
+
+  const base: Record<string, unknown> = { ...levelBase };
+  const fields: Record<string, unknown> = { ...rawLevel };
+  const axes: unknown[] = [...levelAxes];
+
+  for (const key of PLAIN_DEFAULTS) {
+    if (base[key] === undefined && courseBase[key] !== undefined) base[key] = courseBase[key];
+  }
+
+  for (const axisId of AXIS_IDS) {
+    if (states(level, axisId) || !states(course, axisId) || !playable(axisId)) continue;
+    const spec = AXES[axisId];
+    const scalar =
+      spec.home === 'base' ? courseBase[spec.field] : courseFields[spec.field];
+    if (scalar !== undefined) {
+      if (spec.home === 'base') base[spec.field] = scalar;
+      else fields[spec.field] = scalar;
+      continue;
+    }
+    const inherited = courseAxes.find(
+      (axis) =>
+        typeof axis === 'object' &&
+        axis !== null &&
+        (axis as Record<string, unknown>).axis === axisId,
+    );
+    if (inherited) axes.push(inherited);
+  }
+
+  if (fields.rules === undefined && doc.rules !== undefined) fields.rules = doc.rules;
+  if (fields.endless === undefined && doc.endless !== undefined) fields.endless = doc.endless;
+  // Never inherited: a level's own identity, and rules keyed to boundaries
+  // that only exist once this level's axes are counted in.
+  delete (fields as { segmentRules?: unknown }).segmentRules;
+  return {
+    ...fields,
+    ...(rawLevel.segmentRules !== undefined ? { segmentRules: rawLevel.segmentRules } : {}),
+    base,
+    ...(axes.length ? { axes } : {}),
+  };
+}
+
 /**
  * A course from a plain document, or a sentence saying why not.
  *
@@ -730,16 +844,51 @@ export function readCourse(raw: unknown): Course | { error: string } {
   }
 
   // Old course-level defaults, read forward into each level that lacks its
-  // own. The course keeps only `mastery`; one resolution path per rule.
+  // own — the same road every default now travels.
   const coursePinned = legacyPinned(doc.pinned);
   const courseLegacyRule = ruleFromLegacyAdvance(doc.advance);
+
+  /*
+   * The course's own defaults answer to the trichotomy as a level does: a
+   * parameter is pinned, progressing, or left to whoever is below. Both at
+   * once here would be resolved silently in the levels, which is the one
+   * thing this reader exists not to do.
+   */
+  const courseBase = (doc.base ?? {}) as Record<string, unknown>;
+  const courseAxes = Array.isArray(doc.axes) ? (doc.axes as unknown[]) : [];
+  const courseScope: { fields: Record<string, unknown>; base: Record<string, unknown>; axes: unknown[] } =
+    { fields: { ...coursePinned, ...doc }, base: courseBase, axes: courseAxes };
+  for (const axisId of AXIS_IDS) {
+    const spec = AXES[axisId];
+    const scalar =
+      spec.home === 'base' ? courseBase[spec.field] : courseScope.fields[spec.field];
+    const axis = courseAxes.some(
+      (entry) =>
+        typeof entry === 'object' &&
+        entry !== null &&
+        (entry as Record<string, unknown>).axis === axisId,
+    );
+    if (scalar !== undefined && axis) {
+      return {
+        error: `course "${id}" both sets ${axisId} and moves it on an axis — a parameter is pinned or progresses, not both`,
+      };
+    }
+  }
+
+  /** The materials the levels turn out to be, for the check after them. */
+  const kinds = new Set<LevelKind>();
 
   const read: CourseLevel[] = [];
   const seen = new Set<string>();
   for (const [index, entry] of levels.entries()) {
     const where = `course "${id}" level ${index + 1}`;
     if (typeof entry !== 'object' || entry === null) return { error: `${where} is not a level` };
-    const level = entry as Record<string, unknown>;
+    /*
+     * The course's defaults are filled in HERE, on the plain document, so
+     * everything below — and everything downstream of this reader — sees a
+     * level that says the whole of what it plays.
+     */
+    const level = resolveLevelDocument(doc, entry as Record<string, unknown>);
     if (typeof level.id !== 'string' || !level.id) return { error: `${where} has no id` };
     if (seen.has(level.id)) return { error: `${where} repeats the id "${level.id}"` };
     seen.add(level.id);
@@ -751,6 +900,7 @@ export function readCourse(raw: unknown): Course | { error: string } {
     if (!KINDS.includes(kind)) {
       return { error: `${where} asks for unknown material "${String(base.kind)}"` };
     }
+    kinds.add(kind);
     if (NEEDS_DIFFICULTY[kind]) {
       if (typeof base.difficultyId !== 'string' || !DIFFICULTY_IDS.has(base.difficultyId)) {
         return { error: `${where} names a difficulty the generator does not know` };
@@ -978,6 +1128,19 @@ export function readCourse(raw: unknown): Course | { error: string } {
       ...(level.endless === true ? { endless: true } : {}),
       segments,
     });
+  }
+
+  /*
+   * A default every level happens to override is fine — that is what a
+   * default is for. A default no level's material *could* play is a
+   * mistake, and silence about it is the failure this reader exists to
+   * prevent.
+   */
+  for (const axisId of AXIS_IDS) {
+    if (!states(courseScope, axisId)) continue;
+    if (![...kinds].some((kind) => AXIS_MATERIALS[axisId].includes(kind))) {
+      return { error: `course "${id}" defaults ${axisId}, which no level in it can play` };
+    }
   }
 
   return {

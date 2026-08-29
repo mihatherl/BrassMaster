@@ -133,10 +133,24 @@ const REACHES: ReadonlyArray<{ semitones: number; name: string }> = [
 ];
 
 interface TimelineProps {
-  kind: LevelKind;
+  /** The material, or `any` at the course, whose levels may differ. */
+  kind: LevelKind | 'any';
   /** The raw level fragment; the page's reader judges it, this edits it. */
   level: Record<string, unknown>;
   onPatch: (changes: Record<string, unknown>) => void;
+  /**
+   * Axes this scope is taking from the course. They are drawn — they shape
+   * this level's stages as surely as its own do — but ghosted and locked,
+   * because they belong to the course document. `onAdopt` takes a copy into
+   * this level, which is how an author overrides a shape rather than a
+   * value: a dropdown cannot show a progression, so the timeline shows it.
+   */
+  inherited?: readonly AxisId[];
+  onAdopt?: (axisId: AxisId) => void;
+  /** False at the course, whose per-stage rules do not inherit. */
+  showSegmentRules?: boolean;
+  /** True where the level default rule shown is the course's. */
+  ruleFromCourse?: boolean;
 }
 
 /** The axes as loosely as the document may hold them; garbage is the verdict line's job. */
@@ -253,7 +267,16 @@ function middleOctave(compass: readonly [number, number]): { low: number; high: 
   return { low: Math.max(compass[0], centre - 6), high: Math.min(compass[1], centre + 6) };
 }
 
-export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement {
+export function Timeline({
+  kind,
+  level,
+  onPatch,
+  inherited = [],
+  onAdopt,
+  showSegmentRules = true,
+  ruleFromCourse = false,
+}: TimelineProps): ReactElement {
+  const isInherited = (axisId: AxisId) => inherited.includes(axisId);
   const axes = rawAxesOf(level);
   const fragment: TimelineFragment = { axes, segmentRules: rawRulesOf(level) };
   const levelRule = levelRuleOf(level);
@@ -294,11 +317,12 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
    */
   const [calloutRoom, setCalloutRoom] = useState(0);
 
-  const apply = (next: TimelineFragment) =>
-    onPatch({
-      axes: next.axes.length ? next.axes : undefined,
-      segmentRules: next.segmentRules,
-    });
+  const apply = (next: TimelineFragment) => {
+    // An inherited axis is drawn here but owned by the course: it never
+    // travels back into this level's own document on an edit.
+    const own = next.axes.filter((axis) => !isInherited(axis.axis));
+    onPatch({ axes: own.length ? own : undefined, segmentRules: next.segmentRules });
+  };
 
   const promote = (axisId: AxisId) => {
     /*
@@ -319,7 +343,8 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
 
   const offered = (Object.keys(AXIS_MATERIALS) as AxisId[]).filter(
     (axisId) =>
-      AXIS_MATERIALS[axisId].includes(kind) && !axes.some((axis) => axis.axis === axisId),
+      (kind === 'any' || AXIS_MATERIALS[axisId].includes(kind)) &&
+      !axes.some((axis) => axis.axis === axisId),
   );
 
   /*
@@ -344,7 +369,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
    * the author lets go of is exactly what they were looking at.
    */
   const shownFragment = drag
-    ? applyBarDrag(fragment, layout, drag.axisId, drag.index, drag)
+    ? applyBarDrag(fragment, layout, drag.axisId, drag.index, drag, inherited.length === 0)
     : fragment;
   const shown = drag ? layoutOf(shownFragment, levelRule, header) : layout;
   const shownAxes = drag ? rawAxesOf({ ...level, axes: shownFragment.axes }) : axes;
@@ -401,15 +426,29 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                   1, stacking the bars under the panels. Explicit items may
                   overlap, which is the whole point of an overlay. */}
               <div className="tl-axis__panel" style={{ gridRow: axisRow + 2 }}>
-                <button
-                  type="button"
-                  title="Remove this axis"
-                  onClick={() => apply(removeAxis(fragment, axis.axis))}
-                >
-                  ×
-                </button>
+                {!isInherited(axis.axis) && (
+                  <button
+                    type="button"
+                    title="Remove this axis"
+                    onClick={() => apply(removeAxis(fragment, axis.axis))}
+                  >
+                    ×
+                  </button>
+                )}
                 <strong className="tl-axis__name">{AXIS_LABELS[axis.axis]}</strong>
-                {NUMERIC.includes(axis.axis) && (
+                {isInherited(axis.axis) && (
+                  <>
+                    <span className="muted">from the course</span>
+                    <button
+                      type="button"
+                      title="Take a copy into this level, to change it here"
+                      onClick={() => onAdopt?.(axis.axis)}
+                    >
+                      Override
+                    </button>
+                  </>
+                )}
+                {NUMERIC.includes(axis.axis) && !isInherited(axis.axis) && (
                   <NumericGenerator
                     axis={axis}
                     onGenerate={(divisions) =>
@@ -423,7 +462,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                     }
                   />
                 )}
-                {axis.axis === 'range' && (
+                {axis.axis === 'range' && !isInherited(axis.axis) && (
                   <RangeGenerator
                     fifths={previewFifths}
                     compass={compass}
@@ -456,7 +495,9 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                   const end = nextDivision ? xOfAt(shown, nextDivision.at) : 1;
                   return (
                     <div
-                      className={`tl-span ${index === 0 ? 'is-first' : ''}`}
+                      className={`tl-span ${index === 0 ? 'is-first' : ''} ${
+                        isInherited(axis.axis) ? 'is-ghost' : ''
+                      }`}
                       key={index}
                       style={{
                         left: `${start * 100}%`,
@@ -464,7 +505,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                         ...stageTint(index),
                       }}
                     >
-                      {index > 0 && (
+                      {index > 0 && !isInherited(axis.axis) && (
                         <DragHandle
                           onDrag={(fraction) => {
                             const drop = resolveBarDrag(
@@ -478,14 +519,26 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                           }}
                           onCommit={() => {
                             if (drag) {
-                              apply(applyBarDrag(fragment, layout, drag.axisId, drag.index, drag));
+                              apply(
+                                applyBarDrag(
+                                  fragment,
+                                  layout,
+                                  drag.axisId,
+                                  drag.index,
+                                  drag,
+                                  inherited.length === 0,
+                                ),
+                              );
                             }
                             setDrag(null);
                           }}
                           onCancel={() => setDrag(null)}
                         />
                       )}
-                      <div className="tl-span__body">
+                      <fieldset
+                        className="tl-span__body"
+                        disabled={isInherited(axis.axis)}
+                      >
                         <DivisionValue
                           axisId={axis.axis}
                           value={division.value}
@@ -496,7 +549,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                           clef={previewClef}
                           fifths={previewFifths}
                         />
-                        {index > 0 && (
+                        {index > 0 && !isInherited(axis.axis) && (
                           <button
                             type="button"
                             className="tl-span__delete"
@@ -506,10 +559,11 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                             ×
                           </button>
                         )}
-                      </div>
+                      </fieldset>
                     </div>
                   );
                 })}
+                {!isInherited(axis.axis) && (
                 <button
                   type="button"
                   className="tl-axis__add"
@@ -530,14 +584,18 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                 >
                   +
                 </button>
+                )}
               </div>
             </Fragment>
           ))}
 
+          {showSegmentRules && (
           <div className="tl-rules__label" style={{ gridRow: shownAxes.length + 2 }}>
             Progression rules
             <span className="muted">per segment</span>
           </div>
+          )}
+          {showSegmentRules && (
           <div className="tl-rules__row" style={{ gridRow: shownAxes.length + 2 }}>
             {/*
              * Chips, not a cramped form: each segment shows its whole story
@@ -591,6 +649,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
               </div>
             ))}
           </div>
+          )}
 
           {/*
            * The common timeline, made visible: a faint line through every
@@ -638,7 +697,10 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
       </p>
 
       <div className="tl-rules__default">
-        <span>Progression rules — level default:</span>
+        <span>
+          Progression rules — {showSegmentRules ? 'level' : 'course'} default:
+          {ruleFromCourse && <span className="muted"> (from the course)</span>}
+        </span>
         <label>
           after
           <input

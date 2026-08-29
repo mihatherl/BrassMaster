@@ -11,6 +11,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Timeline } from './timeline/Timeline';
+import { Prescription } from './Prescription';
 import { documentOf } from './document';
 import { readCourse, type Course } from '../exercise/course';
 
@@ -236,5 +237,80 @@ describe('modernising an old document', () => {
     const reread = readCourse(modern);
     expect('error' in reread).toBe(false);
     expect((reread as Course).levels[0].segments.map((s) => s.values.tempo)).toEqual([60, 66, 72]);
+  });
+});
+
+/*
+ * Course defaults (2026-08-29): the course says a thing once and every
+ * level that does not say it plays it. Two mechanisms, because a scalar
+ * and an axis are different kinds of thing — a dropdown can name a value
+ * but not a shape.
+ */
+describe('inheriting from the course', () => {
+  it('names the course’s answer in a scalar’s empty option', () => {
+    render(
+      <Prescription
+        scope="level"
+        record={{ base: {} }}
+        inherited={{ base: { kind: 'drills' }, fields: { metronomeEnabled: false } }}
+        onTimeline={new Set()}
+        onPatch={vi.fn()}
+        onPatchBase={vi.fn()}
+      />,
+    );
+    const metronome = screen.getByLabelText(/Metronome/) as HTMLSelectElement;
+    expect(metronome.value).toBe('');
+    expect(metronome.options[0].text).toBe('Course default: off');
+    // And the control is marked as taking it rather than stating it.
+    expect(metronome.closest('label')!.className).toContain('is-inherited');
+  });
+
+  it('says which parameters the course moves on its own timeline', () => {
+    render(
+      <Prescription
+        scope="level"
+        record={{ base: {} }}
+        inherited={{ base: { kind: 'drills' }, fields: {} }}
+        onTimeline={new Set(['tempo'])}
+        fromCourse={new Set(['tempo'])}
+        onPatch={vi.fn()}
+        onPatchBase={vi.fn()}
+      />,
+    );
+    const tempo = screen.getByLabelText(/Tempo/) as HTMLInputElement;
+    expect(tempo.disabled).toBe(true);
+    expect(tempo.placeholder).toBe('On the course’s timeline');
+  });
+
+  it('draws an inherited axis ghosted, and takes a copy on request', () => {
+    const onAdopt = vi.fn();
+    const onPatch = vi.fn();
+    render(
+      <Timeline
+        kind="phrases"
+        level={LEVEL}
+        inherited={['tempo']}
+        onAdopt={onAdopt}
+        onPatch={onPatch}
+      />,
+    );
+    const tempoRow = document.querySelectorAll('.tl-axis__bar')[0];
+    // Drawn — it shapes this level's stages — but not this level's to edit.
+    expect(tempoRow.querySelectorAll('.tl-span.is-ghost')).toHaveLength(2);
+    expect(tempoRow.querySelectorAll('.tl-handle')).toHaveLength(0);
+    expect((tempoRow.querySelector('.tl-span__body') as HTMLFieldSetElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /override/i }));
+    expect(onAdopt).toHaveBeenCalledWith('tempo');
+  });
+
+  it('never writes an inherited axis back into the level', () => {
+    const onPatch = vi.fn();
+    render(<Timeline kind="phrases" level={LEVEL} inherited={['tempo']} onPatch={onPatch} />);
+    // Edit something on the level's OWN axis; the course's must not follow.
+    const own = [...document.querySelectorAll('.tl-axis__bar')][1];
+    fireEvent.change(own.querySelector('select.tl-value')!, { target: { value: 'paged' } });
+    const patched = onPatch.mock.calls[0][0].axes as { axis: string }[];
+    expect(patched.map((a) => a.axis)).toEqual(['readingMode']);
   });
 });

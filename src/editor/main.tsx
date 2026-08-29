@@ -33,14 +33,12 @@ import {
   readCourse,
   courseLength,
   stepsInLevel,
-  LENGTH_UNIT_FOR,
+  resolveLevelDocument,
+  type AxisId,
   type Course,
   type LevelKind,
 } from '../exercise/course';
-import { DIFFICULTIES } from '../exercise/difficulty';
-import { DRILLS } from '../exercise/generate';
-import { MAJOR_KEYS } from '../domain/keys';
-import { OFFERED_METRES } from '../domain/metre';
+import { Prescription } from './Prescription';
 import { Timeline } from './timeline/Timeline';
 import { numericDivisions } from './timeline/generators';
 import { documentOf } from './document';
@@ -66,9 +64,6 @@ function freshLevel(n: number): Record<string, unknown> {
   };
 }
 
-/** Which unit each material measures its length in — the reader's own table. */
-const LENGTH_UNIT = LENGTH_UNIT_FOR;
-
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'level';
 }
@@ -76,6 +71,7 @@ function slug(text: string): string {
 export function App() {
   const [doc, setDoc] = useState<Doc>(FRESH);
   const [fileName, setFileName] = useState('my-course.json');
+  const [defaultsOpen, setDefaultsOpen] = useState(false);
 
   // The whole point of the page: the reader's verdict, live.
   const verdict = useMemo(() => readCourse(doc), [doc]);
@@ -91,6 +87,14 @@ export function App() {
     const current = (doc.levels[index][field] ?? {}) as Record<string, unknown>;
     patchLevel(index, { [field]: { ...current, ...changes } });
   };
+
+  /** What the course itself states, for locking its own controls. */
+  const courseKind = ((doc.base ?? {}) as Record<string, unknown>).kind as
+    | LevelKind
+    | undefined;
+  const courseAxisIds = new Set(
+    (Array.isArray(doc.axes) ? (doc.axes as { axis?: unknown }[]) : []).map((a) => String(a?.axis)),
+  );
 
   const moveLevel = (index: number, by: number) => {
     const levels = doc.levels.slice();
@@ -180,20 +184,67 @@ export function App() {
         <span className="muted">id: {String(doc.id ?? '')}</span>
       </section>
 
+      {/*
+       * What the course says once, for every level that does not say it.
+       * The same controls a level has, because it is the same vocabulary —
+       * and the same timeline, because a course may hand its levels a whole
+       * progression, not only a value. Per-stage rules are deliberately
+       * absent: they are keyed to boundaries that only exist once a level's
+       * own axes are counted in, so they belong to the level.
+       */}
+      <details className="meta defaults" open={defaultsOpen}>
+        <summary onClick={(e) => { e.preventDefault(); setDefaultsOpen(!defaultsOpen); }}>
+          <strong>Course defaults</strong>
+          <span className="muted"> — every level takes these unless it says otherwise</span>
+        </summary>
+        <Prescription
+          scope="course"
+          record={doc}
+          onTimeline={courseAxisIds}
+          onPatch={(changes) => patch(changes)}
+          onPatchBase={(changes) =>
+            patch({ base: { ...((doc.base ?? {}) as Record<string, unknown>), ...changes } })
+          }
+        />
+        <Timeline
+          kind={(courseKind ?? 'any') as LevelKind | 'any'}
+          level={doc}
+          showSegmentRules={false}
+          onPatch={(changes) => patch(changes)}
+        />
+      </details>
+
       {doc.levels.map((level, index) => {
-        const base = (level.base ?? {}) as Record<string, unknown>;
-        const kind = (typeof base.kind === 'string' ? base.kind : 'drills') as LevelKind;
+        const resolvedForKind = resolveLevelDocument(doc, level);
+        const kind = (((resolvedForKind.base as Record<string, unknown>).kind as string) ??
+          'drills') as LevelKind;
         const read = course?.levels.find((l) => l.id === level.id);
         const readTempos = read?.segments
           .map((segment) => segment.values.tempo)
           .filter((tempo): tempo is number => tempo !== undefined);
-        /* Which parameters this level moves on the timeline: their header
-           controls lock, because the trichotomy says never both. */
-        const axisIds = new Set(
+        /*
+         * What this level would take from the course — by the reader's own
+         * resolution, so the page can never disagree with what plays.
+         */
+        const resolved = resolvedForKind;
+        const inheritedBase = { ...(resolved.base as Record<string, unknown>) };
+        const inheritedFields = { ...resolved } as Record<string, unknown>;
+        const resolvedAxes = (Array.isArray(resolved.axes) ? resolved.axes : []) as {
+          axis: AxisId;
+        }[];
+        const ownAxisIds = new Set(
           (Array.isArray(level.axes) ? (level.axes as { axis?: unknown }[]) : []).map((a) =>
             String(a?.axis),
           ),
         );
+        const inheritedAxisIds = new Set(
+          resolvedAxes.map((a) => a.axis).filter((id) => !ownAxisIds.has(id)),
+        );
+        /* Which parameters this level moves on the timeline, its own or the
+           course's: their header controls lock, because the trichotomy says
+           never both. */
+        const axisIds = new Set([...ownAxisIds, ...inheritedAxisIds]);
+        const onTimeline = axisIds;
         return (
           <section className="level" key={index}>
             <header>
@@ -244,265 +295,31 @@ export function App() {
               />
             </label>
 
-            <div className="row">
-              <label>
-                Material
-                <select
-                  value={String(base.kind ?? 'drills')}
-                  onChange={(e) => patchIn(index, 'base', { kind: e.target.value })}
-                >
-                  <option value="drills">Drills</option>
-                  <option value="phrases">Sight-reading</option>
-                  <option value="themes">Themes</option>
-                </select>
-              </label>
-              {base.kind === 'drills' && (
-                <label>
-                  Drill
-                  <select
-                    value={String(base.drillId ?? 'major-scale')}
-                    onChange={(e) => patchIn(index, 'base', { drillId: e.target.value })}
-                  >
-                    {DRILLS.map((drill) => (
-                      <option key={drill.id} value={drill.id}>
-                        {drill.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <label>
-                Difficulty
-                <select
-                  value={String(base.difficultyId ?? 'easy')}
-                  onChange={(e) => patchIn(index, 'base', { difficultyId: e.target.value })}
-                >
-                  {DIFFICULTIES.map((difficulty) => (
-                    <option key={difficulty.id} value={difficulty.id}>
-                      {difficulty.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Key
-                <select
-                  value={base.fifths === undefined ? '' : String(base.fifths)}
-                  disabled={axisIds.has('fifths')}
-                  onChange={(e) =>
-                    patchIn(index, 'base', {
-                      fifths: e.target.value === '' ? undefined : Number(e.target.value),
-                    })
-                  }
-                >
-                  {/*
-                    Says what happens, not what it is not. "Player's own" was
-                    accurate and useless: it named a key the author could not
-                    predict and — until the gate gained a key control on
-                    2026-08-29 — the player could not reach either. Now the
-                    label can promise something, so it does.
-                  */}
-                  <option value="">
-                    {axisIds.has('fifths') ? 'On the timeline' : 'Player chooses, at the gate'}
-                  </option>
-                  {MAJOR_KEYS.map((key) => (
-                    <option key={key.fifths} value={key.fifths}>
-                      {key.name} major
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Register
-                <select
-                  value={String(base.register ?? '')}
-                  onChange={(e) =>
-                    patchIn(index, 'base', {
-                      register: e.target.value === '' ? undefined : e.target.value,
-                    })
-                  }
-                >
-                  <option value="">Middle</option>
-                  <option value="low">Low</option>
-                  <option value="high">High</option>
-                </select>
-              </label>
-              {/*
-               * How long a run is, in the unit this material measures itself
-               * in — so the field is named for the material rather than
-               * asking the author to remember which "length" means what. The
-               * reader refuses the other two units by name, so the label and
-               * the schema cannot disagree.
-               *
-               * Blank means the material's own default, which is what every
-               * level got before 2026-08-29 whether its author wanted it or
-               * not: four cycles for a scale, eight for an arpeggio, sixteen
-               * bars for sight-reading.
-               */}
-              <label>
-                {base.kind === 'phrases' ? 'Bars' : base.kind === 'themes' ? 'Tunes' : 'Cycles'}
-                <input
-                  type="number"
-                  min={1}
-                  step={1}
-                  placeholder={axisIds.has(LENGTH_UNIT[kind]) ? 'on the timeline' : 'default'}
-                  disabled={axisIds.has(LENGTH_UNIT[kind])}
-                  value={String(base[LENGTH_UNIT[kind]] ?? '')}
-                  onChange={(e) => {
-                    const unit = LENGTH_UNIT[kind];
-                    const value = e.target.value === '' ? undefined : Number(e.target.value);
-                    /* The other two units are cleared, not left lying: a level
-                       switched from drills to sight-reading would otherwise
-                       carry a `cycles` the reader now refuses by name. */
-                    patchIn(index, 'base', {
-                      bars: undefined,
-                      cycles: undefined,
-                      themeCount: undefined,
-                      [unit]: value,
-                    });
-                  }}
-                />
-              </label>
-              {kind === 'drills' && (
-                <label>
-                  Reach
-                  <select
-                    value={String(base.spanSemitones ?? '')}
-                    disabled={axisIds.has('span')}
-                    onChange={(e) =>
-                      patchIn(index, 'base', {
-                        spanSemitones:
-                          e.target.value === '' ? undefined : Number(e.target.value),
-                      })
-                    }
-                  >
-                    <option value="">
-                      {axisIds.has('span') ? 'On the timeline' : 'Difficulty’s own'}
-                    </option>
-                    <option value="7">A fifth</option>
-                    <option value="12">One octave</option>
-                    <option value="19">An octave and a fifth</option>
-                    <option value="24">Two octaves</option>
-                  </select>
-                </label>
-              )}
-              {kind !== 'drills' && (
-                <label>
-                  Metre
-                  <select
-                    value={Array.isArray(base.metre) ? base.metre.join('/') : ''}
-                    disabled={axisIds.has('metre')}
-                    onChange={(e) =>
-                      patchIn(index, 'base', {
-                        metre:
-                          e.target.value === ''
-                            ? undefined
-                            : e.target.value.split('/').map(Number),
-                      })
-                    }
-                  >
-                    <option value="">
-                      {axisIds.has('metre') ? 'On the timeline' : 'Player’s choice'}
-                    </option>
-                    {OFFERED_METRES.map(([n, d]) => (
-                      <option key={`${n}/${d}`} value={`${n}/${d}`}>
-                        {n}/{d}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-
-            <div className="row">
-              {/*
-               * Whether the music carries on past that length, offering
-               * "Continue" instead of ending the run. Off unless asked for:
-               * the horizon is free play's feature, where the player decides
-               * when to stop, and inside a course it took the length of the
-               * run back from the author — and quietly changed how much
-               * evidence the advance rule saw. Ruled 2026-08-29.
-               */}
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={level.endless === true}
-                  onChange={(e) => patchLevel(index, { endless: e.target.checked || undefined })}
-                />
-                Keep playing past the end (offer “Continue”)
-              </label>
-            </div>
-
-            {/*
-             * The trichotomy's header half (2026-08-29): each of these pins a
-             * value for the whole level, shown locked at the gate. The same
-             * parameter moved on the timeline below locks the control here —
-             * a parameter is pinned or progresses, never both, and choosing
-             * it in the add-axis picker unpins it in the same gesture.
-             */}
-            <div className="row">
-              <label>
-                Tempo (bpm)
-                <input
-                  type="number"
-                  min={1}
-                  placeholder={axisIds.has('tempo') ? 'on the timeline' : 'player’s dial'}
-                  disabled={axisIds.has('tempo') || typeof level.tempo === 'object'}
-                  value={typeof level.tempo === 'number' ? String(level.tempo) : ''}
-                  onChange={(e) =>
-                    patchLevel(index, {
-                      tempo: e.target.value === '' ? undefined : Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              {(
-                [
-                  ['metronomeEnabled', 'Metronome', ['on', 'off']],
-                  ['conductorEnabled', 'Conductor', ['on', 'off']],
-                  ['fingerings', 'Fingerings', ['always', 'trouble', 'never']],
-                  ['playbackMode', 'Sound', ['reference', 'off']],
-                  ['readingMode', 'Reading', ['scrolling', 'paged']],
-                ] as const
-              ).map(([field, label, choices]) => {
-                const onOff = field === 'metronomeEnabled' || field === 'conductorEnabled';
-                const current = level[field];
-                const shown =
-                  current === undefined ? '' : onOff ? (current ? 'on' : 'off') : String(current);
-                return (
-                  <label key={field}>
-                    {label}
-                    <select
-                      value={shown}
-                      disabled={axisIds.has(field)}
-                      onChange={(e) =>
-                        patchLevel(index, {
-                          [field]:
-                            e.target.value === ''
-                              ? undefined
-                              : onOff
-                                ? e.target.value === 'on'
-                                : e.target.value,
-                        })
-                      }
-                    >
-                      <option value="">
-                        {axisIds.has(field) ? 'On the timeline' : 'Player’s choice'}
-                      </option>
-                      {choices.map((choice) => (
-                        <option key={choice} value={choice}>
-                          {choice}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                );
-              })}
-            </div>
+            <Prescription
+              scope="level"
+              record={level}
+              inherited={{ base: inheritedBase, fields: inheritedFields }}
+              onTimeline={onTimeline}
+              fromCourse={inheritedAxisIds}
+              onPatch={(changes) => patchLevel(index, changes)}
+              onPatchBase={(changes) => patchIn(index, 'base', changes)}
+            />
 
             <Timeline
               kind={kind}
-              level={level}
+              /* The RESOLVED level: an inherited axis shapes this level's
+                 stages as surely as its own, so the graph must draw it. */
+              level={resolved}
+              inherited={[...inheritedAxisIds] as AxisId[]}
+              ruleFromCourse={level.rules === undefined && doc.rules !== undefined}
+              onAdopt={(axisId) =>
+                patchLevel(index, {
+                  axes: [
+                    ...((level.axes as unknown[]) ?? []),
+                    (resolvedAxes.find((a) => a.axis === axisId) as unknown),
+                  ],
+                })
+              }
               onPatch={(changes) => patchLevel(index, changes)}
             />
           </section>
