@@ -82,6 +82,42 @@ describe('the timeline', () => {
     });
   });
 
+  /*
+   * The clipped callout, 2026-08-29: `.tl__scroll` carries `overflow-x:
+   * auto` for sideways scrolling, and CSS forces the other axis to `auto`
+   * with it — so the scroller clips vertically no matter what, and a
+   * callout opening upward lost its head. It opens downward now, into room
+   * the scroller reserves while it is up. The room is MEASURED from the
+   * callout (the first fix guessed 13.5rem and was a pixel short of the
+   * plainest variant, half the tallest), so this guards the wiring rather
+   * than a figure: no reported room, no reserved space, clipped again.
+   */
+  it('reserves measured room for an open callout, and gives it back on close', () => {
+    render(<Timeline kind="phrases" level={LEVEL} onPatch={vi.fn()} />);
+    const scroller = document.querySelector('.tl__scroll') as HTMLElement;
+    expect(scroller.style.paddingBottom).toBe('');
+
+    fireEvent.click(document.querySelector('.tl-chip')!);
+    expect(scroller.className).toContain('has-callout');
+    // A number, from the callout's own measurement — not an assumed constant.
+    expect(scroller.style.paddingBottom).toMatch(/^\d+px$/);
+    // Downward, which is the whole fix: the callout follows its chip in the
+    // DOM rather than hanging above it through the ruler.
+    const callout = screen.getByRole('dialog', { name: /segment rule/i });
+    expect(callout.previousElementSibling?.className).toContain('tl-chip');
+
+    fireEvent.click(callout.querySelector('button[title="Close"]')!);
+    expect(scroller.style.paddingBottom).toBe('');
+    expect(scroller.className).not.toContain('has-callout');
+  });
+
+  it('anchors a late segment’s callout to the right, so it stays on the page', () => {
+    render(<Timeline kind="phrases" level={LEVEL} onPatch={vi.fn()} />);
+    const chips = document.querySelectorAll('.tl-chip');
+    fireEvent.click(chips[chips.length - 1]);
+    expect(screen.getByRole('dialog', { name: /segment rule/i }).className).toContain('is-right');
+  });
+
   it('offers only the axes the material can play, and not those already drawn', () => {
     render(<Timeline kind="phrases" level={LEVEL} onPatch={vi.fn()} />);
     const picker = screen.getByLabelText(/add an axis/i) as HTMLSelectElement;

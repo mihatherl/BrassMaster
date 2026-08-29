@@ -616,8 +616,14 @@ style.textContent = `
   .tl-chip { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid #8886; border-radius: 999px; padding: 0.2rem 0.6rem; font-size: 0.75rem; background: #8881; cursor: pointer; }
   .tl-chip.is-default { opacity: 0.65; }
   .tl-chip.is-authored { border-color: #b8a; background: #b8a2; font-weight: 600; }
-  .tl-callout { position: absolute; bottom: calc(100% + 0.6rem); left: 0; z-index: 5; min-width: 18rem; background: #faf7f1; border: 1px solid #b8a; border-radius: 8px; padding: 0.6rem 0.8rem; box-shadow: 0 4px 16px #0003; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; }
-  .tl-callout::after { content: ''; position: absolute; top: 100%; left: 1.2rem; border: 0.5rem solid transparent; border-top-color: #b8a; }
+  /* Downward, into room the scroller opens while it is up: the scroller
+     clips vertically whatever it is told (overflow-x forces overflow-y),
+     so a callout opening upward loses its head against the ruler. */
+  .tl__scroll.has-callout { padding-bottom: 17rem; }
+  .tl-callout { position: absolute; top: calc(100% + 0.6rem); left: 0; z-index: 5; min-width: 18rem; background: #faf7f1; border: 1px solid #b8a; border-radius: 8px; padding: 0.6rem 0.8rem; box-shadow: 0 4px 16px #0003; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; }
+  .tl-callout.is-right { left: auto; right: 0; }
+  .tl-callout::after { content: ''; position: absolute; bottom: 100%; left: 1.2rem; border: 0.5rem solid transparent; border-bottom-color: #b8a; }
+  .tl-callout.is-right::after { left: auto; right: 1.2rem; }
   @media (prefers-color-scheme: dark) { .tl-callout { background: #262320; } }
   .tl-callout__head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
   .tl-callout label { flex-direction: row; align-items: center; gap: 0.3rem; flex-wrap: wrap; }

@@ -323,6 +323,23 @@ gap at its stored midpoint — a drag can no longer mint a sliver segment.
 The rules row became chips ("8 bars · 85%/4 · ≈0:27", width = cost) opening
 a callout editor with room to breathe.
 
+**Callout clipping (v2.61.3):** the rules callout opened upward and lost its
+head. `.tl__scroll` carries `overflow-x: auto` for the sideways scrolling,
+and CSS forces the other axis to `auto` with it — a scroller clips
+vertically whatever its overflow-y says, with no opt-out. It opens downward
+now, into room the scroller reserves while one is up and gives back on
+close; the room is **measured from the callout** (a first fix guessed
+13.5rem and was one pixel short of the plainest variant, and half short of
+the tallest), and late segments anchor their callout to the right edge.
+Guarded in `editor.test.tsx`, mutation-tested.
+
+**A warning worth the handover's space:** `git checkout -- <file>` to revert
+a hand mutation **discarded an hour of uncommitted work** in the same file.
+The handover already said a checkout cannot restore an untracked file; the
+sharper rule is that it cannot restore *anything* uncommitted. Revert
+mutations by hand — a reversing `sed`, not a checkout — whenever the file
+carries work that is not yet in a commit.
+
 **What is actually next now: the curriculum.** The machinery is built and
 green but UNPLAYED — the checkpoint the build plan named still stands: the
 player plays the bundled course for parity (it should feel identical), then

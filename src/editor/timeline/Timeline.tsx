@@ -19,7 +19,7 @@
  * reader can never see the forbidden overlap.
  */
 
-import { Fragment, useRef, useState, type ReactElement } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import { AXIS_MATERIALS, DEFAULT_RULE, type AxisId, type LevelKind } from '../../exercise/course';
 import { MAJOR_KEYS } from '../../domain/keys';
 import { OFFERED_METRES } from '../../domain/metre';
@@ -97,6 +97,9 @@ const BASE_FIELD: Partial<Record<AxisId, string>> = {
 };
 
 const NUMERIC: readonly AxisId[] = ['tempo', 'bars', 'cycles', 'themeCount'];
+
+/** The callout's gap under its chip, plus room for the horizontal scrollbar. */
+const GAP_BELOW_CHIP = 34;
 
 /**
  * The reaches a drill is asked for, in the player's own words. Semitones are
@@ -268,6 +271,17 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
   } | null>(null);
   /** Which segment's rule callout is open, by its beginning boundary. */
   const [openRuleAt, setOpenRuleAt] = useState<number | null>(null);
+  /**
+   * How much room the open callout needs, measured rather than assumed.
+   *
+   * The first fix for the clipped callout reserved a fixed 13.5rem and was
+   * one pixel short of the plainest variant — and the tallest (an authored
+   * rule, with a score, wearing its back-to-default button) needs half as
+   * much again. A figure guessed here would go stale the next time the
+   * callout grows a row, so the callout reports its own height and this
+   * follows it.
+   */
+  const [calloutRoom, setCalloutRoom] = useState(0);
 
   const apply = (next: TimelineFragment) =>
     onPatch({
@@ -329,7 +343,19 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
        * all of them. Wide by design; the wrapper scrolls sideways on a small
        * screen rather than folding the panels back into three lines.
        */}
-      <div className="tl__scroll">
+      {/*
+       * `has-callout` opens room *inside* the scroller for a callout to hang
+       * in. It has to be inside: `overflow-x: auto` forces the other axis to
+       * `auto` as well (a CSS rule with no opt-out), so this element clips
+       * vertically whatever its own overflow-y says — which is exactly how
+       * the first callout lost its top edge, opening upward through the
+       * ruler. The room is taken only while one is open, and given back on
+       * close, so the page does not carry a permanent hole.
+       */}
+      <div
+        className={`tl__scroll ${openRuleAt !== null ? 'has-callout' : ''}`}
+        style={openRuleAt !== null ? { paddingBottom: calloutRoom } : undefined}
+      >
         <div className="tl__grid">
           <div className="tl__corner">
             Level progression <span className="muted">≈ {formatSeconds(totalSeconds)}</span>
@@ -502,6 +528,11 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                 {openRuleAt === segment.at && (
                   <RuleCallout
                     segment={segment}
+                    /* Anchored to whichever edge keeps it on the page: a
+                       callout hanging off a late segment would open past
+                       the right edge and take the scroller with it. */
+                    alignRight={segment.x0 > 0.6}
+                    onRoom={setCalloutRoom}
                     levelRule={levelRule}
                     onSet={(rule) => apply(setRule(fragment, segment.at, rule))}
                     onClear={() => {
@@ -1107,19 +1138,46 @@ function IntervalPoolValue({
  */
 function RuleCallout({
   segment,
+  alignRight,
+  onRoom,
   onSet,
   onClear,
   onClose,
 }: {
   segment: SegmentEstimate;
+  alignRight?: boolean;
+  /** Reports the room this callout needs below its chip, in pixels. */
+  onRoom?: (pixels: number) => void;
   levelRule: SegmentRuleShape;
   onSet: (rule: SegmentRuleShape) => void;
   onClear: () => void;
   onClose: () => void;
 }): ReactElement {
   const rule = segment.rule;
+
+  /*
+   * Measured before paint, and again whenever the callout changes shape —
+   * ticking the score box adds a row and the first authored edit adds a
+   * button, each of which would otherwise hang past the scroller's clip.
+   */
+  const self = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = self.current;
+    if (!element || !onRoom) return;
+    const report = () => onRoom(element.offsetHeight + GAP_BELOW_CHIP);
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [onRoom]);
+
   return (
-    <div className="tl-callout" role="dialog" aria-label="Segment rule">
+    <div
+      ref={self}
+      className={`tl-callout ${alignRight ? 'is-right' : ''}`}
+      role="dialog"
+      aria-label="Segment rule"
+    >
       <div className="tl-callout__head">
         <strong>{segment.authored ? 'This segment’s own rule' : 'Level default in force'}</strong>
         <button type="button" title="Close" onClick={onClose}>
