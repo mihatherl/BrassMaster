@@ -31,7 +31,7 @@ covers 2026-08-24 to 28: seven releases, v2.48.0 through v2.54.0.
 ## Where this stands
 
 **v2.54.0, pushed, tagged, deployed and green** — and since then, unpushed
-on this machine, the work below: **1,528 tests across 76 files**.
+on this machine, the work below: **1,534 tests across 78 files**.
 The gate before any push is `npm test && npm run build && npm run lint`,
 plus `npm run check:web` and `npm run check:channel` when anything touches
 the build split. **Gate order matters now**: a plain `build` empties
@@ -143,6 +143,18 @@ rebuild a course run's exercise" and is the course's own instruction being
 obeyed. The remembered key carries from a major level to a minor one
 untranslated — the app stores a signature, so C major and A minor are one
 number and only the label moves. Full reasoning in `course-plan.md`.
+
+**The tempo a course level asks for never reached the clock** (2026-08-29,
+v2.59.0) — found because the player objected to the gate's tempo dial being
+there at all. It was not redundant; it was the only thing setting the tempo.
+A level banded at 66 played at whatever free play was last left at while the
+practice screen said "at 66", and `runAt.tempo` filed the run under 66 for the
+skill tally. It hid for four days because stepping works, so only a level's
+*opening* run was wrong. Now the course's tempo drives the clock (`runTempo`,
+never written into settings) and the dial is **locked** with "Set by the
+course". Reasoning in `course-plan.md`; the same entry argues that optional
+`tempo` on a level is the natural next step and the first real customer for
+the axes work.
 
 **The road to v3.0, ruled this week**: teacher mode + the microphone *with
 its calibration* + My Music. The tuner is out (deferred to v3.x — it was

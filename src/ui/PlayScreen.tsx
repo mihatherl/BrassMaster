@@ -127,6 +127,27 @@ interface PlayScreenProps {
   coursePinned?: readonly string[];
   /** The run's key and who chose it; absent in free play. See `KeyGate`. */
   keyGate?: KeyGate;
+  /**
+   * The tempo this run is played at, when something other than the player's
+   * settings owns it — today, a course level's band.
+   *
+   * Absent in free play, where `settings.tempo` *is* the answer.
+   *
+   * It exists because until 2026-08-29 it did not, and the course's tempo
+   * never reached the clock: `startCourse` built the exercise from settings
+   * carrying the level's tempo, but this screen was handed the player's own
+   * settings and started the session from those. A level whose band said 66
+   * played at whatever free play was last left at, and the practice screen
+   * said "at 66" while it did so. It survived because stepping works — the
+   * first press of Forward snaps the transport onto the band — so only the
+   * opening run of a level was wrong, which is the run nobody watches twice.
+   *
+   * Deliberately a prop rather than written into settings: the course's tempo
+   * is not the player's preference, and writing it through would reset their
+   * free-play tempo every time they practised a slow level. Same reasoning as
+   * `courseFifths`, one field over.
+   */
+  runTempo?: number;
 }
 
 export function PlayScreen({
@@ -143,7 +164,10 @@ export function PlayScreen({
   courseControls,
   coursePinned,
   keyGate,
+  runTempo,
 }: PlayScreenProps) {
+  /** What this run actually plays at: the course's, or the player's. */
+  const tempoInForce = runTempo ?? settings.tempo;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<Session | null>(null);
@@ -220,7 +244,7 @@ export function PlayScreen({
    * settings object, so a change there tears the session down and starts the
    * exercise again. This is the run's own tempo, reported back once at the end.
    */
-  const [tempo, setTempo] = useState(settings.tempo);
+  const [tempo, setTempo] = useState(tempoInForce);
   /**
    * The key the dial is pointing at, which is not the same as the key of the
    * music while a finger is on it.
@@ -326,7 +350,7 @@ export function PlayScreen({
      * the note list and its ties with it.
      */
     headsRef.current = soundingHeads(exercise.notes);
-    setTempo(settings.tempo);
+    setTempo(tempoInForce);
     /*
      * The key this run opens in, kept for the whole run.
      *
@@ -376,7 +400,7 @@ export function PlayScreen({
       context,
       input: valves,
       exercise,
-      tempo: settings.tempo,
+      tempo: tempoInForce,
       countInBars: settings.countInBars,
       metronomeEnabled: settings.metronomeEnabled,
       metronomeVolume: settings.metronomeVolume,
@@ -445,7 +469,15 @@ export function PlayScreen({
         // The speed they ended up playing at is the one they want next time, and
         // the key they ended up in for the same reason: the dial is what the
         // player has said about this practice, and saying it once is enough.
-        if (tempoRef.current !== settings.tempo) settledRef.current?.(tempoRef.current);
+        /*
+         * Only where the tempo is the player's to set. On a course run it is
+         * the course's, and settling it would quietly overwrite their
+         * free-play tempo with whatever slow level they had just practised —
+         * a preference destroyed as a side effect of obeying a course.
+         */
+        if (runTempo === undefined && tempoRef.current !== settings.tempo) {
+          settledRef.current?.(tempoRef.current);
+        }
         if (dialKeyRef.current !== openedIn) keySettledRef.current?.(dialKeyRef.current);
         finishRef.current(summary);
       },
@@ -592,7 +624,7 @@ export function PlayScreen({
       rendererRef.current = null;
       setTransport(null);
     };
-  }, [started, attempt, exercise, settings]);
+  }, [started, attempt, exercise, settings, tempoInForce, runTempo]);
 
   /**
    * Brings the audio up and starts the run — from the gate, and again from
@@ -787,6 +819,7 @@ export function PlayScreen({
               onOutputs={onOutputs}
               pinned={coursePinned}
               keyGate={keyGate}
+              tempoInForce={tempoInForce}
             />
           )}
           <button

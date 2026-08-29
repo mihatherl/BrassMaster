@@ -66,6 +66,20 @@ interface ReadyControlsProps {
    * that leaves it open was asking a question nothing was able to ask.
    */
   keyGate?: KeyGate;
+  /**
+   * The tempo the run will actually be played at — **the same value the
+   * session is constructed with**, handed here rather than re-derived.
+   *
+   * That is the whole point of the prop. The first version of this fix had the
+   * gate compute `runTempo ?? settings.tempo` for the label while `PlayScreen`
+   * computed it again for the clock, and a mutation test caught what that
+   * allows: the label can be right while the clock is wrong, which is
+   * precisely the bug being fixed here wearing a different hat. One
+   * expression, two consumers.
+   *
+   * Absent only for callers with no run behind them — the gate's own tests.
+   */
+  tempoInForce?: number;
 }
 
 export interface KeyGate {
@@ -105,7 +119,15 @@ function Section({ title, values, children }: { title: string; values: string; c
   );
 }
 
-export function ReadyControls({ settings, onChange, onOutputs, pinned, keyGate }: ReadyControlsProps) {
+export function ReadyControls({
+  settings,
+  onChange,
+  onOutputs,
+  pinned,
+  keyGate,
+  tempoInForce,
+}: ReadyControlsProps) {
+  const shownTempo = tempoInForce ?? settings.tempo;
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...settings, [key]: value });
   const isPinned = (key: keyof Settings) => pinned?.includes(key) ?? false;
@@ -141,16 +163,29 @@ export function ReadyControls({ settings, onChange, onOutputs, pinned, keyGate }
        */}
       <label className="field tempo">
         <span className="field__label">
-          {t('gate.tempo')} <strong>{settings.tempo}</strong> bpm
+          {t('gate.tempo')} <strong>{shownTempo}</strong> bpm
         </span>
         <input
           type="range"
           min={TEMPO_RANGE.min}
           max={TEMPO_RANGE.max}
           step={1}
-          value={settings.tempo}
+          value={shownTempo}
+          disabled={isPinned('tempo')}
           onChange={(event) => update('tempo', Number(event.target.value))}
         />
+        {/*
+         * Disabled, not hidden — the pinned doctrine, and it applies here more
+         * than anywhere: on a course run the tempo IS the axis, and a player
+         * who found the dial missing would think the app had lost it. Locked,
+         * they can read what the course is asking of them. The player's own
+         * words, 2026-08-29: "the gate screen has a tempo dial, which we
+         * really don't want, unless of course tempo is a player decided
+         * element of the course" — which it cannot be yet, so it is locked
+         * rather than governed. When a level may leave the tempo open, this
+         * becomes conditional exactly as the key's control is.
+         */}
+        {isPinned('tempo') && <p className="field__note muted">{t('gate.setByCourse')}</p>}
         {metre.isCompound && (
           <p className="field__note muted">
             {t('gate.compound', { n: metre.pulsesPerBar })}

@@ -663,6 +663,49 @@ name the same signature differently. `courseKeyOf`, `isMinorRun` and
 `keyAnswerChanged` live in `ui/course-run.ts` — the seam that names no course
 module, so `App` may import them in both builds. All three mutation-tested.
 
+## The tempo a level asks for — fixed 2026-08-29, found by objecting to a dial
+
+The player, looking at the gate on a course run: *"the gate screen has a tempo
+dial, which we really don't want, unless of course tempo is a player decided
+element of the course."* The objection was to a redundant control. The control
+was not redundant — **it was the only thing setting the tempo.**
+
+`startCourse` built the exercise from settings carrying the level's band, but
+`PlayScreen` was handed the *player's* settings and started the session from
+those. A level whose band said 66 played at whatever free play was last left
+at, while the practice screen said "at 66", and `runAt.tempo` filed the run
+under 66 for the skill tally — whose stated purpose is to record *what was
+actually played*. The `tempo` dimension was being poisoned with a band nobody
+had played, which is the one dimension a future adaptive trainer would lean on
+hardest.
+
+It survived four days because **stepping works**: the first press of Forward
+snaps the transport onto the band, so only the opening run of a level was ever
+wrong — the run nobody watches twice.
+
+- **The course's tempo drives the clock**, passed as `runTempo` and never
+  written into settings. The course's tempo is not the player's preference,
+  and writing it through would reset their free-play tempo every time they
+  practised a slow level — the clobber `courseFifths` was invented to avoid.
+- **One expression, two consumers.** The gate's label and the session's clock
+  read the same `tempoInForce`. The first draft derived it twice, and a
+  mutation test showed what that permits: a label that is right while the
+  clock is wrong, which *is* the bug, wearing a different hat.
+- **The dial is locked, not hidden** — the pinned doctrine, and it applies here
+  hardest: on a course run the tempo is the axis, and a player who found the
+  dial missing would think the app had lost it.
+- **The end-of-run settle is guarded.** A run finishing writes the dial's tempo
+  back as the player's preference; on a course run that would have written the
+  course's. Guarded by construction and by comment, not by test — reaching it
+  needs a real audio run.
+
+**This is the strongest argument yet for optional `tempo` on a level.** The
+lock is unconditional today only because `CourseLevel.tempo` is required. Make
+it optional and the gate's tempo becomes governed exactly as its key already
+is — locked where the author chose, live where they delegated — with no
+special case for structured mode. It is also the first thing that genuinely
+needs the axes generalisation: a level with no band has zero tempo digits.
+
 ## Still open, and honestly so
 
 - **The suggestion bar's thresholds** — constants with a named home, tuned

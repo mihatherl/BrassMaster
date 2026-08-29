@@ -74,7 +74,14 @@ describe('a course level that leaves the key to the player', () => {
   it('asks at the gate, rather than silently taking free play’s key', () => {
     reachTheGate();
     expect(screen.getByText(/yours to choose/i)).toBeTruthy();
-    expect(screen.queryByText(/set by the course/i)).toBeNull();
+    /*
+     * No *Key* section, which is the locked shape. Scoped to the section
+     * titles rather than asking whether "Set by the course" appears anywhere:
+     * since 2026-08-29 the tempo is locked on every course run and says so in
+     * those very words, so a screen-wide query now answers about the tempo.
+     */
+    const sections = [...document.querySelectorAll('.panel__title')].map((n) => n.textContent);
+    expect(sections).not.toContain('Key');
     // On the face and uncollapsed — not behind an accordion the player would
     // have to know to open (the player's instruction, 2026-08-29).
     expect(chip('Eb major').closest('details')).toBeNull();

@@ -478,11 +478,21 @@ export function App() {
           }
           coursePinned={
             fromCourse && courseRun
-              ? (['metronomeEnabled', 'conductorEnabled'] as const).filter(
-                  (key) => courseRun[key] !== undefined,
-                )
+              ? [
+                  ...(['metronomeEnabled', 'conductorEnabled'] as const).filter(
+                    (key) => courseRun[key] !== undefined,
+                  ),
+                  /* Always, today: `CourseLevel.tempo` is required, so a course
+                     run's tempo is never the player's. When a level may leave
+                     the band out — the first real use for the axes work — this
+                     becomes conditional, exactly like the key above. */
+                  'tempo',
+                ]
               : undefined
           }
+          /* The course's tempo, driving the clock rather than free play's.
+             Not written into settings: see `PlayScreen`'s note. */
+          runTempo={fromCourse && courseRun ? courseRun.tempo : undefined}
           /*
            * The key, and who chose it — a course run only. Free play has the
            * grid on its home screen and does not need telling.
