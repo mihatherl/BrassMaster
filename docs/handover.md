@@ -308,6 +308,21 @@ intervals (a fifth / one octave / an octave and a fifth / two octaves), and
 its from/to generator row is gone, because a linear run of semitone counts
 wrote figures like "16 semitones" that are legal and musically odd.
 
+**Second UAT round (v2.61.2), same evening — the x-axis became TIME.** The
+player caught the percent ruler lying: with per-segment rules, a segment
+spanning 25% of the bar and one spanning 5% could both need eight bars. The
+stored `at` fractions never meant anything at runtime (only order and shared
+boundaries are real), so the editor now draws every segment at its estimated
+duration — minimum bars × the tempo and metre in force, `ASSUMED_TEMPO` (80)
+where nothing names one, the score window as the floor where wider — with a
+m:ss ruler, a total in the corner, and constant seconds-per-pixel that
+re-lays on every edit (`editor/timeline/layout.ts`, pure and tested).
+Dragging followed: position between boundaries is meaningless under derived
+widths, so a drop either JOINS a boundary (snap, lit guide) or SPLITS the
+gap at its stored midpoint — a drag can no longer mint a sliver segment.
+The rules row became chips ("8 bars · 85%/4 · ≈0:27", width = cost) opening
+a callout editor with room to breathe.
+
 **What is actually next now: the curriculum.** The machinery is built and
 green but UNPLAYED — the checkpoint the build plan named still stands: the
 player plays the bundled course for parity (it should feel identical), then

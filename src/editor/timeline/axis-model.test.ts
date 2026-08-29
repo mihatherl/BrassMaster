@@ -8,7 +8,6 @@ import {
   moveDivision,
   removeAxis,
   setRule,
-  snapDivision,
   type TimelineFragment,
 } from './axis-model';
 
@@ -133,24 +132,5 @@ describe('the table’s pencil and eraser', () => {
     expect(edited.segmentRules).toContainEqual({ at: 0.6, minBars: 4 });
     edited = clearRule(clearRule(edited, 0.6), 0.3);
     expect(edited.segmentRules).toBeUndefined();
-  });
-});
-
-describe('snapping a drag', () => {
-  it('joins another axis’s boundary within reach — deliberate merging', () => {
-    // Reading mode's division dragged near tempo's 0.3 joins it exactly.
-    expect(snapDivision(fragment(), 'readingMode', 1, 0.293)).toBe(0.3);
-  });
-
-  it('lands on the grid otherwise', () => {
-    expect(snapDivision(fragment(), 'tempo', 1, 0.4531)).toBeCloseTo(0.455, 9);
-  });
-
-  it('clamps between its neighbours with a minimum gap', () => {
-    expect(snapDivision(fragment(), 'tempo', 1, 0.001)).toBeCloseTo(0.01, 9);
-    // 0.6 would collide with the next division; held one gap short... except
-    // the snap magnet claims it first, which IS the collision the author
-    // means (a shared boundary), so the clamp applies to the grid path only.
-    expect(snapDivision(fragment(), 'tempo', 2, 0.999)).toBeCloseTo(0.99, 9);
   });
 });

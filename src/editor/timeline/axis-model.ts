@@ -45,17 +45,6 @@ export interface TimelineFragment {
 
 /** Two boundaries closer than this are the same boundary — the reader's own figure. */
 const EPSILON = 1e-9;
-/**
- * How close a drag must come to another axis's boundary to join it. Widened
- * from 1% on the player's UAT (2026-08-29): joining boundaries is the
- * gesture that makes segments, and it should feel like Visio's alignment —
- * the guide the timeline draws lights up when this catches.
- */
-export const SNAP_TO_BOUNDARY = 0.02;
-/** The grid a free drag lands on. */
-export const SNAP_GRID = 0.005;
-/** No two divisions of one axis closer than this — a sliver segment is a mis-drag. */
-export const MIN_GAP = 0.01;
 
 const same = (a: number, b: number) => Math.abs(a - b) < EPSILON;
 
@@ -113,41 +102,6 @@ function replaceAxis(fragment: TimelineFragment, next: RawAxis): TimelineFragmen
     ...fragment,
     axes: fragment.axes.map((axis) => (axis.axis === next.axis ? next : axis)),
   };
-}
-
-/**
- * Where a dragged division actually lands: onto another axis's boundary when
- * within reach (sharing a boundary is how an author deliberately merges
- * segments — an un-snapped near miss would silently mint a sliver segment),
- * else onto the grid; always clamped between its neighbours with a minimum
- * gap, and never onto the start or past the end.
- */
-export function snapDivision(
-  fragment: TimelineFragment,
-  axisId: AxisId,
-  index: number,
-  rawTo: number,
-): number {
-  const axis = axisIn(fragment, axisId);
-  if (!axis || index <= 0 || index >= axis.divisions.length) return rawTo;
-
-  const previous = axis.divisions[index - 1].at;
-  const next = index + 1 < axis.divisions.length ? axis.divisions[index + 1].at : 1;
-  const low = previous + MIN_GAP;
-  const high = next - MIN_GAP;
-
-  let to = rawTo;
-  const magnet = fragment.axes
-    .filter((other) => other.axis !== axisId)
-    .flatMap((other) => other.divisions.map((d) => d.at))
-    .filter((at) => at > low - EPSILON && at < high + EPSILON)
-    .sort((a, b) => Math.abs(a - rawTo) - Math.abs(b - rawTo))[0];
-  if (magnet !== undefined && Math.abs(magnet - rawTo) <= SNAP_TO_BOUNDARY) {
-    to = magnet;
-  } else {
-    to = Math.round(rawTo / SNAP_GRID) * SNAP_GRID;
-  }
-  return Math.min(Math.max(to, low), Math.min(high, 1 - MIN_GAP));
 }
 
 /** Moves one division, carrying its rule per the ratified semantics. */

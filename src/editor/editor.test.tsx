@@ -48,11 +48,38 @@ describe('the timeline', () => {
     // which echoes the same figure.
     const values = [...document.querySelectorAll('input.tl-value')] as HTMLInputElement[];
     expect(values.map((input) => input.value)).toEqual(['60', '72']);
-    // Three boundaries — 0, 0.5, 0.75 — so three rule columns; the authored
-    // override shows its figure, the default cells their placeholder.
-    expect(screen.getByDisplayValue('6')).toBeTruthy();
-    expect(document.querySelectorAll('.tl-cell')).toHaveLength(3);
-    expect(document.querySelectorAll('.tl-cell.is-authored')).toHaveLength(1);
+    // Three boundaries — 0, 0.5, 0.75 — so three rule chips; the authored
+    // one wears its own figures, the defaults the level's.
+    expect(document.querySelectorAll('.tl-chip')).toHaveLength(3);
+    const authored = document.querySelectorAll('.tl-chip.is-authored');
+    expect(authored).toHaveLength(1);
+    expect(authored[0].textContent).toContain('6 bars');
+    // The x-axis is time: 8 bars at 60, 6 at 72, 8 at 72 ≈ 79s end to end.
+    expect(screen.getByText(/≈ 1:19/)).toBeTruthy();
+  });
+
+  it('opens a rule callout from a chip, editing through it', () => {
+    const onPatch = vi.fn();
+    render(<Timeline kind="phrases" level={LEVEL} onPatch={onPatch} />);
+    fireEvent.click(document.querySelector('.tl-chip.is-authored')!);
+    const callout = screen.getByRole('dialog', { name: /segment rule/i });
+    expect(callout.textContent).toContain('This segment’s own rule');
+    fireEvent.change(callout.querySelector('input[type=number]')!, { target: { value: '4' } });
+    const patch = onPatch.mock.calls[0][0];
+    expect(patch.segmentRules).toContainEqual({ at: 0.5, minBars: 4 });
+    // A default segment's callout materialises a copy-of-default on edit.
+    cleanup();
+    const onPatch2 = vi.fn();
+    render(<Timeline kind="phrases" level={LEVEL} onPatch={onPatch2} />);
+    fireEvent.click(document.querySelectorAll('.tl-chip.is-default')[0]);
+    const fresh = screen.getByRole('dialog', { name: /segment rule/i });
+    expect(fresh.textContent).toContain('Level default in force');
+    fireEvent.change(fresh.querySelector('input[type=number]')!, { target: { value: '12' } });
+    expect(onPatch2.mock.calls[0][0].segmentRules).toContainEqual({
+      at: 0,
+      minBars: 12,
+      score: { atLeast: 0.85, overBars: 4 },
+    });
   });
 
   it('offers only the axes the material can play, and not those already drawn', () => {
