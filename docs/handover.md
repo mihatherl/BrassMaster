@@ -21,6 +21,7 @@ covers 2026-08-24 to 28: seven releases, v2.48.0 through v2.54.0.
 | `handover.md` — this file | Now, all of it |
 | **`roadmap.md`** | Now, and before proposing any feature |
 | `../CLAUDE.md` | Now. The seam, and which remote is which |
+| **`level-axes-plan.md`** | **Now, if you are picking up the next task** — ratified 2026-08-29, unbuilt, and the whole of what comes next |
 | **`course-plan.md`** | Before any pedagogy or course work — **ratified 2026-08-26**, revised twice since by playing, every revision dated in place |
 | `rhythm-plan.md` | Before any rhythm-drills work — ratified, deliberately unscheduled, and it binds the course schema (optional keys) |
 | `device-testing.md` | Before any session touching the shell or a phone |
@@ -240,6 +241,24 @@ sleeps** — 4.2 was a proof about the player, proved; do not upload AABs.
   the player playing a real course, per the plan's own law.
 
 ## What is next
+
+**Level axes, the timeline model — ratified 2026-08-29 and entirely unbuilt.**
+`level-axes-plan.md` is the specification and
+`docs/level-progression-concept.png` is the player's own drawing of the
+editor. Ruled to land **in one release**: the `axes` schema, seven axes
+(tempo, length, keys, range, reach, metre, support), the interval-pool
+generator work, per-segment progression rules, and the graphical timeline
+editor. It supersedes `CourseLevel.tempo`, `Advance` and `carryEvidence`; it
+leaves `Mastery` and the honesty rulings alone.
+
+Two things to settle *with the player* before building the parts that depend
+on them: **what the support axis's rungs are**, and **what happens to a
+segment's rule when a division moves**. Both are named in the plan. Neither
+blocks the schema.
+
+The old plan's own next step still stands behind it:
+
+
 
 **The pedagogy's content, then Phase 2.** The machinery — courses, stepping,
 the editor, the honest stores — is built and played. What no session can do

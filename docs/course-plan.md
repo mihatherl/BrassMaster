@@ -759,6 +759,29 @@ uses it.
 **`length` is also one of the six designed axes**, so a level naming a length
 and a level widening one compose rather than compete.
 
+## The axes — superseded by `level-axes-plan.md`, 2026-08-29
+
+The axes designed in this document (tempo, span, direction, length, cells,
+rhythm) and the **odometer** proposed for walking them are superseded by
+`level-axes-plan.md`, ratified the same day. The axes themselves survive; what
+changed is how a player moves through them.
+
+The odometer had axes ordered, one moving at a time, carrying into the next,
+with tempo resetting to its floor on a carry. The player replaced it with a
+**timeline**: level progression is one scalar, each axis is a step function
+over it, and the author places the divisions on a shared bar. Segments — the
+spaces between divisions, across all axes at once — are what the player steps
+through, and each carries its own progression rule.
+
+It is the better model for the reason he built it: the whole shape of a level
+is visible at once, and nothing is hidden in a carry rule the picture cannot
+draw. The carry rule is not lost — an author who wants it writes
+`60, 65, 70, 60, 65, 70, 75, 80` and the timeline draws it honestly.
+
+`Advance` and `carryEvidence` are superseded with it. `Mastery` and the
+suggestion bar are not: they judge *between runs*, which is a different
+question from *within a level*.
+
 ## Still open, and honestly so
 
 - **The suggestion bar's thresholds** — constants with a named home, tuned
