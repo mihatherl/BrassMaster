@@ -133,17 +133,49 @@ describe('dragging a divider', () => {
     ]);
   });
 
-  it('stops a stage being squeezed below a bar', () => {
+  it('stops a stage being squeezed below a bar, and stops nowhere else', () => {
     const fragment = sixStages();
     // Hard left, past the previous divider: one bar is as far as it goes.
     const { resolved } = drag(fragment, 'tempo', 1, 0);
     expect(resolved!.bar).toBe(1);
-    // And below its own score window, where it asks for one.
+  });
+
+  /*
+   * The player's ruling of 2026-08-29: a score window is not a wall. It used
+   * to floor the drag — an author moving a divider two bars from its
+   * neighbour was stopped four bars away by a figure they had never set —
+   * and since evidence is per-segment by construction, a window longer than
+   * its stage was only ever "play on past the minimum". So the window bends.
+   */
+  it('lets a stage past its own score window, taking the window down with it', () => {
     const scored: TimelineFragment = {
       ...sixStages(),
       segmentRules: [{ at: 0, minBars: 8, score: { atLeast: 0.9, overBars: 5 } }],
     };
-    expect(drag(scored, 'tempo', 1, 0).resolved!.bar).toBe(5);
+    const { resolved, layout } = drag(scored, 'tempo', 1, 2 / 48);
+    expect(resolved!.bar).toBe(2);
+    const next = applyBarDrag(scored, layout, 'tempo', 1, resolved!);
+    expect(next.segmentRules).toContainEqual({
+      at: 0,
+      minBars: 2,
+      score: { atLeast: 0.9, overBars: 2 },
+    });
+    // The stage is drawn at the two bars it was dragged to, not at five.
+    expect(layoutOf(next, RULE, {}).segments[0].bars).toBe(2);
+  });
+
+  it('leaves a window alone when the stage is wide enough for it', () => {
+    const scored: TimelineFragment = {
+      ...sixStages(),
+      segmentRules: [{ at: 0, minBars: 8, score: { atLeast: 0.9, overBars: 5 } }],
+    };
+    const { resolved, layout } = drag(scored, 'tempo', 1, 6 / 48);
+    const next = applyBarDrag(scored, layout, 'tempo', 1, resolved!);
+    expect(next.segmentRules).toContainEqual({
+      at: 0,
+      minBars: 6,
+      score: { atLeast: 0.9, overBars: 5 },
+    });
   });
 
   it('never lets one axis’s own dividers meet on the same bar', () => {

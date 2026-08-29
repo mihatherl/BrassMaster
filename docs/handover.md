@@ -354,6 +354,13 @@ their own axis changes**, which fixes the reported "gap" where another
 axis's division made a tempo look inapplicable. Full reasoning in
 `level-axes-plan.md` § *The x-axis, ruled twice in one evening*.
 
+**A score window is not a wall (v2.62.1).** It used to floor the drag, so a
+divider could not be brought within four bars — the level default's window —
+of its neighbour, stopped by a figure the author never set. `fitRule` bends
+the window down with the stage instead; one bar is the only floor. Safe
+because `carryEvidence` is gone: a window is only ever filled by bars played
+inside its own stage.
+
 **Left alone deliberately:** the fresh level's six tempo stages (6 bpm
 apart — the noticeable-step doctrine: ~8% at the bottom of the range, ~4%
 at the top) and the eight bars a stage defaults to (`DEFAULT_RULE`, which

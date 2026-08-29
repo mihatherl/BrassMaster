@@ -48,6 +48,7 @@ import {
 import {
   applyBarDrag,
   ASSUMED_TEMPO,
+  fitRule,
   formatSeconds,
   insertAt,
   layoutOf,
@@ -544,7 +545,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                     setOpenRuleAt(openRuleAt === segment.at ? null : segment.at)
                   }
                 >
-                  {segment.bars} bars
+                  {segment.bars} {segment.bars === 1 ? 'bar' : 'bars'}
                   {segment.rule.score
                     ? ` · ${Math.round(segment.rule.score.atLeast * 100)}%/${segment.rule.score.overBars}`
                     : ''}
@@ -1218,12 +1219,9 @@ function RuleCallout({
           type="number"
           min={1}
           value={rule.minBars}
-          onChange={(e) =>
-            onSet({
-              minBars: Math.max(1, Number(e.target.value)),
-              ...(rule.score ? { score: rule.score } : {}),
-            })
-          }
+          /* Through `fitRule`, so shortening a stage takes its score window
+             down with it rather than leaving a window it cannot fill. */
+          onChange={(e) => onSet(fitRule(rule, Math.max(1, Number(e.target.value))))}
         />
         bars played
       </label>
@@ -1234,7 +1232,10 @@ function RuleCallout({
           onChange={(e) =>
             onSet({
               minBars: rule.minBars,
-              ...(e.target.checked ? { score: { atLeast: 0.85, overBars: 4 } } : {}),
+              // Never wider than the stage it is judging.
+              ...(e.target.checked
+                ? { score: { atLeast: 0.85, overBars: Math.min(4, rule.minBars) } }
+                : {}),
             })
           }
         />
@@ -1246,15 +1247,20 @@ function RuleCallout({
           <input
             type="number"
             min={1}
+            max={rule.minBars}
+            title="At most the stage's own length — the window is filled by bars played in this stage"
             value={rule.score.overBars}
             onChange={(e) =>
               onSet({
                 minBars: rule.minBars,
-                score: { ...rule.score!, overBars: Math.max(1, Number(e.target.value)) },
+                score: {
+                  ...rule.score!,
+                  overBars: Math.min(rule.minBars, Math.max(1, Number(e.target.value))),
+                },
               })
             }
           />
-          bars at ≥
+          of its {rule.minBars} {rule.minBars === 1 ? 'bar' : 'bars'} at ≥
           <input
             type="number"
             min={1}
@@ -1274,7 +1280,8 @@ function RuleCallout({
         </label>
       )}
       <p className="muted">
-        {segment.bars} bars from bar {segment.barStart + 1} · ≈{formatSeconds(segment.seconds)} at{' '}
+        {segment.bars} {segment.bars === 1 ? 'bar' : 'bars'} from bar {segment.barStart + 1} · ≈
+        {formatSeconds(segment.seconds)} at{' '}
         {segment.tempo} bpm{segment.assumedTempo ? ' (assumed)' : ''}
       </p>
       {segment.authored && (

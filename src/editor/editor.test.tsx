@@ -123,6 +123,29 @@ describe('the timeline', () => {
     expect(scroller.className).not.toContain('has-callout');
   });
 
+  /*
+   * The score window is not a wall (player's ruling, 2026-08-29): it used to
+   * floor the drag at four bars — a figure the author never set — so a
+   * divider could not be brought closer than that to its neighbour. The
+   * window bends down with the stage instead, and reads in the singular
+   * when a stage is one bar.
+   */
+  it('shows a squeezed stage with its window bent to fit', () => {
+    render(
+      <Timeline
+        kind="phrases"
+        level={{
+          ...LEVEL,
+          segmentRules: [{ at: 0.5, minBars: 1, score: { atLeast: 0.85, overBars: 1 } }],
+        }}
+        onPatch={vi.fn()}
+      />,
+    );
+    const authored = document.querySelector('.tl-chip.is-authored')!;
+    expect(authored.textContent).toContain('1 bar ·');
+    expect(authored.textContent).toContain('85%/1');
+  });
+
   it('anchors a late segment’s callout to the right, so it stays on the page', () => {
     render(<Timeline kind="phrases" level={LEVEL} onPatch={vi.fn()} />);
     const chips = document.querySelectorAll('.tl-chip');

@@ -268,6 +268,21 @@ Time is still drawn, per segment and for the level, because "how long is
 this?" is a fair question and the tempo is known. It is a label on the
 bars, never the measure.
 
+**A score window is not a wall** (ruled the same evening, on the first
+attempt to drag a divider close to its neighbour). The window used to floor
+the drag — a stage could not be squeezed below the bars its score judged —
+which was logical and unusable: the author was stopped four bars out by a
+figure they had never set, with nothing on screen to explain the wall. The
+window bends instead: dragging a stage shorter takes its window down with
+it, and one bar is the only floor. Nothing is lost, because evidence is
+per-segment by construction — `carryEvidence` was retired with the axes, so
+a window can only ever be filled by bars played inside its own stage, and a
+window longer than the stage only ever meant "play on past the minimum
+until it is full". Widening a stage again does not widen its window: the
+author set that figure, and only squeezing it was ever the machine's
+business. `layout.ts`'s `fitRule` is the whole of it, and the callout
+writes through it too.
+
 **A value is drawn as a block**, spanning until *its own* axis changes
 again — not as a mark at a point. Found by the player: a division on
 another axis left a gap in this one, as though the tempo had stopped

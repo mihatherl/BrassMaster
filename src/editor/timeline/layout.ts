@@ -47,6 +47,32 @@ export interface SegmentRuleShape {
   score?: { atLeast: number; overBars: number };
 }
 
+/**
+ * A rule resized to a stage of `bars` — **the score window follows the
+ * stage down** (ruled by the player, 2026-08-29).
+ *
+ * The window used to be a floor on how short a stage could be dragged,
+ * which was logical and unusable: an author moving a divider two bars from
+ * its neighbour was stopped four bars away by a figure they had never set,
+ * with nothing on screen to explain the wall. The rule bends instead.
+ *
+ * Nothing is lost by bending it. Evidence is per-segment by construction
+ * since `carryEvidence` was retired — the window can only ever be filled by
+ * bars played inside this very stage — so a window longer than the stage
+ * only ever meant "and play on past the minimum until it is full", which is
+ * not what an author dragging a divider to two bars is asking for. Widening
+ * a stage does not widen its window again: the author set that figure, and
+ * only squeezing it was ever the machine's business.
+ */
+export function fitRule(rule: SegmentRuleShape, bars: number): SegmentRuleShape {
+  return {
+    minBars: bars,
+    ...(rule.score
+      ? { score: { ...rule.score, overBars: Math.min(rule.score.overBars, bars) } }
+      : {}),
+  };
+}
+
 export interface SegmentLayout {
   /** The stored boundary that begins this segment. */
   at: number;
@@ -100,9 +126,10 @@ export function layoutOf(
       ? { minBars: override.minBars, ...(override.score ? { score: override.score } : {}) }
       : levelRule;
     /*
-     * A score window longer than the minimum is what the segment actually
-     * asks for, so it is what the picture draws — the drag keeps each side
-     * at or above its own window for the same reason.
+     * A window longer than the minimum is what the stage actually asks for,
+     * so it is what the picture draws. The editor keeps them in step
+     * (`fitRule`), so this only ever differs for a document written by hand
+     * or by an older editor — and then the truth is the longer figure.
      */
     const bars = Math.max(rule.minBars, rule.score?.overBars ?? 0);
 
@@ -221,9 +248,10 @@ export function resolveBarDrag(
   );
   /** Two divisions of one axis may never sit on the same bar. */
   const ownBoundary = (at: number) => axis.divisions.some((d) => same(d.at, at));
-  const minLeft = Math.max(1, left.rule.score?.overBars ?? 1);
-  const minRight = Math.max(1, right.rule.score?.overBars ?? 1);
-
+  /*
+   * One bar is the floor, and the only one: a stage's score window bends to
+   * fit the stage (`fitRule`) rather than fencing the drag off from it.
+   */
   const raw = Math.round(pointerX * layout.totalBars);
   if (!shared && raw <= low && !ownBoundary(left.at)) {
     return { kind: 'merge', bar: low, x: low / layout.totalBars };
@@ -231,7 +259,7 @@ export function resolveBarDrag(
   if (!shared && beyond && raw >= high && !ownBoundary(beyond.at)) {
     return { kind: 'merge', bar: high, x: high / layout.totalBars };
   }
-  const bar = clamp(raw, low + minLeft, high - minRight);
+  const bar = clamp(raw, low + 1, high - 1);
   return {
     kind: shared ? 'separate' : 'redistribute',
     bar,
@@ -268,8 +296,8 @@ export function applyBarDrag(
 
   if (drag.kind === 'redistribute') {
     const leftBars = drag.bar - left.barStart;
-    let next = setRule(fragment, left.at, { ...left.rule, minBars: leftBars });
-    return setRule(next, right.at, { ...right.rule, minBars: pair - leftBars });
+    let next = setRule(fragment, left.at, fitRule(left.rule, leftBars));
+    return setRule(next, right.at, fitRule(right.rule, pair - leftBars));
   }
 
   if (drag.kind === 'merge') {
@@ -290,7 +318,7 @@ export function applyBarDrag(
     // begins at the boundary to its left is the one that survives, so it
     // keeps its own rule and the pair's whole length.
     next = clearRule(next, right.at);
-    return setRule(next, left.at, { ...left.rule, minBars: pair });
+    return setRule(next, left.at, fitRule(left.rule, pair));
   }
 
   /*
@@ -303,8 +331,8 @@ export function applyBarDrag(
   const newAt = (host.at + after) / 2;
   const firstBars = drag.bar - host.barStart;
   let next = setDivisionAt(fragment, axisId, index, newAt);
-  next = setRule(next, host.at, { ...host.rule, minBars: firstBars });
-  return setRule(next, newAt, { ...host.rule, minBars: host.bars - firstBars });
+  next = setRule(next, host.at, fitRule(host.rule, firstBars));
+  return setRule(next, newAt, fitRule(host.rule, host.bars - firstBars));
 }
 
 /**
