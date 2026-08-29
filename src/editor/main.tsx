@@ -54,6 +54,13 @@ function freshLevel(n: number): Record<string, unknown> {
   };
 }
 
+/** Which unit each material measures its length in; mirrors `readCourse`. */
+const LENGTH_UNIT: Record<string, string> = {
+  drills: 'cycles',
+  phrases: 'bars',
+  themes: 'themeCount',
+};
+
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'level';
 }
@@ -288,6 +295,60 @@ export function App() {
                   <option value="low">Low</option>
                   <option value="high">High</option>
                 </select>
+              </label>
+              {/*
+               * How long a run is, in the unit this material measures itself
+               * in — so the field is named for the material rather than
+               * asking the author to remember which "length" means what. The
+               * reader refuses the other two units by name, so the label and
+               * the schema cannot disagree.
+               *
+               * Blank means the material's own default, which is what every
+               * level got before 2026-08-29 whether its author wanted it or
+               * not: four cycles for a scale, eight for an arpeggio, sixteen
+               * bars for sight-reading.
+               */}
+              <label>
+                {base.kind === 'phrases' ? 'Bars' : base.kind === 'themes' ? 'Tunes' : 'Cycles'}
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  placeholder="default"
+                  value={String(base[LENGTH_UNIT[String(base.kind ?? 'drills')]] ?? '')}
+                  onChange={(e) => {
+                    const unit = LENGTH_UNIT[String(base.kind ?? 'drills')];
+                    const value = e.target.value === '' ? undefined : Number(e.target.value);
+                    /* The other two units are cleared, not left lying: a level
+                       switched from drills to sight-reading would otherwise
+                       carry a `cycles` the reader now refuses by name. */
+                    patchIn(index, 'base', {
+                      bars: undefined,
+                      cycles: undefined,
+                      themeCount: undefined,
+                      [unit]: value,
+                    });
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="row">
+              {/*
+               * Whether the music carries on past that length, offering
+               * "Continue" instead of ending the run. Off unless asked for:
+               * the horizon is free play's feature, where the player decides
+               * when to stop, and inside a course it took the length of the
+               * run back from the author — and quietly changed how much
+               * evidence the advance rule saw. Ruled 2026-08-29.
+               */}
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={level.endless === true}
+                  onChange={(e) => patchLevel(index, { endless: e.target.checked || undefined })}
+                />
+                Keep playing past the end (offer “Continue”)
               </label>
             </div>
 

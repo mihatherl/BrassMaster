@@ -31,7 +31,7 @@ covers 2026-08-24 to 28: seven releases, v2.48.0 through v2.54.0.
 ## Where this stands
 
 **v2.54.0, pushed, tagged, deployed and green** — and since then, unpushed
-on this machine, the work below: **1,534 tests across 78 files**.
+on this machine, the work below: **1,550 tests across 81 files**.
 The gate before any push is `npm test && npm run build && npm run lint`,
 plus `npm run check:web` and `npm run check:channel` when anything touches
 the build split. **Gate order matters now**: a plain `build` empties
@@ -155,6 +155,18 @@ never written into settings) and the dial is **locked** with "Set by the
 course". Reasoning in `course-plan.md`; the same entry argues that optional
 `tempo` on a level is the natural next step and the first real customer for
 the axes work.
+
+**A course level now says how long a run is, and whether it stops there**
+(2026-08-29, v2.60.0) — from the player's UAT, where *Continue* appeared to
+fire at random across a course. It was the free-play horizon, built weeks
+before courses and never reconsidered against them, ending each level
+wherever `defaultLengthFor` happened to: four cycles for a scale, eight for an
+arpeggio, sixteen bars for sight-reading. Worse, the advance rule counts bars
+*within a run*, so material defaults were deciding how often the course could
+step the player. Levels now name their length in the material's own unit
+(`cycles`/`bars`/`themeCount`, wrong units refused by name), the horizon is
+**off in a course** unless a level sets `endless`, and the editor has both
+controls. Free play is untouched, with a test to say so.
 
 **The road to v3.0, ruled this week**: teacher mode + the microphone *with
 its calibration* + My Music. The tuner is out (deferred to v3.x — it was

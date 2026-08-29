@@ -706,6 +706,59 @@ is — locked where the author chose, live where they delegated — with no
 special case for structured mode. It is also the first thing that genuinely
 needs the axes generalisation: a level with no band has zero tempo digits.
 
+## How long a run is, and when it stops — ruled and built 2026-08-29, from UAT
+
+The player, playing his own course: *"rather randomly (it seems) when playing
+through the levels of the course the system grays out notes and comes up with
+the 'continue' button… we haven't really addressed what the driver should be
+for 'chunking' the coursework up into different sessions."*
+
+It was not random. Every generated exercise carried a horizon past its
+committed length and offered *Continue* there — `endless-play-plan.md`
+Stage B, v1.19.0, **designed weeks before courses existed and never
+reconsidered against them.** What varied was where that end fell, because a
+level could not say: `defaultLengthFor` gave four cycles to a scale, eight to
+an arpeggio, sixteen bars to sight-reading, four tunes to themes. The plan's
+own table has listed *how long — in the material's own unit* since it was
+written; the schema never carried it. That is the third field this week the
+table promised and `LevelBase` lacked, after the key and the tempo.
+
+And it reached past the eye. **The advance rule counts bars within a run**
+(`afterBars`, default 8, read off `barAccuracies`), so the material's default
+length was silently deciding how often the course could offer to move the
+player — unboundedly often for anyone who accepted the offer, never for a
+level whose run was shorter than the rule's window.
+
+- **A level names its length, in the material's own unit** — `cycles` for a
+  drill, `bars` for sight-reading, `themeCount` for themes. Named per unit
+  rather than one `length` number so a document says what it means, and
+  `readCourse` **refuses** a unit that does not belong to the kind rather than
+  ignoring it. Absent still means the material's default, which is the right
+  answer for an author who does not care.
+- **The horizon is off inside a course**, and `endless: true` on a level asks
+  for it back. `horizonBars: 0` leaves no paper past the end, so `chosenBeats`
+  meets `totalBeats`, nothing draws grey, and the run ends where the author
+  said — out to results, to repeat or move on. **That is the chunking driver**,
+  and it is now the author's decision rather than a side effect of
+  `DRILLS[n].cycles`.
+- **Free play is untouched**, and a test says so. Endless play is free play's
+  feature and the reason it exists: there the player decides when to stop.
+- The length lives on `base` (it shapes the music) and `endless` on the level
+  (it shapes the run). `RunShape` carries both to the generator without
+  passing through `Settings` — the player has no length control and no horizon
+  control, and inventing two so a course could speak through them would put a
+  course's decisions where a player's preferences live, which is the mistake
+  `courseFifths` and `runTempo` were each created to avoid.
+
+**Still open, and named**: if a level *does* allow `endless`, the continued
+material counts toward the same filed run, whose headline accuracy is windowed
+to the last 16 bars — so a long continued run is judged on its tail. Right for
+stamina, arguable for anything else, and left alone until a level actually
+uses it.
+
+**`length` is also one of the six designed axes**, so a level naming a length
+and a level widening one compose rather than compete.
+
 ## Still open, and honestly so
 
 - **The suggestion bar's thresholds** — constants with a named home, tuned

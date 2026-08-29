@@ -412,7 +412,11 @@ export function PracticeScreen({
         className="button button--primary button--large"
         onClick={() =>
           onStart({
+            // `base` carries the length in the material's own unit; `endless`
+            // sits on the level rather than the base because it is about the
+            // shape of the *run*, not about the music being generated.
             ...level.base,
+            ...(level.endless ? { endless: true } : {}),
             tempo: progress.position.tempo,
             levelId: level.id,
           })

@@ -21,6 +21,12 @@ export interface CourseRun {
   drillId?: DrillId;
   fifths?: number;
   register?: PatternRegister;
+  /** How long the run is, in the material's own unit; absent means the default. */
+  bars?: number;
+  cycles?: number;
+  themeCount?: number;
+  /** Whether the music carries on past that length. Absent means no. */
+  endless?: boolean;
   tempo: number;
   levelId: string;
   /**
@@ -80,4 +86,44 @@ export function isMinorRun(run: CourseRun): boolean {
  */
 export function keyAnswerChanged(run: CourseRun, before: Settings, after: Settings): boolean {
   return run.fifths === undefined && before.courseFifths !== after.courseFifths;
+}
+
+/**
+ * How long a course run is and whether it carries on — the two things
+ * `generateExercise` needs that are not settings.
+ *
+ * `horizonBars: 0` is the substantive half. It leaves no paper past the
+ * committed end, so `chosenBeats` and `totalBeats` meet, nothing draws grey,
+ * no *Continue* is offered, and the run simply ends at the length the author
+ * chose — out to the results screen, to repeat or move on. That is the
+ * chunking driver the course never had: it was previously whatever
+ * `defaultLengthFor` handed back, extended indefinitely by a player accepting
+ * an offer designed for free play.
+ *
+ * A level that asks for `endless` gets the horizon it would have had.
+ */
+export function runShapeOf(run: CourseRun): RunShape {
+  return {
+    ...(run.bars !== undefined ? { bars: run.bars } : {}),
+    ...(run.cycles !== undefined ? { cycles: run.cycles } : {}),
+    ...(run.themeCount !== undefined ? { themeCount: run.themeCount } : {}),
+    ...(run.endless ? {} : { horizonBars: 0 }),
+  };
+}
+
+/**
+ * The shape of a run, over and above the settings it is generated from.
+ *
+ * Not folded into `Settings` because none of it is a setting: the player has
+ * no length control and no horizon control, and inventing two so a course
+ * could speak through them would put a course's decisions where a player's
+ * preferences live — the mistake `courseFifths` and `runTempo` were both
+ * created to avoid.
+ */
+export interface RunShape {
+  bars?: number;
+  cycles?: number;
+  themeCount?: number;
+  /** Paper past the committed end. 0 ends the run where the author said. */
+  horizonBars?: number;
 }

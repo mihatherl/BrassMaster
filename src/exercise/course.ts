@@ -84,6 +84,31 @@ export interface LevelBase {
   fifths?: number;
   /** Where a pattern sits in the instrument, where the author cares. */
   register?: PatternRegister;
+  /**
+   * How long a run is, **in the material's own unit** — the plan's table has
+   * said so since it was written, and the schema did not carry it until
+   * 2026-08-29.
+   *
+   * Until then a level's length fell out of `defaultLengthFor`: four cycles
+   * for a scale, eight for an arpeggio, sixteen bars for sight-reading, four
+   * tunes for themes. So the run ended somewhere different on every kind of
+   * level for a reason the author never chose — found in the player's own
+   * UAT, as *"rather randomly… it seems a bit inconsistent"*.
+   *
+   * It is worse than cosmetic, because the advance rule counts bars **within
+   * a run** (`afterBars`, default 8). A level whose run is shorter than that
+   * can never offer a step at all, and a longer one offers more — so the
+   * material's default length was silently deciding how often the course
+   * could move the player.
+   *
+   * Named per unit rather than one `length` number: a document should say
+   * what it means, and `readCourse` refuses a unit that does not belong to
+   * the kind rather than ignoring it — *a field the app quietly ignores is
+   * worse than an absent one*.
+   */
+  bars?: number;
+  cycles?: number;
+  themeCount?: number;
 }
 
 /**
@@ -171,6 +196,23 @@ export interface CourseLevel {
   advance?: Advance;
   /** Overrides the course's pins for this level alone. */
   pinned?: Pinned;
+  /**
+   * Whether the music carries on past the level's length, offering *Continue*
+   * rather than ending the run.
+   *
+   * **Absent means no**, which is the reversal of what a course used to get.
+   * The horizon (`endless-play-plan.md`, v1.19.0) was designed weeks before
+   * courses existed and free play is where it belongs: there the player
+   * decides when to stop, and carrying on is the whole feature. In a course
+   * it handed the length of the run back to the player mid-run *and* quietly
+   * changed how much evidence the advance rule saw — accept the offer and the
+   * stepping opportunities are unbounded, decline and you get however many
+   * bars the material's default happened to give.
+   *
+   * An author who wants that — a stamina level, a long tone study — says so.
+   * Ruled by the player, 2026-08-29.
+   */
+  endless?: boolean;
 }
 
 export interface Course {
@@ -309,6 +351,33 @@ export function readCourse(raw: unknown): Course | { error: string } {
       return { error: `${where} has a key off the circle of fifths` };
     }
 
+    /*
+     * The length, in the unit the material measures itself in — and only that
+     * unit. A `cycles` on a sight-reading level is not a harmless extra: the
+     * generator would ignore it and the author would believe it, which is the
+     * exact failure this reader exists to prevent. Refused by name.
+     */
+    const UNIT_FOR: Record<LevelKind, 'bars' | 'cycles' | 'themeCount'> = {
+      drills: 'cycles',
+      phrases: 'bars',
+      themes: 'themeCount',
+    };
+    const unit = UNIT_FOR[base.kind as LevelKind];
+    for (const other of ['bars', 'cycles', 'themeCount'] as const) {
+      if (other !== unit && base[other] !== undefined) {
+        return {
+          error: `${where} sets ${other}, which a ${base.kind} level does not measure itself in — use ${unit}`,
+        };
+      }
+    }
+    const length = base[unit];
+    if (
+      length !== undefined &&
+      (typeof length !== 'number' || !Number.isInteger(length) || length < 1)
+    ) {
+      return { error: `${where} has a length that is not a whole number of ${unit}` };
+    }
+
     const tempo = level.tempo as Record<string, unknown> | undefined;
     if (
       typeof tempo !== 'object' ||
@@ -341,11 +410,13 @@ export function readCourse(raw: unknown): Course | { error: string } {
         ['low', 'middle', 'high'].includes(String(base.register))
           ? { register: base.register as PatternRegister }
           : {}),
+        ...(length !== undefined ? { [unit]: length as number } : {}),
       },
       tempo: band,
       ...(readMastery(level.mastery) ? { mastery: readMastery(level.mastery)! } : {}),
       ...(readAdvance(level.advance) ? { advance: readAdvance(level.advance)! } : {}),
       ...(readPinned(level.pinned) ? { pinned: readPinned(level.pinned)! } : {}),
+      ...(level.endless === true ? { endless: true } : {}),
     });
   }
 
@@ -566,7 +637,10 @@ export function prescribedRun(position: Position, course = courseById(position.c
   const steps = Math.round((position.tempo - band.floor) / band.step);
   const tempo = Math.min(band.ceiling, Math.max(band.floor, band.floor + steps * band.step));
   return {
+    // `base` brings the length in the material's own unit; `endless` lives on
+    // the level because it shapes the run rather than the music.
     ...level.base,
+    ...(level.endless ? { endless: true } : {}),
     tempo,
     levelId: level.id,
     ...pinnedFor(position, course),

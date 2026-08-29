@@ -25,7 +25,14 @@ import { SettingsScreen } from './SettingsScreen';
 import { recordRun } from '../storage/sessions';
 import { PracticeScreen } from './PracticeScreen';
 import { setLocale } from '../i18n';
-import { courseKeyOf, isMinorRun, keyAnswerChanged, type CourseRun } from './course-run';
+import {
+  courseKeyOf,
+  isMinorRun,
+  keyAnswerChanged,
+  runShapeOf,
+  type CourseRun,
+  type RunShape,
+} from './course-run';
 import { ProgressScreen } from './ProgressScreen';
 
 /**
@@ -136,7 +143,7 @@ export function App() {
    * has a copy of.
    */
   const buildFrom = useCallback(
-    (chosenSettings: Settings, seed: number, fifths?: number): Exercise => {
+    (chosenSettings: Settings, seed: number, fifths?: number, shape?: RunShape): Exercise => {
       /*
        * The set as well as the key, and this is where a key tour ends.
        *
@@ -155,7 +162,12 @@ export function App() {
         ? noteWeights(loadStats(settings.instrumentId, settings.clef))
         : undefined;
 
-    const length = defaultLengthFor(settings.kind, settings.drillId);
+      /*
+       * The material's own default, which a course level may override — see
+       * `LevelBase`. Free play has no length control, so `shape` is absent
+       * there and this is the whole answer, as it always was.
+       */
+      const length = defaultLengthFor(settings.kind, settings.drillId);
       return generateExercise({
         instrument,
         clef: settings.clef,
@@ -164,12 +176,12 @@ export function App() {
         difficulty: difficultyById(settings.difficultyId),
         kind: settings.kind,
         drillId: settings.drillId,
-        bars: length.bars,
-        themeCount: length.themeCount,
+        bars: shape?.bars ?? length.bars,
+        themeCount: shape?.themeCount ?? length.themeCount,
         collectionIds: settings.collectionIds,
         themeSteps: settings.themeSteps,
         selection: settings.selection,
-        cycles: length.cycles,
+        cycles: shape?.cycles ?? length.cycles,
         register: settings.register,
         range: settings.range ?? undefined,
         metre: metreFor(settings.beatsPerBar, settings.beatUnit),
@@ -182,7 +194,7 @@ export function App() {
          * the paid tier's one lever when the split was a runtime flag, and the
          * split is now between two builds, both of which offer it.
          */
-        horizonBars: HORIZON_BARS,
+        horizonBars: shape?.horizonBars ?? HORIZON_BARS,
         noteWeights: weights,
       });
     },
@@ -243,7 +255,7 @@ export function App() {
       setCourseRun(run);
       setFromCourse(true);
       setRunAt({ tempo, levelId });
-      setExercise(buildFrom(runSettings(run, chosen), randomSeed()));
+      setExercise(buildFrom(runSettings(run, chosen), randomSeed(), undefined, runShapeOf(run)));
       setScreen('play');
     },
     [buildFrom, chosen, runSettings],
@@ -446,7 +458,9 @@ export function App() {
             if (exercise && exercise.kind !== 'imported' && !fromCourse) {
               setExercise(buildFrom(next, exercise.seed));
             } else if (keyChanged && courseRun) {
-              setExercise(buildFrom(runSettings(courseRun, next), randomSeed()));
+              setExercise(
+                buildFrom(runSettings(courseRun, next), randomSeed(), undefined, runShapeOf(courseRun)),
+              );
             }
           }}
           /* Leaving mid-run for the calibration screen unmounts the play
@@ -470,7 +484,9 @@ export function App() {
                       {...state}
                       /* The generator on loan, on exactly the settings
                          `startCourse` built from — see `runSettings`. */
-                      buildRun={(run: CourseRun) => buildFrom(runSettings(run, chosen), randomSeed())}
+                      buildRun={(run: CourseRun) =>
+                        buildFrom(runSettings(run, chosen), randomSeed(), undefined, runShapeOf(run))
+                      }
                     />
                   </Suspense>
                 )
