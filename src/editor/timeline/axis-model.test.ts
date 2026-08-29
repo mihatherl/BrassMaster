@@ -5,7 +5,6 @@ import {
   boundariesOf,
   clearRule,
   deleteDivision,
-  moveDivision,
   removeAxis,
   setRule,
   type TimelineFragment,
@@ -41,35 +40,14 @@ describe('boundaries', () => {
   });
 });
 
-describe('moving a division (the ratified rule semantics)', () => {
-  it('carries its rule with it', () => {
-    const moved = moveDivision(fragment(), 'tempo', 1, 0.4);
-    expect(moved.segmentRules).toEqual([{ at: 0.4, minBars: 6 }]);
-  });
-
-  it('leaves the rule behind when another axis still holds the boundary up', () => {
-    // The 0.6 boundary is shared; moving tempo's division does not move the
-    // reading-mode boundary, so a rule there belongs where it always did.
-    const shared = setRule(fragment(), 0.6, { minBars: 3 });
-    const moved = moveDivision(shared, 'tempo', 2, 0.8);
-    expect(moved.segmentRules).toContainEqual({ at: 0.6, minBars: 3 });
-  });
-
-  it('drops the carried rule rather than overwriting one already at the target', () => {
-    const both = setRule(fragment(), 0.6, { minBars: 3 });
-    // Tempo's 0.3 division (rule minBars 6) merges onto the shared 0.6.
-    const moved = moveDivision(both, 'tempo', 1, 0.6);
-    expect(moved.segmentRules).toEqual([{ at: 0.6, minBars: 3 }]);
-  });
-
-  it('splits with inheritance when the move lands inside a ruled segment', () => {
-    // Reading mode's 0.6 division moves to 0.45 — inside the segment that
-    // begins at 0.3 and carries an authored override. The split copies it.
-    const moved = moveDivision(fragment(), 'readingMode', 1, 0.45);
-    expect(moved.segmentRules).toContainEqual({ at: 0.3, minBars: 6 });
-    expect(moved.segmentRules).toContainEqual({ at: 0.45, minBars: 6 });
-  });
-});
+/*
+ * The move tests lived here until 2026-08-29. Moving a divider is no longer
+ * a rule-carrying operation on stored positions: with the x-axis in bars a
+ * rule *is* a length, so a drag writes lengths, and its three meanings —
+ * redistribute, merge, separate — are pinned in `layout.test.ts`. What
+ * survives here is what still belongs to positions: splitting inherits, and
+ * deleting keeps the left rule.
+ */
 
 describe('adding and deleting divisions', () => {
   it('copies the authored override to both halves of a split', () => {

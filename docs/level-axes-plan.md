@@ -232,6 +232,52 @@ v2.57.0–v2.59.0; the length and horizon work of v2.60.0.
   dial that touches neither the audio nor the judge, so a cheap version
   exists whenever it is wanted.
 
+## The x-axis, ruled twice in one evening (2026-08-29)
+
+The picture's horizontal measure was wrong twice before it was right, and
+both corrections came from the player looking at it.
+
+**Percent was a lie.** Once rules were per-segment, a segment drawn at 25%
+of the bar and one drawn at 5% could both need eight bars: the proportions
+described nothing anyone could act on.
+
+**Time was true but useless.** Widths became each segment's estimated
+duration, which was honest — and left dragging meaningless, because a
+divider's position in seconds was not the author's to set. It also killed
+dragging outright: with a drop resolving to "join a boundary or split a
+gap", a divider already alone in its gap had nowhere to go, so the tempo
+dividers could not be moved at all.
+
+**The bar is the unit** — the unit the rules are written in, the unit the
+player plays, and the only one an author can act on. So:
+
+- a stage's width is the bars its rule asks for, and the level's length is
+  their sum: six stages of eight bars is a 48-bar level, and it says so;
+- **dragging a divider moves bars across it** and writes both rules — the
+  level's length is unchanged, because the bars crossed a border rather
+  than appearing;
+- **editing a rule changes the level's length** (eight bars to ten makes 48
+  into 50), and adding or deleting a division adds or removes a stage of
+  its own length;
+- a stage may never be squeezed below one bar, or below its own score
+  window; squeezing the last bar out of the stage *between* two axes'
+  dividers merges them, which is how two axes come to change at the same
+  bar — the alignment gesture, in the unit the music is in.
+
+Time is still drawn, per segment and for the level, because "how long is
+this?" is a fair question and the tempo is known. It is a label on the
+bars, never the measure.
+
+**A value is drawn as a block**, spanning until *its own* axis changes
+again — not as a mark at a point. Found by the player: a division on
+another axis left a gap in this one, as though the tempo had stopped
+applying there. It never had; the label simply had nowhere to be.
+
+`moveDivision`'s rule-carrying semantics went with the percent era: under
+bars a rule *is* a length, so what a move does to the rules depends on what
+the move meant, and the three answers live in `layout.ts`'s `applyBarDrag`.
+Splitting-inherits and deleting-keeps-the-left-rule stand, in `axis-model`.
+
 ## Still open after the build
 
 - **Support presets.** Per-setting promotion deliberately shipped without a

@@ -340,6 +340,27 @@ sharper rule is that it cannot restore *anything* uncommitted. Revert
 mutations by hand — a reversing `sed`, not a checkout — whenever the file
 carries work that is not yet in a commit.
 
+**Third UAT round (v2.62.0): the x-axis became BARS.** The time axis was
+honest but left dragging meaningless — and in fact impossible: a divider
+alone between its own neighbours had nowhere to go under the join-or-split
+drop, so the tempo dividers could not be moved at all. Bars are the unit
+the rules are written in and the only one an author can act on, so widths
+are bars now: **dragging moves bars across a divider** (writing both rules,
+level length unchanged), **editing a rule changes the level's length**, and
+add/delete adds or removes a stage of its own length. Merging two axes'
+dividers is squeezing the stage between them to nothing — the alignment
+gesture, in the music's own unit. Values draw as **blocks spanning until
+their own axis changes**, which fixes the reported "gap" where another
+axis's division made a tempo look inapplicable. Full reasoning in
+`level-axes-plan.md` § *The x-axis, ruled twice in one evening*.
+
+**Left alone deliberately:** the fresh level's six tempo stages (6 bpm
+apart — the noticeable-step doctrine: ~8% at the bottom of the range, ~4%
+at the top) and the eight bars a stage defaults to (`DEFAULT_RULE`, which
+the plan's own law says is tuned by playing, not by argument). The 48-bar
+total those produce is now visible in the corner and draggable, which is
+the honest answer to "is that right?".
+
 **What is actually next now: the curriculum.** The machinery is built and
 green but UNPLAYED — the checkpoint the build plan named still stands: the
 player plays the bundled course for parity (it should feel identical), then

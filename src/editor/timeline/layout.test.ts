@@ -1,17 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyBarDrag,
   ASSUMED_TEMPO,
-  estimateSegments,
   formatSeconds,
-  resolveDrop,
-  widestGap,
-  xOf,
+  insertAt,
+  layoutOf,
+  resolveBarDrag,
+  xOfAt,
+  type SegmentRuleShape,
 } from './layout';
-import type { TimelineFragment } from './axis-model';
+import { addDivision, boundariesOf, type TimelineFragment } from './axis-model';
 
-const RULE = { minBars: 8 };
+const RULE: SegmentRuleShape = { minBars: 8 };
 
-/** Two tempo segments, 60 then 120 — same bars, half the time. */
+/** Two tempo stages, 60 then 120 — the same bars, half the time. */
 function tempoFragment(): TimelineFragment {
   return {
     axes: [
@@ -26,14 +28,36 @@ function tempoFragment(): TimelineFragment {
   };
 }
 
-describe('estimating segments', () => {
-  it('gives a faster segment less width — the whole point', () => {
-    const [slow, fast] = estimateSegments(tempoFragment(), RULE, {});
-    // 8 bars of 4/4: 32 beats. At 60 that is 32s; at 120, 16s.
+/** Six eight-bar tempo stages: the level a fresh axis generates. */
+function sixStages(): TimelineFragment {
+  return {
+    axes: [
+      {
+        axis: 'tempo',
+        divisions: [0, 1, 2, 3, 4, 5].map((i) => ({ at: i / 6, value: 66 + i * 6 })),
+      },
+    ],
+  };
+}
+
+describe('laying the level out in bars', () => {
+  it('gives every stage the bars its rule asks for, and sums them', () => {
+    const layout = layoutOf(sixStages(), RULE, {});
+    expect(layout.segments.map((s) => s.bars)).toEqual([8, 8, 8, 8, 8, 8]);
+    expect(layout.segments.map((s) => s.barStart)).toEqual([0, 8, 16, 24, 32, 40]);
+    expect(layout.totalBars).toBe(48);
+  });
+
+  it('draws equal bars equally, however fast they are played', () => {
+    // The percent ruler's lie and the time ruler's lie in one case: two
+    // eight-bar stages at 60 and 120 are the same width and different times.
+    const layout = layoutOf(tempoFragment(), RULE, {});
+    const [slow, fast] = layout.segments;
+    expect(slow.x1 - slow.x0).toBeCloseTo(0.5, 9);
+    expect(fast.x1 - fast.x0).toBeCloseTo(0.5, 9);
     expect(slow.seconds).toBe(32);
     expect(fast.seconds).toBe(16);
-    expect(slow.x1 - slow.x0).toBeCloseTo(2 / 3, 9);
-    expect(fast.x1 - fast.x0).toBeCloseTo(1 / 3, 9);
+    expect(layout.totalSeconds).toBe(48);
   });
 
   it('reads the metre in force: a 6/8 bar is three crotchets, not six', () => {
@@ -48,113 +72,178 @@ describe('estimating segments', () => {
         },
       ],
     };
-    const [common, compound] = estimateSegments(fragment, RULE, { tempo: 60 });
+    const [common, compound] = layoutOf(fragment, RULE, { tempo: 60 }).segments;
     expect(common.seconds).toBe(32);
     expect(compound.seconds).toBe(24);
   });
 
   it('stands on the stated assumption where nothing names a tempo, and says so', () => {
-    const [only] = estimateSegments({ axes: [] }, RULE, {});
+    const [only] = layoutOf({ axes: [] }, RULE, {}).segments;
     expect(only.tempo).toBe(ASSUMED_TEMPO);
     expect(only.assumedTempo).toBe(true);
-    const [pinned] = estimateSegments({ axes: [] }, RULE, { tempo: 100 });
-    expect(pinned.assumedTempo).toBe(false);
+    expect(layoutOf({ axes: [] }, RULE, { tempo: 100 }).segments[0].assumedTempo).toBe(false);
   });
 
-  it('floors the bars at the score window where it is wider', () => {
+  it('draws a stage at the score window where that is the longer ask', () => {
     const fragment: TimelineFragment = {
       ...tempoFragment(),
       segmentRules: [{ at: 0.5, minBars: 2, score: { atLeast: 0.9, overBars: 6 } }],
     };
-    const [, scored] = estimateSegments(fragment, RULE, {});
+    const [, scored] = layoutOf(fragment, RULE, {}).segments;
     expect(scored.bars).toBe(6);
     expect(scored.authored).toBe(true);
   });
-
-  it('covers the whole level: x runs 0 to 1 with no gaps', () => {
-    const estimates = estimateSegments(tempoFragment(), RULE, {});
-    expect(estimates[0].x0).toBe(0);
-    expect(estimates[estimates.length - 1].x1).toBeCloseTo(1, 9);
-    for (let i = 1; i < estimates.length; i++) {
-      expect(estimates[i].x0).toBeCloseTo(estimates[i - 1].x1, 9);
-    }
-  });
 });
 
-describe('resolving a drop', () => {
-  /** Tempo boundaries at 0, .3, .6; a reading divider at .8 to drag about. */
-  function fragment(): TimelineFragment {
-    return {
+describe('dragging a divider', () => {
+  const drag = (fragment: TimelineFragment, axis: 'tempo' | 'readingMode', index: number, x: number) => {
+    const layout = layoutOf(fragment, RULE, {});
+    const resolved = resolveBarDrag(fragment, layout, axis, index, x);
+    return { resolved, layout };
+  };
+
+  /*
+   * The fault this model was built to fix: under the time axis a divider
+   * alone between its own neighbours had nowhere to go, so the tempo
+   * dividers could not be dragged at all.
+   */
+  it('moves a divider that has no foreign boundary anywhere near it', () => {
+    const fragment = sixStages();
+    const { resolved, layout } = drag(fragment, 'tempo', 1, 12 / 48);
+    expect(resolved).toEqual({ kind: 'redistribute', bar: 12, x: 12 / 48 });
+    const after = layoutOf(applyBarDrag(fragment, layout, 'tempo', 1, resolved!), RULE, {});
+    expect(after.segments.map((s) => s.bars)).toEqual([12, 4, 8, 8, 8, 8]);
+  });
+
+  it('redistributes: the level is the same length after the drag', () => {
+    const fragment = sixStages();
+    const { resolved, layout } = drag(fragment, 'tempo', 3, 20 / 48);
+    const after = layoutOf(applyBarDrag(fragment, layout, 'tempo', 3, resolved!), RULE, {});
+    expect(after.totalBars).toBe(48);
+    expect(after.segments.map((s) => s.bars)).toEqual([8, 8, 4, 12, 8, 8]);
+  });
+
+  it('writes the bars into the two rules it stands between, and no others', () => {
+    const fragment = sixStages();
+    const { resolved, layout } = drag(fragment, 'tempo', 1, 10 / 48);
+    const next = applyBarDrag(fragment, layout, 'tempo', 1, resolved!);
+    expect(next.segmentRules).toEqual([
+      { at: 0, minBars: 10 },
+      { at: 1 / 6, minBars: 6 },
+    ]);
+  });
+
+  it('stops a stage being squeezed below a bar', () => {
+    const fragment = sixStages();
+    // Hard left, past the previous divider: one bar is as far as it goes.
+    const { resolved } = drag(fragment, 'tempo', 1, 0);
+    expect(resolved!.bar).toBe(1);
+    // And below its own score window, where it asks for one.
+    const scored: TimelineFragment = {
+      ...sixStages(),
+      segmentRules: [{ at: 0, minBars: 8, score: { atLeast: 0.9, overBars: 5 } }],
+    };
+    expect(drag(scored, 'tempo', 1, 0).resolved!.bar).toBe(5);
+  });
+
+  it('never lets one axis’s own dividers meet on the same bar', () => {
+    // Tempo's divider dragged onto tempo's own previous boundary: clamped,
+    // never merged — two tempo values cannot begin at one bar.
+    const fragment = sixStages();
+    const { resolved } = drag(fragment, 'tempo', 2, 8 / 48);
+    expect(resolved!.kind).toBe('redistribute');
+    expect(resolved!.bar).toBe(9);
+  });
+
+  /*
+   * The Visio gesture, in bars: squeeze the stage between two axes' dividers
+   * out of existence and they change at the same bar.
+   */
+  it('merges onto another axis’s divider, keeping the level’s length', () => {
+    const fragment: TimelineFragment = {
       axes: [
         {
           axis: 'tempo',
           divisions: [
             { at: 0, value: 60 },
-            { at: 0.3, value: 66 },
-            { at: 0.6, value: 72 },
+            { at: 0.5, value: 72 },
           ],
         },
         {
           axis: 'readingMode',
           divisions: [
             { at: 0, value: 'scrolling' },
-            { at: 0.8, value: 'paged' },
+            { at: 0.25, value: 'paged' },
           ],
         },
       ],
     };
-  }
-
-  it('joins a boundary within reach, at its exact stored value', () => {
-    const frag = fragment();
-    const estimates = estimateSegments(frag, RULE, {});
-    const nearBoundary = xOf(estimates, 0.3) + 0.01;
-    const drop = resolveDrop(frag, estimates, 'readingMode', 1, nearBoundary)!;
-    expect(drop.joined).toBe(true);
-    expect(drop.at).toBe(0.3);
-    expect(drop.x).toBe(xOf(estimates, 0.3));
+    const layout = layoutOf(fragment, RULE, {});
+    expect(layout.segments.map((s) => s.bars)).toEqual([8, 8, 8]);
+    // Tempo's divider (bar 16) dragged left onto reading's (bar 8).
+    const resolved = resolveBarDrag(fragment, layout, 'tempo', 1, 0)!;
+    expect(resolved.kind).toBe('merge');
+    expect(resolved.bar).toBe(8);
+    const next = applyBarDrag(fragment, layout, 'tempo', 1, resolved);
+    expect(boundariesOf(next.axes)).toEqual([0, 0.25]);
+    const after = layoutOf(next, RULE, {});
+    expect(after.totalBars).toBe(24);
+    expect(after.segments.map((s) => s.bars)).toEqual([8, 16]);
   });
 
-  it('splits the gap it lands in, at the stored midpoint — never a sliver', () => {
-    const frag = fragment();
-    const estimates = estimateSegments(frag, RULE, {});
-    // Well inside the first tempo segment, clear of any boundary.
-    const drop = resolveDrop(frag, estimates, 'readingMode', 1, xOf(estimates, 0.3) / 2)!;
-    expect(drop.joined).toBe(false);
-    expect(drop.at).toBe(0.15);
+  it('pulls a divider back off a shared boundary, splitting the stage it lands in', () => {
+    const fragment: TimelineFragment = {
+      axes: [
+        {
+          axis: 'tempo',
+          divisions: [
+            { at: 0, value: 60 },
+            { at: 0.5, value: 72 },
+          ],
+        },
+        {
+          axis: 'readingMode',
+          divisions: [
+            { at: 0, value: 'scrolling' },
+            { at: 0.5, value: 'paged' },
+          ],
+        },
+      ],
+    };
+    const layout = layoutOf(fragment, RULE, {});
+    expect(layout.segments).toHaveLength(2);
+    // Reading's divider pulled right, four bars into the second stage.
+    const resolved = resolveBarDrag(fragment, layout, 'readingMode', 1, 12 / 16)!;
+    expect(resolved.kind).toBe('separate');
+    const after = layoutOf(applyBarDrag(fragment, layout, 'readingMode', 1, resolved), RULE, {});
+    expect(after.totalBars).toBe(16);
+    expect(after.segments.map((s) => s.bars)).toEqual([8, 4, 4]);
   });
 
-  it('stays put when the pointer wanders within its own gap', () => {
-    const frag = fragment();
-    const estimates = estimateSegments(frag, RULE, {});
-    // The divider at .8 lives between boundaries .6 and 1; pointing there again.
-    const inOwnGap = (xOf(estimates, 0.6) + 1) / 2 + 0.03;
-    const drop = resolveDrop(frag, estimates, 'readingMode', 1, inOwnGap)!;
-    expect(drop.joined).toBe(false);
-    expect(drop.at).toBe(0.8);
-  });
-
-  it('never crosses its own neighbours', () => {
-    const frag = fragment();
-    const estimates = estimateSegments(frag, RULE, {});
-    // Tempo's middle divider dragged far right: fenced by its own .6 neighbour.
-    const drop = resolveDrop(frag, estimates, 'tempo', 1, 0.99)!;
-    expect(drop.at).toBeLessThan(0.6);
-  });
-});
-
-describe('the widest gap', () => {
-  it('measures in time, not stored fractions', () => {
-    // Stored gaps are .5/.5, but the slow half is twice the time — the
-    // insert belongs there.
-    const frag = tempoFragment();
-    const estimates = estimateSegments(frag, RULE, {});
-    expect(widestGap(frag, estimates)).toBe(0.25);
+  it('refuses to drag the division an axis opens with', () => {
+    const fragment = sixStages();
+    expect(resolveBarDrag(fragment, layoutOf(fragment, RULE, {}), 'tempo', 0, 0.5)).toBeNull();
   });
 });
 
-describe('formatting', () => {
-  it('reads like a clock', () => {
+describe('adding a stage', () => {
+  it('lands in the longest stage and lengthens the level by the default', () => {
+    const fragment = sixStages();
+    const layout = layoutOf(fragment, RULE, {});
+    const at = insertAt(layout);
+    const after = layoutOf(addDivision(fragment, 'tempo', at, 66), RULE, {});
+    expect(after.segments).toHaveLength(7);
+    expect(after.totalBars).toBe(56);
+  });
+});
+
+describe('positions and formatting', () => {
+  it('places a boundary at its own bar', () => {
+    const layout = layoutOf(sixStages(), RULE, {});
+    expect(xOfAt(layout, 2 / 6)).toBeCloseTo(16 / 48, 9);
+  });
+
+  it('reads seconds like a clock', () => {
     expect(formatSeconds(0)).toBe('0:00');
     expect(formatSeconds(32)).toBe('0:32');
     expect(formatSeconds(247)).toBe('4:07');

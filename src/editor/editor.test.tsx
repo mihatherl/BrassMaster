@@ -48,14 +48,26 @@ describe('the timeline', () => {
     // which echoes the same figure.
     const values = [...document.querySelectorAll('input.tl-value')] as HTMLInputElement[];
     expect(values.map((input) => input.value)).toEqual(['60', '72']);
+    // A value is drawn as a block spanning until its OWN axis changes: the
+    // reading divider at 0.75 must not cut the 72 block short.
+    const tempoSpans = [
+      ...document.querySelectorAll('.tl-axis__bar')[0].querySelectorAll('.tl-span'),
+    ] as HTMLElement[];
+    expect(tempoSpans).toHaveLength(2);
+    const edge = (span: HTMLElement) =>
+      parseFloat(span.style.left) + parseFloat(span.style.width);
+    // 8 + 6 + 8 bars: the second tempo value begins at bar 9 and runs to the
+    // end, straight across the reading divider at bar 15.
+    expect(parseFloat(tempoSpans[1].style.left)).toBeCloseTo((8 / 22) * 100, 6);
+    expect(edge(tempoSpans[1])).toBeCloseTo(100, 6);
     // Three boundaries — 0, 0.5, 0.75 — so three rule chips; the authored
     // one wears its own figures, the defaults the level's.
     expect(document.querySelectorAll('.tl-chip')).toHaveLength(3);
     const authored = document.querySelectorAll('.tl-chip.is-authored');
     expect(authored).toHaveLength(1);
     expect(authored[0].textContent).toContain('6 bars');
-    // The x-axis is time: 8 bars at 60, 6 at 72, 8 at 72 ≈ 79s end to end.
-    expect(screen.getByText(/≈ 1:19/)).toBeTruthy();
+    // The x-axis is bars: 8 + 6 + 8, and the corner says so.
+    expect(screen.getByText(/22 bars/)).toBeTruthy();
   });
 
   it('opens a rule callout from a chip, editing through it', () => {

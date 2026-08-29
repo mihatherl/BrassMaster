@@ -578,13 +578,16 @@ style.textContent = `
   .tl-gen input[type=number] { width: 3.2rem; }
 
   .tl-axis__bar { grid-column: 2; position: relative; min-height: 4.2rem; }
-  .tl-axis__line { position: absolute; left: 0; right: 0; top: 0.55rem; height: 4px; background: currentColor; opacity: 0.75; border-radius: 2px; }
-  .tl-division { position: absolute; top: 0; transform: translateX(-2px); }
-  .tl-handle { position: absolute; top: 0; left: 0; width: 1.4rem; height: 1.4rem; padding: 0; margin-left: -0.7rem; border: none; background: none; cursor: ew-resize; font-weight: 700; color: #c0392b; touch-action: none; z-index: 2; }
-  .tl-division__value { position: absolute; top: 1.3rem; left: 0; display: flex; gap: 0.15rem; align-items: start; z-index: 2; }
+  .tl-axis__line { position: absolute; left: 0; right: 0; top: 0.15rem; height: 1.15rem; background: currentColor; opacity: 0.07; border-radius: 4px; }
+  /* A value is a BLOCK spanning the bars it is in force for, so it rolls
+     across every boundary that belongs to another axis. */
+  .tl-span { position: absolute; top: 0.15rem; height: 1.15rem; border-radius: 4px; background: #8882; border: 1px solid #8886; border-left: 3px solid #c0392b; box-sizing: border-box; }
+  .tl-span.is-first { border-left-color: #8886; }
+  .tl-handle { position: absolute; top: -0.15rem; left: -0.75rem; width: 1.5rem; height: 1.45rem; padding: 0; border: none; background: none; cursor: ew-resize; font-weight: 700; color: #c0392b; touch-action: none; z-index: 3; }
+  .tl-span__value { position: absolute; top: 1.35rem; left: 0; display: flex; gap: 0.15rem; align-items: start; z-index: 2; }
   .tl-value { width: 3.4rem; font-size: 0.8rem; }
   select.tl-value { width: auto; max-width: 7.5rem; }
-  .tl-division__delete { padding: 0 0.3rem; opacity: 0.6; }
+  .tl-span__delete { padding: 0 0.3rem; opacity: 0.6; }
   .tl-axis__add { position: absolute; right: -1.4rem; top: 0.1rem; padding: 0 0.5rem; }
 
   /* The common timeline, made visible. */

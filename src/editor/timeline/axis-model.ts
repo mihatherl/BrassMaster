@@ -22,6 +22,8 @@
 
 import type { AxisId } from '../../exercise/course';
 
+export type { AxisId };
+
 export interface RawDivision {
   at: number;
   value: unknown;
@@ -104,42 +106,14 @@ function replaceAxis(fragment: TimelineFragment, next: RawAxis): TimelineFragmen
   };
 }
 
-/** Moves one division, carrying its rule per the ratified semantics. */
-export function moveDivision(
-  fragment: TimelineFragment,
-  axisId: AxisId,
-  index: number,
-  to: number,
-): TimelineFragment {
-  const axis = axisIn(fragment, axisId);
-  if (!axis || index <= 0 || index >= axis.divisions.length) return fragment;
-  const from = axis.divisions[index].at;
-  if (same(from, to)) return fragment;
-
-  const divisions = axis.divisions.map((d, i) => (i === index ? { ...d, at: to } : d));
-  let next = replaceAxis(fragment, { ...axis, divisions });
-
-  const fromRemains = boundaryExists(next.axes, from);
-  const toExisted = boundaryExists(fragment.axes, to);
-
-  if (!fromRemains) {
-    const carried = ruleAt(next.segmentRules, from);
-    if (carried) {
-      // The boundary went with the division, so its rule goes too — unless it
-      // arrives at a boundary that already has one, whose author got there
-      // first: two rules cannot begin one segment, and nothing is invented.
-      next = { ...next, segmentRules: withoutRuleAt(next.segmentRules, from) };
-      if (!ruleAt(next.segmentRules, to)) {
-        next = { ...next, segmentRules: [...(next.segmentRules ?? []), { ...carried, at: to }] };
-      }
-    }
-  }
-  if (!toExisted) {
-    // A fresh boundary splits whatever segment it landed in.
-    next = copyOnSplit(next, to);
-  }
-  return next;
-}
+/*
+ * `moveDivision` lived here until 2026-08-29, carrying a rule from one
+ * boundary to another. It belonged to the era when a position and a rule
+ * were independent things; once the x-axis became bars, a rule *is* a
+ * length, so what a move does to the rules depends on what the move meant.
+ * The three answers — redistribute, merge, separate — live in `layout.ts`'s
+ * `applyBarDrag`, which writes them itself.
+ */
 
 /** Adds a division, splitting the segment it lands in. */
 export function addDivision(

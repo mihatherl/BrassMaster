@@ -38,7 +38,6 @@ import {
   addDivision,
   clearRule,
   deleteDivision,
-  moveDivision,
   removeAxis,
   setDivisionValue,
   setRule,
@@ -47,13 +46,15 @@ import {
   type TimelineFragment,
 } from './axis-model';
 import {
+  applyBarDrag,
   ASSUMED_TEMPO,
-  estimateSegments,
   formatSeconds,
-  resolveDrop,
-  widestGap,
-  xOf,
-  type SegmentEstimate,
+  insertAt,
+  layoutOf,
+  resolveBarDrag,
+  xOfAt,
+  type BarDrag,
+  type SegmentLayout,
   type SegmentRuleShape,
 } from './layout';
 import { numericDivisions, orderedDivisions, rangeDivisions } from './generators';
@@ -262,13 +263,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
    * would mean — a join onto the boundary at `at` (snapped, lit) or a split
    * of the gap the pointer is in. Committed on release.
    */
-  const [drag, setDrag] = useState<{
-    axisId: AxisId;
-    index: number;
-    x: number;
-    at: number;
-    joined: boolean;
-  } | null>(null);
+  const [drag, setDrag] = useState<({ axisId: AxisId; index: number } & BarDrag) | null>(null);
   /** Which segment's rule callout is open, by its beginning boundary. */
   const [openRuleAt, setOpenRuleAt] = useState<number | null>(null);
   /**
@@ -323,16 +318,21 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
   const headerMetre = Array.isArray(base.metre)
     ? (base.metre as unknown as readonly [number, number])
     : undefined;
-  const estimates = estimateSegments(fragment, levelRule, {
-    tempo: headerTempo,
-    metre: headerMetre,
-  });
-  const totalSeconds = estimates.reduce((sum, segment) => sum + segment.seconds, 0);
-  const tempoAssumed = estimates.some((segment) => segment.assumedTempo);
+  const header = { tempo: headerTempo, metre: headerMetre };
+  const layout = layoutOf(fragment, levelRule, header);
 
-  /** Where a division draws: its boundary's time-position — or the drag's. */
-  const shownX = (axisId: AxisId, index: number, at: number) =>
-    drag && drag.axisId === axisId && drag.index === index ? drag.x : xOf(estimates, at);
+  /*
+   * While a divider is in flight the whole graph is drawn from the document
+   * the drop *would* write — so the bars either side, the rules chips, the
+   * ruler and the level's own length all move under the finger, and what
+   * the author lets go of is exactly what they were looking at.
+   */
+  const shownFragment = drag
+    ? applyBarDrag(fragment, layout, drag.axisId, drag.index, drag)
+    : fragment;
+  const shown = drag ? layoutOf(shownFragment, levelRule, header) : layout;
+  const shownAxes = drag ? rawAxesOf({ ...level, axes: shownFragment.axes }) : axes;
+  const tempoAssumed = shown.segments.some((segment) => segment.assumedTempo);
 
   return (
     <div className="tl">
@@ -358,19 +358,26 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
       >
         <div className="tl__grid">
           <div className="tl__corner">
-            Level progression <span className="muted">≈ {formatSeconds(totalSeconds)}</span>
+            Level progression{' '}
+            <span className="muted">
+              {shown.totalBars} bars ≈ {formatSeconds(shown.totalSeconds)}
+            </span>
           </div>
-          {/* The ruler reads minutes and seconds: the axis is time, evenly
-              spaced by construction, so five ticks say the whole story. */}
+          {/* Bars, because bars are the unit: what the rules ask for, what
+              the player plays, and the only thing a drag can set. The time
+              beneath each is a label on them, never the measure itself. */}
           <div className="tl__ruler">
-            {[0, 1, 2, 3, 4].map((tick) => (
-              <span key={tick} style={{ left: `${tick * 25}%` }}>
-                {formatSeconds((totalSeconds * tick) / 4)}
-              </span>
-            ))}
+            {[0, 1, 2, 3, 4].map((tick) => {
+              const bar = Math.round((shown.totalBars * tick) / 4);
+              return (
+                <span key={tick} style={{ left: `${tick * 25}%` }}>
+                  {tick === 0 ? 'bar 1' : bar + (tick === 4 ? 0 : 1)}
+                </span>
+              );
+            })}
           </div>
 
-          {axes.map((axis, axisRow) => (
+          {shownAxes.map((axis, axisRow) => (
             <Fragment key={axis.axis}>
               {/* Explicit coordinates, not auto-placement: the lines overlay
                   below is explicitly placed across column 2, and auto-placed
@@ -418,16 +425,31 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
               </div>
               <div className="tl-axis__bar" style={{ gridRow: axisRow + 2 }}>
                 <div className="tl-axis__line" />
+                {/*
+                 * A value is drawn as a BLOCK spanning to this axis's own
+                 * next division — not as a mark at a point. The player's
+                 * report of 2026-08-29: a division on another axis left a
+                 * gap in this one, as though the tempo stopped applying
+                 * there. It never did; the label simply had nowhere to be.
+                 * A block rolls across every boundary that is not its own,
+                 * which is what "in force until it changes" looks like.
+                 */}
                 {axis.divisions.map((division, index) => {
-                  const x = shownX(axis.axis, index, division.at);
+                  const start = xOfAt(shown, division.at);
+                  const nextDivision = axis.divisions[index + 1];
+                  const end = nextDivision ? xOfAt(shown, nextDivision.at) : 1;
                   return (
-                    <div className="tl-division" key={index} style={{ left: `${x * 100}%` }}>
+                    <div
+                      className={`tl-span ${index === 0 ? 'is-first' : ''}`}
+                      key={index}
+                      style={{ left: `${start * 100}%`, width: `${(end - start) * 100}%` }}
+                    >
                       {index > 0 && (
                         <DragHandle
                           onDrag={(fraction) => {
-                            const drop = resolveDrop(
+                            const drop = resolveBarDrag(
                               fragment,
-                              estimates,
+                              layout,
                               axis.axis,
                               index,
                               fraction,
@@ -435,13 +457,15 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                             if (drop) setDrag({ axisId: axis.axis, index, ...drop });
                           }}
                           onCommit={() => {
-                            if (drag) apply(moveDivision(fragment, axis.axis, index, drag.at));
+                            if (drag) {
+                              apply(applyBarDrag(fragment, layout, drag.axisId, drag.index, drag));
+                            }
                             setDrag(null);
                           }}
                           onCancel={() => setDrag(null)}
                         />
                       )}
-                      <div className="tl-division__value">
+                      <div className="tl-span__value">
                         <DivisionValue
                           axisId={axis.axis}
                           value={division.value}
@@ -455,7 +479,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                         {index > 0 && (
                           <button
                             type="button"
-                            className="tl-division__delete"
+                            className="tl-span__delete"
                             title="Delete this division"
                             onClick={() => apply(deleteDivision(fragment, axis.axis, index))}
                           >
@@ -471,10 +495,12 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
                   className="tl-axis__add"
                   title="Add a division"
                   onClick={() => {
-                    /* Into the widest gap by TIME, wearing the value the axis
+                    /* Into the longest stage, wearing the value this axis
                        already has in force there — a division that changes
-                       nothing until the author edits it. */
-                    const at = widestGap(fragment, estimates);
+                       nothing until the author edits it. The new stage takes
+                       the level default, so the level grows by it, exactly
+                       as deleting a stage shortens the level by its own. */
+                    const at = insertAt(layout);
                     let inForce = axis.divisions[0].value;
                     for (const division of axis.divisions) {
                       if (division.at <= at) inForce = division.value;
@@ -488,11 +514,11 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
             </Fragment>
           ))}
 
-          <div className="tl-rules__label" style={{ gridRow: axes.length + 2 }}>
+          <div className="tl-rules__label" style={{ gridRow: shownAxes.length + 2 }}>
             Progression rules
             <span className="muted">per segment</span>
           </div>
-          <div className="tl-rules__row" style={{ gridRow: axes.length + 2 }}>
+          <div className="tl-rules__row" style={{ gridRow: shownAxes.length + 2 }}>
             {/*
              * Chips, not a cramped form: each segment shows its whole story
              * in one line — the bars its rule asks for, the score if any,
@@ -500,7 +526,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
              * chip is drawn at. Clicking opens a callout with room to edit;
              * the figures never have to fit inside a sliver segment again.
              */}
-            {estimates.map((segment) => (
+            {shown.segments.map((segment) => (
               <div
                 className="tl-chipwrap"
                 key={segment.at}
@@ -554,13 +580,13 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
            */}
           <div
             className="tl__lines"
-            style={{ gridRow: `2 / ${3 + axes.length}` }}
+            style={{ gridRow: `2 / ${3 + shownAxes.length}` }}
             aria-hidden="true"
           >
-            {estimates
+            {shown.segments
               .filter((segment) => segment.at > 0)
               .map((segment) => {
-                const holders = axes.filter((axis) =>
+                const holders = shownAxes.filter((axis) =>
                   axis.divisions.some(
                     (division) => Math.abs(division.at - segment.at) < 1e-9,
                   ),
@@ -575,7 +601,7 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
               })}
             {drag && (
               <div
-                className={`tl__guide ${drag.joined ? 'is-snapped' : ''}`}
+                className={`tl__guide ${drag.kind === 'merge' ? 'is-snapped' : ''}`}
                 style={{ left: `${drag.x * 100}%` }}
               />
             )}
@@ -584,9 +610,11 @@ export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement 
       </div>
 
       <p className="muted tl__estimate-note">
-        Widths are time: the minimum bars to progress, at the tempo and metre in force
-        {tempoAssumed ? ` (assuming ${ASSUMED_TEMPO} bpm where the level names none)` : ''} — a
-        clean run’s floor; a score requirement can stretch a segment.
+        Widths are bars — the minimum each stage asks for, which is what dragging a divider
+        sets. Times are what those bars take at the tempo in force
+        {tempoAssumed ? `, assuming ${ASSUMED_TEMPO} bpm where the level names none` : ''}, on a
+        clean run. Dragging moves bars across a divider and leaves the level the same length;
+        editing a rule changes it.
       </p>
 
       <div className="tl-rules__default">
@@ -1144,7 +1172,7 @@ function RuleCallout({
   onClear,
   onClose,
 }: {
-  segment: SegmentEstimate;
+  segment: SegmentLayout;
   alignRight?: boolean;
   /** Reports the room this callout needs below its chip, in pixels. */
   onRoom?: (pixels: number) => void;
@@ -1246,8 +1274,8 @@ function RuleCallout({
         </label>
       )}
       <p className="muted">
-        ≈ {formatSeconds(segment.seconds)} at {segment.tempo} bpm
-        {segment.assumedTempo ? ' (assumed)' : ''}
+        {segment.bars} bars from bar {segment.barStart + 1} · ≈{formatSeconds(segment.seconds)} at{' '}
+        {segment.tempo} bpm{segment.assumedTempo ? ' (assumed)' : ''}
       </p>
       {segment.authored && (
         <button type="button" onClick={onClear}>
