@@ -615,6 +615,25 @@ export class Session {
     return result;
   }
 
+  /**
+   * Changes what cushions the run, mid-run — a course's support axis landing
+   * at a segment crossing (2026-08-29).
+   *
+   * A plain mutation of the options, deliberately: both fields are read from
+   * `this.options` on every scheduling window rather than captured, so the
+   * change takes effect at the next beat the scheduler has not committed to —
+   * within one horizon of the crossing, which is the same tolerance the
+   * metronome's own volume changes have always had. Nothing is rebuilt and
+   * nothing audible stops, which is the whole reason this is a setter and not
+   * a new session.
+   */
+  setSupport(changes: { metronomeEnabled?: boolean; playbackMode?: PlaybackMode }): void {
+    if (changes.metronomeEnabled !== undefined) {
+      this.options.metronomeEnabled = changes.metronomeEnabled;
+    }
+    if (changes.playbackMode !== undefined) this.options.playbackMode = changes.playbackMode;
+  }
+
   changeKey(fresh: Exercise): Rekeyed | null {
     if (this.finished) return null;
 

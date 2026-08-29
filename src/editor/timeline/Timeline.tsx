@@ -1,0 +1,1001 @@
+/**
+ * The timeline: the concept drawing, working — one bar per axis across the
+ * level's progression, divisions the author drags, a per-segment rules table
+ * below. `docs/level-progression-concept.png` is the specification and
+ * `docs/level-axes-plan.md` the rulings.
+ *
+ * Percentages are an authoring device: the bars are drawn proportionally
+ * because that is how the shape reads, and what is written into the document
+ * is the ordered division list the app derives its segments from. Every edit
+ * goes through `axis-model.ts`, where the ratified rule semantics (carry,
+ * copy-on-split, merge-keep-left) live and are unit-tested; every keystroke
+ * is judged by `readCourse` in the page above, as ever.
+ *
+ * The trichotomy's gesture lives here too: the add-axis picker offers every
+ * parameter the material can play, and choosing one that is currently pinned
+ * in the level's header *unpins it* — the author has dragged the control
+ * down into the graph, exactly as ruled. A parameter is header-level or an
+ * axis, never both, and this component makes the state change atomic so the
+ * reader can never see the forbidden overlap.
+ */
+
+import { useRef, useState, type ReactElement } from 'react';
+import { AXIS_MATERIALS, DEFAULT_RULE, type AxisId, type LevelKind } from '../../exercise/course';
+import { MAJOR_KEYS } from '../../domain/keys';
+import { OFFERED_METRES } from '../../domain/metre';
+import {
+  instrumentById,
+  writtenRange,
+  soundingFromWritten,
+  INSTRUMENTS,
+  type Clef,
+} from '../../domain/instruments';
+import { formatMask, primaryFingering } from '../../domain/fingering';
+import { drawRangeStave } from '../../render/range-stave';
+import { StaveCanvas } from '../../ui/StaveCanvas';
+import {
+  addAxis,
+  addDivision,
+  boundariesOf,
+  clearRule,
+  deleteDivision,
+  moveDivision,
+  removeAxis,
+  setDivisionValue,
+  setRule,
+  snapDivision,
+  type RawAxis,
+  type RawRule,
+  type TimelineFragment,
+} from './axis-model';
+import { numericDivisions, orderedDivisions, rangeDivisions } from './generators';
+
+const AXIS_LABELS: Record<AxisId, string> = {
+  tempo: 'Tempo',
+  fifths: 'Key',
+  bars: 'Bars',
+  cycles: 'Cycles',
+  themeCount: 'Tunes',
+  range: 'Range',
+  span: 'Reach',
+  register: 'Register',
+  metre: 'Metre',
+  intervals: 'Intervals',
+  metronomeEnabled: 'Metronome',
+  conductorEnabled: 'Conductor',
+  fingerings: 'Fingerings',
+  playbackMode: 'Sound',
+  readingMode: 'Reading',
+};
+
+/** Where each parameter's header scalar lives, for the unpin gesture. */
+const LEVEL_SCALARS: readonly AxisId[] = [
+  'tempo',
+  'metronomeEnabled',
+  'conductorEnabled',
+  'fingerings',
+  'playbackMode',
+  'readingMode',
+];
+const BASE_FIELD: Partial<Record<AxisId, string>> = {
+  fifths: 'fifths',
+  bars: 'bars',
+  cycles: 'cycles',
+  themeCount: 'themeCount',
+  range: 'range',
+  span: 'spanSemitones',
+  metre: 'metre',
+  intervals: 'intervals',
+};
+
+const NUMERIC: readonly AxisId[] = ['tempo', 'bars', 'cycles', 'themeCount', 'span'];
+
+interface TimelineProps {
+  kind: LevelKind;
+  /** The raw level fragment; the page's reader judges it, this edits it. */
+  level: Record<string, unknown>;
+  onPatch: (changes: Record<string, unknown>) => void;
+}
+
+/** The axes as loosely as the document may hold them; garbage is the verdict line's job. */
+function rawAxesOf(level: Record<string, unknown>): RawAxis[] {
+  const list = Array.isArray(level.axes) ? (level.axes as unknown[]) : [];
+  return list.flatMap((entry) => {
+    if (typeof entry !== 'object' || entry === null) return [];
+    const { axis, divisions } = entry as Record<string, unknown>;
+    if (typeof axis !== 'string' || !(axis in AXIS_LABELS) || !Array.isArray(divisions)) return [];
+    return [
+      {
+        axis: axis as AxisId,
+        divisions: (divisions as unknown[]).flatMap((d) => {
+          if (typeof d !== 'object' || d === null) return [];
+          const { at, value } = d as Record<string, unknown>;
+          return typeof at === 'number' ? [{ at, value }] : [];
+        }),
+      },
+    ];
+  });
+}
+
+function rawRulesOf(level: Record<string, unknown>): RawRule[] | undefined {
+  const list = Array.isArray(level.segmentRules) ? (level.segmentRules as unknown[]) : [];
+  const rules = list.flatMap((entry) => {
+    if (typeof entry !== 'object' || entry === null) return [];
+    const { at, minBars, score } = entry as Record<string, unknown>;
+    if (typeof at !== 'number' || typeof minBars !== 'number') return [];
+    return [
+      {
+        at,
+        minBars,
+        ...(typeof score === 'object' && score !== null
+          ? { score: score as { atLeast: number; overBars: number } }
+          : {}),
+      },
+    ];
+  });
+  return rules.length ? rules : undefined;
+}
+
+function levelRuleOf(level: Record<string, unknown>): {
+  minBars: number;
+  score?: { atLeast: number; overBars: number };
+} {
+  const rules = level.rules as Record<string, unknown> | undefined;
+  if (typeof rules?.minBars !== 'number') return DEFAULT_RULE;
+  const score = rules.score as { atLeast: number; overBars: number } | undefined;
+  return { minBars: rules.minBars, ...(score ? { score } : {}) };
+}
+
+/** The header scalar a parameter currently pins, or undefined. */
+function pinnedValue(level: Record<string, unknown>, axisId: AxisId): unknown {
+  if (LEVEL_SCALARS.includes(axisId)) {
+    // An old-format band is a tempo AXIS in waiting, not a pin.
+    if (axisId === 'tempo' && typeof level.tempo === 'object') return undefined;
+    return level[axisId];
+  }
+  const base = (level.base ?? {}) as Record<string, unknown>;
+  return base[BASE_FIELD[axisId]!];
+}
+
+/** The starting sequence an added axis opens with — sensible, then edited. */
+function defaultAxisFor(
+  axisId: AxisId,
+  context: { fifths: number; compass: readonly [number, number] },
+): RawAxis {
+  const divisions = (() => {
+    switch (axisId) {
+      case 'tempo':
+        return numericDivisions(66, 96, 6);
+      case 'bars':
+        return numericDivisions(8, 16, 3);
+      case 'cycles':
+        return numericDivisions(2, 6, 3);
+      case 'themeCount':
+        return numericDivisions(2, 4, 2);
+      case 'span':
+        return orderedDivisions([7, 12, 24]);
+      case 'fifths':
+        return orderedDivisions([context.fifths]);
+      case 'register':
+        return orderedDivisions(['middle', 'high']);
+      case 'metre':
+        return orderedDivisions([[4, 4], [3, 4]]);
+      case 'range':
+        return rangeDivisions({
+          fifths: context.fifths,
+          compass: context.compass,
+          anchor: middleOctave(context.compass),
+          steps: 3,
+          bias: 'both',
+        });
+      case 'intervals':
+        return orderedDivisions([
+          { intervals: [{ interval: 2, weight: 3 }, { interval: 3, weight: 1 }] },
+        ]);
+      case 'metronomeEnabled':
+      case 'conductorEnabled':
+        return orderedDivisions([true, false]);
+      case 'fingerings':
+        return orderedDivisions(['trouble', 'never']);
+      case 'playbackMode':
+        return orderedDivisions(['reference', 'off']);
+      case 'readingMode':
+        return orderedDivisions(['scrolling', 'paged']);
+    }
+  })();
+  return { axis: axisId, divisions };
+}
+
+function middleOctave(compass: readonly [number, number]): { low: number; high: number } {
+  const centre = Math.round((compass[0] + compass[1]) / 2);
+  return { low: Math.max(compass[0], centre - 6), high: Math.min(compass[1], centre + 6) };
+}
+
+export function Timeline({ kind, level, onPatch }: TimelineProps): ReactElement {
+  const axes = rawAxesOf(level);
+  const fragment: TimelineFragment = { axes, segmentRules: rawRulesOf(level) };
+  const levelRule = levelRuleOf(level);
+
+  /*
+   * The stave figures and the range generator need an instrument to walk —
+   * a course is instrument-agnostic, so this is a PREVIEW, editor-local and
+   * never written into the document. The fifths for the ladder come from the
+   * level where it says (pinned or first key division), else C.
+   */
+  const [previewInstrument, setPreviewInstrument] = useState('eb-bass');
+  const [previewClef, setPreviewClef] = useState<Clef>('treble');
+  const instrument = instrumentById(previewInstrument);
+  const compass = writtenRange(instrument, previewClef);
+  const base = (level.base ?? {}) as Record<string, unknown>;
+  const previewFifths =
+    typeof base.fifths === 'number'
+      ? base.fifths
+      : ((axes.find((a) => a.axis === 'fifths')?.divisions[0]?.value as number | undefined) ?? 0);
+
+  /** A drag in flight: the division follows the pointer, committed on release. */
+  const [drag, setDrag] = useState<{ axisId: AxisId; index: number; at: number } | null>(null);
+
+  const apply = (next: TimelineFragment) =>
+    onPatch({
+      axes: next.axes.length ? next.axes : undefined,
+      segmentRules: next.segmentRules,
+    });
+
+  const promote = (axisId: AxisId) => {
+    /*
+     * The drag-down gesture: a pinned parameter moved onto the timeline is
+     * unpinned in the same patch, so the reader never sees both. An old
+     * tempo band is replaced outright — it was an axis wearing older clothes.
+     */
+    const next = addAxis(fragment, defaultAxisFor(axisId, { fifths: previewFifths, compass }));
+    const unpin: Record<string, unknown> = {};
+    if (LEVEL_SCALARS.includes(axisId)) unpin[axisId] = undefined;
+    else unpin.base = { ...base, [BASE_FIELD[axisId]!]: undefined };
+    onPatch({
+      axes: next.axes,
+      segmentRules: next.segmentRules,
+      ...unpin,
+    });
+  };
+
+  const offered = (Object.keys(AXIS_MATERIALS) as AxisId[]).filter(
+    (axisId) =>
+      AXIS_MATERIALS[axisId].includes(kind) && !axes.some((axis) => axis.axis === axisId),
+  );
+
+  const boundaries = boundariesOf(axes);
+  const widths = boundaries.map(
+    (at, i) => (i + 1 < boundaries.length ? boundaries[i + 1] : 1) - at,
+  );
+
+  const shownAt = (axisId: AxisId, index: number, at: number) =>
+    drag && drag.axisId === axisId && drag.index === index ? drag.at : at;
+
+  return (
+    <div className="tl">
+      <div className="tl__head">
+        <span className="tl__title">Level progression</span>
+        <span className="tl__ruler">
+          <span>0%</span>
+          <span>50%</span>
+          <span>100%</span>
+        </span>
+      </div>
+
+      {axes.map((axis) => (
+        <div className="tl-axis" key={axis.axis}>
+          <div className="tl-axis__panel">
+            <div className="tl-axis__name">
+              <strong>{AXIS_LABELS[axis.axis]}</strong>
+              <button
+                type="button"
+                title="Remove this axis"
+                onClick={() => apply(removeAxis(fragment, axis.axis))}
+              >
+                ×
+              </button>
+            </div>
+            {NUMERIC.includes(axis.axis) && (
+              <NumericGenerator
+                axis={axis}
+                onGenerate={(divisions) =>
+                  apply({
+                    ...removeAxis(fragment, axis.axis),
+                    axes: [
+                      ...removeAxis(fragment, axis.axis).axes,
+                      { axis: axis.axis, divisions },
+                    ],
+                  })
+                }
+              />
+            )}
+            {axis.axis === 'range' && (
+              <RangeGenerator
+                fifths={previewFifths}
+                compass={compass}
+                onGenerate={(divisions) =>
+                  apply({
+                    ...removeAxis(fragment, 'range'),
+                    axes: [...removeAxis(fragment, 'range').axes, { axis: 'range', divisions }],
+                  })
+                }
+              />
+            )}
+          </div>
+          <div className="tl-axis__bar">
+            <div className="tl-axis__line" />
+            {axis.divisions.map((division, index) => {
+              const at = shownAt(axis.axis, index, division.at);
+              return (
+                <div className="tl-division" key={index} style={{ left: `${at * 100}%` }}>
+                  {index > 0 && (
+                    <DragHandle
+                      onDrag={(fraction) =>
+                        setDrag({
+                          axisId: axis.axis,
+                          index,
+                          at: snapDivision(fragment, axis.axis, index, fraction),
+                        })
+                      }
+                      onCommit={() => {
+                        if (drag) apply(moveDivision(fragment, axis.axis, index, drag.at));
+                        setDrag(null);
+                      }}
+                      onCancel={() => setDrag(null)}
+                    />
+                  )}
+                  <div className="tl-division__value">
+                    <DivisionValue
+                      axisId={axis.axis}
+                      value={division.value}
+                      onChange={(value) =>
+                        apply(setDivisionValue(fragment, axis.axis, index, value))
+                      }
+                      instrumentId={previewInstrument}
+                      clef={previewClef}
+                      fifths={previewFifths}
+                    />
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        className="tl-division__delete"
+                        title="Delete this division"
+                        onClick={() => apply(deleteDivision(fragment, axis.axis, index))}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              className="tl-axis__add"
+              title="Add a division"
+              onClick={() => {
+                /* Into the middle of the widest gap, wearing the value in
+                   force there — a division that changes nothing until the
+                   author edits it, which is the least surprising insert. */
+                const ats = [...axis.divisions.map((d) => d.at), 1];
+                let widest = 0;
+                for (let i = 1; i < ats.length; i++) {
+                  if (ats[i] - ats[i - 1] > ats[widest + 1] - ats[widest]) widest = i - 1;
+                }
+                const at = (ats[widest] + ats[widest + 1]) / 2;
+                apply(addDivision(fragment, axis.axis, at, axis.divisions[widest].value));
+              }}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div className="tl__controls">
+        <label>
+          Add an axis
+          <select
+            value=""
+            onChange={(e) => e.target.value && promote(e.target.value as AxisId)}
+          >
+            <option value="">choose…</option>
+            {offered.map((axisId) => (
+              <option key={axisId} value={axisId}>
+                {AXIS_LABELS[axisId]}
+                {pinnedValue(level, axisId) !== undefined ? ' — pinned; moving it here unpins' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        {(axes.some((a) => a.axis === 'range') || kind === 'phrases') && (
+          <>
+            <label>
+              Preview instrument
+              <select
+                value={previewInstrument}
+                onChange={(e) => setPreviewInstrument(e.target.value)}
+              >
+                {INSTRUMENTS.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Clef
+              <select value={previewClef} onChange={(e) => setPreviewClef(e.target.value as Clef)}>
+                <option value="treble">Treble</option>
+                <option value="bass">Bass</option>
+              </select>
+            </label>
+            <span className="muted">
+              Preview only — a course is instrument-agnostic; the stave figures and the range
+              generator walk this instrument, and nothing about it is saved.
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="tl-rules">
+        <div className="tl-rules__default">
+          <span>Progression rules — level default:</span>
+          <label>
+            after
+            <input
+              type="number"
+              min={1}
+              value={levelRule.minBars}
+              onChange={(e) =>
+                onPatch({
+                  rules: {
+                    minBars: Math.max(1, Number(e.target.value)),
+                    ...(levelRule.score ? { score: levelRule.score } : {}),
+                  },
+                })
+              }
+            />
+            bars
+          </label>
+          <label>
+            , every one of the last
+            <input
+              type="number"
+              min={1}
+              value={levelRule.score?.overBars ?? ''}
+              placeholder="n/a"
+              onChange={(e) =>
+                onPatch({
+                  rules: {
+                    minBars: levelRule.minBars,
+                    ...(e.target.value
+                      ? {
+                          score: {
+                            atLeast: levelRule.score?.atLeast ?? 0.85,
+                            overBars: Math.max(1, Number(e.target.value)),
+                          },
+                        }
+                      : {}),
+                  },
+                })
+              }
+            />
+            bars at ≥
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={levelRule.score ? Math.round(levelRule.score.atLeast * 100) : ''}
+              placeholder="n/a"
+              disabled={!levelRule.score}
+              onChange={(e) =>
+                onPatch({
+                  rules: {
+                    minBars: levelRule.minBars,
+                    score: {
+                      atLeast: Math.min(1, Math.max(0.01, Number(e.target.value) / 100)),
+                      overBars: levelRule.score?.overBars ?? 4,
+                    },
+                  },
+                })
+              }
+            />
+            %
+          </label>
+        </div>
+        <div className="tl-rules__row">
+          {boundaries.map((at, i) => {
+            const override = fragment.segmentRules?.find((r) => Math.abs(r.at - at) < 1e-9);
+            const effective = override ?? levelRule;
+            return (
+              <div
+                className={`tl-cell ${override ? 'is-authored' : 'is-default'}`}
+                key={i}
+                style={{ flexGrow: Math.max(widths[i], 0.02), flexBasis: 0 }}
+                title={
+                  override
+                    ? 'This segment’s own rule'
+                    : 'The level default — edit to give this segment its own'
+                }
+              >
+                <label>
+                  bars
+                  <input
+                    type="number"
+                    min={1}
+                    value={override ? override.minBars : ''}
+                    placeholder={String(levelRule.minBars)}
+                    onChange={(e) =>
+                      e.target.value
+                        ? apply(
+                            setRule(fragment, at, {
+                              ...effective,
+                              minBars: Math.max(1, Number(e.target.value)),
+                            }),
+                          )
+                        : apply(clearRule(fragment, at))
+                    }
+                  />
+                </label>
+                <label>
+                  score
+                  <input
+                    type="text"
+                    value={
+                      override
+                        ? override.score
+                          ? `${Math.round(override.score.atLeast * 100)}/${override.score.overBars}`
+                          : 'n/a'
+                        : ''
+                    }
+                    placeholder={
+                      levelRule.score
+                        ? `${Math.round(levelRule.score.atLeast * 100)}/${levelRule.score.overBars}`
+                        : 'n/a'
+                    }
+                    title="Percent over bars, like 80/2 — or n/a for time served alone"
+                    onChange={(e) => {
+                      const text = e.target.value.trim();
+                      if (!text) return apply(clearRule(fragment, at));
+                      if (text === 'n/a' || text === 'na') {
+                        return apply(setRule(fragment, at, { minBars: effective.minBars }));
+                      }
+                      const match = /^(\d{1,3})\s*\/\s*(\d+)$/.exec(text);
+                      if (!match) return; // half-typed; the placeholder shape explains
+                      apply(
+                        setRule(fragment, at, {
+                          minBars: effective.minBars,
+                          score: {
+                            atLeast: Math.min(1, Math.max(0.01, Number(match[1]) / 100)),
+                            overBars: Math.max(1, Number(match[2])),
+                          },
+                        }),
+                      );
+                    }}
+                  />
+                </label>
+                {override && (
+                  <button
+                    type="button"
+                    className="tl-cell__clear"
+                    title="Back to the level default"
+                    onClick={() => apply(clearRule(fragment, at))}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The draggable notch a division hangs from. Pointer-captured, Escape cancels. */
+function DragHandle({
+  onDrag,
+  onCommit,
+  onCancel,
+}: {
+  onDrag: (fraction: number) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+}): ReactElement {
+  const dragging = useRef(false);
+  return (
+    <button
+      type="button"
+      className="tl-handle"
+      title="Drag to move this division"
+      onPointerDown={(e) => {
+        dragging.current = true;
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (!dragging.current) return;
+        const bar = (e.target as HTMLElement).closest('.tl-axis__bar');
+        if (!bar) return;
+        const rect = bar.getBoundingClientRect();
+        onDrag((e.clientX - rect.left) / rect.width);
+      }}
+      onPointerUp={() => {
+        if (!dragging.current) return;
+        dragging.current = false;
+        onCommit();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          dragging.current = false;
+          onCancel();
+        }
+      }}
+    >
+      ‖
+    </button>
+  );
+}
+
+/** From | to | steps for the numeric axes, regenerating the whole sequence. */
+function NumericGenerator({
+  axis,
+  onGenerate,
+}: {
+  axis: RawAxis;
+  onGenerate: (divisions: RawAxis['divisions']) => void;
+}): ReactElement {
+  const first = Number(axis.divisions[0]?.value ?? 60);
+  const last = Number(axis.divisions[axis.divisions.length - 1]?.value ?? first);
+  const [from, setFrom] = useState(String(first));
+  const [to, setTo] = useState(String(last));
+  const [steps, setSteps] = useState(String(axis.divisions.length || 5));
+  return (
+    <div className="tl-gen">
+      <label>
+        from
+        <input type="number" value={from} onChange={(e) => setFrom(e.target.value)} />
+      </label>
+      <label>
+        to
+        <input type="number" value={to} onChange={(e) => setTo(e.target.value)} />
+      </label>
+      <label>
+        steps
+        <input type="number" min={1} value={steps} onChange={(e) => setSteps(e.target.value)} />
+      </label>
+      <button
+        type="button"
+        onClick={() => onGenerate(numericDivisions(Number(from), Number(to), Number(steps)))}
+      >
+        Generate
+      </button>
+    </div>
+  );
+}
+
+/** "Give me N steps from this anchor, biased up / down / both" — ruling 2. */
+function RangeGenerator({
+  fifths,
+  compass,
+  onGenerate,
+}: {
+  fifths: number;
+  compass: readonly [number, number];
+  onGenerate: (divisions: RawAxis['divisions']) => void;
+}): ReactElement {
+  const anchor = middleOctave(compass);
+  const [low, setLow] = useState(String(anchor.low));
+  const [high, setHigh] = useState(String(anchor.high));
+  const [steps, setSteps] = useState('4');
+  const [bias, setBias] = useState<'up' | 'down' | 'both'>('both');
+  return (
+    <div className="tl-gen">
+      <label>
+        low
+        <input type="number" value={low} onChange={(e) => setLow(e.target.value)} />
+      </label>
+      <label>
+        high
+        <input type="number" value={high} onChange={(e) => setHigh(e.target.value)} />
+      </label>
+      <label>
+        steps
+        <input type="number" min={1} value={steps} onChange={(e) => setSteps(e.target.value)} />
+      </label>
+      <label>
+        bias
+        <select value={bias} onChange={(e) => setBias(e.target.value as typeof bias)}>
+          <option value="both">both (down first)</option>
+          <option value="up">up</option>
+          <option value="down">down</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        onClick={() =>
+          onGenerate(
+            rangeDivisions({
+              fifths,
+              compass,
+              anchor: { low: Number(low), high: Number(high) },
+              steps: Number(steps),
+              bias,
+            }),
+          )
+        }
+      >
+        Generate
+      </button>
+    </div>
+  );
+}
+
+/** One division's value, edited in the vocabulary its axis speaks. */
+function DivisionValue({
+  axisId,
+  value,
+  onChange,
+  instrumentId,
+  clef,
+  fifths,
+}: {
+  axisId: AxisId;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  instrumentId: string;
+  clef: Clef;
+  fifths: number;
+}): ReactElement {
+  if (NUMERIC.includes(axisId)) {
+    return (
+      <input
+        type="number"
+        className="tl-value"
+        value={typeof value === 'number' ? value : ''}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    );
+  }
+  if (axisId === 'fifths') {
+    return (
+      <select
+        className="tl-value"
+        value={typeof value === 'number' ? String(value) : '0'}
+        onChange={(e) => onChange(Number(e.target.value))}
+      >
+        {MAJOR_KEYS.map((key) => (
+          <option key={key.fifths} value={key.fifths}>
+            {key.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  if (axisId === 'register') {
+    return (
+      <EnumValue value={value} onChange={onChange} choices={['low', 'middle', 'high']} />
+    );
+  }
+  if (axisId === 'metre') {
+    const chosen = Array.isArray(value) ? `${value[0]}/${value[1]}` : '4/4';
+    return (
+      <select
+        className="tl-value"
+        value={chosen}
+        onChange={(e) => onChange(e.target.value.split('/').map(Number))}
+      >
+        {OFFERED_METRES.map(([n, d]) => (
+          <option key={`${n}/${d}`} value={`${n}/${d}`}>
+            {n}/{d}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  if (axisId === 'metronomeEnabled' || axisId === 'conductorEnabled') {
+    return (
+      <select
+        className="tl-value"
+        value={value === false ? 'off' : 'on'}
+        onChange={(e) => onChange(e.target.value === 'on')}
+      >
+        <option value="on">on</option>
+        <option value="off">off</option>
+      </select>
+    );
+  }
+  if (axisId === 'fingerings') {
+    return <EnumValue value={value} onChange={onChange} choices={['always', 'trouble', 'never']} />;
+  }
+  if (axisId === 'playbackMode') {
+    return <EnumValue value={value} onChange={onChange} choices={['reference', 'off']} />;
+  }
+  if (axisId === 'readingMode') {
+    return <EnumValue value={value} onChange={onChange} choices={['scrolling', 'paged']} />;
+  }
+  if (axisId === 'range') {
+    return (
+      <RangeValue
+        value={value}
+        onChange={onChange}
+        instrumentId={instrumentId}
+        clef={clef}
+        fifths={fifths}
+      />
+    );
+  }
+  return <IntervalPoolValue value={value} onChange={onChange} />;
+}
+
+function EnumValue({
+  value,
+  onChange,
+  choices,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  choices: readonly string[];
+}): ReactElement {
+  return (
+    <select
+      className="tl-value"
+      value={typeof value === 'string' && choices.includes(value) ? value : choices[0]}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {choices.map((choice) => (
+        <option key={choice} value={choice}>
+          {choice}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/** A range division: the two bounds, and the little stave the settings screen draws. */
+function RangeValue({
+  value,
+  onChange,
+  instrumentId,
+  clef,
+  fifths,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  instrumentId: string;
+  clef: Clef;
+  fifths: number;
+}): ReactElement {
+  const range =
+    typeof value === 'object' && value !== null
+      ? (value as { low?: number; high?: number })
+      : {};
+  const low = typeof range.low === 'number' ? range.low : 60;
+  const high = typeof range.high === 'number' ? range.high : 72;
+  const instrument = instrumentById(instrumentId);
+  const bound = (midi: number) => {
+    const sounding = soundingFromWritten(midi, instrument, clef);
+    const mask = primaryFingering(sounding, instrument)?.mask;
+    return { writtenMidi: midi, fingering: mask === undefined ? '—' : formatMask(mask) };
+  };
+  return (
+    <div className="tl-range">
+      <StaveCanvas
+        className="tl-range__figure"
+        label={`Range ${low} to ${high}`}
+        draw={(canvas, theme) =>
+          drawRangeStave(canvas, { low: bound(low), high: bound(high), clef, fifths, theme })
+        }
+      />
+      <div className="tl-range__bounds">
+        <input
+          type="number"
+          value={low}
+          title="Low bound, written MIDI"
+          onChange={(e) => onChange({ low: Number(e.target.value), high })}
+        />
+        <input
+          type="number"
+          value={high}
+          title="High bound, written MIDI"
+          onChange={(e) => onChange({ low, high: Number(e.target.value) })}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** The interval pool: weighted intervals and the degree fence, per division. */
+function IntervalPoolValue({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+}): ReactElement {
+  const pool =
+    typeof value === 'object' && value !== null
+      ? (value as { intervals?: Array<{ interval: number; weight: number }>; degrees?: number[] })
+      : {};
+  const intervals = Array.isArray(pool.intervals) ? pool.intervals : [{ interval: 2, weight: 1 }];
+  const degrees = Array.isArray(pool.degrees) ? pool.degrees : undefined;
+  const write = (
+    nextIntervals: Array<{ interval: number; weight: number }>,
+    nextDegrees: number[] | undefined,
+  ) =>
+    onChange({
+      intervals: nextIntervals,
+      ...(nextDegrees && nextDegrees.length ? { degrees: nextDegrees } : {}),
+    });
+  return (
+    <div className="tl-pool">
+      {intervals.map((entry, i) => (
+        <span className="tl-pool__row" key={i}>
+          <input
+            type="number"
+            min={1}
+            title="Interval: 2 a second, 3 a third…"
+            value={entry.interval}
+            onChange={(e) =>
+              write(
+                intervals.map((x, j) =>
+                  j === i ? { ...x, interval: Math.max(1, Number(e.target.value)) } : x,
+                ),
+                degrees,
+              )
+            }
+          />
+          ×
+          <input
+            type="number"
+            min={1}
+            title="Weight"
+            value={entry.weight}
+            onChange={(e) =>
+              write(
+                intervals.map((x, j) =>
+                  j === i ? { ...x, weight: Math.max(1, Number(e.target.value)) } : x,
+                ),
+                degrees,
+              )
+            }
+          />
+          {intervals.length > 1 && (
+            <button
+              type="button"
+              title="Remove"
+              onClick={() => write(intervals.filter((_, j) => j !== i), degrees)}
+            >
+              ×
+            </button>
+          )}
+        </span>
+      ))}
+      <button
+        type="button"
+        title="Another interval"
+        onClick={() => write([...intervals, { interval: 3, weight: 1 }], degrees)}
+      >
+        +
+      </button>
+      <span className="tl-pool__degrees" title="Scale degrees the line may visit; none ticked means any">
+        {[1, 2, 3, 4, 5, 6, 7].map((degree) => (
+          <label key={degree}>
+            <input
+              type="checkbox"
+              checked={degrees?.includes(degree) ?? false}
+              onChange={(e) => {
+                const next = e.target.checked
+                  ? [...(degrees ?? []), degree].sort((a, b) => a - b)
+                  : (degrees ?? []).filter((d) => d !== degree);
+                write(intervals, next.length ? next : undefined);
+              }}
+            />
+            {degree}
+          </label>
+        ))}
+      </span>
+    </div>
+  );
+}

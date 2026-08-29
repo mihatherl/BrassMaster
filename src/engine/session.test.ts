@@ -1583,3 +1583,87 @@ describe('the tone and an early fingering', () => {
     s.stop();
   });
 });
+
+describe('setSupport, mid-run', () => {
+  /** Eight crotchets in 4/4 — two bars of room for the change to land in. */
+  function eightBeats(): Exercise {
+    return {
+      notes: Array.from({ length: 8 }, (_, i) => note(i, 1)),
+      rests: [],
+      instrumentId: 'eb-bass',
+      clef: 'treble',
+      keys: [{ fromBeat: 0, fifths: 0 }],
+      metres: [{ fromBeat: 0, metre: metreFor(4, 4) }],
+      tempo: [],
+      labels: [],
+      totalBeats: 8,
+      chosenBeats: 8,
+      seed: 1,
+      kind: 'phrases',
+    };
+  }
+
+  /** Ticks both clocks from wherever they are to `toBeat`, without stopping. */
+  function tickTo(fromBeat: number, toBeat: number): void {
+    for (let elapsed = fromBeat; elapsed <= toBeat; elapsed += 0.025) {
+      audioTime = elapsed;
+      vi.advanceTimersByTime(25);
+    }
+  }
+
+  /*
+   * A course's support axis flips the metronome at a segment crossing
+   * (2026-08-29). The setter is a plain mutation because the flag is read on
+   * every scheduling window — pinned here: clicks stop within one horizon of
+   * the change and nothing is rebuilt.
+   */
+  it('silences the metronome from the next scheduling window', () => {
+    const s = new Session({
+      context,
+      input: valves,
+      exercise: eightBeats(),
+      tempo: 60,
+      countInBars: 0,
+      metronomeEnabled: true,
+      playbackMode: 'off',
+      brassVoice: voice,
+    });
+    const clicks: number[] = [];
+    (s as unknown as { metronome: { click: (t: number) => void } }).metronome.click = (
+      time: number,
+    ) => clicks.push(time);
+
+    s.start();
+    tickTo(0, 2);
+    expect(clicks.length).toBeGreaterThan(0);
+
+    s.setSupport({ metronomeEnabled: false });
+    const scheduled = clicks.length;
+    tickTo(2, 8);
+    // Whatever was already inside the horizon stays scheduled; nothing joins it.
+    expect(clicks.length).toBe(scheduled);
+    s.stop();
+  });
+
+  it('stops the reference playback the same way', () => {
+    const s = new Session({
+      context,
+      input: valves,
+      exercise: eightBeats(),
+      tempo: 60,
+      countInBars: 0,
+      metronomeEnabled: false,
+      playbackMode: 'reference',
+      brassVoice: voice,
+    });
+    s.start();
+    tickTo(0, 2);
+    expect(played.length).toBeGreaterThan(0);
+
+    s.setSupport({ playbackMode: 'off' });
+    const sounded = played.length;
+    tickTo(2, 8);
+    expect(played.length).toBe(sounded);
+    s.stop();
+  });
+});

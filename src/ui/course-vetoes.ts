@@ -13,7 +13,7 @@ import type { Position } from '../exercise/course';
 const VETOED = new Set<string>();
 
 function key(position: Position): string {
-  return `${position.courseId}:${position.levelId}:${position.tempo}`;
+  return `${position.courseId}:${position.levelId}:${position.segment}`;
 }
 
 export function vetoStep(position: Position): void {

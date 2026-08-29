@@ -29,10 +29,21 @@
 
 import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { readCourse, courseLength, stepsInLevel, type Course } from '../exercise/course';
+import {
+  readCourse,
+  courseLength,
+  stepsInLevel,
+  LENGTH_UNIT_FOR,
+  type Course,
+  type LevelKind,
+} from '../exercise/course';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS } from '../exercise/generate';
 import { MAJOR_KEYS } from '../domain/keys';
+import { OFFERED_METRES } from '../domain/metre';
+import { Timeline } from './timeline/Timeline';
+import { numericDivisions } from './timeline/generators';
+import { documentOf } from './document';
 
 /** The working document: plain data, edited loosely, judged by the reader. */
 type Doc = Record<string, unknown> & { levels: Record<string, unknown>[] };
@@ -50,16 +61,13 @@ function freshLevel(n: number): Record<string, unknown> {
     id: `level-${n}`,
     name: `Level ${n}`,
     base: { kind: 'drills', drillId: 'major-scale', difficultyId: 'easy' },
-    tempo: { floor: 66, ceiling: 96, step: 6 },
+    // The timeline from the first keystroke: a tempo axis, in the new format.
+    axes: [{ axis: 'tempo', divisions: numericDivisions(66, 96, 6) }],
   };
 }
 
-/** Which unit each material measures its length in; mirrors `readCourse`. */
-const LENGTH_UNIT: Record<string, string> = {
-  drills: 'cycles',
-  phrases: 'bars',
-  themes: 'themeCount',
-};
+/** Which unit each material measures its length in — the reader's own table. */
+const LENGTH_UNIT = LENGTH_UNIT_FOR;
 
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'level';
@@ -96,7 +104,16 @@ export function App() {
       try {
         const parsed = JSON.parse(text) as Doc;
         if (!Array.isArray(parsed.levels)) parsed.levels = [];
-        setDoc(parsed);
+        /*
+         * A file that reads clean is modernised through the reader itself:
+         * its read-forward turns tempo bands, `advance` and `pinned` into
+         * the axes and header scalars they always meant, and the editor
+         * works — and saves — in today's format only. A file that does NOT
+         * read clean loads raw, so the verdict line can point at the fault
+         * where the author can fix it.
+         */
+        const read = readCourse(parsed);
+        setDoc('error' in read ? parsed : documentOf(read));
         setFileName(file.name);
       } catch {
         alert('That file is not JSON at all — nothing was loaded.');
@@ -165,10 +182,18 @@ export function App() {
 
       {doc.levels.map((level, index) => {
         const base = (level.base ?? {}) as Record<string, unknown>;
-        const tempo = (level.tempo ?? {}) as Record<string, unknown>;
-        const advance = level.advance as Record<string, unknown> | undefined;
-        const pinned = (level.pinned ?? {}) as Record<string, unknown>;
+        const kind = (typeof base.kind === 'string' ? base.kind : 'drills') as LevelKind;
         const read = course?.levels.find((l) => l.id === level.id);
+        const readTempos = read?.segments
+          .map((segment) => segment.values.tempo)
+          .filter((tempo): tempo is number => tempo !== undefined);
+        /* Which parameters this level moves on the timeline: their header
+           controls lock, because the trichotomy says never both. */
+        const axisIds = new Set(
+          (Array.isArray(level.axes) ? (level.axes as { axis?: unknown }[]) : []).map((a) =>
+            String(a?.axis),
+          ),
+        );
         return (
           <section className="level" key={index}>
             <header>
@@ -182,7 +207,10 @@ export function App() {
               />
               {read && (
                 <span className="muted">
-                  {stepsInLevel(read)} steps · {String(tempo.floor)}–{String(tempo.ceiling)} bpm
+                  {stepsInLevel(read)} segment{stepsInLevel(read) === 1 ? '' : 's'}
+                  {readTempos && readTempos.length > 0
+                    ? ` · ${readTempos[0]}–${readTempos[readTempos.length - 1]} bpm`
+                    : ''}
                 </span>
               )}
               <span className="spacer" />
@@ -260,6 +288,7 @@ export function App() {
                 Key
                 <select
                   value={base.fifths === undefined ? '' : String(base.fifths)}
+                  disabled={axisIds.has('fifths')}
                   onChange={(e) =>
                     patchIn(index, 'base', {
                       fifths: e.target.value === '' ? undefined : Number(e.target.value),
@@ -273,7 +302,9 @@ export function App() {
                     2026-08-29 — the player could not reach either. Now the
                     label can promise something, so it does.
                   */}
-                  <option value="">Player chooses, at the gate</option>
+                  <option value="">
+                    {axisIds.has('fifths') ? 'On the timeline' : 'Player chooses, at the gate'}
+                  </option>
                   {MAJOR_KEYS.map((key) => (
                     <option key={key.fifths} value={key.fifths}>
                       {key.name} major
@@ -314,10 +345,11 @@ export function App() {
                   type="number"
                   min={1}
                   step={1}
-                  placeholder="default"
-                  value={String(base[LENGTH_UNIT[String(base.kind ?? 'drills')]] ?? '')}
+                  placeholder={axisIds.has(LENGTH_UNIT[kind]) ? 'on the timeline' : 'default'}
+                  disabled={axisIds.has(LENGTH_UNIT[kind])}
+                  value={String(base[LENGTH_UNIT[kind]] ?? '')}
                   onChange={(e) => {
-                    const unit = LENGTH_UNIT[String(base.kind ?? 'drills')];
+                    const unit = LENGTH_UNIT[kind];
                     const value = e.target.value === '' ? undefined : Number(e.target.value);
                     /* The other two units are cleared, not left lying: a level
                        switched from drills to sight-reading would otherwise
@@ -331,6 +363,50 @@ export function App() {
                   }}
                 />
               </label>
+              {kind === 'drills' && (
+                <label>
+                  Reach (semitones)
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder={axisIds.has('span') ? 'on the timeline' : 'difficulty’s'}
+                    disabled={axisIds.has('span')}
+                    value={String(base.spanSemitones ?? '')}
+                    onChange={(e) =>
+                      patchIn(index, 'base', {
+                        spanSemitones:
+                          e.target.value === '' ? undefined : Number(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+              )}
+              {kind !== 'drills' && (
+                <label>
+                  Metre
+                  <select
+                    value={Array.isArray(base.metre) ? base.metre.join('/') : ''}
+                    disabled={axisIds.has('metre')}
+                    onChange={(e) =>
+                      patchIn(index, 'base', {
+                        metre:
+                          e.target.value === ''
+                            ? undefined
+                            : e.target.value.split('/').map(Number),
+                      })
+                    }
+                  >
+                    <option value="">
+                      {axisIds.has('metre') ? 'On the timeline' : 'Player’s choice'}
+                    </option>
+                    {OFFERED_METRES.map(([n, d]) => (
+                      <option key={`${n}/${d}`} value={`${n}/${d}`}>
+                        {n}/{d}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
 
             <div className="row">
@@ -352,128 +428,78 @@ export function App() {
               </label>
             </div>
 
+            {/*
+             * The trichotomy's header half (2026-08-29): each of these pins a
+             * value for the whole level, shown locked at the gate. The same
+             * parameter moved on the timeline below locks the control here —
+             * a parameter is pinned or progresses, never both, and choosing
+             * it in the add-axis picker unpins it in the same gesture.
+             */}
             <div className="row">
               <label>
-                Tempo floor
+                Tempo (bpm)
                 <input
                   type="number"
-                  value={Number(tempo.floor ?? 66)}
-                  onChange={(e) => patchIn(index, 'tempo', { floor: Number(e.target.value) })}
-                />
-              </label>
-              <label>
-                Ceiling
-                <input
-                  type="number"
-                  value={Number(tempo.ceiling ?? 96)}
-                  onChange={(e) => patchIn(index, 'tempo', { ceiling: Number(e.target.value) })}
-                />
-              </label>
-              <label>
-                Step
-                <input
-                  type="number"
-                  value={Number(tempo.step ?? 6)}
-                  onChange={(e) => patchIn(index, 'tempo', { step: Number(e.target.value) })}
-                />
-              </label>
-              <label>
-                Metronome
-                <select
-                  value={pinned.metronomeEnabled === undefined ? '' : String(pinned.metronomeEnabled)}
-                  onChange={(e) =>
-                    patchIn(index, 'pinned', {
-                      metronomeEnabled:
-                        e.target.value === '' ? undefined : e.target.value === 'true',
-                    })
-                  }
-                >
-                  <option value="">Player’s choice</option>
-                  <option value="true">Pinned on</option>
-                  <option value="false">Pinned off</option>
-                </select>
-              </label>
-              <label>
-                Conductor
-                <select
-                  value={pinned.conductorEnabled === undefined ? '' : String(pinned.conductorEnabled)}
-                  onChange={(e) =>
-                    patchIn(index, 'pinned', {
-                      conductorEnabled:
-                        e.target.value === '' ? undefined : e.target.value === 'true',
-                    })
-                  }
-                >
-                  <option value="">Player’s choice</option>
-                  <option value="true">Pinned on</option>
-                  <option value="false">Pinned off</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="row">
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={advance !== undefined}
+                  min={1}
+                  placeholder={axisIds.has('tempo') ? 'on the timeline' : 'player’s dial'}
+                  disabled={axisIds.has('tempo') || typeof level.tempo === 'object'}
+                  value={typeof level.tempo === 'number' ? String(level.tempo) : ''}
                   onChange={(e) =>
                     patchLevel(index, {
-                      advance: e.target.checked
-                        ? { afterBars: 8, windowBars: 4, accuracyAbove: 0.85 }
-                        : undefined,
+                      tempo: e.target.value === '' ? undefined : Number(e.target.value),
                     })
                   }
                 />
-                Own progression rule
               </label>
-              {advance && (
-                <>
-                  <label>
-                    After bars
-                    <input
-                      type="number"
-                      value={Number(advance.afterBars ?? 8)}
-                      onChange={(e) => patchIn(index, 'advance', { afterBars: Number(e.target.value) })}
-                    />
-                  </label>
-                  <label>
-                    Window
-                    <input
-                      type="number"
-                      value={Number(advance.windowBars ?? 4)}
+              {(
+                [
+                  ['metronomeEnabled', 'Metronome', ['on', 'off']],
+                  ['conductorEnabled', 'Conductor', ['on', 'off']],
+                  ['fingerings', 'Fingerings', ['always', 'trouble', 'never']],
+                  ['playbackMode', 'Sound', ['reference', 'off']],
+                  ['readingMode', 'Reading', ['scrolling', 'paged']],
+                ] as const
+              ).map(([field, label, choices]) => {
+                const onOff = field === 'metronomeEnabled' || field === 'conductorEnabled';
+                const current = level[field];
+                const shown =
+                  current === undefined ? '' : onOff ? (current ? 'on' : 'off') : String(current);
+                return (
+                  <label key={field}>
+                    {label}
+                    <select
+                      value={shown}
+                      disabled={axisIds.has(field)}
                       onChange={(e) =>
-                        patchIn(index, 'advance', { windowBars: Number(e.target.value) })
-                      }
-                    />
-                  </label>
-                  <label>
-                    Accuracy ≥
-                    <input
-                      type="number"
-                      step="0.05"
-                      min="0.1"
-                      max="1"
-                      value={Number(advance.accuracyAbove ?? 0.85)}
-                      onChange={(e) =>
-                        patchIn(index, 'advance', { accuracyAbove: Number(e.target.value) })
-                      }
-                    />
-                  </label>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(advance.carryEvidence)}
-                      onChange={(e) =>
-                        patchIn(index, 'advance', {
-                          carryEvidence: e.target.checked ? true : undefined,
+                        patchLevel(index, {
+                          [field]:
+                            e.target.value === ''
+                              ? undefined
+                              : onOff
+                                ? e.target.value === 'on'
+                                : e.target.value,
                         })
                       }
-                    />
-                    Carry evidence across steps
+                    >
+                      <option value="">
+                        {axisIds.has(field) ? 'On the timeline' : 'Player’s choice'}
+                      </option>
+                      {choices.map((choice) => (
+                        <option key={choice} value={choice}>
+                          {choice}
+                        </option>
+                      ))}
+                    </select>
                   </label>
-                </>
-              )}
+                );
+              })}
             </div>
+
+            <Timeline
+              kind={kind}
+              level={level}
+              onPatch={(changes) => patchLevel(index, changes)}
+            />
           </section>
         );
       })}
@@ -521,6 +547,48 @@ style.textContent = `
   .muted { opacity: 0.6; font-size: 0.85rem; }
   .add { margin-top: 0.5rem; }
   footer { margin-top: 2rem; }
+
+  /* The timeline: one bar per axis, divisions dragged along it, rules below. */
+  .tl { margin-top: 0.75rem; border-top: 1px dashed #8886; padding-top: 0.5rem; }
+  .tl__head { display: flex; align-items: baseline; gap: 1rem; }
+  .tl__title { font-weight: 700; font-size: 0.9rem; }
+  .tl__ruler { flex: 1; display: flex; justify-content: space-between; opacity: 0.5; font-size: 0.75rem; max-width: calc(100% - 14rem); margin-left: auto; }
+  .tl-axis { display: flex; gap: 0.75rem; align-items: stretch; margin: 0.9rem 0; }
+  .tl-axis__panel { flex: 0 0 13rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .tl-axis__name { display: flex; gap: 0.5rem; align-items: center; }
+  .tl-gen { display: flex; gap: 0.4rem; align-items: end; flex-wrap: wrap; }
+  .tl-gen input[type=number] { width: 3.4rem; }
+  .tl-axis__bar { position: relative; flex: 1; min-height: 4.4rem; }
+  .tl-axis__line { position: absolute; left: 0; right: 0; top: 0.55rem; height: 4px; background: currentColor; opacity: 0.75; border-radius: 2px; }
+  .tl-division { position: absolute; top: 0; transform: translateX(-2px); }
+  .tl-handle { position: absolute; top: 0; left: 0; width: 1.2rem; height: 1.2rem; padding: 0; margin-left: -0.6rem; border: none; background: none; cursor: ew-resize; font-weight: 700; color: #c0392b; touch-action: none; }
+  .tl-division__value { position: absolute; top: 1.3rem; left: 0; display: flex; gap: 0.15rem; align-items: start; }
+  .tl-value { width: 4.2rem; font-size: 0.8rem; }
+  select.tl-value { width: auto; max-width: 6.5rem; }
+  .tl-division__delete { padding: 0 0.3rem; opacity: 0.6; }
+  .tl-axis__add { position: absolute; right: -0.2rem; top: 0.1rem; padding: 0 0.5rem; }
+  .tl__controls { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin: 0.5rem 0; }
+  .tl-range { display: flex; flex-direction: column; gap: 0.15rem; width: 8rem; }
+  .tl-range__figure { width: 8rem; }
+  .stave-figure__canvas, .tl-range__figure canvas { display: block; width: 100%; }
+  .tl-range__bounds { display: flex; gap: 0.2rem; }
+  .tl-range__bounds input { width: 3.4rem; font-size: 0.75rem; }
+  .tl-pool { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.75rem; background: #8881; padding: 0.25rem; border-radius: 5px; }
+  .tl-pool__row { display: flex; gap: 0.2rem; align-items: center; }
+  .tl-pool input[type=number] { width: 2.6rem; }
+  .tl-pool__degrees { display: flex; gap: 0.25rem; }
+  .tl-pool__degrees label { flex-direction: row; align-items: center; gap: 0.1rem; }
+  .tl-rules { margin-top: 3.2rem; }
+  .tl-rules__default { display: flex; gap: 0.4rem; align-items: end; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 0.3rem; }
+  .tl-rules__default label { flex-direction: row; align-items: center; gap: 0.3rem; }
+  .tl-rules__default input { width: 3.2rem; }
+  .tl-rules__row { display: flex; gap: 2px; margin-left: 13.75rem; }
+  .tl-cell { position: relative; border: 1px solid #8886; border-radius: 5px; padding: 0.25rem 0.35rem; display: flex; gap: 0.4rem; min-width: 0; }
+  .tl-cell label { font-size: 0.7rem; min-width: 0; }
+  .tl-cell input { width: 100%; min-width: 2.2rem; font-size: 0.75rem; }
+  .tl-cell.is-default input { opacity: 0.65; }
+  .tl-cell.is-authored { border-color: #b8a; }
+  .tl-cell__clear { position: absolute; top: -0.5rem; right: -0.3rem; padding: 0 0.3rem; font-size: 0.7rem; }
 `;
 document.head.appendChild(style);
 

@@ -1584,3 +1584,70 @@ describe('the count-in number', () => {
     expect(numberShown([[4, 4]], -0.5)).toBe('1');
   });
 });
+
+describe('setReadingMode', () => {
+  /*
+   * The reading mode became a course axis (2026-08-29), so it can change at a
+   * segment crossing mid-run. Everything else in the renderer reads the mode
+   * per call; the two things the constructor settles from it — the verdict
+   * wrapper and the layout — are settled again by the setter, which is what
+   * these cases pin.
+   */
+  it('re-lays the paper on a real switch, and does nothing for the same mode', () => {
+    const calls: RecordedCall[] = [];
+    const exercise = build('phrases', 'treble', 0, 8);
+    const transport = new Transport(fakeAudioContext(0), 100);
+    const renderer = new StaveRenderer({
+      canvas: mockCanvas(calls),
+      exercise,
+      transport,
+      theme: LIGHT_THEME,
+      scrollSpeed: 110,
+      readingMode: 'scrolling',
+      verdictFor: () => undefined,
+    });
+
+    const before = calls.length;
+    renderer.setReadingMode('scrolling');
+    expect(calls.length).toBe(before);
+
+    renderer.setReadingMode('paged');
+    expect(() => renderer.draw()).not.toThrow();
+    renderer.setReadingMode('scrolling');
+    expect(() => renderer.draw()).not.toThrow();
+  });
+
+  it('swaps the verdict wrapper: paged withholds a bar in progress, scrolling does not', () => {
+    /*
+     * The observable difference between the two wrappers, watched through the
+     * drawn colours: with every note judged correct but the playhead still
+     * inside the first bar, paged mode's `revealByBar` withholds the verdict
+     * colour, while scrolling shows it at once. If `setReadingMode` failed to
+     * rebuild the wrapper, the switched renderer would keep the old rule and
+     * both frames would paint the same fills.
+     */
+    const countFills = (mode: 'scrolling' | 'paged') => {
+      const calls: RecordedCall[] = [];
+      const exercise = build('phrases', 'treble', 0, 8);
+      const transport = new Transport(fakeAudioContext(0), 100);
+      const renderer = new StaveRenderer({
+        canvas: mockCanvas(calls),
+        exercise,
+        transport,
+        theme: LIGHT_THEME,
+        scrollSpeed: 110,
+        // Always constructed in the OTHER mode and switched, so both counts
+        // go through the setter under test.
+        readingMode: mode === 'paged' ? 'scrolling' : 'paged',
+        verdictFor: () => 'correct' as Verdict,
+      });
+      renderer.setReadingMode(mode);
+      renderer.draw();
+      return calls.filter((c) => c.method === 'fillStyle=' && c.args[0] === LIGHT_THEME.correct)
+        .length;
+    };
+
+    expect(countFills('scrolling')).toBeGreaterThan(0);
+    expect(countFills('paged')).toBe(0);
+  });
+});

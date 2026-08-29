@@ -31,7 +31,7 @@ import {
   type Duration,
 } from '../domain/rhythm';
 import { LETTERS, pitchClass, type SpelledPitch } from '../domain/pitch';
-import type { Difficulty } from './difficulty';
+import type { Difficulty, IntervalPool } from './difficulty';
 import { metreFor, type Metre } from '../domain/metre';
 import { createRng, type Rng } from './rng';
 import { assembleExercise, type Slot, type SlotPitch } from './assemble';
@@ -234,6 +234,20 @@ export interface GenerateOptions {
    * generator, whose material is fixed by definition.
    */
   noteWeights?: ReadonlyMap<number, number>;
+  /**
+   * Overrides the difficulty's drill reach, in semitones above the root — a
+   * course's span axis (2026-08-29). Drills only, like `register`. The usual
+   * fitting rules still apply, so an over-ambitious figure shrinks honestly
+   * exactly as the difficulty's own would.
+   */
+  spanSemitones?: number;
+  /**
+   * What intervals a sight-reading line is drawn from, and which scale
+   * degrees it may visit — a course's intervals axis (2026-08-29). Absent
+   * keeps the walk that has always written phrases, byte for byte, which is
+   * what keeps every committed snapshot green. See `IntervalPool`.
+   */
+  intervals?: IntervalPool;
 }
 
 interface Candidate {
@@ -1355,8 +1369,14 @@ function phrasePitches(
     }
 
     const wantChromatic = rng.chance(options.difficulty.accidentalChance);
-    const leap = rng.chance(0.15);
-    const maxStep = leap ? options.difficulty.maxInterval : Math.min(2, options.difficulty.maxInterval);
+    /*
+     * The classic walk's leap draw, taken HERE even though it is used two
+     * branches below: the dice must be thrown in the order they always were,
+     * or every phrase ever pinned by a snapshot is rewritten. The interval
+     * pool skips the throw — its distances come from the author's weights —
+     * which is fine, because a pooled level was never snapshotted.
+     */
+    const leap = options.intervals ? false : rng.chance(0.15);
 
     // Pull back toward the middle when the line drifts to an extreme.
     const drift = previous - centre;
@@ -1371,42 +1391,172 @@ function phrasePitches(
       needsValve: needValve.has(i),
     };
 
-    // Candidates lying in the phrase's current direction, within one step or
-    // leap — except at a fresh start, where a line coming out of a rest is under
-    // no obligation to continue by step from where it left off. Opening the pool
-    // there also leaves the fingering preferences something to work with: a
-    // single stepwise candidate cannot be steered away from open valves.
-    const reachable = rules.freshStart
-      ? candidates.filter(
-          (c) => Math.abs(c.midi - previous) <= options.difficulty.maxInterval,
-        )
-      : candidates.filter((c) => {
-          const delta = (c.midi - previous) * direction;
-          return delta > 0 && delta <= maxStep;
-        });
-    const preferred = reachable.filter(
-      (c) => diatonicIn(c.midi, keyFor(i)) === !wantChromatic,
-    );
-
     /*
-     * Where nothing of the wanted kind lies in the phrase's direction, a wanted
-     * accidental is simply dropped — but a wanted *diatonic* note is not
-     * traded for a chromatic one. That happened at the edge of the range band,
-     * where the one reachable step down from D was D flat: Beginner, which
-     * allows no accidentals at all, wrote one every few lines. The line turns
-     * instead — `chooseNext` looks in every direction and prefers the key.
+     * Two ways of deciding how far the line moves. A course's interval pool,
+     * where one is given, draws the distance from the author's weights; the
+     * classic walk otherwise — untouched, so the music every snapshot pinned
+     * is still written note for note. Either way the direction machinery
+     * above owns *which way*, and the fingering and weak-note weights below
+     * own the final say.
      */
-    const usable = preferred.length > 0 ? preferred : wantChromatic ? reachable : [];
-    const next =
-      usable.length > 0
-        ? rng.weighted(applyFingeringRules(usable, rules), (c) => noteWeight(options, c.midi))
-        : chooseNext(rng, options, candidates, previous, wantChromatic, false, rules, keyFor(i));
+    let next: Candidate;
+    if (options.intervals) {
+      next = intervalStep(rng, options, candidates, options.intervals, {
+        previous,
+        direction,
+        wantChromatic,
+        rules,
+        fifths: keyFor(i),
+      });
+    } else {
+      const maxStep = leap
+        ? options.difficulty.maxInterval
+        : Math.min(2, options.difficulty.maxInterval);
+
+      // Candidates lying in the phrase's current direction, within one step or
+      // leap — except at a fresh start, where a line coming out of a rest is under
+      // no obligation to continue by step from where it left off. Opening the pool
+      // there also leaves the fingering preferences something to work with: a
+      // single stepwise candidate cannot be steered away from open valves.
+      const reachable = rules.freshStart
+        ? candidates.filter(
+            (c) => Math.abs(c.midi - previous) <= options.difficulty.maxInterval,
+          )
+        : candidates.filter((c) => {
+            const delta = (c.midi - previous) * direction;
+            return delta > 0 && delta <= maxStep;
+          });
+      const preferred = reachable.filter(
+        (c) => diatonicIn(c.midi, keyFor(i)) === !wantChromatic,
+      );
+
+      /*
+       * Where nothing of the wanted kind lies in the phrase's direction, a wanted
+       * accidental is simply dropped — but a wanted *diatonic* note is not
+       * traded for a chromatic one. That happened at the edge of the range band,
+       * where the one reachable step down from D was D flat: Beginner, which
+       * allows no accidentals at all, wrote one every few lines. The line turns
+       * instead — `chooseNext` looks in every direction and prefers the key.
+       */
+      const usable = preferred.length > 0 ? preferred : wantChromatic ? reachable : [];
+      next =
+        usable.length > 0
+          ? rng.weighted(applyFingeringRules(usable, rules), (c) => noteWeight(options, c.midi))
+          : chooseNext(rng, options, candidates, previous, wantChromatic, false, rules, keyFor(i));
+    }
 
     pitches.push(next.midi);
     previous = next.midi;
     previousMask = next.mask;
   }
   return pitches;
+}
+
+/** Semitones above the tonic of each major-scale degree, 1 through 7. */
+const MAJOR_DEGREE_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+
+/**
+ * The scale degree (1..7) a written note sits on — the nearest one, for a
+ * chromatic note, ties resolving downward. Nearest rather than refused,
+ * because the pool's `degrees` fence has to say something about the
+ * accidentals `accidentalChance` writes, and "counts as its neighbour" keeps
+ * a leaning note inside the fence its resolution lives in.
+ */
+function degreeOf(midi: number, fifths: number): number {
+  const relative = (((pitchClass(midi) - tonicPitchClass(fifths)) % 12) + 12) % 12;
+  let best = 0;
+  for (let i = 1; i < 7; i++) {
+    if (
+      Math.abs(MAJOR_DEGREE_SEMITONES[i] - relative) <
+      Math.abs(MAJOR_DEGREE_SEMITONES[best] - relative)
+    ) {
+      best = i;
+    }
+  }
+  return best + 1;
+}
+
+/**
+ * One note of a phrase, drawn from a course's interval pool.
+ *
+ * The pool is measured in *diatonic* distance — a third is a third whatever
+ * the key spells it as — so the rungs it walks are the in-key candidates,
+ * narrowed to the degrees the author allowed. "Favour thirds" is a weight of
+ * 3 over 2; "Exploring 3rds in C major" is that pool fenced to `degrees:
+ * [1, 2, 3]` — the sentence the plan promised this function would make
+ * expressible.
+ *
+ * The pool decides how far; the phrase's direction decides which way. At a
+ * wall — the top of the range, the edge of the fence — the drawn interval
+ * tries the other way, then every smaller interval in the pool, before
+ * handing over to the classic dead-end chooser, which is what already knows
+ * how to turn a line around honestly.
+ */
+function intervalStep(
+  rng: Rng,
+  options: GenerateOptions,
+  candidates: Candidate[],
+  pool: IntervalPool,
+  at: {
+    previous: number;
+    direction: number;
+    wantChromatic: boolean;
+    rules: { previousMask: number; freshStart: boolean; needsValve?: boolean };
+    fifths: number;
+  },
+): Candidate {
+  const { previous, direction, wantChromatic, rules, fifths } = at;
+  const allowed = (midi: number) =>
+    !pool.degrees || pool.degrees.includes(degreeOf(midi, fifths));
+  const ladder = candidates.filter((c) => diatonicIn(c.midi, fifths) && allowed(c.midi));
+  if (ladder.length === 0) {
+    // A fence that excludes the whole compass window is an authoring accident;
+    // the honest fallback is the walk that ignores it, not silence.
+    return chooseNext(rng, options, candidates, previous, wantChromatic, false, rules, fifths);
+  }
+
+  // A fresh start owes the previous phrase nothing — anywhere on the ladder
+  // within the difficulty's reach, exactly as the classic walk opens up.
+  if (rules.freshStart) {
+    const reachable = ladder.filter(
+      (c) => Math.abs(c.midi - previous) <= options.difficulty.maxInterval,
+    );
+    const from = reachable.length > 0 ? reachable : ladder;
+    return rng.weighted(applyFingeringRules(from, rules), (c) => noteWeight(options, c.midi));
+  }
+
+  // The rung under the note in hand — itself, when it is on the ladder.
+  let index = 0;
+  for (let i = 1; i < ladder.length; i++) {
+    if (Math.abs(ladder[i].midi - previous) < Math.abs(ladder[index].midi - previous)) index = i;
+  }
+
+  const drawn = rng.weighted(pool.intervals, (weight) => weight.weight);
+  const steps = Math.max(0, drawn.interval - 1);
+  const smaller = pool.intervals
+    .map((weight) => Math.max(0, weight.interval - 1))
+    .filter((s) => s < steps)
+    .sort((a, b) => b - a);
+  const tries: number[] = [];
+  for (const distance of [steps, ...smaller]) {
+    tries.push(index + distance * direction, index - distance * direction);
+  }
+
+  for (const target of tries) {
+    const rung = ladder[target];
+    if (!rung) continue;
+    let choice = rung;
+    if (wantChromatic) {
+      // The chromatic neighbour on the approach side — a leaning note into
+      // the target — where the instrument has one and the key does not.
+      const neighbour = candidates.find(
+        (c) => c.midi === rung.midi - direction && !diatonicIn(c.midi, fifths),
+      );
+      if (neighbour) choice = neighbour;
+    }
+    return rng.weighted(applyFingeringRules([choice], rules), (c) => noteWeight(options, c.midi));
+  }
+  return chooseNext(rng, options, candidates, previous, wantChromatic, false, rules, fifths);
 }
 
 /**
@@ -1583,7 +1733,9 @@ function patternContour(
     instrumentLow,
     instrumentHigh,
     rootClass,
-    options.difficulty.patterns.spanSemitones,
+    // The course's reach where it set one — the span axis — else the
+    // difficulty's, exactly as `register` already defers one line down.
+    options.spanSemitones ?? options.difficulty.patterns.spanSemitones,
   );
   if (!fitted) return null;
 

@@ -12,7 +12,7 @@ import type { ReadingMode } from '../render/surface';
 import type { PlaybackMode } from '../engine/session';
 import { COLLECTIONS, themesOf } from '../exercise/collections';
 import { realiseTheme } from '../exercise/theme';
-import { metreFor } from '../domain/metre';
+import { metreFor, OFFERED_METRES } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { EXERCISE_KINDS } from '../exercise/types';
 import { MAJOR_KEYS } from '../domain/keys';
@@ -625,23 +625,23 @@ export const MAX_KEYS_IN_PLAY = 4;
  * six-eight in marches before almost anything else, so its absence here was
  * the most conspicuous gap on the screen.
  */
-export const TIME_SIGNATURES = [
-  { beatsPerBar: 4, beatUnit: 4, label: '4/4' },
-  { beatsPerBar: 3, beatUnit: 4, label: '3/4' },
-  { beatsPerBar: 2, beatUnit: 4, label: '2/4' },
-  { beatsPerBar: 6, beatUnit: 8, label: '6/8' },
-  /*
-   * Added 2026-08-20, once there were cells to build tunes from.
-   *
-   * Deliberately not before. A metre with no cells written in it leaves the
-   * composer nothing to assemble, so Themes would have fallen back to free
-   * material while still calling itself tunes — and the two Bach excerpts that
-   * need this metre, the Jesu Joy obbligato and Invention 10, could not be
-   * offered at all, since a theme is only ever offered in a metre it is
-   * written in.
-   */
-  { beatsPerBar: 9, beatUnit: 8, label: '9/8' },
-] as const;
+/*
+ * The list itself lives in `domain/metre.ts` (`OFFERED_METRES`), because the
+ * course reader validates a level's `metre` against the same offer and may
+ * not reach into storage. History that belongs to the list rides with it
+ * here, where it was written: 9/8 was added 2026-08-20, once there were
+ * cells to build tunes from — deliberately not before. A metre with no cells
+ * written in it leaves the composer nothing to assemble, so Themes would
+ * have fallen back to free material while still calling itself tunes — and
+ * the two Bach excerpts that need this metre, the Jesu Joy obbligato and
+ * Invention 10, could not be offered at all, since a theme is only ever
+ * offered in a metre it is written in.
+ */
+export const TIME_SIGNATURES = OFFERED_METRES.map(([beatsPerBar, beatUnit]) => ({
+  beatsPerBar,
+  beatUnit,
+  label: `${beatsPerBar}/${beatUnit}`,
+}));
 
 /**
  * Which language this visit is in, from the three things that can say so.

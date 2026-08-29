@@ -196,6 +196,10 @@ export function App() {
          */
         horizonBars: shape?.horizonBars ?? HORIZON_BARS,
         noteWeights: weights,
+        /* A course's generator knobs that are not settings — the span and
+           intervals axes ride `RunShape` in, like the lengths above. */
+        spanSemitones: shape?.spanSemitones,
+        intervals: shape?.intervals,
       });
     },
     [],
@@ -242,19 +246,47 @@ export function App() {
    */
   const runSettings = useCallback(
     (run: CourseRun, from: Settings): Settings => {
-      const { tempo, levelId: _levelId, fifths: _fifths, ...base } = run;
       const key = courseKeyOf(run, from);
-      return { ...from, ...base, tempo, fifths: key, keySet: [key] };
+      /*
+       * Explicit field by field, not a spread of the run: a `CourseRun` now
+       * carries words that are not settings (`spanSemitones`, `intervals`
+       * ride `RunShape` into the generator instead), and a spread would put
+       * a course's decisions where a player's preferences live the moment
+       * the two shapes drifted. Absent means the player's own stands —
+       * including the tempo, since a level may now leave it to the dial.
+       */
+      return {
+        ...from,
+        kind: run.kind,
+        difficultyId: run.difficultyId,
+        ...(run.drillId !== undefined ? { drillId: run.drillId } : {}),
+        ...(run.register !== undefined ? { register: run.register } : {}),
+        ...(run.tempo !== undefined ? { tempo: run.tempo } : {}),
+        ...(run.range !== undefined ? { range: run.range } : {}),
+        ...(run.metre !== undefined
+          ? { beatsPerBar: run.metre[0], beatUnit: run.metre[1] }
+          : {}),
+        ...(run.metronomeEnabled !== undefined ? { metronomeEnabled: run.metronomeEnabled } : {}),
+        ...(run.conductorEnabled !== undefined ? { conductorEnabled: run.conductorEnabled } : {}),
+        ...(run.fingerings !== undefined ? { fingerings: run.fingerings } : {}),
+        ...(run.playbackMode !== undefined ? { playbackMode: run.playbackMode } : {}),
+        ...(run.readingMode !== undefined ? { readingMode: run.readingMode } : {}),
+        fifths: key,
+        keySet: [key],
+      };
     },
     [],
   );
 
   const startCourse = useCallback(
     (run: CourseRun) => {
-      const { tempo, levelId } = run;
+      const { levelId } = run;
       setCourseRun(run);
       setFromCourse(true);
-      setRunAt({ tempo, levelId });
+      // The tempo the run is filed under is the tempo that will drive the
+      // clock: the course's where it set one, the player's dial where the
+      // level left it to them.
+      setRunAt({ tempo: run.tempo ?? chosen.tempo, levelId });
       setExercise(buildFrom(runSettings(run, chosen), randomSeed(), undefined, runShapeOf(run)));
       setScreen('play');
     },
@@ -487,6 +519,10 @@ export function App() {
                       buildRun={(run: CourseRun) =>
                         buildFrom(runSettings(run, chosen), randomSeed(), undefined, runShapeOf(run))
                       }
+                      /* The crossing writes the segment's run back, so the
+                         gate, the pins and the tempo below track where the
+                         player actually is — not where the level began. */
+                      onRunCommitted={(run: CourseRun) => setCourseRun(run)}
                     />
                   </Suspense>
                 )
@@ -494,21 +530,50 @@ export function App() {
           }
           coursePinned={
             fromCourse && courseRun
-              ? [
-                  ...(['metronomeEnabled', 'conductorEnabled'] as const).filter(
-                    (key) => courseRun[key] !== undefined,
-                  ),
-                  /* Always, today: `CourseLevel.tempo` is required, so a course
-                     run's tempo is never the player's. When a level may leave
-                     the band out — the first real use for the axes work — this
-                     becomes conditional, exactly like the key above. */
-                  'tempo',
-                ]
+              ? /* Whatever the course decided — in the header or on an axis —
+                   shows locked; whatever it left absent stays the player's.
+                   The tempo earned its place in this list conditionally on
+                   2026-08-29, exactly as the axes plan promised: a level may
+                   now leave it out, and then the dial is live. */
+                (
+                  [
+                    'tempo',
+                    'metronomeEnabled',
+                    'conductorEnabled',
+                    'fingerings',
+                    'playbackMode',
+                    'readingMode',
+                  ] as const
+                ).filter((key) => courseRun[key] !== undefined)
               : undefined
           }
           /* The course's tempo, driving the clock rather than free play's.
              Not written into settings: see `PlayScreen`'s note. */
           runTempo={fromCourse && courseRun ? courseRun.tempo : undefined}
+          /* The support settings the course owns — pinned or on an axis —
+             on the same not-into-settings doctrine. Tracks the committed
+             segment via `onRunCommitted` above. */
+          runSupport={
+            fromCourse && courseRun
+              ? {
+                  ...(courseRun.metronomeEnabled !== undefined
+                    ? { metronomeEnabled: courseRun.metronomeEnabled }
+                    : {}),
+                  ...(courseRun.conductorEnabled !== undefined
+                    ? { conductorEnabled: courseRun.conductorEnabled }
+                    : {}),
+                  ...(courseRun.fingerings !== undefined
+                    ? { fingerings: courseRun.fingerings }
+                    : {}),
+                  ...(courseRun.playbackMode !== undefined
+                    ? { playbackMode: courseRun.playbackMode }
+                    : {}),
+                  ...(courseRun.readingMode !== undefined
+                    ? { readingMode: courseRun.readingMode }
+                    : {}),
+                }
+              : undefined
+          }
           /*
            * The key, and who chose it — a course run only. Free play has the
            * grid on its home screen and does not need telling.

@@ -150,6 +150,15 @@ export interface Hints {
    * change lands ahead of the playhead.
    */
   reread(): void;
+  /**
+   * Changes what the player has asked to see — or, since the axes
+   * (2026-08-29), what the course's fingering setting became at a segment
+   * crossing. Entering `trouble` seeds the prompts from stored history
+   * exactly as opening in it would; what the run has already learned is
+   * kept either way, so a mode that comes back mid-run picks up where the
+   * trouble actually is.
+   */
+  setMode(next: FingeringMode): void;
 }
 
 /** What the run has learned about one written pitch. */
@@ -171,7 +180,10 @@ interface Trouble {
  * the hints appear where the trouble is and nowhere else.
  */
 export function fingeringHints(options: HintOptions): Hints {
-  const { exercise, stats, mode, secondsBetween } = options;
+  const { exercise, stats, secondsBetween } = options;
+  // Mutable through `setMode`: a course's fingering setting may change at a
+  // segment crossing, and the hints object lives for the whole run.
+  let mode = options.mode;
   const { notes } = exercise;
 
   /*
@@ -227,13 +239,15 @@ export function fingeringHints(options: HintOptions): Hints {
     return fresh;
   };
 
-  if (mode === 'trouble') {
+  /** Opens the prompts the player's history has earned. Idempotent. */
+  const seedFromStats = () => {
     for (const [midi, stat] of stats) {
       if (stat.attempts < MIN_ATTEMPTS_FOR_A_HINT) continue;
       if (stat.correct / stat.attempts >= STRUGGLING_BELOW) continue;
       about(midi).prompting = true;
     }
-  }
+  };
+  if (mode === 'trouble') seedFromStats();
 
   /** Notes that have gone wrong in this run, answered where they stand. */
   const answered = new Set<number>();
@@ -279,5 +293,11 @@ export function fingeringHints(options: HintOptions): Hints {
 
     retime,
     reread,
+
+    setMode(next) {
+      if (next === mode) return;
+      mode = next;
+      if (mode === 'trouble') seedFromStats();
+    },
   };
 }

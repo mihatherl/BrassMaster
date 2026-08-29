@@ -46,16 +46,15 @@ describe('the practice screen', () => {
    * away from carrying teacher mode.
    */
   it('hands the run up as plain settings, the level base included', () => {
-    const tempo = FIRST.tempo.floor + FIRST.tempo.step * 2;
     saveProgress('cornet', 'treble', {
-      position: { courseId: COURSE.id, levelId: FIRST.id, tempo },
+      position: { courseId: COURSE.id, levelId: FIRST.id, segment: 2 },
       recent: [],
     });
     const { onStart } = show();
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(onStart).toHaveBeenCalledWith({
       ...FIRST.base,
-      tempo,
+      tempo: FIRST.segments[2].values.tempo,
       levelId: FIRST.id,
     });
   });
@@ -95,9 +94,7 @@ describe('the practice screen', () => {
     show();
     fireEvent.click(screen.getByRole('button', { name: 'Forward a step' }));
     expect(screen.getByText('1.2')).toBeTruthy();
-    expect(loadProgress('cornet', 'treble').position.tempo).toBe(
-      FIRST.tempo.floor + FIRST.tempo.step,
-    );
+    expect(loadProgress('cornet', 'treble').position.segment).toBe(1);
   });
 
   it('clears the evidence on a step, because it was about the old one', () => {
@@ -114,7 +111,7 @@ describe('the practice screen', () => {
     ).toBe(true);
     cleanup();
     saveProgress('cornet', 'treble', {
-      position: { courseId: COURSE.id, levelId: LAST.id, tempo: LAST.tempo.ceiling },
+      position: { courseId: COURSE.id, levelId: LAST.id, segment: LAST.segments.length - 1 },
       recent: [],
     });
     show();
@@ -137,16 +134,16 @@ describe('the practice screen', () => {
     expect(loadProgress('cornet', 'treble').goal).toEqual({
       courseId: COURSE.id,
       levelId: SECOND.id,
-      tempo: SECOND.tempo.floor,
+      segment: 0,
     });
-    expect(screen.getByText(new RegExp(`${SECOND.name} at ${SECOND.tempo.floor}`))).toBeTruthy();
+    expect(screen.getByText(new RegExp(`${SECOND.name} \\(2\\.1\\)`))).toBeTruthy();
   });
 
   it('lets a goal be cleared again', () => {
     saveProgress('cornet', 'treble', {
       position: startOf(COURSE),
       recent: [],
-      goal: { courseId: COURSE.id, levelId: SECOND.id, tempo: SECOND.tempo.floor },
+      goal: { courseId: COURSE.id, levelId: SECOND.id, segment: 0 },
       goalSetAt: startOf(COURSE),
     });
     show();
@@ -156,7 +153,7 @@ describe('the practice screen', () => {
 
   it('says there is nothing above the top rather than inventing a level', () => {
     saveProgress('cornet', 'treble', {
-      position: { courseId: COURSE.id, levelId: LAST.id, tempo: LAST.tempo.floor },
+      position: { courseId: COURSE.id, levelId: LAST.id, segment: 0 },
       recent: [],
     });
     show();

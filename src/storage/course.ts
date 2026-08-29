@@ -35,14 +35,24 @@ import {
 /** Unique to teacher mode, and the bundle check's fingerprint for it. */
 const STORAGE_PREFIX = 'brass-trainer:course:';
 
-/** A position from storage, made trustworthy, or undefined if it is not one. */
+/**
+ * A position from storage, made trustworthy, or undefined if it is not one.
+ *
+ * A store written before the timeline (v2.60.0 and earlier) carried a
+ * `tempo` where a `segment` now stands; `positionFrom` maps either onto the
+ * course as it reads today, so an update never strands the player on a step
+ * that no longer exists — the same never-trust-the-store rule as ever, with
+ * one more shape it can absorb.
+ */
 function readPosition(value: unknown): Position | undefined {
   if (typeof value !== 'object' || value === null) return undefined;
-  const { courseId, levelId, tempo } = value as Partial<Position>;
-  if (typeof courseId !== 'string' || typeof levelId !== 'string' || typeof tempo !== 'number') {
-    return undefined;
-  }
-  return positionFrom(courseId, levelId, tempo);
+  const { courseId, levelId, segment, tempo } = value as Partial<Position> & { tempo?: unknown };
+  if (typeof courseId !== 'string' || typeof levelId !== 'string') return undefined;
+  if (typeof segment !== 'number' && typeof tempo !== 'number') return undefined;
+  return positionFrom(courseId, levelId, {
+    ...(typeof segment === 'number' ? { segment } : {}),
+    ...(typeof tempo === 'number' ? { tempo } : {}),
+  });
 }
 
 function keyFor(instrumentId: string, clef: Clef): string {

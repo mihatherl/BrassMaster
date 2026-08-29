@@ -472,3 +472,41 @@ describe('the three modes', () => {
     expect(printed(hints, exercise)).toEqual([]);
   });
 });
+
+describe('changing mode mid-run', () => {
+  /*
+   * The fingering setting became a course axis (2026-08-29): a segment
+   * crossing may flip it while the hints object lives on. Entering `trouble`
+   * must seed from history exactly as opening in it would have, and `never`
+   * must go quiet without forgetting what the run taught.
+   */
+  it('enters trouble mode with the history-earned prompts, as if opened there', () => {
+    const exercise = exerciseOf([FOUR_CROTCHETS]);
+    const hints = fingeringHints({
+      exercise,
+      stats: statsOf({ 67: STRUGGLING }),
+      mode: 'never',
+      secondsBetween: at(SLOW),
+    });
+    expect(printed(hints, exercise)).toEqual([]);
+    hints.setMode('trouble');
+    expect(printed(hints, exercise)).toEqual([0]);
+  });
+
+  it('goes quiet in never mode, and keeps the run’s own lesson for later', () => {
+    const exercise = exerciseOf([FOUR_CROTCHETS, FOUR_CROTCHETS]);
+    const hints = fingeringHints({
+      exercise,
+      stats: statsOf({}),
+      mode: 'trouble',
+      secondsBetween: at(SLOW),
+    });
+    hints.judged(0, 'wrong');
+    expect(printed(hints, exercise)).toContain(0);
+    hints.setMode('never');
+    expect(printed(hints, exercise)).toEqual([]);
+    hints.setMode('trouble');
+    // The pitch that went wrong is still being prompted; nothing was wiped.
+    expect(printed(hints, exercise)).toContain(0);
+  });
+});

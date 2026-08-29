@@ -187,3 +187,19 @@ export function barCount(changes: readonly MetreChange[], totalBeats: number): n
 export function pulseAt(metre: Metre, beat: number): number {
   return beat / metre.pulseBeats;
 }
+
+/**
+ * The written signatures the app offers, in the order the settings screen
+ * shows them. Here rather than in `storage/settings.ts` (which derives its
+ * labelled list from this) because a course document's `metre` must be
+ * validated against the same list the player is offered, and the course
+ * reader may not reach into storage. Adding a metre is one entry — provided
+ * the generator has material in it; see the note on `TIME_SIGNATURES`.
+ */
+export const OFFERED_METRES: ReadonlyArray<readonly [number, number]> = [
+  [4, 4],
+  [3, 4],
+  [2, 4],
+  [6, 8],
+  [9, 8],
+];

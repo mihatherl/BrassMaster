@@ -1,5 +1,11 @@
 # Handover — 2026-08-28, after the week the course became real
 
+> **Patched 2026-08-29, evening (v2.61.0): the axes build landed.** The whole
+> of "What is next" below was built in one release, as ruled — schema,
+> trichotomy, per-segment rules, interval pool, mid-run support switching,
+> the timeline editor. See *The axes build* section further down for what a
+> fresh session needs; the original text is kept beneath it for the record.
+
 You are picking up **one third** of a workspace, from a parent folder holding
 three repositories. This one is *Brass Master*: the practice app, free on the
 web at **brassmaster.net** and — from version 3 — paid, on Google Play first.
@@ -228,17 +234,72 @@ sleeps** — 4.2 was a proof about the player, proved; do not upload AABs.
   question.
 - **Request indexing** for `/de/` `/nl/` `/fr/` in Search Console (the
   sitemap lists them; a nudge is faster).
-- **Pins do not switch mid-stream**: a level join changes pinned options only
-  from the next pass of the gate. Fix when playing shows it matters.
+- ~~**Pins do not switch mid-stream**~~ — closed by the axes build
+  (2026-08-29): support values apply at the crossing commit.
 - **Switching courses discards the old course's position** (one Progress per
   instrument/clef). Cheap to live with; noted so it is a choice.
-- **`carryEvidence` is per rule, not per step-kind** — an author cannot yet
-  say "carry across tempo steps, reset at level joins". The cells axis is
-  where this question will return.
+- ~~**`carryEvidence` is per rule, not per step-kind**~~ — dissolved by the
+  axes build: evidence is per-segment by construction, and an author whose
+  steps are trivial writes a trivial per-segment rule instead.
 - **The QC45 route test** — still the one 4.2 capability never watched
   working. Bench-only.
 - **The advance/mastery constants are provisional** and must be tuned only by
   the player playing a real course, per the plan's own law.
+
+## The axes build (2026-08-29, v2.61.0) — what the section below asked for, done
+
+Built in one release per the ruling, with two further rulings taken from the
+player at the design session that morning, both recorded in
+`level-axes-plan.md` where they belong:
+
+- **No composite support axis** — each help setting individually header-level
+  or its own axis; the open "rungs" question dissolved rather than answered.
+- **The trichotomy, universal**: every axis-capable parameter is the
+  player's, pinned in the header, or on an axis — never both, refused by
+  name. `TempoBand` is gone; a level may leave the tempo to the dial.
+- **Rules stick to their left boundary** under editing (the plan's open
+  question) — carry on move, copy-on-split, merge-keeps-left; pure and
+  unit-tested in `editor/timeline/axis-model.ts`.
+
+The state of things: **1,631 tests across 84 files**, gate green both
+targets, fingerprints in place. `Position` is a segment index; old documents
+and old stored positions read forward (the bundled course is the living
+fixture, a frozen old-format copy lives in `course.test.ts`). The three
+player-found-bug guards — crossing commit, whole-window, evidence reset —
+survived re-aimed at segments, and the evidence reset is now unconditional
+(`carryEvidence` is gone, as the plan ruled). Two real faults were found and
+closed in passing: **pins never reached the opening run's gate** (Start
+hand-built the run; `runFor` is now the one function both paths use, and the
+gate shows the course's *values*, not the player's values merely disabled),
+and the session effect would have **torn the run down mid-note** the first
+time a crossing changed `runTempo` (now read through refs; pinned by a
+regression test in `course-support.clock.test.tsx` that fakes the renderer —
+happy-dom has no 2D canvas, which is also why the older clock tests could
+only ever watch constructors).
+
+Support settings now switch **mid-stream at the crossing commit**:
+metronome/playback per scheduling window (`Session.setSupport`), conductor
+via a live ref, fingerings via `Hints.setMode`, reading mode via
+`StaveRenderer.setReadingMode` (re-lays like `rekeyed`; the riskiest item —
+**first on the device UAT list**, E32, mid-note flip). The interval pool is
+diatonic-degree–based (`IntervalWeight.interval`: 2 a second, 3 a third) with
+an optional `degrees` fence — *"Exploring 3rds in C major"* is now
+authorable; the absent path is byte-identical, snapshot-proven, and one
+refactor that reordered the RNG draws was caught by exactly those snapshots.
+The editor's timeline is the concept drawing working: draggable divisions
+(snap to other axes' boundaries = deliberate segment merging), from|to|steps
+generators (range walks `keyLadder`, down-biased), the per-segment rules
+table, and the drag-down gesture — picking a pinned parameter in the
+add-axis picker unpins it into the graph atomically. Opening an old file
+modernises it through `readCourse` itself (`editor/document.ts`); the editor
+saves new-format only.
+
+**What is actually next now: the curriculum.** The machinery is built and
+green but UNPLAYED — the checkpoint the build plan named still stands: the
+player plays the bundled course for parity (it should feel identical), then
+authors a real level with a support axis and hears the metronome drop out at
+a crossing. Nothing ships unheard. After his pass: the microphone with its
+§ 2.4 calibration, per the roadmap below.
 
 ## What is next
 

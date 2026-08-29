@@ -19,29 +19,47 @@ describe('remembering where the player got to', () => {
   });
 
   it('keeps a position across sittings', () => {
-    const position = { courseId: COURSE.id, levelId: SECOND.id, tempo: SECOND.tempo.floor };
+    const position = { courseId: COURSE.id, levelId: SECOND.id, segment: 1 };
     saveProgress('cornet', 'treble', { position, recent: [0.8] });
     expect(loadProgress('cornet', 'treble')).toEqual({ position, recent: [0.8] });
   });
 
   it('keeps instruments and clefs apart, because a position is not transferable', () => {
-    const position = { courseId: COURSE.id, levelId: SECOND.id, tempo: SECOND.tempo.floor };
+    const position = { courseId: COURSE.id, levelId: SECOND.id, segment: 1 };
     saveProgress('cornet', 'treble', { position, recent: [] });
     expect(loadProgress('eb-bass', 'treble').position.levelId).toBe(FIRST.id);
     expect(loadProgress('cornet', 'bass').position.levelId).toBe(FIRST.id);
   });
 
-  it('re-snaps a stored position rather than trusting it', () => {
+  it('clamps a stored segment rather than trusting it', () => {
     saveProgress('cornet', 'treble', {
-      position: { courseId: COURSE.id, levelId: FIRST.id, tempo: FIRST.tempo.floor + 2 },
+      position: { courseId: COURSE.id, levelId: FIRST.id, segment: 999 },
       recent: [],
     });
-    expect(loadProgress('cornet', 'treble').position.tempo).toBe(FIRST.tempo.floor);
+    expect(loadProgress('cornet', 'treble').position.segment).toBe(FIRST.segments.length - 1);
+  });
+
+  /*
+   * A store written before the timeline (v2.60.0 and earlier) carries a
+   * tempo. It lands on the segment that tempo meant — exact, because every
+   * read-forward tempo axis holds the old band's own figures.
+   */
+  it('reads a pre-timeline position, mapping its tempo onto the segment it meant', () => {
+    const tempo = FIRST.segments[2].values.tempo!;
+    localStorage.setItem(
+      'brass-trainer:course:cornet:treble',
+      JSON.stringify({
+        position: { courseId: COURSE.id, levelId: FIRST.id, tempo },
+        recent: [0.8],
+      }),
+    );
+    const { position } = loadProgress('cornet', 'treble');
+    expect(position).toEqual({ courseId: COURSE.id, levelId: FIRST.id, segment: 2 });
   });
 
   it('lands an unknown level on the first, and an unknown course on the bundled one', () => {
     saveProgress('cornet', 'treble', {
-      position: { courseId: 'gone', levelId: 'gone-too', tempo: 400 },
+      position: { courseId: 'gone', levelId: 'gone-too', segment: 400 },
       recent: [],
     });
     const { position } = loadProgress('cornet', 'treble');
@@ -62,15 +80,15 @@ describe('remembering where the player got to', () => {
     expect(loadProgress('cornet', 'treble').recent).toEqual([0.9, 0.7]);
   });
 
-  it('keeps a goal across sittings, snapped like any other position', () => {
+  it('keeps a goal across sittings, clamped like any other position', () => {
     saveProgress('cornet', 'treble', {
       position: startOf(COURSE),
       recent: [],
-      goal: { courseId: COURSE.id, levelId: SECOND.id, tempo: SECOND.tempo.floor + 2 },
+      goal: { courseId: COURSE.id, levelId: SECOND.id, segment: 999 },
       goalSetAt: startOf(COURSE),
     });
     const progress = loadProgress('cornet', 'treble');
-    expect(progress.goal?.tempo).toBe(SECOND.tempo.floor);
+    expect(progress.goal?.segment).toBe(SECOND.segments.length - 1);
     expect(progress.goalSetAt).toEqual(startOf(COURSE));
   });
 

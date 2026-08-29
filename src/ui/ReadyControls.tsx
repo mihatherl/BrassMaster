@@ -67,19 +67,28 @@ interface ReadyControlsProps {
    */
   keyGate?: KeyGate;
   /**
-   * The tempo the run will actually be played at — **the same value the
-   * session is constructed with**, handed here rather than re-derived.
+   * The values the run will actually be played with, wherever something other
+   * than the player's settings owns them — **the same values the session is
+   * constructed with**, handed here rather than re-derived.
    *
-   * That is the whole point of the prop. The first version of this fix had the
-   * gate compute `runTempo ?? settings.tempo` for the label while `PlayScreen`
-   * computed it again for the clock, and a mutation test caught what that
-   * allows: the label can be right while the clock is wrong, which is
-   * precisely the bug being fixed here wearing a different hat. One
-   * expression, two consumers.
+   * That is the whole point of the prop. The first version of the tempo fix
+   * (v2.59.0) had the gate compute `runTempo ?? settings.tempo` for the label
+   * while `PlayScreen` computed it again for the clock, and a mutation test
+   * caught what that allows: the label can be right while the clock is wrong,
+   * which is precisely the bug being fixed wearing a different hat. One
+   * expression, two consumers — and since the axes (2026-08-29), for every
+   * setting a course may pin or progress, not the tempo alone. A pinned
+   * control shows the **course's** value, disabled; without this it showed
+   * the player's own value locked, a statement that was legibly false.
    *
    * Absent only for callers with no run behind them — the gate's own tests.
    */
-  tempoInForce?: number;
+  inForce?: Partial<
+    Pick<
+      Settings,
+      'tempo' | 'metronomeEnabled' | 'conductorEnabled' | 'fingerings' | 'playbackMode' | 'readingMode'
+    >
+  >;
 }
 
 export interface KeyGate {
@@ -125,9 +134,16 @@ export function ReadyControls({
   onOutputs,
   pinned,
   keyGate,
-  tempoInForce,
+  inForce,
 }: ReadyControlsProps) {
-  const shownTempo = tempoInForce ?? settings.tempo;
+  /* What each control shows: the course's value where it spoke, else the
+   * player's own — the same `??` the session itself resolves with. */
+  const shownTempo = inForce?.tempo ?? settings.tempo;
+  const shownMetronome = inForce?.metronomeEnabled ?? settings.metronomeEnabled;
+  const shownConductor = inForce?.conductorEnabled ?? settings.conductorEnabled;
+  const shownFingerings = inForce?.fingerings ?? settings.fingerings;
+  const shownPlayback = inForce?.playbackMode ?? settings.playbackMode;
+  const shownReading = inForce?.readingMode ?? settings.readingMode;
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     onChange({ ...settings, [key]: value });
   const isPinned = (key: keyof Settings) => pinned?.includes(key) ?? false;
@@ -142,11 +158,11 @@ export function ReadyControls({
    * instead of the prose saying it at length.
    */
   const beat =
-    settings.metronomeEnabled && settings.conductorEnabled
+    shownMetronome && shownConductor
       ? t('beat.both')
-      : settings.metronomeEnabled
+      : shownMetronome
         ? t('gate.metronome')
-        : settings.conductorEnabled
+        : shownConductor
           ? t('gate.conductor')
           : t('beat.none');
 
@@ -222,7 +238,7 @@ export function ReadyControls({
 
       <Section
         title={t('gate.reading')}
-        values={t(`reading.${settings.readingMode}` as StringKey)}
+        values={t(`reading.${shownReading}` as StringKey)}
       >
         <div className="field">
           <div className="cards cards--two">
@@ -230,13 +246,17 @@ export function ReadyControls({
               <button
                 key={mode.id}
                 type="button"
-                className={`card card--compact ${settings.readingMode === mode.id ? 'is-selected' : ''}`}
+                className={`card card--compact ${shownReading === mode.id ? 'is-selected' : ''}`}
+                disabled={isPinned('readingMode')}
                 onClick={() => update('readingMode', mode.id)}
               >
                 <strong>{t(`reading.${mode.id}` as StringKey)}</strong>
               </button>
             ))}
           </div>
+          {isPinned('readingMode') && (
+            <p className="field__note muted">{t('gate.setByCourse')}</p>
+          )}
         </div>
       </Section>
 
@@ -257,7 +277,7 @@ export function ReadyControls({
           <label className="field field--inline">
             <input
               type="checkbox"
-              checked={settings.metronomeEnabled}
+              checked={shownMetronome}
               disabled={isPinned('metronomeEnabled')}
               onChange={(event) => update('metronomeEnabled', event.target.checked)}
             />
@@ -266,7 +286,7 @@ export function ReadyControls({
           <label className="field field--inline">
             <input
               type="checkbox"
-              checked={settings.conductorEnabled}
+              checked={shownConductor}
               disabled={isPinned('conductorEnabled')}
               onChange={(event) => update('conductorEnabled', event.target.checked)}
             />
@@ -282,7 +302,7 @@ export function ReadyControls({
          * click nobody is hearing is a control with nothing to do. Same shape
          * as the conductor's style slider directly below, for the same reason.
          */}
-        {settings.metronomeEnabled && (
+        {shownMetronome && (
           <label className="field">
             <span className="field__label">
               {t('gate.metronomeVolume')} <strong>{Math.round(settings.metronomeVolume * 100)}%</strong>
@@ -309,7 +329,7 @@ export function ReadyControls({
 
       <Section
         title={t('gate.sound')}
-        values={t(`playback.${settings.playbackMode}` as StringKey)}
+        values={t(`playback.${shownPlayback}` as StringKey)}
       >
         <div className="field">
           <div className="cards cards--two">
@@ -317,19 +337,23 @@ export function ReadyControls({
               <button
                 key={mode.id}
                 type="button"
-                className={`card card--compact ${settings.playbackMode === mode.id ? 'is-selected' : ''}`}
+                className={`card card--compact ${shownPlayback === mode.id ? 'is-selected' : ''}`}
+                disabled={isPinned('playbackMode')}
                 onClick={() => update('playbackMode', mode.id)}
               >
                 <strong>{t(`playback.${mode.id}` as StringKey)}</strong>
               </button>
             ))}
           </div>
+          {isPinned('playbackMode') && (
+            <p className="field__note muted">{t('gate.setByCourse')}</p>
+          )}
         </div>
       </Section>
 
       <Section
         title={t('gate.fingerings')}
-        values={t(`fingerings.${settings.fingerings}` as StringKey)}
+        values={t(`fingerings.${shownFingerings}` as StringKey)}
       >
         <div className="field">
           <div className="cards cards--two">
@@ -337,13 +361,17 @@ export function ReadyControls({
               <button
                 key={choice.id}
                 type="button"
-                className={`card card--compact ${settings.fingerings === choice.id ? 'is-selected' : ''}`}
+                className={`card card--compact ${shownFingerings === choice.id ? 'is-selected' : ''}`}
+                disabled={isPinned('fingerings')}
                 onClick={() => update('fingerings', choice.id)}
               >
                 <strong>{t(`fingerings.${choice.id}` as StringKey)}</strong>
               </button>
             ))}
           </div>
+          {isPinned('fingerings') && (
+            <p className="field__note muted">{t('gate.setByCourse')}</p>
+          )}
         </div>
       </Section>
 
@@ -357,7 +385,7 @@ export function ReadyControls({
           <span>{t('gate.variableTempo')}</span>
         </label>
 
-        {settings.readingMode === 'scrolling' && (
+        {shownReading === 'scrolling' && (
           <label className="field">
             <span className="field__label">
               {t('gate.scrollSpeed')} <strong>{settings.scrollSpeed}</strong>
@@ -374,7 +402,7 @@ export function ReadyControls({
           </label>
         )}
 
-        {settings.conductorEnabled && (
+        {shownConductor && (
           <label className="field">
             <span className="field__label">
               {t('gate.conductorStyle')}{' '}
@@ -392,7 +420,7 @@ export function ReadyControls({
           </label>
         )}
 
-        {settings.playbackMode !== 'off' && (
+        {shownPlayback !== 'off' && (
           <label className="field">
             <span className="field__label">
               {t('gate.cushion')} <strong>{Math.round(settings.cushionLevel * 100)}%</strong>

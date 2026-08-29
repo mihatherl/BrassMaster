@@ -370,6 +370,19 @@ The player's replacement, and the machinery it stands on:
   still: `changeTempo` already schedules at a future beat; the material never
   changes.
 
+### Superseded by the axes build, 2026-08-29 (v2.61.0)
+
+The `advance` rule (and `carryEvidence` with it), the `pinned` fields and the
+per-level tempo band described below were **replaced by the timeline model**
+— `docs/level-axes-plan.md`, ratified and built the same day. Per-segment
+progression rules made `carryEvidence` unnecessary by construction; the pins
+became the trichotomy's header scalars, now covering all five support
+settings and actually reaching the opening run's gate (the old wiring only
+pinned after a step — found and closed in the build); the band became a tempo
+axis, and a level may now leave the tempo to the player's dial entirely. Old
+documents read forward. Everything below stands as the reasoning it grew
+from.
+
 ### The countdown version, built and superseded the same day (kept for the record)
 
 Built: `ui/CoursePlayControls.tsx` (paid, reached through a dynamic import

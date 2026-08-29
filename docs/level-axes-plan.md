@@ -1,5 +1,16 @@
 # Level axes — the timeline model
 
+**Built 2026-08-29 (v2.61.0), in one release as ruled.** The schema and
+reader live in `exercise/course.ts` (`axes`, `Segment`, `runFor`, `ruleFor`,
+the refuse-by-name matrix `AXIS_MATERIALS`); the stepping and evidence in
+`ui/CoursePlayControls.tsx`; the mid-run support application in
+`ui/PlayScreen.tsx` (`runSupport`, on the `runTempo` doctrine) with setters
+in `engine/session.ts`, `exercise/hints.ts` and `render/surface.ts`; the
+interval pool in `exercise/generate.ts` (`intervalStep`); the editor in
+`src/editor/timeline/`. Old documents read forward; old stored positions map
+their tempo onto the segment it meant. The open questions below were settled
+the same day — resolutions dated in place.
+
 **Ratified 2026-08-29**, in one sitting, by the player. Every decision below
 is his; the reasoning is recorded so it can be re-examined, not so it can be
 quoted back at him. Read `course-plan.md` first — this replaces one section of
@@ -174,22 +185,63 @@ Neither is obviously right and the player should see both before choosing.
 within a level); the honesty rulings; the key and tempo gate work of
 v2.57.0–v2.59.0; the length and horizon work of v2.60.0.
 
-## Open, and named so they are not forgotten
+## Opened above, settled at the build (all ruled by the player, 2026-08-29)
 
-- **The support axis's rungs.** "One composite axis, ordered" is ruled; what
-  the levels *are* is not. The drawing shows scrolling line → read the page;
-  `rhythm-plan.md`'s stages show voice → metronome only → cold. Both are the
-  same idea and the rungs should be designed once, with the player, before
-  either is built.
-- **Segment rules under editing** — above.
-- **Whether a level may have no axes at all.** `course-plan.md` says yes and
-  calls it "a legitimate thing to want"; the timeline should still draw it.
-- **`difficultyId` on a rhythm level.** Required today, and `rhythm-plan.md`
-  wants it optional for a material with no difficulty. Not urgent — every
-  existing file carries it, so nothing breaks — but this schema pass is the
-  cheap moment to do it.
-- **Feel** (`rhythm-plan.md`'s own section) is an axis in waiting: straight →
-  swung, *"moved only after the straight version is mastered"*. Out of this
-  build. Note that `conductorStyle` is already a feel dial that touches
-  neither the audio nor the judge, so a cheap version exists whenever it is
-  wanted.
+- **The support axis's rungs — the question dissolved.** Ruling 3's composite
+  axis was superseded the day it was built: **each support setting is
+  individually either header-level or its own axis** — `metronomeEnabled`,
+  `conductorEnabled`, `fingerings`, `playbackMode`, and `readingMode` (the
+  knob the drawing's "scrolling → read the page" bar actually was; the table
+  above had missed it). No global rung ordering exists to be designed: the
+  author places values. The player's own argument, and the plan's: a
+  composite rung moves several things at once, which is the very reasoning
+  that kept difficulty from being an axis. Ruling 3's "fewer bars" concern is
+  answered differently — bars exist only where the author promotes a setting.
+
+  This ruling generalised into **the trichotomy**: every axis-capable
+  parameter — tempo and key included — is (a) absent, the player's own
+  setting or gate question; (b) a header scalar, pinned and shown locked
+  "Set by the course"; or (c) an axis. Never more than one; `readCourse`
+  refuses a document that both pins and axes a parameter, by name. `tempo`
+  therefore stopped being required at all, which is the optional-tempo step
+  v2.59.0's entry predicted. In the editor, the gesture is the one the player
+  described: choosing a pinned parameter in the add-axis picker **unpins it
+  into the graph**, atomically.
+
+- **Segment rules under editing — ruled: they stick to their left boundary.**
+  A rule belongs to the division that begins its segment; moving a division
+  carries its rule (unless another axis still holds the boundary up, in which
+  case the rule belongs to the boundary and stays); a new boundary splits a
+  segment and copies its *authored* override to both halves (default cells
+  stay default, never materialised); deleting a boundary merges and the left
+  rule stands, the vanished boundary's override going with it. Chosen over
+  re-interpolation because an edit must never rewrite rules the author did
+  not touch. Implemented and unit-tested in `editor/timeline/axis-model.ts`.
+
+- **A level may have no axes at all — yes, built.** One segment, the level
+  default rule, no bars on the timeline; the rules table still draws its one
+  column.
+
+- **`difficultyId`** stays required, but through a per-kind table
+  (`NEEDS_DIFFICULTY` in `course.ts`), so rhythm material without one is a
+  one-entry change with no schema bump and no stored-file migration.
+
+- **Feel** (`rhythm-plan.md`'s own section) remains an axis in waiting:
+  straight → swung, *"moved only after the straight version is mastered"*.
+  Out of this build, as planned. Note that `conductorStyle` is already a feel
+  dial that touches neither the audio nor the judge, so a cheap version
+  exists whenever it is wanted.
+
+## Still open after the build
+
+- **Support presets.** Per-setting promotion deliberately shipped without a
+  "support preset" generator; once real courses show a common support shape,
+  an editor generator can drop that shape in as a starting point — evidence
+  first.
+- **Support flips land at the crossing commit**, within a judgement of the
+  join — not sample-exact like the tempo. Documented at the apply effect in
+  `PlayScreen.tsx`; tighten only if playing shows it matters.
+- **`readingMode` mid-run on the E32** is the one runtime item that most
+  wants a device pass: `StaveRenderer.setReadingMode` re-lays the whole
+  surface at the crossing, which is real work on the slow renderer. First on
+  the UAT list.

@@ -37,6 +37,7 @@ import {
   positionLabel,
   progressToward,
   readCourse,
+  runFor,
   startOf,
   step,
   stepBack,
@@ -302,8 +303,12 @@ export function PracticeScreen({
       <section className="panel">
         <h2>{t('course.whereYouAre')}</h2>
         <p className="practice__tempo">
-          <strong>{positionLabel(progress.position)}</strong> ·{' '}
-          {progress.position.tempo} bpm
+          <strong>{positionLabel(progress.position)}</strong>
+          {/* The segment's tempo, where the course sets one. A level that
+              left the tempo to the player shows only the decimal. */}
+          {runFor(progress.position).tempo !== undefined && (
+            <> · {runFor(progress.position).tempo} bpm</>
+          )}
         </p>
         {/* The player's buttons, both directions, per the ratified stepping
             ruling. Disabled at the ends rather than hidden, so the edge of
@@ -360,8 +365,8 @@ export function PracticeScreen({
           <>
             <p className="practice__note">
               {distance.reached
-                ? `Reached — ${levelOf(goal).name} at ${goal.tempo}.`
-                : `${levelOf(goal).name} at ${goal.tempo}, ${distance.steps} ${
+                ? `Reached — ${levelOf(goal).name} (${positionLabel(goal)}).`
+                : `${levelOf(goal).name} (${positionLabel(goal)}), ${distance.steps} ${
                     distance.steps === 1 ? 'step' : 'steps'
                   } away.`}
             </p>
@@ -395,7 +400,7 @@ export function PracticeScreen({
                     setGoal({
                       courseId: course.id,
                       levelId: candidate.id,
-                      tempo: candidate.tempo.floor,
+                      segment: 0,
                     })
                   }
                 >
@@ -411,15 +416,11 @@ export function PracticeScreen({
         type="button"
         className="button button--primary button--large"
         onClick={() =>
-          onStart({
-            // `base` carries the length in the material's own unit; `endless`
-            // sits on the level rather than the base because it is about the
-            // shape of the *run*, not about the music being generated.
-            ...level.base,
-            ...(level.endless ? { endless: true } : {}),
-            tempo: progress.position.tempo,
-            levelId: level.id,
-          })
+          // `runFor` is the one function a run comes from — the same one the
+          // in-run stepper uses, ruled so after the hand-built version here
+          // was found to drop every pin the author had set: the gate showed a
+          // level's pins only after a step, never on Start.
+          onStart(runFor(progress.position))
         }
       >
         {t('home.start')}

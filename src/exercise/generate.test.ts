@@ -1672,3 +1672,102 @@ describe('a range the player chose', () => {
     expect(Math.max(...written(scale))).toBeGreaterThan(lowest + 7);
   });
 });
+
+describe('the interval pool', () => {
+  /*
+   * The one real generator change of the axes build (2026-08-29): a course
+   * may say what intervals a sight-reading line is drawn from, and which
+   * degrees it may visit. When it says nothing, the classic walk runs
+   * unchanged — the engraving snapshots pin that byte for byte, so no case
+   * for it is written here.
+   */
+  const diatonicSteps = (fifths: number, midis: number[]): number[] => {
+    // Distances counted along the key's own ladder, which is how the pool
+    // itself measures: a third is two rungs whatever the semitones say.
+    const tonic = tonicPitchClass(fifths);
+    const inKey = (midi: number) => [0, 2, 4, 5, 7, 9, 11].includes((((midi - tonic) % 12) + 12) % 12);
+    const rungs: number[] = [];
+    for (let midi = 0; midi < 128; midi++) if (inKey(midi)) rungs.push(midi);
+    const at = (midi: number) => rungs.indexOf(midi);
+    const steps: number[] = [];
+    for (let i = 1; i < midis.length; i++) {
+      const [a, b] = [at(midis[i - 1]), at(midis[i])];
+      if (a >= 0 && b >= 0) steps.push(Math.abs(b - a));
+    }
+    return steps;
+  };
+
+  it('favours the intervals the author weighted', () => {
+    // Thirds ten to one over seconds; no accidentals to muddy the ladder.
+    const exercise = generateExercise(
+      options({
+        fifths: 0,
+        keySet: [0],
+        difficulty: difficultyById('beginner'),
+        bars: 32,
+        intervals: { intervals: [{ interval: 3, weight: 10 }, { interval: 2, weight: 1 }] },
+      }),
+    );
+    const steps = diatonicSteps(0, exercise.notes.map((n) => n.writtenMidi));
+    const thirds = steps.filter((s) => s === 2).length;
+    const seconds = steps.filter((s) => s === 1).length;
+    expect(thirds).toBeGreaterThan(seconds * 2);
+  });
+
+  it('keeps the line inside the degree fence', () => {
+    // C major, degrees 1..3: written C, D and E and nothing else.
+    const exercise = generateExercise(
+      options({
+        fifths: 0,
+        keySet: [0],
+        difficulty: difficultyById('beginner'), // accidentalChance 0
+        bars: 16,
+        intervals: {
+          intervals: [{ interval: 2, weight: 1 }, { interval: 3, weight: 1 }],
+          degrees: [1, 2, 3],
+        },
+      }),
+    );
+    const classes = new Set(exercise.notes.map((n) => ((n.writtenMidi % 12) + 12) % 12));
+    for (const pitchClass of classes) {
+      expect([0, 2, 4]).toContain(pitchClass);
+    }
+  });
+
+  it('changes nothing when absent — the same seed writes the same music', () => {
+    const withPool = generateExercise(
+      options({ intervals: { intervals: [{ interval: 2, weight: 1 }] } }),
+    );
+    const without = generateExercise(options());
+    // The pool genuinely steers: the two runs of one seed differ.
+    expect(withPool.notes.map((n) => n.writtenMidi)).not.toEqual(
+      without.notes.map((n) => n.writtenMidi),
+    );
+    // And absence is stable with itself, which is the snapshots' contract.
+    expect(generateExercise(options()).notes.map((n) => n.writtenMidi)).toEqual(
+      without.notes.map((n) => n.writtenMidi),
+    );
+  });
+});
+
+describe('the span override', () => {
+  it('overrides the difficulty’s reach', () => {
+    // Medium reaches two octaves here; the course asks for a fifth. Reaching
+    // FURTHER than the compass allows would shrink honestly by the same
+    // fitting rules the difficulty's own figure goes through.
+    const wide = generateExercise(options({ kind: 'drills', drillId: 'major-scale' }));
+    const narrow = generateExercise(
+      options({ kind: 'drills', drillId: 'major-scale', spanSemitones: 7 }),
+    );
+    const reach = (notes: { writtenMidi: number }[]) =>
+      Math.max(...notes.map((n) => n.writtenMidi)) - Math.min(...notes.map((n) => n.writtenMidi));
+    expect(reach(narrow.notes)).toBe(7);
+    expect(reach(wide.notes)).toBeGreaterThan(7);
+  });
+
+  it('leaves the difficulty’s reach alone when absent', () => {
+    const a = generateExercise(options({ kind: 'drills', drillId: 'major-scale' }));
+    const b = generateExercise(options({ kind: 'drills', drillId: 'major-scale' }));
+    expect(a.notes.map((n) => n.writtenMidi)).toEqual(b.notes.map((n) => n.writtenMidi));
+  });
+});

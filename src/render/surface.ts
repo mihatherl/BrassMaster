@@ -424,9 +424,11 @@ export class StaveRenderer {
    *
    * The raw callback in paged mode, wrapped so a note's verdict waits for its
    * bar to finish; see `revealByBar`. Scrolling keeps the raw callback, since
-   * the strike line already says when each note is being judged.
+   * the strike line already says when each note is being judged. Not
+   * `readonly`: the wrapper is the one thing the constructor settles from the
+   * reading mode, so `setReadingMode` has to settle it again.
    */
-  private readonly verdictFor: (noteIndex: number) => Verdict | undefined;
+  private verdictFor: (noteIndex: number) => Verdict | undefined;
 
   private options: StaveRendererOptions;
 
@@ -436,26 +438,42 @@ export class StaveRenderer {
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     this.ctx = ctx;
 
-    /*
-     * Two rules, and the tie one goes underneath: a bar holding the far end of
-     * a tie is not finished being judged until that end can show its verdict,
-     * so `revealByBar` has to see it withheld rather than answered early.
-     */
-    const throughTies = revealTiesByBar(options.exercise, options.verdictFor, () =>
-      options.transport.visualBeat(),
-    );
-    this.verdictFor =
-      options.readingMode === 'paged'
-        ? revealByBar(options.exercise, throughTies)
-        : throughTies;
-
+    this.verdictFor = this.buildVerdictFor();
     this.measureNotes();
     this.metrics = staveMetrics(options.exercise.clef, 0, 10);
     this.resize();
   }
 
+  /*
+   * Two rules, and the tie one goes underneath: a bar holding the far end of
+   * a tie is not finished being judged until that end can show its verdict,
+   * so `revealByBar` has to see it withheld rather than answered early.
+   */
+  private buildVerdictFor(): (noteIndex: number) => Verdict | undefined {
+    const { exercise, transport, verdictFor, readingMode } = this.options;
+    const throughTies = revealTiesByBar(exercise, verdictFor, () => transport.visualBeat());
+    return readingMode === 'paged' ? revealByBar(exercise, throughTies) : throughTies;
+  }
+
   setTheme(theme: StaveTheme): void {
     this.options = { ...this.options, theme };
+  }
+
+  /**
+   * Switches how the paper is presented, mid-run — a course's reading-mode
+   * axis landing at a segment crossing (2026-08-29). Everywhere else the mode
+   * is read off `this.options` per call; the two things the constructor
+   * settled from it are settled again here: the verdict wrapper (paged mode's
+   * bar-by-bar reveal — rebuilt, so a bar in progress simply reveals by the
+   * new mode's rule from here on) and the layout, re-measured exactly as
+   * `rekeyed` re-measures after a splice.
+   */
+  setReadingMode(mode: ReadingMode): void {
+    if (mode === this.options.readingMode) return;
+    this.options = { ...this.options, readingMode: mode };
+    this.verdictFor = this.buildVerdictFor();
+    this.measureNotes();
+    this.resize();
   }
 
   /**

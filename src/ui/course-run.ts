@@ -13,6 +13,10 @@
 
 import type { ExerciseKind } from '../exercise/types';
 import { drillById, type DrillId, type PatternRegister } from '../exercise/generate';
+import type { IntervalPool } from '../exercise/difficulty';
+import type { FingeringMode } from '../exercise/hints';
+import type { PlaybackMode } from '../engine/session';
+import type { ReadingMode } from '../render/surface';
 import type { Settings } from '../storage/settings';
 
 export interface CourseRun {
@@ -27,15 +31,32 @@ export interface CourseRun {
   themeCount?: number;
   /** Whether the music carries on past that length. Absent means no. */
   endless?: boolean;
-  tempo: number;
-  levelId: string;
   /**
-   * Options the course pins for this run (2026-08-27). Present means the
-   * author chose; absent leaves the player's own setting alone. `App` spreads
-   * them over the settings like the rest, and the gate shows them disabled.
+   * The course's tempo — pinned by the level or set by its segment. Absent
+   * (2026-08-29, the axes trichotomy) means the course said nothing and the
+   * player's own dial is live at the gate, exactly as their key is when the
+   * level names none.
+   */
+  tempo?: number;
+  levelId: string;
+  /** Written compass and interval pool for sight-reading, where the course narrows them. */
+  range?: { low: number; high: number };
+  intervals?: IntervalPool;
+  /** How far above the tonic a drill reaches, overriding the difficulty's. */
+  spanSemitones?: number;
+  /** Written time signature, where the course names one. */
+  metre?: readonly [number, number];
+  /**
+   * Options the course pins for this run (2026-08-27; the full set
+   * 2026-08-29). Present means the author chose — in the header or on an
+   * axis; absent leaves the player's own setting alone. `App` spreads them
+   * over the settings like the rest, and the gate shows them disabled.
    */
   metronomeEnabled?: boolean;
   conductorEnabled?: boolean;
+  fingerings?: FingeringMode;
+  playbackMode?: PlaybackMode;
+  readingMode?: ReadingMode;
 }
 
 /**
@@ -107,6 +128,8 @@ export function runShapeOf(run: CourseRun): RunShape {
     ...(run.bars !== undefined ? { bars: run.bars } : {}),
     ...(run.cycles !== undefined ? { cycles: run.cycles } : {}),
     ...(run.themeCount !== undefined ? { themeCount: run.themeCount } : {}),
+    ...(run.spanSemitones !== undefined ? { spanSemitones: run.spanSemitones } : {}),
+    ...(run.intervals !== undefined ? { intervals: run.intervals } : {}),
     ...(run.endless ? {} : { horizonBars: 0 }),
   };
 }
@@ -126,4 +149,7 @@ export interface RunShape {
   themeCount?: number;
   /** Paper past the committed end. 0 ends the run where the author said. */
   horizonBars?: number;
+  /** Generator knobs a course sets that are likewise not settings. */
+  spanSemitones?: number;
+  intervals?: IntervalPool;
 }

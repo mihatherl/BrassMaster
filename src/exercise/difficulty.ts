@@ -14,6 +14,37 @@ export interface RhythmWeight {
 }
 
 /**
+ * One interval in a weighted pool, measured as a *diatonic* interval number —
+ * 1 a unison, 2 a second, 3 a third, 8 an octave — never semitones. The
+ * phrase generator walks a diatonic pool, where "a third" is three or four
+ * semitones depending on the degree it starts from; a semitone pool could
+ * not say "favour thirds", which is the one thing this exists to say, and
+ * would mean different music in different keys under a course's key axis.
+ */
+export interface IntervalWeight {
+  interval: number;
+  weight: number;
+}
+
+/**
+ * What intervals a sight-reading line is drawn from, and where it may go.
+ *
+ * The shape `RhythmWeight[]` proved, one axis over: a weighted pool rather
+ * than a ceiling, so "mostly steps with the odd third" and "leaping practice"
+ * are both one list. `degrees` constrains which scale degrees (1–7) the line
+ * may visit at all — "Exploring 3rds in C major" is a pool favouring 3 over
+ * degrees [1, 2, 3]. Absent means any degree.
+ *
+ * Lives here rather than in `course.ts` because the type crosses the
+ * free/paid seam on `CourseRun` (`ui/course-run.ts` imports no course words)
+ * and enters the generator as a plain option.
+ */
+export interface IntervalPool {
+  intervals: IntervalWeight[];
+  degrees?: number[];
+}
+
+/**
  * How scales and arpeggios behave, which is deliberately not how free material
  * behaves.
  *

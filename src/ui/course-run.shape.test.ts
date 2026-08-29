@@ -49,3 +49,17 @@ describe('the shape of a course run', () => {
     expect(shape.themeCount).toBeUndefined();
   });
 });
+
+describe('the generator knobs a course sets that are not settings', () => {
+  it('carries the drill span and the interval pool into the shape', () => {
+    expect(runShapeOf(run({ spanSemitones: 12 })).spanSemitones).toBe(12);
+    const pool = { intervals: [{ interval: 3, weight: 2 }], degrees: [1, 2, 3] };
+    expect(runShapeOf(run({ kind: 'phrases', intervals: pool })).intervals).toEqual(pool);
+  });
+
+  it('says nothing about them where the level said nothing', () => {
+    const shape = runShapeOf(run());
+    expect(shape.spanSemitones).toBeUndefined();
+    expect(shape.intervals).toBeUndefined();
+  });
+});

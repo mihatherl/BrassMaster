@@ -148,6 +148,24 @@ interface PlayScreenProps {
    * `courseFifths`, one field over.
    */
   runTempo?: number;
+  /**
+   * The support settings a course owns for this run — pinned in the level's
+   * header or moved by its axes (2026-08-29). Absent fields are the player's
+   * own. The same doctrine as `runTempo`, and for the same reason it is not
+   * written into settings: a course that practises reading cold must not
+   * quietly turn the player's own metronome off for good.
+   *
+   * Unlike `runTempo`'s first draft, these may change **mid-run**: a segment
+   * crossing lands a new value at the join, and the effect below applies it
+   * imperatively — never through the session effect's deps, which would tear
+   * the run down mid-note to obey a setting.
+   */
+  runSupport?: Partial<
+    Pick<
+      Settings,
+      'metronomeEnabled' | 'conductorEnabled' | 'fingerings' | 'playbackMode' | 'readingMode'
+    >
+  >;
 }
 
 export function PlayScreen({
@@ -165,9 +183,32 @@ export function PlayScreen({
   coursePinned,
   keyGate,
   runTempo,
+  runSupport,
 }: PlayScreenProps) {
   /** What this run actually plays at: the course's, or the player's. */
   const tempoInForce = runTempo ?? settings.tempo;
+  /** Each support setting in force: the course's where it spoke, the player's elsewhere. */
+  const support = {
+    metronomeEnabled: runSupport?.metronomeEnabled ?? settings.metronomeEnabled,
+    conductorEnabled: runSupport?.conductorEnabled ?? settings.conductorEnabled,
+    fingerings: runSupport?.fingerings ?? settings.fingerings,
+    playbackMode: runSupport?.playbackMode ?? settings.playbackMode,
+    readingMode: runSupport?.readingMode ?? settings.readingMode,
+  };
+  /*
+   * Read through refs inside the session effect, so a course crossing that
+   * changes them — `runTempo` and `runSupport` move with the committed
+   * segment now — re-renders this screen without rebuilding the session.
+   * The session effect keying on these values was survivable only while a
+   * course run never changed them; a torn-down session mid-note is exactly
+   * the failure the `settings`-identity note on that effect warns about.
+   */
+  const tempoInForceRef = useRef(tempoInForce);
+  tempoInForceRef.current = tempoInForce;
+  const runTempoRef = useRef(runTempo);
+  runTempoRef.current = runTempo;
+  const supportRef = useRef(support);
+  supportRef.current = support;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
   const sessionRef = useRef<Session | null>(null);
@@ -350,7 +391,7 @@ export function PlayScreen({
      * the note list and its ties with it.
      */
     headsRef.current = soundingHeads(exercise.notes);
-    setTempo(tempoInForce);
+    setTempo(tempoInForceRef.current);
     /*
      * The key this run opens in, kept for the whole run.
      *
@@ -400,9 +441,9 @@ export function PlayScreen({
       context,
       input: valves,
       exercise,
-      tempo: tempoInForce,
+      tempo: tempoInForceRef.current,
       countInBars: settings.countInBars,
-      metronomeEnabled: settings.metronomeEnabled,
+      metronomeEnabled: supportRef.current.metronomeEnabled,
       metronomeVolume: settings.metronomeVolume,
       /*
        * Where the conductor has no pattern for a metre it draws nothing, and
@@ -416,11 +457,13 @@ export function PlayScreen({
        *
        * No tempo passed: whether a metre has a pattern at all does not depend
        * on the speed, only which of its patterns is chosen does.
+       *
+       * Asked through the ref, live, because a course's conductor axis may
+       * switch the conductor at a segment crossing mid-run.
        */
-      needsBeatSounded: settings.conductorEnabled
-        ? (metre) => patternFor(metre) === null
-        : undefined,
-      playbackMode: settings.playbackMode,
+      needsBeatSounded: (metre) =>
+        supportRef.current.conductorEnabled && patternFor(metre) === null,
+      playbackMode: supportRef.current.playbackMode,
       brassVoice: voiceRef.current,
       timingTolerance: settings.timingTolerance,
       // The output in the player's ears, and how far behind the clock it is
@@ -475,7 +518,7 @@ export function PlayScreen({
          * free-play tempo with whatever slow level they had just practised —
          * a preference destroyed as a side effect of obeying a course.
          */
-        if (runTempo === undefined && tempoRef.current !== settings.tempo) {
+        if (runTempoRef.current === undefined && tempoRef.current !== settings.tempo) {
           settledRef.current?.(tempoRef.current);
         }
         if (dialKeyRef.current !== openedIn) keySettledRef.current?.(dialKeyRef.current);
@@ -529,7 +572,7 @@ export function PlayScreen({
     hintsRef.current = fingeringHints({
       exercise,
       stats: loadStats(exercise.instrumentId, exercise.clef),
-      mode: settings.fingerings,
+      mode: supportRef.current.fingerings,
       secondsBetween: (from, to) => session.transport.secondsBetween(from, to),
     });
 
@@ -539,7 +582,7 @@ export function PlayScreen({
       transport: session.transport,
       theme: currentTheme(),
       scrollSpeed: settings.scrollSpeed,
-      readingMode: settings.readingMode,
+      readingMode: supportRef.current.readingMode,
       // Through the tie: its far end is never judged, so it wears the verdict of
       // the note it is tied from rather than staying unmarked beside it.
       verdictFor: (index) => verdictsRef.current[headsRef.current[index]],
@@ -624,7 +667,41 @@ export function PlayScreen({
       rendererRef.current = null;
       setTransport(null);
     };
-  }, [started, attempt, exercise, settings, tempoInForce, runTempo]);
+    /*
+     * `tempoInForce`, `runTempo` and the support values are read through refs
+     * above, deliberately out of these deps: they now move mid-run with the
+     * committed segment, and rebuilding the session for them would stop the
+     * music to obey a value the transport has already been told about. A NEW
+     * run always changes `exercise` or `attempt`, so construction never reads
+     * a stale ref.
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, attempt, exercise, settings]);
+
+  /*
+   * Support changes landing mid-run — a course's segment crossing — applied
+   * imperatively to the live session, hints and renderer. Each setter is
+   * idempotent, so the firing after construction is free. The conductor
+   * needs nothing here: its beat closure reads the ref and its panel is a
+   * render gate below.
+   */
+  useEffect(() => {
+    if (!started) return;
+    sessionRef.current?.setSupport({
+      metronomeEnabled: support.metronomeEnabled,
+      playbackMode: support.playbackMode,
+    });
+    hintsRef.current?.setMode(support.fingerings);
+    rendererRef.current?.setReadingMode(support.readingMode);
+    // Keyed on the scalar values, not the object, which is rebuilt per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    started,
+    support.metronomeEnabled,
+    support.fingerings,
+    support.playbackMode,
+    support.readingMode,
+  ]);
 
   /**
    * Brings the audio up and starts the run — from the gate, and again from
@@ -819,7 +896,10 @@ export function PlayScreen({
               onOutputs={onOutputs}
               pinned={coursePinned}
               keyGate={keyGate}
-              tempoInForce={tempoInForce}
+              /* The very values the session is built with — one expression,
+                 two consumers, the mutation-tested rule of v2.59.0 — now for
+                 every setting the course may own, not the tempo alone. */
+              inForce={{ ...(runTempo !== undefined ? { tempo: runTempo } : {}), ...runSupport }}
             />
           )}
           <button
@@ -1034,7 +1114,7 @@ export function PlayScreen({
             fromBar={changeBar}
           />
         )}
-        {settings.conductorEnabled && transport && (
+        {support.conductorEnabled && transport && (
           <ConductorPanel
             transport={transport}
             metres={exercise.metres}
