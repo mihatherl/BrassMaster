@@ -58,6 +58,31 @@ export interface RangeStaveOptions {
   /** Key the bounds are spelled in, so they read as the exercise will. */
   fifths: number;
   theme: StaveTheme;
+  /**
+   * A fixed height for the figure, in CSS pixels, whatever the notes need.
+   *
+   * The settings screen wants the natural height: the figure is alone on the
+   * row and growing to fit its ledger lines costs nothing. **A timeline
+   * stage wants a fixed one** (2026-08-30): its height is the row's height,
+   * and a figure that grew and shrank as a bound moved made the whole row
+   * jump under the pointer — which is what the player saw as the stave
+   * "dithering". Given one, the drawing is centred in it.
+   */
+  height?: number;
+  /**
+   * Whether to draw each bound's fingering above it. On by default, which is
+   * what the settings screen wants: a player choosing their own range is
+   * asking "can I play this note", and the valves answer it.
+   *
+   * **Off for the course editor** (2026-08-30, the player): an author is
+   * choosing a compass, not a fingering, and the callout costs twice. It
+   * takes room a tight stage has not got — and, worse, its height feeds
+   * `inkExtent`, so the whole figure resizes as a note moves between notes
+   * with one valve row and notes with three. That is the "dithering" a
+   * moving bound showed: not a redraw artefact, the stave genuinely
+   * changing height under the note.
+   */
+  fingerings?: boolean;
 }
 
 /** Air between the outermost ink and the edge of the canvas, in stave spaces. */
@@ -106,7 +131,13 @@ function inkExtent(
   pitches.forEach((pitch, index) => {
     const y = yForPitch(m, pitch);
     // A notehead is a space tall, and its ledger lines never reach past it.
-    top = Math.min(top, y - 0.5, fingeringHintY(m, pitch) - fingeringHintRise(m, rows[index]));
+    top = Math.min(top, y - 0.5);
+    /* The callout's rise counts only when there IS a callout: with rows at
+       zero the hint's own baseline still reached above the note, so the
+       figure kept resizing after the fingerings were turned off. */
+    if (rows[index] > 0) {
+      top = Math.min(top, fingeringHintY(m, pitch) - fingeringHintRise(m, rows[index]));
+    }
     bottom = Math.max(bottom, y + 0.5);
     if (needsAccidental(pitch, fifths)) {
       top = Math.min(top, y - ACCIDENTAL_RISE);
@@ -134,14 +165,30 @@ export function drawRangeStave(canvas: HTMLCanvasElement, options: RangeStaveOpt
    * screen — and on a wide window that buys nothing: the stave is already as
    * long as the row, and the notes only get bigger.
    */
-  const staveSpace = Math.min(14, Math.max(9, width / 20));
+  let staveSpace = Math.min(14, Math.max(9, width / 20));
 
   const pitches = [spellInKey(low.writtenMidi, fifths), spellInKey(high.writtenMidi, fifths)];
-  const rows = [low, high].map((bound) => fingeringRows(bound.fingering).length);
+  /* No callout, no rows to make room for — and so a height that does not
+     move when the note does. */
+  const showFingerings = options.fingerings !== false;
+  const rows = showFingerings
+    ? [low, high].map((bound) => fingeringRows(bound.fingering).length)
+    : [0, 0];
   const ink = inkExtent(clef, fifths, pitches, rows);
 
-  const topLineY = (ink.above + MARGIN) * staveSpace;
-  const height = topLineY + (4 + ink.below + MARGIN) * staveSpace;
+  const spaces = ink.above + MARGIN + 4 + ink.below + MARGIN;
+  const natural = spaces * staveSpace;
+  const height = options.height ?? natural;
+  /*
+   * A fixed box SHRINKS the notation to fit rather than cropping it. A wide
+   * compass — the euphonium's is thirty-five semitones — overflowed a fixed
+   * 96px box and lost the ledger lines at both ends, which is worse than
+   * the resizing it was meant to cure. So the stave space is recomputed
+   * from the room actually available, and the figure is then centred in it.
+   */
+  if (options.height !== undefined) staveSpace = Math.min(staveSpace, height / spaces);
+  const drawn = spaces * staveSpace;
+  const topLineY = (ink.above + MARGIN) * staveSpace + (height - drawn) / 2;
 
   const dpr = window.devicePixelRatio || 1;
   canvas.style.height = `${height}px`;
@@ -186,7 +233,9 @@ export function drawRangeStave(canvas: HTMLCanvasElement, options: RangeStaveOpt
     drawNote(ctx, metrics, note);
     // A note's own column is the room its fingering has, which is the same
     // measure `note-chart.ts` gives one and generous for at most "1-2-3".
-    drawFingeringHint(ctx, metrics, note, bound.fingering, step, theme.note, theme.background);
+    if (showFingerings) {
+      drawFingeringHint(ctx, metrics, note, bound.fingering, step, theme.note, theme.background);
+    }
   });
 
   return height;

@@ -1,0 +1,111 @@
+import { describe, expect, it } from 'vitest';
+import { generateExercise, type GenerateOptions } from './generate';
+import { difficultyById } from './difficulty';
+import { instrumentById } from '../domain/instruments';
+import { metreFor } from '../domain/metre';
+import { isUnplayable } from './types';
+import { patternEvents, rhythmPatternById, syllablesFor } from './rhythm';
+
+/**
+ * The rhythm exercise: rounds of demonstration-then-play, per
+ * `rhythm-plan.md`. What is load-bearing here is judged elsewhere too — the
+ * session skips `isUnplayable` notes, the reveal discounts them — so these
+ * tests pin the SHAPE: which notes are demo, how the pitches alternate, and
+ * that the printed count is the mapping's own truth.
+ */
+
+function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
+  return {
+    instrument: instrumentById('eb-bass'),
+    clef: 'treble',
+    fifths: -3, // Ignored by rhythm mode, and the test below proves it.
+    difficulty: difficultyById('easy'),
+    kind: 'rhythm',
+    bars: 8,
+    cycles: 2,
+    themeCount: 2,
+    metre: metreFor(4, 4),
+    seed: 7,
+    rhythmPatternId: 'four-crotchets',
+    ...overrides,
+  };
+}
+
+describe('the rhythm exercise', () => {
+  it('builds rounds of one demonstration and two plays', () => {
+    // One-bar pattern, two rounds: 2 × (1 demo + 2 play) = 6 bars of 4/4.
+    const exercise = generateExercise(options());
+    expect(exercise.totalBeats).toBe(24);
+    expect(exercise.kind).toBe('rhythm');
+    // Demo statements are bars 1 and 4; their notes are unjudgeable by data.
+    const demo = exercise.notes.filter(isUnplayable).map((note) => note.startBeat);
+    expect(demo).toEqual([0, 1, 2, 3, 12, 13, 14, 15]);
+  });
+
+  it('alternates two adjacent written notes, restarting each statement', () => {
+    const exercise = generateExercise(options());
+    const played = exercise.notes.map((note) => note.writtenMidi);
+    const pair = [...new Set(played)].sort((a, b) => a - b);
+    expect(pair).toHaveLength(2);
+    // Adjacent scale letters: a tone or a semitone apart.
+    expect(pair[1] - pair[0]).toBeLessThanOrEqual(2);
+    // Strict alternation, restarting from the low note at each statement.
+    for (let statement = 0; statement < 6; statement++) {
+      const bar = exercise.notes.filter(
+        (note) => note.startBeat >= statement * 4 && note.startBeat < (statement + 1) * 4,
+      );
+      expect(bar.map((note) => note.writtenMidi)).toEqual([pair[0], pair[1], pair[0], pair[1]]);
+    }
+  });
+
+  it('is keyless: no signature, and the chosen key cannot reach it', () => {
+    // The plan's constraint — no key, no key set — honoured in free play:
+    // C is the absence of a signature, every eye on the rhythm.
+    const inEflat = generateExercise(options({ fifths: -3 }));
+    const inD = generateExercise(options({ fifths: 2 }));
+    expect(inEflat.keys).toEqual([{ fromBeat: 0, fifths: 0 }]);
+    expect(inD.notes.map((n) => n.writtenMidi)).toEqual(inEflat.notes.map((n) => n.writtenMidi));
+    expect(inEflat.notes.every((note) => !note.showAccidental)).toBe(true);
+  });
+
+  it('takes the pattern’s own metre, not the setting’s', () => {
+    const exercise = generateExercise(
+      options({ rhythmPatternId: 'waltz-crotchets', metre: metreFor(4, 4) }),
+    );
+    expect(exercise.metres[0].metre.beatsPerBar).toBe(3);
+    expect(exercise.totalBeats).toBe(2 * 3 * 3);
+  });
+
+  it('prints the count on its own channel, in the printed forms', () => {
+    const exercise = generateExercise(options({ rhythmPatternId: 'dotted-pair', cycles: 1 }));
+    const pattern = rhythmPatternById('dotted-pair');
+    const spoken = syllablesFor(patternEvents(pattern)[0]).filter((s) => s !== null);
+    // Three statements of the one-bar pattern, each fully annotated — and
+    // "and" prints as "&", the 1-e-&-a convention, never the spoken word.
+    expect(exercise.syllables).toHaveLength(spoken.length * 3);
+    expect(exercise.syllables!.slice(0, spoken.length).map((entry) => entry.text)).toEqual(
+      spoken.map((syllable) => (syllable === 'and' ? '&' : syllable)),
+    );
+    // Labels stay what they are elsewhere: section text, none here.
+    expect(exercise.labels).toHaveLength(0);
+  });
+
+  it('keeps a tie’s far end on the head’s pitch, outside the alternation', () => {
+    const exercise = generateExercise(options({ rhythmPatternId: 'tied-over-beat', cycles: 1 }));
+    const heads = exercise.notes.filter((note) => note.tiedToNext);
+    expect(heads.length).toBeGreaterThan(0);
+    for (const head of heads) {
+      // Notes arrive in beat order, so the far end is simply the next one.
+      const far = exercise.notes.find((note) => note.startBeat > head.startBeat);
+      expect(far?.writtenMidi).toBe(head.writtenMidi);
+    }
+  });
+
+  it('gives rests their silence: no label where nothing is spoken', () => {
+    const exercise = generateExercise(options({ rhythmPatternId: 'off-beats', cycles: 1 }));
+    // Every count sits on a note's onset, never on a rest's.
+    const onsets = new Set(exercise.notes.map((note) => note.startBeat));
+    for (const entry of exercise.syllables ?? []) expect(onsets.has(entry.atBeat)).toBe(true);
+    expect(exercise.syllables!.length).toBeGreaterThan(0);
+  });
+});

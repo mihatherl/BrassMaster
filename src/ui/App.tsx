@@ -3,6 +3,7 @@ import { instrumentById } from '../domain/instruments';
 import { difficultyById } from '../exercise/difficulty';
 import { metreFor } from '../domain/metre';
 import { defaultLengthFor, generateExercise, HORIZON_BARS } from '../exercise/generate';
+import { collectionOf } from '../exercise/collections';
 import { canRekeyKind } from '../exercise/rekey';
 import { randomSeed } from '../exercise/rng';
 import type { Exercise } from '../exercise/types';
@@ -168,6 +169,11 @@ export function App() {
        * there and this is the whole answer, as it always was.
        */
       const length = defaultLengthFor(settings.kind, settings.drillId);
+      const courseCollections = shape?.themeSteps
+        ? [...new Set(shape.themeSteps.map((step) => collectionOf(step.id)?.id).filter(
+            (id): id is string => id !== undefined,
+          ))]
+        : undefined;
       return generateExercise({
         instrument,
         clef: settings.clef,
@@ -178,9 +184,25 @@ export function App() {
         drillId: settings.drillId,
         bars: shape?.bars ?? length.bars,
         themeCount: shape?.themeCount ?? length.themeCount,
-        collectionIds: settings.collectionIds,
-        themeSteps: settings.themeSteps,
-        selection: settings.selection,
+        /*
+         * A named tune brings its own collection (2026-08-30).
+         *
+         * `themesOf` draws only from the collections listed, and a playlist
+         * step outside them is filtered away — so a course naming a Bach
+         * invention would play nothing at all for a player who happens not
+         * to have Bach selected in free play. The author's choice must not
+         * depend on the player's unrelated setting.
+         */
+        collectionIds: courseCollections ?? settings.collectionIds,
+        /*
+         * A course's named tune beats the player's own playlist (2026-08-30).
+         * The author chose this tune in this key for this segment; the
+         * player's list is a free-play preference and is left untouched in
+         * their settings, not overwritten.
+         */
+        themeSteps: shape?.themeSteps ?? settings.themeSteps,
+        selection: shape?.themeSteps ? 'defined' : settings.selection,
+        rhythmPatternId: settings.rhythmPatternId,
         cycles: shape?.cycles ?? length.cycles,
         register: settings.register,
         range: settings.range ?? undefined,
@@ -258,7 +280,9 @@ export function App() {
       return {
         ...from,
         kind: run.kind,
-        difficultyId: run.difficultyId,
+        /* Absent means the course said nothing, so the player's own stands —
+           the same rule the tempo and the key already follow. */
+        ...(run.difficultyId !== undefined ? { difficultyId: run.difficultyId } : {}),
         ...(run.drillId !== undefined ? { drillId: run.drillId } : {}),
         ...(run.register !== undefined ? { register: run.register } : {}),
         ...(run.tempo !== undefined ? { tempo: run.tempo } : {}),

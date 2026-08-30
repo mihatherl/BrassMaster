@@ -316,3 +316,77 @@ describe('positions and formatting', () => {
     expect(formatSeconds(247)).toBe('4:07');
   });
 });
+
+describe('a stage is as wide as the music it holds', () => {
+  /*
+   * Ruled 2026-08-30, after the player found the bars axis not lining up
+   * with the ruler beneath it. Two things are called "bars": the rule's
+   * gate on ADVANCEMENT, and a length axis saying how much music is
+   * WRITTEN. Only the first was ever drawn, so a stage asking for sixteen
+   * bars of sight-reading was drawn eight bars wide.
+   */
+  const RULE = { minBars: 8, score: { atLeast: 0.85, overBars: 4 } };
+
+  it('draws a bars axis at the length it asks for, not the rule’s', () => {
+    const layout = layoutOf(
+      {
+        axes: [
+          { axis: 'bars', divisions: [{ at: 0, value: 8 }, { at: 0.5, value: 16 }] },
+        ],
+      },
+      RULE,
+      {},
+    );
+    expect(layout.segments.map((segment) => segment.bars)).toEqual([8, 16]);
+    expect(layout.totalBars).toBe(24);
+  });
+
+  it('still floors the width at the rule, because playing on is honest', () => {
+    // Four bars of music but eight bars of playing means reading it twice,
+    // and eight is then the true width. The pre-existing doctrine: where the
+    // two differ, the truth is the longer figure.
+    const layout = layoutOf(
+      { axes: [{ axis: 'bars', divisions: [{ at: 0, value: 4 }] }] },
+      RULE,
+      {},
+    );
+    expect(layout.segments[0].bars).toBe(8);
+  });
+
+  it('drags bars ACROSS a divider, writing the axis and not the rule', () => {
+    /*
+     * The bars-as-x-axis doctrine, which a length axis nearly broke: a drag
+     * moves bars across a border and leaves the level the same length.
+     * Writing the rule here would move the divider and change nothing —
+     * the axis governs the width — so the picture would snap back and the
+     * level would have silently grown instead.
+     */
+    const fragment = {
+      axes: [{ axis: 'bars' as const, divisions: [{ at: 0, value: 8 }, { at: 0.5, value: 16 }] }],
+    };
+    const layout = layoutOf(fragment, RULE, {});
+    expect(layout.totalBars).toBe(24);
+    const drop = resolveBarDrag(fragment, layout, 'bars', 1, 12 / layout.totalBars);
+    const next = applyBarDrag(fragment, layout, 'bars', 1, drop!, true);
+    // The axis itself now says 12 and 12 — the music the generator writes.
+    expect(next.axes[0].divisions.map((division) => division.value)).toEqual([12, 12]);
+    const after = layoutOf(next, RULE, {});
+    expect(after.segments.map((segment) => segment.bars)).toEqual([12, 12]);
+    expect(after.totalBars).toBe(24);
+  });
+
+  it('leaves drills to the rule, since a cycle has no honest bar count', () => {
+    /*
+     * A cycle's length depends on the notes the drill has in the key it is
+     * played in — two cycles of an octave being seven bars of four-four
+     * exactly, and other keys differing. There is no static conversion, so
+     * inventing one would be a new lie in place of the old one.
+     */
+    const layout = layoutOf(
+      { axes: [{ axis: 'cycles', divisions: [{ at: 0, value: 2 }, { at: 0.5, value: 6 }] }] },
+      RULE,
+      {},
+    );
+    expect(layout.segments.map((segment) => segment.bars)).toEqual([8, 8]);
+  });
+});

@@ -201,6 +201,17 @@ export interface Exercise {
    * page dressing up machinery as repertoire.
    */
   labels: LabelEvent[];
+  /**
+   * The printed count above the notes, one entry per spoken onset — rhythm
+   * mode's teaching line (`rhythm-plan.md`). Its own channel rather than a
+   * ride on `labels`, because the two are typeset as differently as they
+   * read: a section label is a word set left of its beat, a count is a
+   * short mark centred on its notehead — and the first cut borrowed the
+   * label style and printed "and" straight through the next beat's "3".
+   * The text is the printed FORM ("&" for the spoken "and", the standard
+   * 1 e & a), while the clip scheduler will speak from the mapping itself.
+   */
+  syllables?: LabelEvent[];
   /** Length of the exercise in crotchets. */
   totalBeats: number;
   /**
@@ -249,6 +260,7 @@ export type ExerciseKind =
   | 'drills'
   | 'phrases'
   | 'themes'
+  | 'rhythm'
   | 'imported';
 
 export const EXERCISE_KINDS: ReadonlyArray<{ id: ExerciseKind; name: string; blurb: string }> = [
@@ -278,4 +290,25 @@ export const EXERCISE_KINDS: ReadonlyArray<{ id: ExerciseKind; name: string; blu
     // forgiven that". The claim is warmth, not inventory.
     blurb: 'Musical melodies you know and enjoy.',
   },
+  /*
+   * Paid, and gated HERE rather than at the screen: this list drives the
+   * chooser, the settings sanitiser and the i18n mirror, so one literal at
+   * the source keeps a stored `kind: 'rhythm'` from surviving on a build
+   * with no way to play it. The spread folds to nothing on the web target —
+   * the flag is a literal by Rollup's time, like every other `__HAS_` read.
+   *
+   * The `typeof` guard is not an indirection — the define substitutes the
+   * identifier inside it too, and the minifier folds `typeof true` — it is
+   * for the tools: they import this module under `tsx`, where no define
+   * runs and a bare read of the global would throw at import time.
+   */
+  ...(typeof __HAS_RHYTHM__ !== 'undefined' && __HAS_RHYTHM__
+    ? [
+        {
+          id: 'rhythm' as const,
+          name: 'Rhythm',
+          blurb: 'One rhythm pattern at a time: count it, then play it.',
+        },
+      ]
+    : []),
 ];

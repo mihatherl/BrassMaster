@@ -6,11 +6,24 @@ and `course-plan.md` first; this plan is written to be compatible with both,
 and § *What the course document must keep optional* below is a constraint on
 course-plan phase 2 that must be honoured **before** any course file exists.
 
-**Deliberately not scheduled.** The player raised it now "not because I
-necessarily think we should build it now, but because if there are any
-architectural decisions that need to be made now to later support it, we
-should think about that." This document is that thinking. It does not put
-rhythm drills into v3.0.
+**Scheduled 2026-08-30** — the player: *"rhythm is the concept that we need
+to get on with next"* — when the microphone moved behind the eisteddfod's
+sample corpus (roadmap Phase 2's deferral note) and the authored-cells
+builder became this plan's first customer. **The first slice is built the
+same day**: the pattern library (spine stages 1–4), the syllable mapping,
+the demonstration-then-play generator, the printed count (1 e & a, centred,
+greying with its demo bars), the paid flag with its tripwire, and the free-
+play tab. Playable end to end with the voice silent. **The voice itself
+waits on the player's clips** — eleven syllables, one phone session — and
+the stage progression, the tolerance question and rounds-per-stage wait on
+his playing, per this plan's own rules. The original scheduling note stands
+below for the record.
+
+*(As drafted:)* **Deliberately not scheduled.** The player raised it now
+"not because I necessarily think we should build it now, but because if
+there are any architectural decisions that need to be made now to later
+support it, we should think about that." This document is that thinking. It
+does not put rhythm drills into v3.0.
 
 ## The problem, in the player's words
 

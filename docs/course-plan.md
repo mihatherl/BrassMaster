@@ -272,6 +272,16 @@ the second axis to build after tempo.
 
 ## Author-written cells — the composer's vocabulary, extended
 
+> **Superseded 2026-08-30 by `authored-cells-plan.md`.** Two of this
+> section's assumptions were overturned by the player: a course now carries
+> every cell it uses **by value** (never "the built-ins, the course's own,
+> or both" — a course must mean the same thing on every machine), and the
+> authored thing is not the composer's one-bar `Cell` at all but a small
+> degree-written pattern in the Theme format, multi-bar, with its own time
+> signature, presented to the player like a drill. What stands here is the
+> ground truth about `cells.ts` itself — key-independence, `parseCell`,
+> roles, the id rule — which the composer still owns.
+
 **Asked 2026-08-24: can an author add their own cells, independent of key?**
 Yes, and the design already assumes it. Three properties make this the cheapest
 powerful feature in this document:

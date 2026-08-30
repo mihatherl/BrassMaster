@@ -375,6 +375,62 @@ export const EN_TEACHER = {
   'progress.key': 'Keys',
 } as const;
 
+/**
+ * Rhythm drills' strings — its own bucket behind its own literal
+ * (`__HAS_RHYTHM__`), per the one-flag-per-feature rule. Three strings so
+ * far; the mode's screens grow this, never `index.ts`'s core table.
+ *
+ * The blurb claims exactly what ships: the count is PRINTED — the recorded
+ * counting voice waits on the player's clips (rhythm-plan.md: "the player
+ * records the clips"), and the blurb widens when the voice lands, never
+ * before. The blurb guard's law, applied to a sentence that would love to
+ * overpromise.
+ */
+export const EN_RHYTHM = {
+  'kind.rhythm': 'Rhythm',
+  'kind.rhythm.blurb': 'One rhythm pattern at a time: count it, then play it.',
+  'rhythm.pattern': 'Pattern',
+} as const;
+
+export const PAID_RHYTHM: Record<string, Pack> = {
+  en: EN_RHYTHM,
+  de: {
+    'kind.rhythm': 'Rhythmus',
+    'kind.rhythm.blurb': 'Ein Rhythmusmuster nach dem anderen: erst zählen, dann spielen.',
+    'rhythm.pattern': 'Muster',
+  },
+  nl: {
+    'kind.rhythm': 'Ritme',
+    'kind.rhythm.blurb': 'Eén ritmepatroon tegelijk: eerst tellen, dan spelen.',
+    'rhythm.pattern': 'Patroon',
+  },
+  fr: {
+    'kind.rhythm': 'Rythme',
+    'kind.rhythm.blurb': 'Un motif rythmique à la fois : comptez, puis jouez.',
+    'rhythm.pattern': 'Motif',
+  },
+  es: {
+    'kind.rhythm': 'Ritmo',
+    'kind.rhythm.blurb': 'Un patrón rítmico a la vez: cuenta y luego toca.',
+    'rhythm.pattern': 'Patrón',
+  },
+  it: {
+    'kind.rhythm': 'Ritmo',
+    'kind.rhythm.blurb': 'Un ritmo alla volta: prima conta, poi suona.',
+    'rhythm.pattern': 'Schema',
+  },
+  'pt-PT': {
+    'kind.rhythm': 'Ritmo',
+    'kind.rhythm.blurb': 'Um padrão rítmico de cada vez: conte e depois toque.',
+    'rhythm.pattern': 'Padrão',
+  },
+  'pt-BR': {
+    'kind.rhythm': 'Ritmo',
+    'kind.rhythm.blurb': 'Um padrão rítmico por vez: conte e depois toque.',
+    'rhythm.pattern': 'Padrão',
+  },
+};
+
 export const PAID_TEACHER: Record<string, Pack> = {
   en: EN_TEACHER,
   'de': {

@@ -478,6 +478,33 @@ export function drawLabelEvent(
   ctx.restore();
 }
 
+/**
+ * One count mark above its notehead — rhythm mode's printed teaching line.
+ *
+ * Upright and small where a label is bold italic, and CENTRED on the onset
+ * where a label sets left: a count belongs to its note the way a fingering
+ * hint does, and the first cut, which borrowed the label style, printed
+ * "and" clean through the next beat's "3". It sits just above the stave, in
+ * the band below the tempo mark, because it is read WITH the music rather
+ * than about it.
+ */
+export function drawSyllable(
+  ctx: CanvasRenderingContext2D,
+  metrics: StaveMetrics,
+  x: number,
+  text: string,
+  colour: string,
+): void {
+  const { staveSpace } = metrics;
+  ctx.save();
+  ctx.fillStyle = colour;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `600 ${Math.round(staveSpace * 1.05)}px system-ui, sans-serif`;
+  ctx.fillText(text, x, metrics.topLineY - staveSpace * 1.6);
+  ctx.restore();
+}
+
 export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions): void {
   const { exercise, metrics, xForBeat, theme, firstBar, lastBar } = options;
   const { staveSpace } = metrics;
@@ -601,6 +628,25 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
       xForBeat(label.atBeat) - BAR_LINE_SETBACK * staveSpace,
       label.text,
       theme.note,
+    );
+  }
+
+  /*
+   * The printed count, centred on each spoken onset and wearing its note's
+   * colour — a demonstration bar's count greys with its notes, because the
+   * count and the music are one thing to the eye that is learning them.
+   */
+  for (const syllable of exercise.syllables ?? []) {
+    if (syllable.atBeat < firstBeat || syllable.atBeat >= lastBeat) continue;
+    const index = exercise.notes.findIndex(
+      (note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9,
+    );
+    drawSyllable(
+      ctx,
+      metrics,
+      xForBeat(syllable.atBeat),
+      syllable.text,
+      index >= 0 ? options.colourFor(index) : theme.note,
     );
   }
 

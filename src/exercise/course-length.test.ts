@@ -48,11 +48,19 @@ describe('a level saying how long its run is', () => {
     expect(course.levels[0].base.cycles).toBe(6);
   });
 
-  it('takes bars for sight-reading and tunes for themes', () => {
+  it('takes bars for sight-reading', () => {
     const phrases = read(doc({ kind: 'phrases', bars: 24 }));
-    const themes = read(doc({ kind: 'themes', themeCount: 2 }));
     expect('error' in phrases ? phrases.error : phrases.levels[0].base.bars).toBe(24);
-    expect('error' in themes ? themes.error : themes.levels[0].base.themeCount).toBe(2);
+  });
+
+  it('refuses themeCount, which no longer exists', () => {
+    /*
+     * Ruled 2026-08-30: "any N" is gone, and a themes level names its tunes.
+     * Refused rather than ignored — a document asking for four random tunes
+     * must be told, not quietly handed something else.
+     */
+    const themes = read(doc({ kind: 'themes', themeCount: 2 }));
+    expect('error' in themes ? themes.error : '').toContain('themeCount');
   });
 
   it('is optional, and absent means the material’s own default', () => {

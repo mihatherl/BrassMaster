@@ -194,10 +194,18 @@ function draw(
   fifths = -3,
   clef: 'treble' | 'bass' = 'treble',
   width = WIDTH,
+  extra: { fingerings?: boolean; height?: number } = {},
 ) {
   const calls: RecordedCall[] = [];
   const canvas = mockCanvas(calls, width);
-  const height = drawRangeStave(canvas, { low, high, clef, fifths, theme: LIGHT_THEME });
+  const height = drawRangeStave(canvas, {
+    low,
+    high,
+    clef,
+    fifths,
+    theme: LIGHT_THEME,
+    ...extra,
+  });
   return {
     calls,
     canvas,
@@ -312,5 +320,81 @@ describe('the range stave', () => {
     // One note asked for is still two bounds, each with its own dial beside
     // the figure — so two noteheads, and two fingerings of two rows each.
     expect(text).toEqual(['1', '2', '1', '2']);
+  });
+});
+
+describe('the range stave in a timeline stage', () => {
+  /*
+   * The editor's figure answers a different question from the settings
+   * screen's (2026-08-30). A player choosing a range asks "can I play this
+   * note", and the valves answer it. A course author is choosing a compass,
+   * and the callout costs twice over: it takes room a tight stage has not
+   * got, and its height feeds the ink extent — so the whole figure resized
+   * as a bound moved between notes with one valve row and notes with three,
+   * which the player saw as the stave "dithering" under the pointer.
+   */
+  it('draws no fingerings when asked not to', () => {
+    const { text } = draw(bound('G3', '1-2'), bound('C5', 'open'), -3, 'treble', WIDTH, {
+      fingerings: false,
+    });
+    expect(text).toEqual([]);
+  });
+
+  it('keeps one height across every note, once the callout is gone', () => {
+    /*
+     * The dithering, stated as a test: walk a bound through notes whose
+     * fingerings have different numbers of rows and the figure must not
+     * change height. Without a fixed box it still would — the notes
+     * themselves move the ink — so the box is what makes the row stand
+     * still, and the drawing shrinks to fit it.
+     */
+    const heights = new Set<number>();
+    for (let midi = 55; midi <= 72; midi += 1) {
+      const { height } = draw(
+        { writtenMidi: midi, fingering: '1-2-3' },
+        bound('C5', 'open'),
+        -3,
+        'treble',
+        WIDTH,
+        { fingerings: false, height: 96 },
+      );
+      heights.add(height);
+    }
+    expect([...heights]).toEqual([96]);
+  });
+
+  it('shrinks the notation to fit a fixed box rather than cropping it', () => {
+    /*
+     * The widest written compass the app has is the euphonium's thirty-five
+     * semitones, and a fixed box smaller than that must scale the stave
+     * down — cropping the ledger lines would be worse than the resizing the
+     * box was added to cure.
+     */
+    for (const instrument of INSTRUMENTS) {
+      for (const clef of availableClefs(instrument)) {
+        const [lowest, highest] = writtenRange(instrument, clef);
+        const { height, ink } = draw(
+          { writtenMidi: lowest, fingering: '1-2-3-4' },
+          { writtenMidi: highest, fingering: 'open' },
+          -3,
+          clef,
+          WIDTH,
+          { fingerings: false, height: 96 },
+        );
+        expect(height).toBe(96);
+        expect(ink.top, `${instrument.id}/${clef} top`).toBeGreaterThanOrEqual(-0.01);
+        expect(ink.bottom, `${instrument.id}/${clef} bottom`).toBeLessThanOrEqual(96.01);
+      }
+    }
+  });
+
+  it('leaves the settings screen’s figure exactly as it was', () => {
+    // Absent means on, and no height means the natural one.
+    const withFlag = draw(bound('G3', '1-2'), bound('C5', 'open'), -3, 'treble', WIDTH, {
+      fingerings: true,
+    });
+    const without = draw(bound('G3', '1-2'), bound('C5', 'open'));
+    expect(without.height).toBe(withFlag.height);
+    expect(without.text).toEqual(withFlag.text);
   });
 });

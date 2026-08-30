@@ -56,6 +56,7 @@ import {
   drawSignatureChange,
   drawSystem,
   drawLabelEvent,
+  drawSyllable,
   drawTempoEvent,
   justifiedX,
   signatureChangeRoom,
@@ -508,6 +509,15 @@ export class StaveRenderer {
    */
   private noteColour(index: number): string {
     const { exercise, theme } = this.options;
+    /*
+     * An unplayable note wears the horizon grey for the horizon's own
+     * reason: nothing here is asked of the player. Before 2026-08-30 it
+     * drew as an ordinary upcoming note and could never resolve — an
+     * imported note beyond the instrument's reach looked forever pending,
+     * and rhythm mode's demonstration bars (unjudged by data, see
+     * `isUnplayable`) were indistinguishable from the bars to be played.
+     */
+    if (isUnplayable(exercise.notes[index])) return theme.horizon;
     const white = this.options.whiteUntil?.();
     if (white !== undefined && exercise.notes[index].startBeat >= white - 1e-9) {
       return theme.horizon;
@@ -1165,6 +1175,26 @@ export class StaveRenderer {
         x - BAR_LINE_SETBACK * this.metrics.staveSpace,
         label.text,
         theme.note,
+      );
+    }
+
+    /*
+     * The printed count, centred on each spoken onset. Drawn in the note
+     * colour so a demonstration bar's count greys with its notes — the
+     * count and the music are one thing to the eye that is learning them.
+     */
+    for (const syllable of exercise.syllables ?? []) {
+      const x = xForBeat(syllable.atBeat);
+      if (x < this.headerWidth - 60 || x > this.width + 60) continue;
+      const index = exercise.notes.findIndex(
+        (note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9,
+      );
+      drawSyllable(
+        ctx,
+        this.metrics,
+        x,
+        syllable.text,
+        index >= 0 ? this.noteColour(index) : theme.note,
       );
     }
 

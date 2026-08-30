@@ -41,7 +41,9 @@ import { stitchThemes } from './phrases';
 import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
 import { planTempo } from './tempo-plan';
-import type { Exercise, ExerciseKind } from './types';
+import type { Exercise, ExerciseKind, LabelEvent } from './types';
+import { patternEvents, printedSyllable, rhythmPatternById, syllableFor } from './rhythm';
+import type { CellEvent } from './cells';
 
 /**
  * How far the paper runs past the chosen length, in bars.
@@ -79,6 +81,8 @@ export const DEFAULT_LENGTHS: Readonly<
   phrases: { bars: 16, cycles: 4, themeCount: 4 },
   drills: { bars: 16, cycles: 4, themeCount: 4 },
   themes: { bars: 16, cycles: 4, themeCount: 4 },
+  // `cycles` is the rounds: demonstration-then-play, four times through.
+  rhythm: { bars: 16, cycles: 4, themeCount: 4 },
 };
 
 /**
@@ -248,6 +252,8 @@ export interface GenerateOptions {
    * what keeps every committed snapshot green. See `IntervalPool`.
    */
   intervals?: IntervalPool;
+  /** Which rhythm pattern a rhythm run drills. Absent means the library's first. */
+  rhythmPatternId?: string;
 }
 
 interface Candidate {
@@ -346,6 +352,153 @@ function restsFilling(from: number, beats: number, metre: Metre): Slot[] {
   return slots;
 }
 
+/**
+ * A rhythm run: rounds of demonstration-then-play, `rhythm-plan.md`'s shape.
+ *
+ * Each round states the pattern once as **demonstration bars** — printed,
+ * counted (the syllable labels; the recorded voice when its clips exist),
+ * and never judged — then asks for it twice as **play bars**, judged as any
+ * bars are. Twice rather than once is provisional exactly as the plan
+ * allows: rounds-per-stage is settled by playing, not by this function.
+ *
+ * **The pitches alternate two adjacent scale notes**, and that is
+ * load-bearing rather than cosmetic: on buttons, rhythm is only observable
+ * when consecutive notes force a state change. `judgeNote` asks whether the
+ * right state was held inside the window, and a state held from before the
+ * window counts as on time — so a bar of repeated notes would judge perfect
+ * whatever the player's rhythm was. Alternation makes every onset a fresh
+ * change, and the time of the change is the rhythm. A buttons-era
+ * constraint, marked as one: the microphone hears attacks, and when Phase 2
+ * lands this rule relaxes rather than transfers.
+ *
+ * **The pattern brings its own metre** (like a collection's tunes) **and
+ * the run is keyless**: the plan's course constraint — no key, no key set,
+ * no range — is honoured in free play too. C is not a key choice, it is the
+ * absence of one: no signature, every eye on the rhythm. The pair sits at
+ * the comfortable middle of the instrument's compass.
+ */
+function rhythmExercise(options: GenerateOptions): Exercise {
+  const pattern = rhythmPatternById(options.rhythmPatternId ?? '');
+  const metre = metreFor(pattern.metre[0], pattern.metre[1]);
+  const bars = patternEvents(pattern);
+  const barBeats = metre.barBeats;
+  const patternBeats = bars.length * barBeats;
+
+  /*
+   * The comfortable pair: two ADJACENT white notes nearest the middle of
+   * the written compass, both playable. Adjacent in the letter sense, so
+   * the page shows a step — D and E, the plan's own example — and never a
+   * leap; among white notes a neighbour is always one letter away.
+   */
+  const [low, high] = writtenRange(options.instrument, options.clef);
+  const centre = Math.round((low + high) / 2);
+  const white = (midi: number) => diatonicIn(midi, 0);
+  const playableAt = (midi: number) =>
+    isPlayable(soundingFromWritten(midi, options.instrument, options.clef), options.instrument);
+  let pair: [number, number] | null = null;
+  for (let away = 0; away <= centre - low; away++) {
+    for (const base of [centre - away, centre + away]) {
+      for (const step of [1, 2]) {
+        const top = base + step;
+        if (base < low || top > high) continue;
+        if (white(base) && white(top) && !white(base + 1) === (step === 2)) {
+          if (playableAt(base) && playableAt(top)) {
+            pair = [base, top];
+            break;
+          }
+        }
+      }
+      if (pair) break;
+    }
+    if (pair) break;
+  }
+  if (!pair) throw new Error('No playable adjacent pair for this instrument');
+
+  const rounds = Math.max(1, options.cycles);
+  const PLAYS_PER_ROUND = 2;
+  const statements = 1 + PLAYS_PER_ROUND;
+
+  /*
+   * Which events are tie continuations, decided once from the pattern in
+   * play order: a tie's far end directly follows its head. The same event
+   * objects recur every statement, so identity is a stable key.
+   */
+  const flat = bars.flat();
+  const continuation = new Set<CellEvent>();
+  for (let i = 1; i < flat.length; i++) {
+    if (flat[i - 1].tied === true && flat[i - 1].rest !== true && flat[i].rest !== true) {
+      continuation.add(flat[i]);
+    }
+  }
+
+  const slots: Slot[] = [];
+  const pitches: number[] = [];
+  /** Beat spans of the demonstration statements, for blanking after assembly. */
+  const demoSpans: Array<[number, number]> = [];
+  const syllables: LabelEvent[] = [];
+  let at = 0;
+  let side = 0;
+  for (let round = 0; round < rounds; round++) {
+    for (let statement = 0; statement < statements; statement++) {
+      const demo = statement === 0;
+      if (demo) demoSpans.push([at, at + patternBeats]);
+      /* The alternation restarts each statement, so every play answers the
+         demonstration it just heard, note for note. */
+      side = 0;
+      for (const bar of bars) {
+        let barBeat = 0;
+        for (const event of bar) {
+          const duration = durationFromBeats(event.beats);
+          if (!duration) throw new Error(`unwritable duration in ${pattern.id}`);
+          if (event.rest) {
+            slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
+          } else {
+            const tiedFromPrevious = continuation.has(event);
+            slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious });
+            if (!tiedFromPrevious) {
+              pitches.push(pair[side]);
+              const syllable = syllableFor(barBeat);
+              if (syllable) {
+                syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable) });
+              }
+              side = 1 - side;
+            }
+          }
+          barBeat += event.beats;
+        }
+        at += barBeats;
+      }
+    }
+  }
+
+  const totalBeats = at;
+  const exercise = assembleExercise(slots, pitches, {
+    instrument: options.instrument,
+    clef: options.clef,
+    keys: [{ fromBeat: 0, fifths: 0 }],
+    metres: [{ fromBeat: 0, metre }],
+    totalBeats,
+    chosenBeats: totalBeats,
+    seed: options.seed,
+    kind: 'rhythm',
+    tempo: [],
+  });
+  exercise.syllables = syllables;
+
+  /*
+   * The demonstration is unjudged BY DATA, not by a mode the judge must
+   * know: an empty `acceptedMasks` is `isUnplayable`, which the session
+   * already skips, the reveal already discounts and the totals already
+   * exclude. Demo bars yield no verdicts at all.
+   */
+  for (const note of exercise.notes) {
+    if (demoSpans.some(([from, to]) => note.startBeat >= from - 1e-9 && note.startBeat < to - 1e-9)) {
+      note.acceptedMasks = [];
+    }
+  }
+  return exercise;
+}
+
 export function generateExercise(options: GenerateOptions): Exercise {
   const rng = createRng(options.seed);
   /*
@@ -363,6 +516,21 @@ export function generateExercise(options: GenerateOptions): Exercise {
    * never wanted. The player's chosen signature is untouched and comes back
    * the moment they choose material that has one.
    */
+  /*
+   * The literal, not just the kind: on the web target a stored
+   * `kind: 'rhythm'` is already sanitised away, but the CODE would still
+   * ship — this module is free-core, so an unguarded branch keeps
+   * `rhythmExercise` and the whole pattern library alive through the
+   * bundle. With the flag folded false the branch is dead, the builder
+   * below is unreferenced, and `rhythm.ts` shakes out — which is what
+   * `check:web`'s "Dotted pairs" tripwire proved was NOT happening until
+   * this guard existed. The `typeof` is for the tools, which import this
+   * file under tsx with no defines.
+   */
+  if (typeof __HAS_RHYTHM__ !== 'undefined' && __HAS_RHYTHM__ && options.kind === 'rhythm') {
+    return rhythmExercise(options);
+  }
+
   const metre = isPattern(options.kind) ? metreFor(4, 4) : options.metre;
 
   /*

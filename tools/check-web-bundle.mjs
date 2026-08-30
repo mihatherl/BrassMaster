@@ -65,6 +65,16 @@ const PAID_ONLY = {
   // (2026-08-26); the fingerprint moved with it, deliberately — the ratified
   // free-taster ruling says these tripwires move on purpose or not at all.
   'teacher mode': ['brass-trainer:course:', 'brass-trainer:sessions:'],
+  /*
+   * Two strings, two different folds proven. "Dotted pairs" lives only in
+   * `exercise/rhythm.ts` — its absence proves the pattern library
+   * tree-shakes out with the screens that read it. The blurb sentence lives
+   * in `EXERCISE_KINDS`' flag-gated spread AND the paid language packs — its
+   * absence proves the `typeof __HAS_RHYTHM__` fold actually eliminates,
+   * which this feature uniquely leans on (the guard exists for the tools,
+   * which import types.ts with no defines at all).
+   */
+  'rhythm drills': ['Dotted pairs', 'One rhythm pattern at a time'],
 };
 
 /**

@@ -789,6 +789,16 @@ export class Session {
       // from. Attacking it again is precisely what a tie says not to do.
       if (isTieContinuation(exercise.notes, index)) continue;
 
+      /*
+       * Rhythm mode's demonstration bars are "syllables only — no pitches
+       * sound under them" (rhythm-plan.md, ruled 2026-08-26), and demo
+       * notes are the unplayable ones by construction. Scoped to rhythm:
+       * an IMPORTED note beyond the instrument's reach stays in the
+       * reference line, because hearing the piece whole is what a
+       * demonstration of a piece is for.
+       */
+      if (exercise.kind === 'rhythm' && isUnplayable(note)) continue;
+
       const beats = tiedBeats(exercise.notes, index);
       // At the audio time, not the clock time: everything that *sounds* is
       // handed over the output's lead early, so it is heard on the beat.

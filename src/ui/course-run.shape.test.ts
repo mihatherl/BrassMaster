@@ -34,8 +34,16 @@ describe('the shape of a course run', () => {
   it('carries only the unit the level actually set', () => {
     expect(runShapeOf(run({ cycles: 6 }))).toEqual({ cycles: 6, horizonBars: 0 });
     expect(runShapeOf(run({ kind: 'phrases', bars: 24 }))).toEqual({ bars: 24, horizonBars: 0 });
-    expect(runShapeOf(run({ kind: 'themes', themeCount: 2 }))).toEqual({
-      themeCount: 2,
+    /*
+     * A themes segment plays exactly one named tune (2026-08-30), so its
+     * shape carries the step rather than a count — and the count it does
+     * carry is 1, because the axis's division IS the run's length.
+     */
+    expect(
+      runShapeOf(run({ kind: 'themes', themes: { id: 'plain-answer', fifths: 0 } })),
+    ).toEqual({
+      themeCount: 1,
+      themeSteps: [{ id: 'plain-answer', fifths: 0 }],
       horizonBars: 0,
     });
   });

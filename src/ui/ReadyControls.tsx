@@ -236,6 +236,12 @@ export function ReadyControls({
         </div>
       )}
 
+      {/* Rhythm mode is paged by the material's own shape (rhythm-plan.md:
+          one pattern large on the screen), so the control is absent rather
+          than disabled — the same statement the missing time-signature
+          control makes for a collection: the material has already
+          answered, and a dial that could only disagree is not a dial. */}
+      {settings.kind !== 'rhythm' && (
       <Section
         title={t('gate.reading')}
         values={t(`reading.${shownReading}` as StringKey)}
@@ -259,6 +265,7 @@ export function ReadyControls({
           )}
         </div>
       </Section>
+      )}
 
       {/*
        * A key the course fixed: a statement, so it sits in the accordion with

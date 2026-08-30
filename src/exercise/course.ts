@@ -63,26 +63,47 @@ import type { FingeringMode } from './hints';
 import type { PlaybackMode } from '../engine/session';
 import type { ReadingMode } from '../render/surface';
 import { OFFERED_METRES } from '../domain/metre';
+import { INSTRUMENTS } from '../domain/instruments';
+import { themeById } from './collections';
 import { COMMON_KEYS_DOCUMENT } from './courses/common-keys';
 
 /**
  * What kind of run a level asks for. `imported` is deliberately absent for
- * now — course-carried MusicXML is course-plan phase 4, not this one.
+ * now — course-carried MusicXML is course-plan phase 4, not this one — and
+ * so is `rhythm` (2026-08-30): the mode ships in free play first, and
+ * `rhythm-plan.md`'s own constraint says its course shape is a level with
+ * no key, no key set and no range, which is schema work of its own. Adding
+ * it here before that shape exists would force `MaterialChoices` fields
+ * onto a material that has none.
  */
-export type LevelKind = Exclude<ExerciseKind, 'imported'>;
+export type LevelKind = Exclude<ExerciseKind, 'imported' | 'rhythm'>;
 
 const KINDS: readonly LevelKind[] = ['drills', 'phrases', 'themes'];
 
 /**
- * Whether a material needs a difficulty at all. Every current kind does;
- * `rhythm-plan.md` wants a material without one, and this table is the whole
- * of what that change will touch — one entry, no schema bump, no stored-file
- * migration.
+ * Whether a material needs a difficulty at all.
+ *
+ * **Themes stopped needing one on 2026-08-30**, when a themes level began
+ * naming its tunes. A difficulty on generated material tells the generator
+ * what to write; a named tune is already written, and `Theme.difficulty` is
+ * its own. The generator says so itself — a defined playlist *"turns the
+ * level filter off, because somebody who has named the tunes has already
+ * answered the question the level exists to answer"* — so a difficulty here
+ * was demanded and then ignored, which is the very failure this reader
+ * exists to prevent.
+ *
+ * It is still *accepted* where a document carries one, so every file written
+ * before today reads forward untouched; it simply is not required, and the
+ * editor no longer asks for it.
+ *
+ * This table was written for exactly this change (`rhythm-plan.md` wants a
+ * material without a difficulty too): one entry, no schema bump, no
+ * stored-file migration. That prediction held.
  */
 const NEEDS_DIFFICULTY: Record<LevelKind, boolean> = {
   drills: true,
   phrases: true,
-  themes: true,
+  themes: false,
 };
 
 /**
@@ -93,10 +114,16 @@ const NEEDS_DIFFICULTY: Record<LevelKind, boolean> = {
  * same unit the reader will accept, rather than mirroring this map and
  * drifting.
  */
-export const LENGTH_UNIT_FOR: Record<LevelKind, 'bars' | 'cycles' | 'themeCount'> = {
+/**
+ * Themes are absent (2026-08-30): a themes level names its tunes on the
+ * `themes` axis, and the list IS the length. There is no `themeCount`, and
+ * a document carrying one is refused rather than obeyed — "play four tunes,
+ * whichever" is the very fault that made a course's music unknown to its
+ * own author.
+ */
+export const LENGTH_UNIT_FOR: Partial<Record<LevelKind, 'bars' | 'cycles'>> = {
   drills: 'cycles',
   phrases: 'bars',
-  themes: 'themeCount',
 };
 
 /* ------------------------------------------------------------------ */
@@ -115,7 +142,7 @@ export type AxisId =
   | 'fifths'
   | 'bars'
   | 'cycles'
-  | 'themeCount'
+  | 'themes'
   | 'range'
   | 'span'
   | 'register'
@@ -182,7 +209,7 @@ export interface SegmentValues {
   fifths?: number;
   bars?: number;
   cycles?: number;
-  themeCount?: number;
+  themes?: ThemeStep;
   range?: { low: number; high: number };
   spanSemitones?: number;
   register?: PatternRegister;
@@ -233,6 +260,38 @@ function readFifthsValue(value: unknown): number | undefined {
 
 function readTempoValue(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * One tune on the themes axis: which tune, and the key it is played in.
+ *
+ * The key belongs to the STEP rather than to a `fifths` axis, and the
+ * runtime already draws that conclusion — a defined playlist removes the key
+ * dial outright, because "the material has already answered". `readCourse`
+ * refuses the two together for the same reason.
+ */
+export interface ThemeStep {
+  id: string;
+  fifths: number;
+}
+
+/**
+ * A tune the app actually has, in a key it can be written in.
+ *
+ * **A named tune that is not installed is refused by name**, which matters
+ * more here than anywhere else: a course file may outlive a collection, and
+ * silently dropping a tune would leave a level quietly shorter than the
+ * author wrote. Whether it fits a given INSTRUMENT is a separate question,
+ * asked of the course's declared instruments by the editor — the reader
+ * cannot ask it, because a course is played on whatever the player holds.
+ */
+function readThemeStep(value: unknown): ThemeStep | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { id, fifths } = value as Record<string, unknown>;
+  if (typeof id !== 'string' || !id) return undefined;
+  if (typeof fifths !== 'number' || !Number.isInteger(fifths)) return undefined;
+  if (themeById(id) === undefined) return undefined;
+  return { id, fifths };
 }
 
 function readRangeValue(value: unknown): { low: number; high: number } | undefined {
@@ -312,10 +371,18 @@ const AXES: Record<AxisId, AxisSpec> = {
     read: readTempoValue,
     describe: 'a conducted tempo in beats per minute',
   },
+  /*
+   * Not themes (2026-08-30): a tune names the key it is played in, on its
+   * own step, and the runtime already removes the key dial for a defined
+   * playlist because "the material has already answered". Stating the
+   * exclusion HERE rather than only as a special case keeps one table the
+   * source of truth — the matrix test walks it, and the editor offers from
+   * it, so a rule kept elsewhere would drift out of both.
+   */
   fifths: {
     field: 'fifths',
     home: 'base',
-    kinds: ALL_KINDS,
+    kinds: ['drills', 'phrases'],
     read: readFifthsValue,
     describe: 'a key on the circle of fifths',
   },
@@ -333,12 +400,28 @@ const AXES: Record<AxisId, AxisSpec> = {
     read: readPositiveInteger,
     describe: 'a whole number of cycles',
   },
-  themeCount: {
-    field: 'themeCount',
+  /*
+   * The tune list, as an axis (2026-08-30, the player's own concept):
+   *
+   * > The tune itself isn't an axis. The axis needs to be the array of
+   * > themes, which can be added to, and the selection within each division
+   * > is the theme itself.
+   *
+   * Each division carries one tune and the key it is played in, and a
+   * stage's width is that tune's own `bars` — so the stages are fixed but
+   * variable, and the author does not drag them: a tune is as long as it
+   * is. The bar stays the x-axis unit, which is what lets tempo and support
+   * axes cross a themes level exactly as they cross any other.
+   *
+   * A repeated tune is simply a second division carrying the same id: the
+   * playlist maps rather than filters, so duplicates already play.
+   */
+  themes: {
+    field: 'themes',
     home: 'base',
     kinds: ['themes'],
-    read: readPositiveInteger,
-    describe: 'a whole number of tunes',
+    read: readThemeStep,
+    describe: 'a tune the app has, and a key to play it in',
   },
   range: {
     field: 'range',
@@ -361,10 +444,28 @@ const AXES: Record<AxisId, AxisSpec> = {
     read: readNamed(REGISTER_VALUES),
     describe: 'a register the app knows',
   },
+  /*
+   * Sight-reading alone (narrowed 2026-08-30, on the player's ruling).
+   *
+   * A metre a level sets reached neither of the other two materials, and the
+   * silence was the failure this reader exists to prevent:
+   *
+   * - **drills force 4/4 unconditionally** — `generate.ts` is
+   *   `isPattern(kind) ? metreFor(4, 4) : options.metre`, because "a scale is
+   *   not a piece of music with a metre; it is a shape played against a
+   *   click". A metre on a drills level was accepted and then ignored.
+   * - **themes are played in their tunes' own signatures** — the stitcher is
+   *   told `metre: playing ? undefined : metre`, so a collection brings its
+   *   own. Once a themes level must name its tunes, that path is the only
+   *   path, and a chosen metre can never reach the music at all.
+   *
+   * A theme's own `metres` field stays: it is the tune's declaration of what
+   * it is legal in, and was never the author's to set.
+   */
   metre: {
     field: 'metre',
     home: 'base',
-    kinds: ['phrases', 'themes'],
+    kinds: ['phrases'],
     read: readMetreValue,
     describe: 'a metre the app offers',
   },
@@ -514,8 +615,13 @@ export const DEFAULT_MASTERY: Mastery = {
  */
 export interface LevelBase {
   kind: LevelKind;
-  /** Which of the generator's difficulties writes the music. */
-  difficultyId: string;
+  /**
+   * Which of the generator's difficulties writes the music.
+   *
+   * Absent where the material needs none (`NEEDS_DIFFICULTY`): a themes
+   * level names its tunes, and a written tune carries its own difficulty.
+   */
+  difficultyId?: string;
   /** Which drill, where `kind` is `drills`. Absent means the major scale. */
   drillId?: DrillId;
   /** Written key on the circle of fifths, where the author names one. */
@@ -525,7 +631,6 @@ export interface LevelBase {
   /** How long a run is, in the material's own unit (the v2.60.0 ruling). */
   bars?: number;
   cycles?: number;
-  themeCount?: number;
   /** Written compass for sight-reading, where the author narrows it. */
   range?: { low: number; high: number };
   /** How far above the tonic a drill reaches, overriding the difficulty's. */
@@ -579,6 +684,31 @@ export interface Course {
    * the day a change cannot be ignored, not for gatekeeping.
    */
   schemaVersion: number;
+  /**
+   * Who this course is for — a header scalar at course scope, never an axis,
+   * because a course does not change instrument partway through.
+   *
+   * **The reason to declare is pedagogical, not technical** (the player,
+   * 2026-08-30): *"the type of material you should be engaging with as a
+   * tuba player is different from that of a cornet player, even at the early
+   * stages."* Fit asks whether the notes can be played; this says whether the
+   * material is the right material, which is a larger claim and one only a
+   * musician can make.
+   *
+   * So what the app derives from this is narrow and negative: every named
+   * theme must *realise* on every declared instrument, in every clef it
+   * reads, and a failure is an authoring error reported by name. Passing
+   * proves nothing in the other direction — a course that realises cleanly
+   * on all eleven pairs has still said nothing about whether its material
+   * suits a tuba. **Never show a green tick reading "suitable for".**
+   *
+   * Absent means instrument-agnostic, which is what absence has always meant
+   * and is why every existing document reads forward. The editor warns on an
+   * undeclared course; the reader does not refuse one (ruled 2026-08-30, the
+   * middle of three paths: silence, an editor warning, or a refusal — the
+   * last would refuse the bundled Common Keys).
+   */
+  instruments?: readonly string[];
   /** Easiest first. The author's order IS the progression. */
   levels: readonly CourseLevel[];
   /** The bar for every level that does not set its own. */
@@ -843,6 +973,25 @@ export function readCourse(raw: unknown): Course | { error: string } {
     return { error: `course "${id}" has no levels` };
   }
 
+  /*
+   * Who the course is for. Absent is agnostic — the state every document
+   * before 2026-08-30 is in — but a list that names something the app does
+   * not know is refused by name, because a course promising "trombone" would
+   * otherwise promise nothing and say so to nobody.
+   */
+  let instruments: readonly string[] | undefined;
+  if (doc.instruments !== undefined) {
+    if (!Array.isArray(doc.instruments) || doc.instruments.length === 0) {
+      return { error: `course "${id}" lists instruments but names none` };
+    }
+    for (const entry of doc.instruments) {
+      if (typeof entry !== 'string' || !INSTRUMENTS.some((i) => i.id === entry)) {
+        return { error: `course "${id}" names an instrument the app does not know: ${String(entry)}` };
+      }
+    }
+    instruments = doc.instruments as readonly string[];
+  }
+
   // Old course-level defaults, read forward into each level that lacks its
   // own — the same road every default now travels.
   const coursePinned = legacyPinned(doc.pinned);
@@ -901,10 +1050,20 @@ export function readCourse(raw: unknown): Course | { error: string } {
       return { error: `${where} asks for unknown material "${String(base.kind)}"` };
     }
     kinds.add(kind);
-    if (NEEDS_DIFFICULTY[kind]) {
+    /*
+     * Two separate questions, and conflating them let a bad id through when
+     * themes stopped requiring one on 2026-08-30: whether a difficulty is
+     * REQUIRED depends on the material, but whether a difficulty that IS
+     * there is usable never did. `difficultyById` throws on an id it does
+     * not know, so an unchecked one is a crash at play time rather than a
+     * refusal at read time.
+     */
+    if (base.difficultyId !== undefined) {
       if (typeof base.difficultyId !== 'string' || !DIFFICULTY_IDS.has(base.difficultyId)) {
         return { error: `${where} names a difficulty the generator does not know` };
       }
+    } else if (NEEDS_DIFFICULTY[kind]) {
+      return { error: `${where} names a difficulty the generator does not know` };
     }
     if (base.drillId !== undefined && !DRILL_IDS.has(String(base.drillId))) {
       return { error: `${where} names a drill that does not exist` };
@@ -915,18 +1074,42 @@ export function readCourse(raw: unknown): Course | { error: string } {
      * it, and the editor quotes these verbatim.
      */
     const unit = LENGTH_UNIT_FOR[kind];
-    for (const other of ['bars', 'cycles', 'themeCount'] as const) {
+    /*
+     * `themeCount` is gone (2026-08-30) and is refused wherever it appears,
+     * on any material: a themes level names its tunes, and a document still
+     * asking for "any N" must be told rather than quietly given something
+     * else. Its own sentence, because the length-unit one would offer a
+     * replacement unit that no longer exists for themes.
+     */
+    if (base.themeCount !== undefined) {
+      return {
+        error: `${where} sets themeCount, which no longer exists — a themes level names its tunes on a themes axis`,
+      };
+    }
+    for (const other of ['bars', 'cycles'] as const) {
       if (other !== unit && base[other] !== undefined) {
         return {
-          error: `${where} sets ${other}, which a ${kind} level does not measure itself in — use ${unit}`,
+          error: unit
+            ? `${where} sets ${other}, which a ${kind} level does not measure itself in — use ${unit}`
+            : `${where} sets ${other}, which a ${kind} level does not measure itself in`,
         };
       }
     }
-    if (base[unit] !== undefined && readPositiveInteger(base[unit]) === undefined) {
+    if (unit && base[unit] !== undefined && readPositiveInteger(base[unit]) === undefined) {
       return { error: `${where} has a length that is not a whole number of ${unit}` };
     }
-    if (base.fifths !== undefined && readFifthsValue(base.fifths) === undefined) {
-      return { error: `${where} has a key off the circle of fifths` };
+    if (base.fifths !== undefined) {
+      /*
+       * The material check first, so a themes level that pins a key is told
+       * *why* rather than being asked to fix a key that should not be there
+       * at all — its tunes each name the key they are played in.
+       */
+      if (!AXES.fifths.kinds.includes(kind)) {
+        return { error: `${where} sets fifths, which a ${kind} level cannot play` };
+      }
+      if (readFifthsValue(base.fifths) === undefined) {
+        return { error: `${where} has a key off the circle of fifths` };
+      }
     }
 
     /*
@@ -999,6 +1182,26 @@ export function readCourse(raw: unknown): Course | { error: string } {
     }
 
     /*
+     * A themes level names its tunes, and the tunes then own the key.
+     *
+     * The tune list is what a themes level IS: "play four, whichever" was
+     * the fault that made a course's music unknown to its own author, so a
+     * themes level without tunes is refused rather than filled in.
+     *
+     * The other half of the ruling — that a tune owns its key — lives in
+     * `AXES.fifths.kinds` instead, which excludes themes and so refuses both
+     * the axis and the header scalar through the paths that already exist.
+     */
+    if (kind === 'themes') {
+      const themesAxis = axes.find((axis) => axis.axis === 'themes');
+      if (!themesAxis) {
+        return {
+          error: `${where} is a themes level but names no tunes — add a themes axis`,
+        };
+      }
+    }
+
+    /*
      * The read-forward band joins the declared axes last, so a document
      * carrying both an old band and a new tempo axis is refused as the
      * trichotomy violation it is — the band is a pinned-era shape saying
@@ -1038,10 +1241,20 @@ export function readCourse(raw: unknown): Course | { error: string } {
     /* Header scalars validated through the same table as divisions. */
     const readBase: LevelBase = {
       kind,
-      difficultyId: String(base.difficultyId ?? ''),
+      /*
+       * Absent stays absent where the material needs none (2026-08-30). An
+       * empty string here would reach `difficultyById`, which THROWS on an
+       * id it does not know — a level that read clean and then crashed the
+       * run it prescribed.
+       */
+      ...(base.difficultyId !== undefined
+        ? { difficultyId: String(base.difficultyId) }
+        : NEEDS_DIFFICULTY[kind]
+          ? { difficultyId: '' }
+          : {}),
       ...(base.drillId !== undefined ? { drillId: base.drillId as DrillId } : {}),
       ...(base.fifths !== undefined ? { fifths: base.fifths as number } : {}),
-      ...(base[unit] !== undefined ? { [unit]: base[unit] as number } : {}),
+      ...(unit && base[unit] !== undefined ? { [unit]: base[unit] as number } : {}),
     };
     for (const axisId of ['range', 'span', 'register', 'metre', 'intervals'] as const) {
       const spec = AXES[axisId];
@@ -1148,6 +1361,7 @@ export function readCourse(raw: unknown): Course | { error: string } {
     name,
     blurb: typeof blurb === 'string' ? blurb : '',
     schemaVersion,
+    ...(instruments ? { instruments } : {}),
     levels: read,
     ...(readMastery(doc.mastery) ? { mastery: readMastery(doc.mastery)! } : {}),
   };

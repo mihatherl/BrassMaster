@@ -55,8 +55,8 @@ import { ES } from './es';
 import { IT } from './it';
 import { PT_PT } from './pt-PT';
 import { PT_BR } from './pt-BR';
-import { PAID_MY_MUSIC, PAID_TEACHER } from './paid';
-import type { EN_MY_MUSIC, EN_TEACHER } from './paid';
+import { PAID_MY_MUSIC, PAID_RHYTHM, PAID_TEACHER } from './paid';
+import type { EN_MY_MUSIC, EN_RHYTHM, EN_TEACHER } from './paid';
 
 export const EN = {
   // Words that appear on more than one screen. One key, so the German for
@@ -332,13 +332,18 @@ export const EN = {
  */
 const MY_MUSIC: Record<string, Pack> = __HAS_MY_MUSIC__ ? PAID_MY_MUSIC : {};
 const TEACHER: Record<string, Pack> = __HAS_TEACHER__ ? PAID_TEACHER : {};
+const RHYTHM: Record<string, Pack> = __HAS_RHYTHM__ ? PAID_RHYTHM : {};
 
 /**
  * Every key the app can name, English included, for typing and for the
  * coverage guard. The paid entries are typed from `EN_PAID` below rather than
  * from the merged object, so the union does not depend on a build flag.
  */
-export type StringKey = keyof typeof EN | keyof typeof EN_MY_MUSIC | keyof typeof EN_TEACHER;
+export type StringKey =
+  | keyof typeof EN
+  | keyof typeof EN_MY_MUSIC
+  | keyof typeof EN_TEACHER
+  | keyof typeof EN_RHYTHM;
 export type Pack = Partial<Record<StringKey, string>>;
 export type Locale = 'en' | 'de' | 'nl' | 'fr' | 'es' | 'it' | 'pt-PT' | 'pt-BR';
 
@@ -396,7 +401,7 @@ const CORE: Record<Locale, Pack> = {
 const PACKS: Record<Locale, Pack> = Object.fromEntries(
   LOCALES.map((entry) => [
     entry.id,
-    { ...CORE[entry.id], ...(MY_MUSIC[entry.id] ?? {}), ...(TEACHER[entry.id] ?? {}) },
+    { ...CORE[entry.id], ...(MY_MUSIC[entry.id] ?? {}), ...(TEACHER[entry.id] ?? {}), ...(RHYTHM[entry.id] ?? {}) },
   ]),
 ) as Record<Locale, Pack>;
 
@@ -408,6 +413,7 @@ const ENGLISH: Partial<Record<StringKey, string>> = {
   ...EN,
   ...(MY_MUSIC.en ?? {}),
   ...(TEACHER.en ?? {}),
+  ...(RHYTHM.en ?? {}),
 };
 
 /**

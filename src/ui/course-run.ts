@@ -21,14 +21,29 @@ import type { Settings } from '../storage/settings';
 
 export interface CourseRun {
   kind: Exclude<ExerciseKind, 'imported'>;
-  difficultyId: string;
+  /**
+   * Absent where the material needs none (2026-08-30): a themes level names
+   * its tunes, and a written tune carries its own difficulty. `App` then
+   * leaves the player's own setting alone, exactly as it does for a tempo
+   * the level did not pin — a course that says nothing about a parameter
+   * has always meant the player's answer stands.
+   */
+  difficultyId?: string;
   drillId?: DrillId;
   fifths?: number;
   register?: PatternRegister;
   /** How long the run is, in the material's own unit; absent means the default. */
   bars?: number;
   cycles?: number;
-  themeCount?: number;
+  /**
+   * The tune this segment plays, and the key it is played in (2026-08-30).
+   *
+   * A themes level names its tunes on an axis, one per segment, so a run
+   * carries exactly one — the length of the run is that tune, and stepping
+   * forward is what brings the next. `themeCount` is gone with the random
+   * draw it served.
+   */
+  themes?: { id: string; fifths: number };
   /** Whether the music carries on past that length. Absent means no. */
   endless?: boolean;
   /**
@@ -73,7 +88,13 @@ export interface CourseRun {
  * `storage/settings.ts`. Free play's set is a tour, a course level is one key.
  */
 export function courseKeyOf(run: CourseRun, settings: Settings): number {
-  return run.fifths ?? settings.courseFifths ?? settings.fifths;
+  /*
+   * A tune names the key it is played in, and it outranks everything: the
+   * step chose a key the tune actually fits, which is a stronger statement
+   * than a player's remembered preference. `readCourse` refuses a `fifths`
+   * beside a tune list, so these two can never both be set.
+   */
+  return run.themes?.fifths ?? run.fifths ?? settings.courseFifths ?? settings.fifths;
 }
 
 /**
@@ -127,7 +148,10 @@ export function runShapeOf(run: CourseRun): RunShape {
   return {
     ...(run.bars !== undefined ? { bars: run.bars } : {}),
     ...(run.cycles !== undefined ? { cycles: run.cycles } : {}),
-    ...(run.themeCount !== undefined ? { themeCount: run.themeCount } : {}),
+    /* One tune per segment: the axis's division IS the run's length. */
+    ...(run.themes !== undefined
+      ? { themeCount: 1, themeSteps: [{ id: run.themes.id, fifths: run.themes.fifths }] }
+      : {}),
     ...(run.spanSemitones !== undefined ? { spanSemitones: run.spanSemitones } : {}),
     ...(run.intervals !== undefined ? { intervals: run.intervals } : {}),
     ...(run.endless ? {} : { horizonBars: 0 }),
@@ -147,6 +171,16 @@ export interface RunShape {
   bars?: number;
   cycles?: number;
   themeCount?: number;
+  /**
+   * The tune a themes segment plays, as a one-step playlist (2026-08-30).
+   *
+   * It rides here rather than through `Settings.themeSteps` for the reason
+   * `courseFifths` and `runTempo` exist: the player's own playlist is a
+   * preference and this is the author's decision, and writing one over the
+   * other would lose whatever the player had chosen in free play. `App`
+   * hands it to the generator instead, with `selection: 'defined'`.
+   */
+  themeSteps?: ReadonlyArray<{ id: string; fifths: number }>;
   /** Paper past the committed end. 0 ends the run where the author said. */
   horizonBars?: number;
   /** Generator knobs a course sets that are likewise not settings. */

@@ -300,6 +300,17 @@ one away.
 
 ### Phase 2 — The microphone (paid; buildable in the browser, provable only on a device)
 
+> **Deferred behind a recording corpus — ruled 2026-08-30.** The detector
+> (§ 2.2) is built against `spikefiles/`, and the spike recorded exactly one
+> instrument: the player's tuba, on the E32. Before the phase starts, the
+> player will record samples across the band's instruments — a gathering
+> only he can do, and one he does not expect to manage until **after the
+> eisteddfod in mid-September 2026**. Until then the build order runs through
+> `rhythm-plan.md` (which gained its first customer the same day: the
+> authored-cells builder needs its rhythm library — see
+> `authored-cells-plan.md`) rather than through this phase. The deferral is
+> about sequencing, not doubt: nothing below is unratified.
+
 The honest version of the exercise: the player plays, the app listens.
 
 **2.1 The cents measurement** on a real instrument — how stable is a held note,
@@ -1547,6 +1558,41 @@ that engages with the reason recorded here.
   Still unconfirmed.
 - **Whether the App Store seller name being a personal name matters**, given
   enrolment is as an individual.
+
+- **A note picker in place of the range dials — raised 2026-08-30, parked
+  the same day as a "sometime" item.** What a sight-reading exercise draws
+  from is currently decided by three things the player cannot see at once:
+  the range's two bounds, the difficulty's `accidentalChance`, and the key.
+  The player's proposal collapses them into one picture — *"instead of an
+  upper and lower bound we see two sets of notes: the main notes that will
+  be targeted, and the other notes that will feature"* — prepopulated from
+  the key and difficulty, then edited. The app's own philosophy: generate a
+  sensible default, then let the author change it.
+
+  **Most of the engine is already there.** The walk picks from a candidate
+  list built by scanning the range (`candidatePitches`), a per-note weighting
+  map already exists and is used by weak-note drilling (`noteWeights`), and
+  `chooseNext` already filters diatonic against chromatic with a flag — which
+  is the crude version of the thing this replaces. Two sets rather than
+  three: once notes are named, absence already means excluded, and a third
+  list is a state with no extra meaning.
+
+  **The catch, and the reason it is worth doing properly rather than
+  quickly.** It does *not* on its own solve the problem that raised it. The
+  player's real difficulty is a note spelled awkwardly in an ordinary key —
+  *"I'm playing in two sharps and for some reason the music calls up another
+  sharp on an E."* A picker of PITCHES cannot express that: `spellInKey`
+  takes the easiest spelling, so the sound between E and F sharp is written F
+  natural in D major and never E sharp, whatever is ticked. The picker's rows
+  would have to be **spelled notes** — E sharp and F natural as two entries
+  sharing one sound — so that choosing the note is choosing the spelling.
+  Odd to look at, and honest: they are genuinely different reading problems.
+
+  Open when it is taken up: whether the picker is a stave to click or a list
+  (a stave matches `drawRangeStave`, a list handles two-spellings-one-sound
+  better); how it stays optional so free play does not become an exam; and
+  whether it replaces the range dials or sits behind them — replacing is
+  cleaner, keeping both is two ways to say one thing.
 
 ## 8. How to use this
 

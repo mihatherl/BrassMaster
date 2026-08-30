@@ -172,10 +172,20 @@ describe('reading a course document', () => {
     expect(readCourse(bad)).toHaveProperty('error');
   });
 
-  it('points every bundled level at a difficulty the generator knows', () => {
+  it('points every bundled level at a difficulty the generator knows, or none at all', () => {
+    /*
+     * Absence is legal since 2026-08-30, for a material that needs none — a
+     * themes level names its tunes and a written tune carries its own. What
+     * must never happen is a difficulty the generator cannot look up:
+     * `difficultyById` throws, so an unknown id is a crash at play time
+     * rather than a refusal at read time.
+     */
     const known = new Set(DIFFICULTIES.map((d) => d.id));
     for (const course of COURSES) {
-      for (const level of course.levels) expect(known.has(level.base.difficultyId)).toBe(true);
+      for (const level of course.levels) {
+        if (level.base.difficultyId === undefined) continue;
+        expect(known.has(level.base.difficultyId)).toBe(true);
+      }
     }
   });
 
@@ -463,6 +473,198 @@ describe('course defaults, inherited by the levels', () => {
   });
 });
 
+describe('who a course is for', () => {
+  /*
+   * The declaration is pedagogical before it is technical (the player,
+   * 2026-08-30): the material a tuba player needs differs from a cornet
+   * player's even early on. The reader's job is narrow — know the names,
+   * and let absence mean what it has always meant.
+   */
+  it('reads a course that declares its instruments', () => {
+    const verdict = readCourse(doc({ instruments: ['cornet', 'flugel', 'tenor-horn'] }));
+    expect(verdict).not.toHaveProperty('error');
+    expect((verdict as Course).instruments).toEqual(['cornet', 'flugel', 'tenor-horn']);
+  });
+
+  it('leaves an undeclared course agnostic rather than refusing it', () => {
+    // The middle of three paths, ruled 2026-08-30: the EDITOR warns, the
+    // reader accepts. A refusal here would refuse the bundled Common Keys.
+    const verdict = readCourse(doc());
+    expect(verdict).not.toHaveProperty('error');
+    expect((verdict as Course).instruments).toBeUndefined();
+    expect(readCourse(COMMON_KEYS_DOCUMENT)).not.toHaveProperty('error');
+  });
+
+  it('refuses an instrument the app does not know, by name', () => {
+    const verdict = readCourse(doc({ instruments: ['cornet', 'trombone'] }));
+    expect(verdict).toHaveProperty('error');
+    expect((verdict as { error: string }).error).toContain('trombone');
+  });
+
+  it('refuses a course that lists instruments and names none', () => {
+    // Absent is agnostic; empty is an author who meant something and lost it.
+    expect(readCourse(doc({ instruments: [] }))).toHaveProperty('error');
+  });
+});
+
+describe('metre belongs to sight-reading alone', () => {
+  /*
+   * Narrowed 2026-08-30. Both other materials ignored it in the generator —
+   * drills force 4/4, themes play their tunes' own signatures — and a field
+   * the app quietly ignores is worse than an absent one.
+   */
+  const withMetre = (kind: string, extra: Record<string, unknown> = {}) =>
+    doc({
+      levels: [
+        {
+          id: 'one',
+          name: 'Level one',
+          base: {
+            kind,
+            difficultyId: 'easy',
+            metre: [3, 4],
+            ...(kind === 'drills' ? { drillId: 'major-scale' } : {}),
+            ...extra,
+          },
+          // A themes level names its tunes, so the metre is the only fault.
+          ...(kind === 'themes'
+            ? { axes: [{ axis: 'themes', divisions: [{ at: 0, value: { id: 'plain-answer', fifths: 0 } }] }] }
+            : {}),
+        },
+      ],
+    });
+
+  it('accepts a metre on sight-reading', () => {
+    expect(readCourse(withMetre('phrases'))).not.toHaveProperty('error');
+  });
+
+  it('refuses a metre on drills, which force four-four', () => {
+    const verdict = readCourse(withMetre('drills'));
+    expect(verdict).toHaveProperty('error');
+    expect((verdict as { error: string }).error).toContain('metre');
+  });
+
+  it('refuses a metre on themes, which play their tunes’ own signatures', () => {
+    const verdict = readCourse(withMetre('themes'));
+    expect(verdict).toHaveProperty('error');
+    expect((verdict as { error: string }).error).toContain('metre');
+  });
+});
+
+describe('a themes level names its tunes', () => {
+  /*
+   * The ruling of 2026-08-30: "any N" is gone. A themes level says which
+   * tunes, in which keys, on a themes axis — and the tunes then own the key,
+   * which is why `fifths` is not meaningful for themes at all.
+   */
+  const themesLevel = (axes: unknown[], base: Record<string, unknown> = {}) =>
+    doc({
+      levels: [
+        {
+          id: 'one',
+          name: 'Tunes',
+          base: { kind: 'themes', difficultyId: 'easy', ...base },
+          axes,
+        },
+      ],
+    });
+
+  const step = (id: string, fifths = 0) => ({ id, fifths });
+  const tunes = (...steps: Array<{ id: string; fifths: number }>) => [
+    {
+      axis: 'themes',
+      divisions: steps.map((value, index) => ({ at: index / steps.length, value })),
+    },
+  ];
+
+  it('reads a level that names its tunes', () => {
+    const verdict = readCourse(themesLevel(tunes(step('plain-answer'))));
+    expect(verdict).not.toHaveProperty('error');
+    const level = (verdict as Course).levels[0];
+    expect(level.segments[0].values.themes).toEqual({ id: 'plain-answer', fifths: 0 });
+  });
+
+  it('gives each tune its own segment, so a repeat is a second stage', () => {
+    // Ruled 2026-08-30: simpler than a stage marked x2, and it draws truthfully.
+    const verdict = readCourse(themesLevel(tunes(step('plain-answer'), step('plain-answer', -1))));
+    expect(verdict).not.toHaveProperty('error');
+    const level = (verdict as Course).levels[0];
+    expect(level.segments).toHaveLength(2);
+    expect(level.segments[1].values.themes).toEqual({ id: 'plain-answer', fifths: -1 });
+  });
+
+  it('refuses a themes level that names no tunes', () => {
+    const verdict = readCourse(themesLevel([]));
+    expect(verdict).toHaveProperty('error');
+    expect((verdict as { error: string }).error).toContain('names no tunes');
+  });
+
+  it('refuses a tune the app does not have, rather than dropping it', () => {
+    // A course file may outlive a collection, and a silently dropped tune
+    // would leave a level quietly shorter than its author wrote.
+    const verdict = readCourse(themesLevel(tunes(step('no-such-tune'))));
+    expect(verdict).toHaveProperty('error');
+  });
+
+  it('refuses a key beside the tunes, which already name their own', () => {
+    const axis = readCourse(
+      themesLevel([...tunes(step('plain-answer')), { axis: 'fifths', divisions: [{ at: 0, value: -1 }] }]),
+    );
+    expect(axis).toHaveProperty('error');
+    const pinned = readCourse(themesLevel(tunes(step('plain-answer')), { fifths: -1 }));
+    expect(pinned).toHaveProperty('error');
+  });
+});
+
+describe('a difficulty only where the material needs one', () => {
+  /*
+   * Ruled 2026-08-30: themes stopped needing a difficulty when they started
+   * naming their tunes. `NEEDS_DIFFICULTY` was written for exactly this
+   * change and it held — one entry, no schema bump, no migration.
+   */
+  const themes = (base: Record<string, unknown>) =>
+    doc({
+      levels: [
+        {
+          id: 'one',
+          name: 'One',
+          base: { kind: 'themes', ...base },
+          axes: [
+            { axis: 'themes', divisions: [{ at: 0, value: { id: 'plain-answer', fifths: 0 } }] },
+          ],
+        },
+      ],
+    });
+
+  it('reads a themes level that names no difficulty', () => {
+    expect(readCourse(themes({}))).not.toHaveProperty('error');
+  });
+
+  it('leaves the difficulty ABSENT rather than emitting an empty one', () => {
+    /*
+     * The fault this guards: an empty string reaches `difficultyById`, which
+     * THROWS on an id it does not know — so a level that read perfectly
+     * clean would crash the run it prescribed. Absent means the player's own
+     * setting stands, which is what absence has always meant.
+     */
+    const verdict = readCourse(themes({})) as Course;
+    expect(verdict.levels[0].base.difficultyId).toBeUndefined();
+    const run = runFor({ courseId: 'test-course', levelId: 'one', segment: 0 }, verdict);
+    expect(run.difficultyId).toBeUndefined();
+  });
+
+  it('still refuses a difficulty the generator does not know', () => {
+    expect(readCourse(themes({ difficultyId: 'impossible' }))).toHaveProperty('error');
+  });
+
+  it('still requires one where the material generates its own music', () => {
+    const drills = doc({
+      levels: [{ id: 'one', name: 'One', base: { kind: 'drills', drillId: 'major-scale' } }],
+    });
+    expect(readCourse(drills)).toHaveProperty('error');
+  });
+});
+
 describe('the refuse-by-name matrix', () => {
   /** One well-formed division per axis, to make each axis readable at all. */
   const GOOD_DIVISION: Record<AxisId, unknown> = {
@@ -470,7 +672,7 @@ describe('the refuse-by-name matrix', () => {
     fifths: -1,
     bars: 8,
     cycles: 4,
-    themeCount: 2,
+    themes: { id: 'plain-answer', fifths: 0 },
     range: { low: 60, high: 72 },
     span: 12,
     register: 'middle',
@@ -494,7 +696,14 @@ describe('the refuse-by-name matrix', () => {
           difficultyId: 'easy',
           ...(kind === 'drills' ? { drillId: 'major-scale' } : {}),
         };
-        level.axes = [{ axis, divisions: [{ at: 0, value: GOOD_DIVISION[axis] }] }];
+        /* A themes level names its tunes (2026-08-30), so every themes case
+           carries a themes axis — except the one testing that axis itself,
+           which would then declare it twice. */
+        const tunes =
+          kind === 'themes' && axis !== 'themes'
+            ? [{ axis: 'themes', divisions: [{ at: 0, value: GOOD_DIVISION.themes }] }]
+            : [];
+        level.axes = [...tunes, { axis, divisions: [{ at: 0, value: GOOD_DIVISION[axis] }] }];
         const verdict = readCourse(document);
         if (kinds.includes(kind)) {
           expect(verdict, `${axis} on ${kind}`).not.toHaveProperty('error');
@@ -512,7 +721,7 @@ describe('the refuse-by-name matrix', () => {
     const bad = timelineDoc();
     const level = (bad.levels as Record<string, unknown>[])[0];
     level.base = { kind: 'themes', difficultyId: 'easy', range: { low: 60, high: 72 } };
-    level.axes = [];
+    level.axes = [{ axis: 'themes', divisions: [{ at: 0, value: { id: 'plain-answer', fifths: 0 } }] }];
     expect(errorOf(bad)).toContain('sets range, which a themes level cannot play');
   });
 

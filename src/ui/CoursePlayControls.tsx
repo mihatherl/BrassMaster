@@ -93,7 +93,8 @@ const MUSIC_FIELDS = [
   'register',
   'bars',
   'cycles',
-  'themeCount',
+  /* A different tune is different paper by definition (2026-08-30). */
+  'themes',
   'range',
   'spanSemitones',
   'metre',

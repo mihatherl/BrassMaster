@@ -33,6 +33,7 @@
 
 import { metreFor } from '../../domain/metre';
 import { boundariesOf, type AxisId, type TimelineFragment } from './axis-model';
+import { themeById } from '../../exercise/collections';
 
 /** Where no tempo is named anywhere, the estimate stands on this and says so. */
 export const ASSUMED_TEMPO = 80;
@@ -133,7 +134,44 @@ export function layoutOf(
      * (`fitRule`), so this only ever differs for a document written by hand
      * or by an older editor — and then the truth is the longer figure.
      */
-    const bars = Math.max(rule.minBars, rule.score?.overBars ?? 0);
+    /*
+     * **A stage is as wide as the music it holds** (generalised 2026-08-30,
+     * on the player's ruling, from the themes-only version of the morning).
+     *
+     * Two different things are called "bars" and only one of them was ever
+     * drawn. `rule.minBars` is a gate on ADVANCEMENT — how long you must
+     * play before the next step is offered. A length axis says how much
+     * music the generator WRITES. Where a level moves one, the stage was
+     * drawn at the rule's figure and so a stage asking for sixteen bars of
+     * sight-reading was drawn eight bars wide: the picture disagreeing with
+     * what plays, which is the fault that got percent and time thrown out
+     * as x-axes in the first place.
+     *
+     * So the music's own length wins, from whichever axis states it:
+     *
+     * - **themes** — the tune's own `bars`. A tune is as long as it is, and
+     *   the author does not set it at all.
+     * - **bars** — the sight-reading length the author asked for.
+     * - **cycles** is deliberately NOT here: a cycle's length in bars
+     *   depends on how many notes the drill has in the key it is played in
+     *   (two cycles of an octave being seven bars of four-four exactly, and
+     *   other keys differing), so there is no honest static conversion.
+     *   Drills keep the rule's figure until there is one.
+     *
+     * The rule still governs advancement, and still floors the width: a
+     * level asking for eight bars of music but sixteen bars of playing
+     * means reading it twice, and sixteen is then the honest width.
+     */
+    const tune = inForce(fragment, 'themes', at);
+    const tuneBars =
+      typeof tune === 'object' && tune !== null
+        ? themeById(String((tune as { id?: unknown }).id))?.bars
+        : undefined;
+    const axisBars = inForce(fragment, 'bars', at);
+    const musicBars =
+      tuneBars ?? (typeof axisBars === 'number' && axisBars > 0 ? axisBars : undefined);
+    const ruleBars = Math.max(rule.minBars, rule.score?.overBars ?? 0);
+    const bars = musicBars === undefined ? ruleBars : Math.max(musicBars, ruleBars);
 
     const axisTempo = inForce(fragment, 'tempo', at);
     const tempo =
@@ -352,17 +390,53 @@ export function applyBarDrag(
       .sort((a, c) => a.at - c.at),
   }));
 
+  /*
+   * A length axis takes the widths the drag produced, so the music the
+   * generator writes matches the stage the author just sized. This is what
+   * makes dragging mean anything at all on such a level: the bars crossed a
+   * border, exactly as the bars-as-x-axis ruling says, and the level's total
+   * length is unchanged.
+   */
+  const withLengths = axes.map((candidate) => {
+    if (candidate.axis !== 'bars') return candidate;
+    return {
+      ...candidate,
+      divisions: candidate.divisions.map((d) => {
+        const stage = remapped.find((entry) => same(entry.at, d.at));
+        return stage ? { ...d, value: stage.bars } : d;
+      }),
+    };
+  });
+
   const defaultBars = Math.max(
     layout.levelRule.minBars,
     layout.levelRule.score?.overBars ?? 0,
   );
+  /*
+   * Where a LENGTH AXIS governs a stage's width, the drag writes that axis
+   * rather than the rule (2026-08-30, with the ruling that a stage is as
+   * wide as the music it holds).
+   *
+   * Writing the rule there would move the divider and change nothing: the
+   * width comes from the axis, so the picture would snap straight back and
+   * the level would have silently grown instead. `themes` is excluded —
+   * a tune's length is the music's and not the author's, which is why a
+   * themes divider offers no drag handle at all.
+   */
+  const lengthAxis = fragment.axes.find((candidate) => candidate.axis === 'bars');
   const segmentRules = remapped.flatMap((stage) => {
     const authored = fragment.segmentRules?.find((rule) => same(rule.at, stage.from));
+    /* The rule keeps its own meaning — the gate on advancement — and is
+       only trimmed where it would now exceed the music it judges. */
+    if (lengthAxis) {
+      if (!authored) return [];
+      return [{ at: stage.at, ...fitRule(authored, Math.min(authored.minBars, stage.bars)) }];
+    }
     if (!authored && stage.bars === defaultBars) return [];
     return [{ at: stage.at, ...fitRule(stage.rule, stage.bars) }];
   });
 
-  return { axes, ...(segmentRules.length ? { segmentRules } : {}) };
+  return { axes: withLengths, ...(segmentRules.length ? { segmentRules } : {}) };
 }
 
 export function insertAt(layout: Layout): number {

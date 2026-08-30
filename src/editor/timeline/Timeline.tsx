@@ -19,7 +19,8 @@
  * reader can never see the forbidden overlap.
  */
 
-import { Fragment, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
+import { createPortal } from 'react-dom';
+import { Fragment, type ReactElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AXIS_MATERIALS, DEFAULT_RULE, type AxisId, type LevelKind } from '../../exercise/course';
 import { MAJOR_KEYS } from '../../domain/keys';
 import { OFFERED_METRES } from '../../domain/metre';
@@ -32,6 +33,12 @@ import {
 } from '../../domain/instruments';
 import { formatMask, primaryFingering } from '../../domain/fingering';
 import { drawRangeStave } from '../../render/range-stave';
+import { currentTheme, StaveRenderer } from '../../render/surface';
+import { Transport } from '../../engine/clock';
+import { COLLECTIONS, playableThemes, themeById } from '../../exercise/collections';
+import { exerciseFromTheme, realiseTheme } from '../../exercise/theme';
+import { metreFor } from '../../domain/metre';
+import type { Exercise } from '../../exercise/types';
 import { StaveCanvas } from '../../ui/StaveCanvas';
 import {
   addAxis,
@@ -65,7 +72,7 @@ const AXIS_LABELS: Record<AxisId, string> = {
   fifths: 'Key',
   bars: 'Bars',
   cycles: 'Cycles',
-  themeCount: 'Tunes',
+  themes: 'Tunes',
   range: 'Range',
   span: 'Reach',
   register: 'Register',
@@ -91,14 +98,43 @@ const BASE_FIELD: Partial<Record<AxisId, string>> = {
   fifths: 'fifths',
   bars: 'bars',
   cycles: 'cycles',
-  themeCount: 'themeCount',
   range: 'range',
   span: 'spanSemitones',
   metre: 'metre',
   intervals: 'intervals',
 };
 
-const NUMERIC: readonly AxisId[] = ['tempo', 'bars', 'cycles', 'themeCount'];
+const NUMERIC: readonly AxisId[] = ['tempo', 'bars', 'cycles'];
+
+/** Both clefs, for the fit walk: an instrument reads one or the other or both. */
+const CLEFS: readonly Clef[] = ['treble', 'bass'];
+
+/** A key's name, for a tune step — the same vocabulary the picker uses. */
+function keyNameOf(fifths: number): string {
+  return MAJOR_KEYS.find((key) => key.fifths === fifths)?.name ?? String(fifths);
+}
+
+/**
+ * The tune a fresh themes axis opens on: the first the app has that can be
+ * written in the level's key at all. An author replaces it immediately, but
+ * an axis must be readable the moment it is added — `readCourse` refuses a
+ * step naming no tune, and a half-made axis would make the whole document
+ * unreadable while it was being built.
+ */
+function firstPlayableStep(fifths: number): { id: string; fifths: number } {
+  const first = COLLECTIONS.flatMap((collection) => playableThemes(collection))[0];
+  return { id: first?.id ?? '', fifths };
+}
+
+/**
+ * The range figure's fixed height on the timeline, in CSS pixels.
+ *
+ * Fixed rather than natural because the figure's height is the row's: one
+ * that grew and shrank with its ledger lines made the whole row jump as a
+ * bound moved. Sized for the widest compass the app offers, so no range is
+ * ever cropped.
+ */
+const RANGE_FIGURE_HEIGHT = 96;
 
 /** The callout's gap under its chip, plus room for the horizontal scrollbar. */
 const GAP_BELOW_CHIP = 34;
@@ -146,6 +182,8 @@ interface TimelineProps {
    * value: a dropdown cannot show a progression, so the timeline shows it.
    */
   inherited?: readonly AxisId[];
+  /** The instruments the course promises, for the fit warnings on a tune. */
+  declared?: readonly string[];
   onAdopt?: (axisId: AxisId) => void;
   /** False at the course, whose per-stage rules do not inherit. */
   showSegmentRules?: boolean;
@@ -154,7 +192,7 @@ interface TimelineProps {
 }
 
 /** The axes as loosely as the document may hold them; garbage is the verdict line's job. */
-function rawAxesOf(level: Record<string, unknown>): RawAxis[] {
+export function rawAxesOf(level: Record<string, unknown>): RawAxis[] {
   const list = Array.isArray(level.axes) ? (level.axes as unknown[]) : [];
   return list.flatMap((entry) => {
     if (typeof entry !== 'object' || entry === null) return [];
@@ -173,7 +211,7 @@ function rawAxesOf(level: Record<string, unknown>): RawAxis[] {
   });
 }
 
-function rawRulesOf(level: Record<string, unknown>): RawRule[] | undefined {
+export function rawRulesOf(level: Record<string, unknown>): RawRule[] | undefined {
   const list = Array.isArray(level.segmentRules) ? (level.segmentRules as unknown[]) : [];
   const rules = list.flatMap((entry) => {
     if (typeof entry !== 'object' || entry === null) return [];
@@ -192,7 +230,7 @@ function rawRulesOf(level: Record<string, unknown>): RawRule[] | undefined {
   return rules.length ? rules : undefined;
 }
 
-function levelRuleOf(level: Record<string, unknown>): {
+export function levelRuleOf(level: Record<string, unknown>): {
   minBars: number;
   score?: { atLeast: number; overBars: number };
 } {
@@ -226,8 +264,10 @@ function defaultAxisFor(
         return numericDivisions(8, 16, 3);
       case 'cycles':
         return numericDivisions(2, 6, 3);
-      case 'themeCount':
-        return numericDivisions(2, 4, 2);
+      case 'themes':
+        /* One tune to begin with, in the level's own key where it fits: an
+           author adds the rest through the picker, hearing each. */
+        return orderedDivisions([firstPlayableStep(context.fifths)]);
       case 'span':
         return orderedDivisions([7, 12, 24]);
       case 'fifths':
@@ -272,6 +312,7 @@ export function Timeline({
   level,
   onPatch,
   inherited = [],
+  declared,
   onAdopt,
   showSegmentRules = true,
   ruleFromCourse = false,
@@ -287,7 +328,22 @@ export function Timeline({
    * never written into the document. The fifths for the ladder come from the
    * level where it says (pinned or first key division), else C.
    */
-  const [previewInstrument, setPreviewInstrument] = useState('eb-bass');
+  /* Opens on an instrument the course promises, where it promises any: a
+     preview defaulting outside the declared set would draw a stave for
+     somebody the course was never written for. */
+  const [previewInstrument, setPreviewInstrument] = useState(declared?.[0] ?? 'eb-bass');
+  /*
+   * And FOLLOWS the declaration when it changes. Ticking the instruments
+   * after adding a level left the preview on its default, so the picker
+   * announced "Heard on Eb Bass" for a cornet course — the honest sentence
+   * about the wrong instrument. Only when the current one is not promised:
+   * an author who deliberately previews a euphonium keeps it.
+   */
+  useEffect(() => {
+    if (declared && declared.length > 0 && !declared.includes(previewInstrument)) {
+      setPreviewInstrument(declared[0]);
+    }
+  }, [declared, previewInstrument]);
   const [previewClef, setPreviewClef] = useState<Clef>('treble');
   const instrument = instrumentById(previewInstrument);
   const compass = writtenRange(instrument, previewClef);
@@ -386,8 +442,12 @@ export function Timeline({
     ? applyBarDrag(fragment, layout, drag.axisId, drag.index, drag, inherited.length === 0)
     : fragment;
   const shown = drag ? layoutOf(shownFragment, levelRule, header) : layout;
+
   const shownAxes = drag ? rawAxesOf({ ...level, axes: shownFragment.axes }) : axes;
   const tempoAssumed = shown.segments.some((segment) => segment.assumedTempo);
+  /* Whether the music's own length governs the widths here, which changes
+     what a bar on this graph means and so what the caption must say. */
+  const hasLengthAxis = axes.some((axis) => axis.axis === 'bars' || axis.axis === 'themes');
 
   return (
     <div className="tl">
@@ -487,7 +547,12 @@ export function Timeline({
                   />
                 )}
               </div>
-              <div className="tl-axis__bar" style={{ gridRow: axisRow + 2 }}>
+              <div
+                className={`tl-axis__bar ${axis.axis === 'themes' ? 'is-tunes' : ''} ${
+                  axis.axis === 'range' ? 'is-range' : ''
+                }`}
+                style={{ gridRow: axisRow + 2 }}
+              >
                 <div className="tl-axis__line" />
                 {/*
                  * A stage is a coloured rounded block spanning the bars its
@@ -514,7 +579,11 @@ export function Timeline({
                         ...stageTint(index),
                       }}
                     >
-                      {index > 0 && !isInherited(axis.axis) && (
+                      {/* A tune's length is the music's, not the author's, so a
+                          themes divider has nothing to drag: moving bars across
+                          it would claim a tune is longer than it is. Reordering
+                          and adding are the gestures there. */}
+                      {index > 0 && !isInherited(axis.axis) && axis.axis !== 'themes' && (
                         <DragHandle
                           onDrag={(fraction) => {
                             const drop = resolveBarDrag(
@@ -557,6 +626,7 @@ export function Timeline({
                           instrumentId={previewInstrument}
                           clef={previewClef}
                           fifths={previewFifths}
+                          declared={declared}
                         />
                         {index > 0 && !isInherited(axis.axis) && (
                           <button
@@ -576,8 +646,26 @@ export function Timeline({
                 <button
                   type="button"
                   className="tl-axis__add"
-                  title="Add a division"
+                  title={axis.axis === 'themes' ? 'Add a tune' : 'Add a division'}
                   onClick={() => {
+                    /*
+                     * A tune goes on the END of the list (2026-08-30), not
+                     * into the longest stage: a tune list is a playlist and
+                     * an author adding one means "and then this". Splitting
+                     * would put it in the middle of an order they chose.
+                     */
+                    if (axis.axis === 'themes') {
+                      const last = axis.divisions[axis.divisions.length - 1];
+                      apply(
+                        addDivision(
+                          fragment,
+                          axis.axis,
+                          (last.at + 1) / 2,
+                          last.value,
+                        ),
+                      );
+                      return;
+                    }
                     /* Into the longest stage, wearing the value this axis
                        already has in force there — a division that changes
                        nothing until the author edits it. The new stage takes
@@ -709,8 +797,11 @@ export function Timeline({
       </div>
 
       <p className="muted tl__estimate-note">
-        Widths are bars — the minimum each stage asks for, which is what dragging a divider
-        sets. Times are what those bars take at the tempo in force
+        Widths are bars — the music each stage holds, which is what dragging a divider sets.
+        {hasLengthAxis
+          ? ' A length axis says how much music is written, so the stage is that wide; a rule asking for longer widens it further, because playing on is honest.'
+          : ' With no length axis, that is the minimum the rule asks for.'}{' '}
+        Times are what those bars take at the tempo in force
         {tempoAssumed ? `, assuming ${ASSUMED_TEMPO} bpm where the level names none` : ''}, on a
         clean run. Dragging moves bars across a divider and leaves the level the same length;
         editing a rule changes it.
@@ -986,6 +1077,264 @@ function RangeGenerator({
 }
 
 /** One division's value, edited in the vocabulary its axis speaks. */
+/**
+ * The tune a themes stage plays, chosen by ear rather than by name.
+ *
+ * The author's whole complaint about the random draw was that they could not
+ * see what they were choosing (the player, 2026-08-30: *"we don't know how
+ * long these themes are, we don't know if they involve notes that we haven't
+ * been practising already"*). So this shows the thing itself: every tune the
+ * app has, its length and difficulty, **the notes on a stave**, and a button
+ * to hear it — on the preview instrument, in the key the step names.
+ *
+ * A tune that will not realise on the preview instrument is shown and
+ * disabled rather than hidden, following the player-side picker's own rule:
+ * *"a player who can see the tune greyed can see that the keys are why,
+ * where a missing row is just a mystery."*
+ */
+/**
+ * The tune, drawn. A real stave rather than a summary, because "16 bars ·
+ * easy · 4/4" is exactly the description that left an author choosing blind.
+ *
+ * Paged and static: no transport runs, the playhead never moves, and the
+ * canvas is drawn once per change. `StaveRenderer` wants a `Transport` for
+ * its clock, so it gets one over a suspended context — it is never started.
+ */
+function ThemePreview({ exercise, tempo }: { exercise: Exercise; tempo: number }): ReactElement {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    /*
+     * The backing store must be sized from the laid-out box before the
+     * renderer measures it, or the stave draws at the canvas's default 300px
+     * and sits in the left third of a wide stage — which is what the first
+     * screenshot showed. Device pixels, so it is not soft on a HiDPI screen.
+     */
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 1) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * ratio);
+    canvas.height = Math.round(rect.height * ratio);
+    const context = new AudioContext();
+    void context.suspend();
+    const renderer = new StaveRenderer({
+      canvas,
+      exercise,
+      transport: new Transport(context, tempo),
+      theme: currentTheme(),
+      scrollSpeed: 0,
+      readingMode: 'paged',
+      verdictFor: () => undefined,
+    });
+    renderer.draw();
+    return () => {
+      renderer.stop();
+      void context.close();
+    };
+  }, [exercise, tempo]);
+  return <canvas ref={ref} className="tl-theme__stave" />;
+}
+
+/**
+ * Every tune the app has, to look at and to hear.
+ *
+ * Grouped by collection and shown whole — a tune that will not realise on
+ * the preview instrument is greyed with the reason rather than dropped, and
+ * one that breaks the course's promise carries a warning naming the
+ * instrument it fails. Choosing sets the tune AND the key together, because
+ * a step is both and a key the tune does not fit is not a choice.
+ */
+function ThemePicker({
+  step,
+  instrumentId,
+  clef,
+  declared,
+  onPick,
+  onClose,
+}: {
+  step: { id: string; fifths: number };
+  instrumentId: string;
+  clef: Clef;
+  declared: readonly string[] | undefined;
+  onPick: (step: { id: string; fifths: number }) => void;
+  onClose: () => void;
+}): ReactElement {
+  const instrument = instrumentById(instrumentId);
+  const [openId, setOpenId] = useState<string | null>(step.id || null);
+  return (
+    <div
+      className="tl-picker__veil"
+      /* A click on the veil is a click away from the dialog: the escape a
+         modal must always have, since the stage behind it is unreachable. */
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="tl-picker" role="dialog" aria-modal="true" aria-label="Choose a tune">
+      <div className="tl-picker__head">
+        <div className="tl-picker__title">
+          <strong>Choose a tune</strong>
+          <button type="button" className="tl-picker__close" onClick={onClose} title="Close">
+            ×
+          </button>
+        </div>
+        <span className="muted">
+          Drawn for {instrument.name}. The app checks the notes fit; whether the material suits the
+          player is yours to judge.
+        </span>
+      </div>
+      <div className="tl-picker__list">
+        {COLLECTIONS.map((collection) => (
+          <div key={collection.id}>
+            <p className="tl-picker__group">{collection.name}</p>
+            {playableThemes(collection).map((theme) => {
+              const metre = metreFor(theme.metres[0][0], theme.metres[0][1]);
+              const fits = MAJOR_KEYS.map((key) => key.fifths).filter(
+                (fifths) =>
+                  realiseTheme(theme, { instrument, clef, fifths, metre }) !== null,
+              );
+              const open = openId === theme.id;
+              return (
+                <div key={theme.id} className={`tl-picker__tune ${fits.length === 0 ? 'is-unfit' : ''}`}>
+                  <button
+                    type="button"
+                    className="tl-picker__toggle"
+                    disabled={fits.length === 0}
+                    onClick={() => setOpenId(open ? null : theme.id)}
+                  >
+                    <span>{theme.name}</span>
+                    <span className="muted">
+                      {theme.bars} bars · {theme.difficulty} ·{' '}
+                      {theme.metres.map(([n, d]) => `${n}/${d}`).join(', ')}
+                      {fits.length === 0 ? ` · does not fit ${instrument.name}` : ''}
+                    </span>
+                  </button>
+                  {open && fits.length > 0 && (
+                    <div className="tl-picker__keys">
+                      {fits.map((fifths) => {
+                        /* Which promised instruments this pairing fails —
+                           computed per key, because a key is half of what
+                           makes a tune fit an instrument at all. */
+                        const failing = (declared ?? []).filter((id) => {
+                          const other = instrumentById(id);
+                          return !CLEFS.some(
+                            (c) =>
+                              other.transposition[c] !== undefined &&
+                              realiseTheme(theme, {
+                                instrument: other,
+                                clef: c,
+                                fifths,
+                                metre,
+                              }) !== null,
+                          );
+                        });
+                        return (
+                          <button
+                            key={fifths}
+                            type="button"
+                            className={`tl-picker__key ${failing.length > 0 ? 'is-warned' : ''}`}
+                            title={
+                              failing.length > 0
+                                ? `Does not fit ${failing
+                                    .map((id) => instrumentById(id).name)
+                                    .join(', ')}`
+                                : undefined
+                            }
+                            onClick={() => onPick({ id: theme.id, fifths })}
+                          >
+                            {keyNameOf(fifths)}
+                            {failing.length > 0 ? ' !' : ''}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThemeValue({
+  value,
+  onChange,
+  instrumentId,
+  clef,
+  declared,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  instrumentId: string;
+  clef: Clef;
+  declared: readonly string[] | undefined;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const step = (
+    typeof value === 'object' && value !== null ? value : { id: '', fifths: 0 }
+  ) as { id: string; fifths: number };
+  const theme = themeById(step.id);
+  const instrument = instrumentById(instrumentId);
+  const metre = theme ? metreFor(theme.metres[0][0], theme.metres[0][1]) : metreFor(4, 4);
+  const exercise = theme
+    ? exerciseFromTheme(theme, { instrument, clef, fifths: step.fifths, metre })
+    : null;
+
+  /*
+   * Who this tune fails, among the instruments the COURSE promised. The
+   * check can only ever refute — a tune that realises everywhere has still
+   * said nothing about whether it is the right material for a tuba, which
+   * is a musician's judgement (the pedagogical ruling of 2026-08-30). So
+   * there is no tick here, only a warning when a promise is broken.
+   */
+  const failing = (theme && declared ? declared : []).filter((id) => {
+    const other = instrumentById(id);
+    return !CLEFS.some(
+      (c) =>
+        other.transposition[c] !== undefined &&
+        realiseTheme(theme!, { instrument: other, clef: c, fifths: step.fifths, metre }) !== null,
+    );
+  });
+
+  return (
+    <span className="tl-theme">
+      <button type="button" className="tl-value tl-theme__name" onClick={() => setOpen(!open)}>
+        {theme ? theme.name : 'Choose a tune…'}
+        <span className="muted">
+          {theme ? ` · ${theme.bars} bars · ${keyNameOf(step.fifths)}` : ''}
+        </span>
+        {failing.length > 0 && (
+          <span
+            className="tl-theme__warn"
+            title={`Does not fit ${failing.map((id) => instrumentById(id).name).join(', ')}`}
+          >
+            !
+          </span>
+        )}
+      </button>
+      {exercise && <ThemePreview exercise={exercise} tempo={theme?.tempo ?? 80} />}
+      {open &&
+        createPortal(
+          <ThemePicker
+            step={step}
+            instrumentId={instrumentId}
+            clef={clef}
+            declared={declared}
+            onPick={(next) => {
+              onChange(next);
+              setOpen(false);
+            }}
+            onClose={() => setOpen(false)}
+          />,
+          document.body,
+        )}
+    </span>
+  );
+}
+
 function DivisionValue({
   axisId,
   value,
@@ -993,6 +1342,7 @@ function DivisionValue({
   instrumentId,
   clef,
   fifths,
+  declared,
 }: {
   axisId: AxisId;
   value: unknown;
@@ -1000,7 +1350,19 @@ function DivisionValue({
   instrumentId: string;
   clef: Clef;
   fifths: number;
+  declared?: readonly string[];
 }): ReactElement {
+  if (axisId === 'themes') {
+    return (
+      <ThemeValue
+        value={value}
+        onChange={onChange}
+        instrumentId={instrumentId}
+        clef={clef}
+        declared={declared}
+      />
+    );
+  }
   if (NUMERIC.includes(axisId)) {
     return (
       <input
@@ -1156,7 +1518,20 @@ function RangeValue({
         className="tl-range__figure"
         label={`Range ${low} to ${high}`}
         draw={(canvas, theme) =>
-          drawRangeStave(canvas, { low: bound(low), high: bound(high), clef, fifths, theme })
+          drawRangeStave(canvas, {
+            low: bound(low),
+            high: bound(high),
+            clef,
+            fifths,
+            theme,
+            /* An author picks a compass, not a fingering, and the callout
+               costs room a tight stage has not got. */
+            fingerings: false,
+            /* A fixed box: the figure's height IS the row's height, so one
+               that grew with its ledger lines made the row jump as a bound
+               moved. Tall enough for the widest brass compass. */
+            height: RANGE_FIGURE_HEIGHT,
+          })
         }
       />
       <div className="tl-range__bounds">

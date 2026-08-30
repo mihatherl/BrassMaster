@@ -38,40 +38,112 @@ import {
   type Course,
   type LevelKind,
 } from '../exercise/course';
+import { INSTRUMENTS } from '../domain/instruments';
 import { Prescription } from './Prescription';
 import { Timeline } from './timeline/Timeline';
 import { numericDivisions } from './timeline/generators';
+import { formatSeconds, layoutOf } from './timeline/layout';
+import { levelRuleOf, rawAxesOf, rawRulesOf } from './timeline/Timeline';
 import { documentOf } from './document';
 
 /** The working document: plain data, edited loosely, judged by the reader. */
 type Doc = Record<string, unknown> & { levels: Record<string, unknown>[] };
 
+/**
+ * A fresh course, with the shape its levels will take stated ONCE.
+ *
+ * The material and the tempo axis moved up here from `freshLevel` on
+ * 2026-08-30: they are the shape of every level, so they belong at the
+ * scope that means "every level". An author who wants four tempo steps
+ * rather than six, or a key axis instead, changes it in one place and every
+ * level after it arrives that way — which is what course defaults are for.
+ * Levels that want their own still say so and override entirely.
+ */
 const FRESH: Doc = {
   id: 'my-course',
   name: 'My course',
   blurb: '',
   schemaVersion: 1,
+  base: { kind: 'drills', drillId: 'major-scale', difficultyId: 'easy' },
+  axes: [{ axis: 'tempo', divisions: numericDivisions(66, 96, 6) }],
   levels: [freshLevel(1)],
 };
 
+/**
+ * A new level: its name, and nothing it has not been told.
+ *
+ * **It states no material and no axes** (2026-08-30, the player: *"the idea
+ * of course defaults is that they will prepopulate information on new
+ * levels — so if the author wants each new level populated with six tempo
+ * steps, they should set that up"*).
+ *
+ * It used to arrive with a six-step tempo axis baked in, which was the
+ * editor deciding a pedagogical question that belongs to the author: those
+ * six steps are the shape of a level, and an author who wanted four, or a
+ * key axis instead, had to delete somebody else's answer first. Inheritance
+ * already carries a course's axes into a level that states none —
+ * `resolveLevelDocument` does it, and a level with no axes at all reads
+ * clean as one segment — so the defaults above are now the whole of the
+ * answer, and this states only what a level cannot inherit: its own name.
+ */
 function freshLevel(n: number): Record<string, unknown> {
-  return {
-    id: `level-${n}`,
-    name: `Level ${n}`,
-    base: { kind: 'drills', drillId: 'major-scale', difficultyId: 'easy' },
-    // The timeline from the first keystroke: a tempo axis, in the new format.
-    axes: [{ axis: 'tempo', divisions: numericDivisions(66, 96, 6) }],
-  };
+  return { id: `level-${n}`, name: `Level ${n}` };
 }
 
 function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'level';
 }
 
+/**
+ * A level's length, for its header bar.
+ *
+ * Measured through the timeline's OWN readers and layout, never a second
+ * implementation: a header that disagreed with the graph beneath it would be
+ * worse than no header at all. It is computed here rather than reported up
+ * because a collapsed level unmounts its timeline — and the length is most
+ * wanted exactly then.
+ *
+ * Nothing where the level does not read: a figure guessed for a broken level
+ * would be one the app cannot stand behind, and the red verdict above
+ * already says what is wrong.
+ */
+function lengthOf(level: Record<string, unknown>): { bars: number; time: string } | undefined {
+  try {
+    const base = (level.base ?? {}) as Record<string, unknown>;
+    const metre = base.metre;
+    const layout = layoutOf(
+      { axes: rawAxesOf(level), segmentRules: rawRulesOf(level) },
+      levelRuleOf(level),
+      {
+        ...(typeof level.tempo === 'number' ? { tempo: level.tempo } : {}),
+        ...(Array.isArray(metre) && metre.length === 2
+          ? { metre: [Number(metre[0]), Number(metre[1])] as readonly [number, number] }
+          : {}),
+      },
+    );
+    return { bars: layout.totalBars, time: formatSeconds(layout.totalSeconds) };
+  } catch {
+    return undefined;
+  }
+}
+
 export function App() {
   const [doc, setDoc] = useState<Doc>(FRESH);
   const [fileName, setFileName] = useState('my-course.json');
   const [defaultsOpen, setDefaultsOpen] = useState(false);
+  /*
+   * Which levels are folded shut, by id rather than by index: a level moved
+   * up or down keeps its own state, where a set of indices would hand it to
+   * whichever level took its place. A course of twenty levels is unreadable
+   * fully expanded, and the header bar is what it collapses to.
+   */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) =>
+    setCollapsed((was) => {
+      const next = new Set(was);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
 
   // The whole point of the page: the reader's verdict, live.
   const verdict = useMemo(() => readCourse(doc), [doc]);
@@ -185,6 +257,55 @@ export function App() {
       </section>
 
       {/*
+       * Who the course is for. A header scalar at course scope and never an
+       * axis — a course does not change instrument partway through.
+       *
+       * The reason to declare is PEDAGOGICAL, not technical (the player,
+       * 2026-08-30): the material a tuba player should engage with differs
+       * from a cornet player's even at the early stages. So this page must
+       * never render a tick reading "suitable for" — the app can refute a
+       * choice (the notes do not fit) and can never confirm one, because
+       * that is a musician's judgement. The warning below says only what is
+       * true: the course has not said.
+       */}
+      <section className="meta">
+        <strong>For which instruments?</strong>
+        <span className="muted">
+          What this course promises to suit. The app checks the notes fit; whether the material
+          is right for the player is yours to judge.
+        </span>
+        <div className="row instruments">
+          {INSTRUMENTS.map((instrument) => {
+            const declared = Array.isArray(doc.instruments)
+              ? (doc.instruments as string[])
+              : undefined;
+            const on = declared?.includes(instrument.id) ?? false;
+            return (
+              <label key={instrument.id} className="check">
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                      ? [...(declared ?? []), instrument.id]
+                      : (declared ?? []).filter((id) => id !== instrument.id);
+                    /* Empty is absent, not an empty list: the reader refuses
+                       a course that lists instruments and names none, and an
+                       author unticking the last one means "agnostic". */
+                    patch({ instruments: next.length > 0 ? next : undefined });
+                  }}
+                />
+                {instrument.name}
+              </label>
+            );
+          })}
+        </div>
+        {!Array.isArray(doc.instruments) && (
+          <p className="warn">This course does not say who it is for.</p>
+        )}
+      </section>
+
+      {/*
        * What the course says once, for every level that does not say it.
        * The same controls a level has, because it is the same vocabulary —
        * and the same timeline, because a course may hand its levels a whole
@@ -209,6 +330,7 @@ export function App() {
         <Timeline
           kind={(courseKind ?? 'any') as LevelKind | 'any'}
           level={doc}
+          declared={Array.isArray(doc.instruments) ? (doc.instruments as string[]) : undefined}
           showSegmentRules={false}
           onPatch={(changes) => patch(changes)}
         />
@@ -245,9 +367,26 @@ export function App() {
            never both. */
         const axisIds = new Set([...ownAxisIds, ...inheritedAxisIds]);
         const onTimeline = axisIds;
+        const levelId = String(level.id ?? index);
+        const shut = collapsed.has(levelId);
+        /*
+         * The level's own length, from the same arithmetic the timeline
+         * draws — so a folded level still says how long it is, which is the
+         * whole point of a header that survives the fold.
+         */
+        const shape = lengthOf(resolved);
         return (
-          <section className="level" key={index}>
+          <section className={`level ${shut ? 'is-shut' : ''}`} key={index}>
             <header>
+              <button
+                type="button"
+                className="level__fold"
+                aria-expanded={!shut}
+                title={shut ? 'Expand this level' : 'Collapse this level'}
+                onClick={() => toggle(levelId)}
+              >
+                {shut ? '▸' : '▾'}
+              </button>
               <strong>{index + 1}.</strong>
               <input
                 className="level-name"
@@ -256,9 +395,10 @@ export function App() {
                   patchLevel(index, { name: e.target.value, id: slug(e.target.value) })
                 }
               />
-              {read && (
-                <span className="muted">
-                  {stepsInLevel(read)} segment{stepsInLevel(read) === 1 ? '' : 's'}
+              {shape && (
+                <span className="level__shape">
+                  {shape.bars} bars · {shape.time}
+                  {read ? ` · ${stepsInLevel(read)} step${stepsInLevel(read) === 1 ? '' : 's'}` : ''}
                   {readTempos && readTempos.length > 0
                     ? ` · ${readTempos[0]}–${readTempos[readTempos.length - 1]} bpm`
                     : ''}
@@ -284,6 +424,8 @@ export function App() {
               </button>
             </header>
 
+            {!shut && (
+            <>
             <label className="wide">
               Author’s note
               <input
@@ -311,6 +453,7 @@ export function App() {
                  stages as surely as its own, so the graph must draw it. */
               level={resolved}
               inherited={[...inheritedAxisIds] as AxisId[]}
+              declared={Array.isArray(doc.instruments) ? (doc.instruments as string[]) : undefined}
               ruleFromCourse={level.rules === undefined && doc.rules !== undefined}
               onAdopt={(axisId) =>
                 patchLevel(index, {
@@ -322,6 +465,8 @@ export function App() {
               }
               onPatch={(changes) => patchLevel(index, changes)}
             />
+            </>
+            )}
           </section>
         );
       })}
@@ -356,8 +501,34 @@ style.textContent = `
   .verdict { padding: 0.5rem 0.8rem; border-radius: 6px; font-weight: 600; }
   .verdict.ok { background: #2e7d3222; }
   .verdict.bad { background: #c6282822; }
-  .meta, .level { border: 1px solid #8886; border-radius: 8px; padding: 0.75rem 1rem; margin: 0.75rem 0; }
-  .level > header { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.4rem; }
+  .meta, .level { border: 1px solid #8886; border-radius: 8px; margin: 0.75rem 0; }
+  .meta { padding: 0.75rem 1rem; }
+  /*
+   * A level is a card with a solid header bar, not a thin rectangle
+   * (2026-08-30, the player: everything but the coloured stage blocks was
+   * "distinguishable by no more than thin white lines"). The bar carries
+   * the name, the length and every control that acts on the level as a
+   * whole, and is what the level collapses down to — so a long course
+   * reads as a list of bars rather than a wall of forms.
+   */
+  .level { padding: 0; overflow: hidden; }
+  .level > header { display: flex; gap: 0.5rem; align-items: center; margin: 0;
+    padding: 0.5rem 0.75rem; background: #8883; border-bottom: 1px solid #8886; }
+  .level.is-shut > header { border-bottom: 0; }
+  .level > :not(header) { margin-left: 1rem; margin-right: 1rem; }
+  .level > :nth-child(2) { margin-top: 0.75rem; }
+  .level > :last-child { margin-bottom: 0.75rem; }
+  .level__fold { border: 0; background: none; font-size: 0.9rem; line-height: 1;
+    padding: 0.2rem 0.35rem; border-radius: 4px; }
+  .level__fold:hover { background: #8883; }
+  /* The length, in the same words the timeline uses. Monospaced figures so a
+     column of levels lines up down the page. */
+  .level__shape { font-size: 0.8rem; font-variant-numeric: tabular-nums; opacity: 0.85;
+    border: 1px solid #8886; border-radius: 999px; padding: 0.1rem 0.55rem; white-space: nowrap; }
+  .instruments { flex-wrap: wrap; gap: 0.25rem 1rem; }
+  /* A statement of fact, not an error: the document reads clean either way,
+     so this is amber and quiet rather than the verdict's red. */
+  .warn { margin: 0.4rem 0 0; padding: 0.35rem 0.6rem; border-radius: 6px; background: #ef6c0022; font-size: 0.85rem; }
   .level-name { font-weight: 700; font-size: 1.05rem; flex: 0 1 22rem; }
   .spacer { flex: 1; }
   .row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.4rem 0; align-items: end; }
@@ -440,15 +611,79 @@ style.textContent = `
   .tl-add__ghost:hover { opacity: 1; border-color: #b8a; }
   .tl-gen__auto { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
   .tl-gen__auto input[type=number] { width: 2.8rem; font-size: 0.8rem; padding: 0.1rem 0.2rem; }
-  .tl-range { display: flex; flex-direction: column; gap: 0.15rem; width: 8rem; }
-  .tl-range__figure { width: 8rem; }
+  /*
+   * A range stage draws a real stave, and a stave is TALL: drawRangeStave
+   * sizes itself from the ink it must show — a brass compass is thirteen
+   * spaces counting ledger lines — so it cannot be squeezed into the row an
+   * axis of numbers uses. At 2.9rem the figure overflowed by 63px, the
+   * ledger lines were cut off top and bottom, and the two bound inputs were
+   * clipped away entirely. Measured in a browser, not guessed.
+   */
+  .tl-axis__bar.is-range { min-height: 9rem; }
+  .tl-range { display: flex; flex-direction: column; gap: 0.15rem; width: 100%;
+    min-width: 0; align-items: stretch; justify-content: center; }
+  /* Fills its stage rather than a fixed 8rem: a wide stage left the figure
+     stranded at the left edge, and a narrow one clipped it. The stave scales
+     with the width it is given, which is what staveSpace is for. */
+  .tl-range__figure { width: 100%; min-width: 0; }
   .stave-figure__canvas, .tl-range__figure canvas { display: block; width: 100%; }
   .tl-range__bounds { display: flex; gap: 0.2rem; }
-  .tl-range__bounds input { width: 3.4rem; font-size: 0.75rem; }
+  .tl-range__bounds input { width: 100%; min-width: 0; font-size: 0.75rem; }
   .tl-pool { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.75rem; background: #8881; padding: 0.25rem; border-radius: 5px; }
   .tl-pool__row { display: flex; gap: 0.2rem; align-items: center; }
   .tl-pool input[type=number] { width: 2.6rem; }
   .tl-pool__degrees { display: flex; gap: 0.25rem; }
+  /* A tune stage: the name is the control, the stave sits under it. */
+  /*
+   * A tune stage carries two things stacked — the name and the notes — so its
+   * row is taller than an axis whose value is a number. Measured rather than
+   * guessed: at 2.9rem the stave pushed the name out of the block and the
+   * first screenshot showed it clipped.
+   */
+  .tl-axis__bar.is-tunes { min-height: 4.6rem; }
+  .tl-theme { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; width: 100%;
+    position: relative; justify-content: center; }
+  .tl-theme__name { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: none; border: 0; padding: 0; font: inherit; font-weight: 600; }
+  /* Fills the block: a stave drawn at its intrinsic width sat in the left
+     third of a wide stage and read as a stray figure rather than the tune. */
+  .tl-theme__stave { width: 100%; height: 2.4rem; display: block; }
+  /* A broken promise, never a kept one: the app can refute a pairing and can
+     never confirm that the material suits a player. */
+  .tl-theme__warn { color: #ef6c00; font-weight: 700; margin-left: 0.3rem; }
+  /*
+   * A centred modal in the BODY, not a popup in the stage (2026-08-30).
+   *
+   * It was anchored under the tune's name first, and never appeared: the
+   * stage block clips with overflow hidden, and .tl__scroll clips the other
+   * axis too — CSS forces the second axis to auto alongside overflow-x,
+   * which is the same trap that swallowed a callout's head on 2026-08-29.
+   * Rendered through a portal it escapes both, and a picker showing 64
+   * tunes wanted the room anyway.
+   *
+   * NOTE: no backticks in this stylesheet's comments. It is a template
+   * literal, and a backtick ends it — the fault the handover names, walked
+   * into again the moment a comment wanted to quote a CSS property.
+   */
+  .tl-picker__veil { position: fixed; inset: 0; z-index: 50; background: #0007;
+    display: flex; align-items: center; justify-content: center; }
+  .tl-picker { width: 34rem; max-width: 92vw; max-height: 80vh; overflow-y: auto;
+    background: Canvas; color: CanvasText; border: 1px solid #8886; border-radius: 10px;
+    box-shadow: 0 12px 48px #0008; padding: 0.8rem 1rem; }
+  .tl-picker__head { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0.4rem;
+    position: sticky; top: 0; background: Canvas; padding-bottom: 0.3rem; }
+  .tl-picker__title { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .tl-picker__close { border: 0; background: none; font-size: 1.2rem; line-height: 1;
+    padding: 0.1rem 0.4rem; border-radius: 4px; }
+  .tl-picker__close:hover { background: #8882; }
+  .tl-picker__group { font-weight: 700; font-size: 0.8rem; margin: 0.5rem 0 0.2rem; opacity: 0.8; }
+  .tl-picker__tune { display: flex; flex-direction: column; }
+  .tl-picker__toggle { display: flex; flex-direction: column; align-items: flex-start; gap: 0.05rem;
+    text-align: left; width: 100%; background: none; border: 0; padding: 0.25rem 0.3rem; border-radius: 4px; }
+  .tl-picker__toggle:hover:not(:disabled) { background: #8882; }
+  .tl-picker__tune.is-unfit { opacity: 0.5; }
+  .tl-picker__keys { display: flex; flex-wrap: wrap; gap: 0.2rem; padding: 0.2rem 0.3rem 0.4rem; }
+  .tl-picker__key.is-warned { border-color: #ef6c00; color: #ef6c00; }
   .tl-pool__degrees label { flex-direction: row; align-items: center; gap: 0.1rem; }
 
   .tl-rules__label { grid-column: 1; display: flex; flex-direction: column; gap: 0.1rem; justify-content: center; font-weight: 700; font-size: 0.85rem; border-right: 2px solid #8885; padding-right: 0.75rem; white-space: nowrap; }

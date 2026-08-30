@@ -59,6 +59,19 @@ declare global {
    * Read it directly, never through a constant; see `__HAS_MY_MUSIC__`.
    */
   const __HAS_TEACHER__: boolean;
+  /**
+   * Whether this build has rhythm drills: the counting voice, the pattern
+   * library and the demonstration-then-play rounds of `rhythm-plan.md`.
+   * Paid, ruled 2026-08-26; scheduled 2026-08-30 when the microphone moved
+   * behind the eisteddfod's sample corpus.
+   *
+   * Read it directly, never through a constant; see `__HAS_MY_MUSIC__`. The
+   * tripwire in `tools/check-web-bundle.mjs` is a pattern name from the
+   * library plus the chooser's own blurb — the second proving the fold in
+   * `EXERCISE_KINDS` actually eliminates, which is the one this feature
+   * uniquely relies on.
+   */
+  const __HAS_RHYTHM__: boolean;
 }
 
 // `moduleDetection: force` means the declaration above only reaches the rest of

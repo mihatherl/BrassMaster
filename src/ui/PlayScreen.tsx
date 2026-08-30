@@ -193,7 +193,15 @@ export function PlayScreen({
     conductorEnabled: runSupport?.conductorEnabled ?? settings.conductorEnabled,
     fingerings: runSupport?.fingerings ?? settings.fingerings,
     playbackMode: runSupport?.playbackMode ?? settings.playbackMode,
-    readingMode: runSupport?.readingMode ?? settings.readingMode,
+    /*
+     * Rhythm mode is paged, never scrolling (rhythm-plan.md): one pattern
+     * large on the screen, the count printed above it, the repetitions
+     * written out. A scroll would carry the pattern away from the eye that
+     * is learning it. Forced here, over both the course and the player,
+     * because it is the material's shape rather than anyone's preference.
+     */
+    readingMode:
+      exercise.kind === 'rhythm' ? ('paged' as const) : (runSupport?.readingMode ?? settings.readingMode),
   };
   /*
    * Read through refs inside the session effect, so a course crossing that

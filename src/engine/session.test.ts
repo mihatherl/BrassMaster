@@ -522,6 +522,64 @@ describe('the offer to carry on', () => {
     expect(finished.correct).toBe(8);
   });
 
+  it('never sounds a rhythm demonstration bar, whatever the playback mode', () => {
+    /*
+     * Rhythm-plan.md's ruling: demonstration bars are "syllables only — no
+     * pitches sound under them". Demo notes are the unplayable ones by
+     * construction (empty acceptedMasks), and the reference scheduler must
+     * pass over them — scoped to rhythm, because an imported note beyond
+     * the instrument's reach SHOULD still sound in a reference of the
+     * piece. Written after a mutation of the skip survived the suite.
+     */
+    const demo = { ...note(0, 1), acceptedMasks: [] as number[] };
+    const playable = note(1, 1);
+    const rhythm: Exercise = {
+      ...horizonExercise(2),
+      notes: [demo, playable],
+      totalBeats: 2,
+      chosenBeats: 2,
+      kind: 'rhythm',
+    };
+    const session = new Session({
+      context,
+      input: valves,
+      exercise: rhythm,
+      tempo: 60,
+      countInBars: 0,
+      metronomeEnabled: false,
+      playbackMode: 'reference',
+      brassVoice: voice,
+    });
+    session.start();
+    run(0, 3);
+    session.stop();
+    // The playable note sounded; the demonstration did not. (Times carry
+    // the audio lead, so count and order are the assertion, not the clock.)
+    expect(played).toHaveLength(1);
+
+    // And the same two notes in an imported part BOTH sound: the skip is
+    // rhythm's own, never a general rule about unplayable notes.
+    played = [];
+    // A fresh clock, or the second session anchors where the first stopped
+    // and the run would be asked to play backwards.
+    audioTime = 0;
+    const imported: Exercise = { ...rhythm, kind: 'imported' };
+    const whole = new Session({
+      context,
+      input: valves,
+      exercise: imported,
+      tempo: 60,
+      countInBars: 0,
+      metronomeEnabled: false,
+      playbackMode: 'reference',
+      brassVoice: voice,
+    });
+    whole.start();
+    run(0, 3);
+    whole.stop();
+    expect(played).toHaveLength(2);
+  });
+
   it('drops the reference tone while the offer stands, and restores it', () => {
     const volumes: number[] = [];
     const listening = { ...voice, setVolume: (v: number) => volumes.push(v) };

@@ -144,6 +144,14 @@ export function Prescription({
             </select>
           </label>
         )}
+        {/*
+          Not for themes (2026-08-30). A difficulty tells the GENERATOR what
+          to write; a named tune is already written and carries its own, and
+          the generator turns the level filter off for a named playlist
+          anyway. `NEEDS_DIFFICULTY` says so, so the reader no longer asks
+          for one and neither does this.
+        */}
+        {kind !== 'themes' && (
         <label className={mark('difficultyId', 'base')}>
           Difficulty
           <select
@@ -166,6 +174,17 @@ export function Prescription({
             ))}
           </select>
         </label>
+        )}
+        {/*
+          Not for themes (2026-08-30, the player: *"it seems a bit redundant
+          if we're choosing the key when we select the theme"*). Each tune
+          names the key it is played in, on its own step, so a key here is a
+          second answer to a settled question — and `AXES.fifths.kinds`
+          excludes themes, which means `readCourse` REFUSES a level that sets
+          one. A control whose only possible effect is to break the document
+          has no business being on the page.
+        */}
+        {kind !== 'themes' && (
         <label className={mark('fifths', 'base')}>
           Key
           <select
@@ -193,6 +212,7 @@ export function Prescription({
             ))}
           </select>
         </label>
+        )}
         {kind === 'drills' && (
           <label className={mark('register', 'base')}>
             Register
@@ -263,7 +283,14 @@ export function Prescription({
             </select>
           </label>
         )}
-        {kind !== undefined && kind !== 'drills' && (
+        {/*
+          Sight-reading alone (2026-08-30). Drills force 4/4 in the generator
+          and a collection's themes are played in their own signatures, so a
+          metre set here reached neither — `AXES.metre.kinds` now says so and
+          `readCourse` refuses it, which this must agree with or the panel
+          would offer a value the reader rejects.
+        */}
+        {kind === 'phrases' && (
           <label className={mark('metre', 'base')}>
             Metre
             <select

@@ -11,6 +11,7 @@ import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
+import { RHYTHM_PATTERNS } from '../exercise/rhythm';
 import { LOCALES, t, tCount, type StringKey } from '../i18n';
 import type { ExerciseKind } from '../exercise/types';
 import { RangePicker } from './RangePicker';
@@ -576,6 +577,37 @@ export function SettingsScreen({
     onChange({ ...settings, collectionIds: next, themeSteps: [], selection: 'medley' });
   };
 
+  /*
+   * Rhythm's own leading control, where the drill picker sits for drills:
+   * which pattern, ordered by the spine's stages. Paid — the tab that
+   * reaches this exists only where `EXERCISE_KINDS` grew the rhythm entry,
+   * which is behind `__HAS_RHYTHM__` — but reachability does not tree-shake:
+   * this JSX evaluates on every render whether rendered or not, and shipped
+   * the pattern library to the free bundle until `check:web`'s "Dotted
+   * pairs" tripwire caught it on its first run. The literal here is what
+   * folds the expression away and lets `rhythm.ts` shake out.
+   */
+  const patternField = __HAS_RHYTHM__ ? (
+    <div className="field">
+      <span className="field__label">{t('rhythm.pattern')}</span>
+      <div className="drills">
+        {RHYTHM_PATTERNS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={settings.rhythmPatternId === option.id}
+            className={`segmented__option drill ${
+              settings.rhythmPatternId === option.id ? 'is-selected' : ''
+            }`}
+            onClick={() => update('rhythmPatternId', option.id)}
+          >
+            {option.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   const sourceField = (
     <div className="field">
       <span className="field__label">{t('home.tunesFrom')}</span>
@@ -944,6 +976,11 @@ export function SettingsScreen({
           {/* Which shape, before which key: the drill is what the tab *is*,
               and everything under it qualifies it. */}
           {isPattern(settings.kind) && drillField}
+          {/* Which pattern is what the rhythm tab *is* — and the whole of
+              what it asks: no key (the run is keyless by rhythm-plan.md's
+              own constraint), no difficulty (the spine grades the patterns),
+              no signature (the pattern brings its own metre). */}
+          {settings.kind === 'rhythm' && patternField}
           {/* Where the tunes come from is what this tab *is*, so it sits
               where the drill does and above what qualifies it. */}
           {settings.kind === 'themes' && sourceField}
@@ -952,8 +989,8 @@ export function SettingsScreen({
               less than the first. The same statement the missing
               time-signature control makes for a collection: the material has
               already answered. */}
-          {!(settings.kind === 'themes' && defined) && keysField}
-          {difficultyField}
+          {!(settings.kind === 'themes' && defined) && settings.kind !== 'rhythm' && keysField}
+          {settings.kind !== 'rhythm' && difficultyField}
           {/* A scale is a shape played against a click rather than a piece
               with a metre, so it is always four-four and asks instead which
               end of the horn to sit at. A collection asks nothing: each tune
@@ -961,9 +998,11 @@ export function SettingsScreen({
               which tunes. */}
           {isPattern(settings.kind)
             ? registerField
-            : settings.kind === 'themes' && chosenIds.length > 0
-              ? selectionField
-              : timeSignatureField}
+            : settings.kind === 'rhythm'
+              ? null
+              : settings.kind === 'themes' && chosenIds.length > 0
+                ? selectionField
+                : timeSignatureField}
           {/* The pool free material is drawn from. A pattern is placed by its
               tonic and a theme is written already, so neither has a pool to
               ask about. */}

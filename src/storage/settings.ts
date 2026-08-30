@@ -148,6 +148,16 @@ export interface Settings {
    * instrument or clef change.
    */
   themeSteps: ThemeStep[];
+  /**
+   * Which rhythm pattern the rhythm material drills (paid; the mode is
+   * behind `__HAS_RHYTHM__`). A bare id rather than anything richer, so
+   * this file needs no import from `exercise/rhythm.ts` — pulling the
+   * pattern library into shared storage code would put it in the free
+   * bundle, the exact leak the i18n packs taught. An id the library no
+   * longer knows falls back at USE time (`rhythmPatternById`), the same
+   * grace a stale `drillId` gets.
+   */
+  rhythmPatternId: string;
   /*
    * How long a run is, is no longer here.
    *
@@ -522,6 +532,7 @@ export const DEFAULT_SETTINGS: Settings = {
   collectionIds: [],
   selection: 'medley',
   themeSteps: [],
+  rhythmPatternId: 'four-crotchets',
   register: 'middle',
   // Left to the difficulty, which is what the app has always done.
   range: null,
