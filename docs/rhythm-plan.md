@@ -117,10 +117,23 @@ small: the beat numbers (1–6 covers every metre the app writes), "e", "and",
 cannot disagree. The same shape as `hints.ts`, which derives fingerings from
 the note rather than storing them.
 
-**The player records the clips.** It is the ear rule applied to a voice, it is
-licensing-clean, and a person counting sounds like teaching where a robot
-sounds like a toy. One session with a phone microphone covers a syllable set;
-a second counting system is a second session.
+**The clips are synthesized, offline** (re-ruled 2026-08-30: the player does
+not want his own voice on them, and the original rejection of synthesis was
+of RUNTIME synthesis — the Web Speech API cannot be scheduled — which
+pre-rendered clips never suffer). Piper TTS, locally, from a voice model
+whose training corpus permits commercial use: the first candidates are
+`en_GB-vctk-medium` (VCTK, CC BY 4.0 — attribution required, so the credits
+gain a line the day a clip ships). The licensing gate is the Essen-corpus
+lesson applied to audio, and it is why a "free voice generator" website is
+not an option for a paid app. The ear rule stands unchanged: candidates are
+auditioned by the player — `~/Desktop/syllable-audition.html` plays all
+three candidate voices on the Web Audio clock, counting real bars at a
+chosen tempo — and nothing ships unchosen. "A person counting sounds like
+teaching" remains true and remains his to weigh; a second counting system
+is now a second generation run rather than a second recording session.
+Generation notes travel with the clips (`~/Desktop/syllable-clips/README`):
+length-scale 0.85, "a" spoken as "uh", "e" as "ee", trimmed to onset,
+peak-normalised.
 
 The syllable player is **not a `Voice`** — that interface is pitched
 (`play(midi, …)`) and a syllable has no midi. It is a sibling of the

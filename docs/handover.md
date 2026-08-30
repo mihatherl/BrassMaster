@@ -118,8 +118,12 @@ authored cells → microphone (after the eisteddfod).** Ruled by the player
   sight-reading G flat for Eb bass treble — 21% of notes are C flat), and
   now rhythm's first patterns. The player's ear settles rounds-per-stage,
   tolerance, and the spine's order.
-- **The syllable clips** — the player records: "1"–"6", "e", "and", "a",
-  "trip", "let". Ten minutes with a phone. Until then the voice is print.
+- **The syllable clips** — synthesized now, not recorded (re-ruled
+  2026-08-30; `rhythm-plan.md`'s voice section has the licensing gate).
+  Three candidate voices await the player's ear at
+  `~/Desktop/syllable-audition.html`; until one is chosen, the voice is
+  print. Choosing one is the whole remaining step before the clip
+  scheduler is worth building.
 - **Rhythm slices 2+**: the clip scheduler (a metronome sibling, not a
   `Voice`), stages 1–3 withdrawal, spine stages 5–9, courses (`LevelKind`
   deliberately still excludes rhythm — the discriminated-material schema
