@@ -136,20 +136,57 @@ website is not an option for a paid app — the Essen-corpus lesson applied
 to audio. His voice and the robots meet on the same audition page; the ear
 rule picks.
 
-**The triplet words are his tradition's, not the band method's** (ruled
-2026-08-31): *"my people always use pine-app-le"* — and a seven-note run
-is *"pine-app-le pine-app-le pine"*. "1-trip-let" is the American
-band-method convention and is kept as an alternative clip set. The two are
-different in KIND, worth recording: number systems are positional (the
-count tells you where you are in the bar), pineapple is a grouping word
-(it tells you what the figure feels like and gives up the beat number).
-The counting-system-as-data architecture holds both without a new
-mechanism, which is precisely what it was designed for.
+**Positional it is** (the ruling's final form, 2026-08-31, an hour after
+the pineapple discussion): *"let's stick to the positional arguments."*
+The default system stays 1-e-&-a with 1-trip-let, because the count tells
+you where you are in the bar. Pineapple — his tradition's grouping word,
+where *"pine-app-le pine-app-le pine"* is a seven-note run — stands
+recorded as a legitimate second system the data model already holds, built
+whenever wanted, never by a new mechanism.
+
+**Vocalisations are per-rhythm phrases, stored per-onset** (ruled
+2026-08-31 with the annotation tool): the player records a rhythm's count
+as one fluent phrase to a click — natural prosody, the reason isolated
+words sound stilted — and the pipeline slices it on the grid into
+per-onset clips. He records the packaged rhythms; a user may replace any
+recording with their own. And because the system is positional, **a custom
+rhythm nobody recorded still speaks**: the mapping derives its count and
+assembles it from the default clip set. Recording is the better voice; the
+derived one is the floor; no rhythm is ever silent.
+
+**Feels are prepackaged and not user-editable** (ruled 2026-08-31,
+confirming what the feel section below already designed): a feel belongs
+to a time signature and warps the timing of pulses — swing moves the
+off-beat quaver from 50% to ~66% of the beat — and shipping them as fixed
+data is the whole of it. Still not in the first build: the judge must warp
+its expectations by the same transform, which is its own careful step.
 
 The syllable player is **not a `Voice`** — that interface is pitched
 (`play(midi, …)`) and a syllable has no midi. It is a sibling of the
 metronome: a scheduler that reads the exercise and speaks the demonstration
 spans.
+
+## The annotation tool (the player's spec, 2026-08-31 — **built the same day**)
+
+> Build an annotation tool which allows the user to specify a rhythm…
+> prepopulate a few. There is no stave, just a note length indicator and
+> rest length indicator. The rhythm goes for at least one (or otherwise a
+> whole number) of bars.
+
+Built as `ui/RhythmPatternEditor.tsx` over a pure core in
+`exercise/rhythm.ts`: duration chips with the live derived count printed
+above each note (the same `syllablesFor` the run speaks from, so the tool
+cannot promise a count the run will not print), appended by length button,
+removed by tap. `barsFromTokens` holds the rules — whole bars only, no
+event across a bar line (the tool draws no ties yet), no dotted semiquaver
+(its position falls between the count's syllables), not all rests — each
+mutation-tested. The player's shelf lives at `brass-trainer:rhythms`
+(also `check:web`'s third rhythm tripwire), resolves ahead of the library
+by id, and a stale id falls back to the library's first, the drillId
+grace. The editor's grammar is narrower than `parseCell` — no triplets,
+no ties — and `tokensFromBars` returns null for a packaged pattern it
+cannot re-edit rather than mangling it. Editor-facing validation
+sentences are English pending the native-review sweep, noted there.
 
 ## The voice-pack recorder (proposed by the player, 2026-08-31; not built)
 

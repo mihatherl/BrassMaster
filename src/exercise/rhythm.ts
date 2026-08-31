@@ -170,3 +170,160 @@ export const RHYTHM_PATTERNS: readonly RhythmPattern[] = [
 export function rhythmPatternById(id: string): RhythmPattern {
   return RHYTHM_PATTERNS.find((pattern) => pattern.id === id) ?? RHYTHM_PATTERNS[0];
 }
+
+/* ------------------------------------------------------------------ */
+/* Custom rhythms — the annotation tool's data                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One event as the annotation tool edits it: a length, a dot, note or
+ * rest. No stave and no pitch — the player's own framing of the tool
+ * (2026-08-31): "there is no stave, just a note length indicator and a
+ * rest length indicator."
+ *
+ * Deliberately narrower than `parseCell`'s grammar: no triplets (they
+ * come in threes and the editor cannot yet keep that honest) and no
+ * dotted semiquaver (its off-positions fall between the counting
+ * system's syllables, and a note the voice cannot count does not belong
+ * in a counting tool). Every position this grammar can produce is a
+ * multiple of a semiquaver, which the 1-e-&-a mapping names in full.
+ */
+export interface RhythmToken {
+  code: 'w' | 'h' | 'q' | 'e' | 's';
+  dotted?: boolean;
+  rest?: boolean;
+}
+
+const TOKEN_BEATS: Record<RhythmToken['code'], number> = { w: 4, h: 2, q: 1, e: 0.5, s: 0.25 };
+
+export function tokenBeats(token: RhythmToken): number {
+  return TOKEN_BEATS[token.code] * (token.dotted ? 1.5 : 1);
+}
+
+/**
+ * Turns the editor's token list into the library's bar strings, or says
+ * exactly why it cannot.
+ *
+ * The rules are the ones that keep a pattern playable and speakable:
+ * whole bars only ("the rhythm goes for at least one, or otherwise a
+ * whole number, of bars" — the player's spec), no event across a bar
+ * line (unwritable without a tie, which the tool does not yet draw), a
+ * dotted semiquaver nowhere (unspeakable), and something in it at all.
+ */
+export function barsFromTokens(
+  tokens: readonly RhythmToken[],
+  metre: readonly [number, number],
+): { bars: string[] } | { error: string } {
+  if (tokens.length === 0) return { error: 'Nothing here yet — add a note.' };
+  const barBeats = (4 / metre[1]) * metre[0];
+  const bars: string[][] = [];
+  let at = 0;
+  for (const token of tokens) {
+    if (token.code === 's' && token.dotted) {
+      return { error: 'A dotted semiquaver lands between the count’s syllables.' };
+    }
+    const beats = tokenBeats(token);
+    const bar = Math.floor(at / barBeats + 1e-9);
+    const end = at + beats;
+    if (end > (bar + 1) * barBeats + 1e-9) {
+      return {
+        error: `Bar ${bar + 1} cannot hold that: it crosses the bar line.`,
+      };
+    }
+    while (bars.length <= bar) bars.push([]);
+    bars[bar].push(`${token.rest ? 'r' : '0'}${token.code}${token.dotted ? '.' : ''}`);
+    at = end;
+  }
+  const whole = Math.round(at / barBeats);
+  if (Math.abs(at - whole * barBeats) > 1e-9 || whole === 0) {
+    const filled = at / barBeats;
+    return {
+      error: `Fills ${filled % 1 === 0 ? filled : filled.toFixed(2)} bars — a rhythm is a whole number of them.`,
+    };
+  }
+  if (bars.every((bar) => bar.every((token) => token.startsWith('r')))) {
+    return { error: 'All rests — there is nothing to play.' };
+  }
+  return { bars: bars.map((bar) => bar.join(' ')) };
+}
+
+/** The editor's reading of a stored bar, for editing a pattern again. */
+export function tokensFromBars(bars: readonly string[]): RhythmToken[] | null {
+  const tokens: RhythmToken[] = [];
+  for (const bar of bars) {
+    for (const event of parseCell(bar)) {
+      const code = (Object.entries(TOKEN_BEATS).find(
+        ([, beats]) => Math.abs(event.beats - beats) < 1e-9,
+      ) ?? Object.entries(TOKEN_BEATS).find(
+        ([, beats]) => Math.abs(event.beats - beats * 1.5) < 1e-9,
+      ))?.[0] as RhythmToken['code'] | undefined;
+      // A packaged pattern may use grammar the editor does not speak yet —
+      // triplets, ties. Null says "copy it by ear, not by button".
+      if (!code || event.tied) return null;
+      const dotted = Math.abs(event.beats - TOKEN_BEATS[code] * 1.5) < 1e-9;
+      tokens.push({ code, ...(dotted ? { dotted: true } : {}), ...(event.rest ? { rest: true } : {}) });
+    }
+  }
+  return tokens;
+}
+
+/**
+ * The printed count for the editor's token list, one entry per token —
+ * the same mapping the play screen speaks from, read live as the author
+ * builds, so the tool can never show a rhythm whose count differs from
+ * what the run will print. Null over rests and over any position the
+ * system does not name (which the editor's grammar cannot produce, but
+ * the function does not assume that).
+ */
+export function parsePatternForCount(tokens: readonly RhythmToken[]): Array<string | null> {
+  let beat = 0;
+  return tokens.map((token) => {
+    const syllable = token.rest ? null : syllableFor(beat);
+    beat += tokenBeats(token);
+    return syllable === null ? null : printedSyllable(syllable);
+  });
+}
+
+/**
+ * The player's own rhythms, on the phone — the paid line's storage, and
+ * `check:web`'s tripwire for the annotation tool. Read fresh each time:
+ * the store is small and a stale cache across the settings screen and
+ * the generator would be two answers to "what did I write".
+ */
+export const CUSTOM_RHYTHMS_KEY = 'brass-trainer:rhythms';
+
+export function loadCustomRhythms(): RhythmPattern[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_RHYTHMS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (entry): entry is RhythmPattern =>
+        typeof entry === 'object' && entry !== null &&
+        typeof (entry as RhythmPattern).id === 'string' &&
+        typeof (entry as RhythmPattern).name === 'string' &&
+        Array.isArray((entry as RhythmPattern).bars),
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomRhythm(pattern: RhythmPattern): void {
+  const rest = loadCustomRhythms().filter((entry) => entry.id !== pattern.id);
+  localStorage.setItem(CUSTOM_RHYTHMS_KEY, JSON.stringify([...rest, pattern]));
+}
+
+export function deleteCustomRhythm(id: string): void {
+  const rest = loadCustomRhythms().filter((entry) => entry.id !== id);
+  localStorage.setItem(CUSTOM_RHYTHMS_KEY, JSON.stringify(rest));
+}
+
+/**
+ * A pattern by id from EITHER shelf — the player's own first, so a custom
+ * may not shadow-and-lose to a packaged id — falling back to the library's
+ * first for an id nobody knows, the same grace a stale drillId gets.
+ */
+export function resolveRhythmPattern(id: string): RhythmPattern {
+  return loadCustomRhythms().find((pattern) => pattern.id === id) ?? rhythmPatternById(id);
+}

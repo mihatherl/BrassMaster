@@ -74,7 +74,7 @@ const PAID_ONLY = {
    * which this feature uniquely leans on (the guard exists for the tools,
    * which import types.ts with no defines at all).
    */
-  'rhythm drills': ['Dotted pairs', 'One rhythm pattern at a time'],
+  'rhythm drills': ['Dotted pairs', 'One rhythm pattern at a time', 'brass-trainer:rhythms'],
 };
 
 /**

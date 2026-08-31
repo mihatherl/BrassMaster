@@ -42,7 +42,7 @@ import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
 import { planTempo } from './tempo-plan';
 import type { Exercise, ExerciseKind, LabelEvent } from './types';
-import { patternEvents, printedSyllable, rhythmPatternById, syllableFor } from './rhythm';
+import { patternEvents, printedSyllable, rhythmPatternById, syllableFor, type RhythmPattern } from './rhythm';
 import type { CellEvent } from './cells';
 
 /**
@@ -254,6 +254,12 @@ export interface GenerateOptions {
   intervals?: IntervalPool;
   /** Which rhythm pattern a rhythm run drills. Absent means the library's first. */
   rhythmPatternId?: string;
+  /**
+   * The pattern itself, where the id names one of the player's own — the
+   * caller resolves storage (`resolveRhythmPattern`), because this module
+   * is pure and the tools import it with no DOM at all.
+   */
+  rhythmPattern?: RhythmPattern;
 }
 
 interface Candidate {
@@ -378,7 +384,7 @@ function restsFilling(from: number, beats: number, metre: Metre): Slot[] {
  * the comfortable middle of the instrument's compass.
  */
 function rhythmExercise(options: GenerateOptions): Exercise {
-  const pattern = rhythmPatternById(options.rhythmPatternId ?? '');
+  const pattern = options.rhythmPattern ?? rhythmPatternById(options.rhythmPatternId ?? '');
   const metre = metreFor(pattern.metre[0], pattern.metre[1]);
   const bars = patternEvents(pattern);
   const barBeats = metre.barBeats;

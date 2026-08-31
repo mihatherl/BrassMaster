@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
 import { keyNameFor, orderByCloseness } from '../domain/keys';
 import { formatPitch } from '../domain/pitch';
@@ -11,7 +11,8 @@ import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
-import { RHYTHM_PATTERNS } from '../exercise/rhythm';
+import { loadCustomRhythms, RHYTHM_PATTERNS, type RhythmPattern } from '../exercise/rhythm';
+import { RhythmPatternEditor } from './RhythmPatternEditor';
 import { LOCALES, t, tCount, type StringKey } from '../i18n';
 import type { ExerciseKind } from '../exercise/types';
 import { RangePicker } from './RangePicker';
@@ -433,6 +434,15 @@ export function SettingsScreen({
 
   // What the chosen tab is, for the blurb line beneath the tabs.
   const material = EXERCISE_KINDS.find((k) => k.id === settings.kind)!;
+  /* The rhythm tool's sheet, and a counter that re-reads the player's own
+     shelf after a save — the store is the truth, this only asks again. */
+  const [rhythmEditing, setRhythmEditing] = useState<RhythmPattern | null | 'closed'>('closed');
+  const [rhythmShelf, setRhythmShelf] = useState(0);
+  const customRhythms = useMemo(
+    () => (__HAS_RHYTHM__ && settings.kind === 'rhythm' ? loadCustomRhythms() : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.kind, rhythmShelf],
+  );
   // The one summary the screen still writes itself: which output the strip's
   // note names. Everything else announces itself in place now — the chip, the
   // open material box, the gate's accordion lines.
@@ -604,7 +614,52 @@ export function SettingsScreen({
             {option.name}
           </button>
         ))}
+        {/* The player's own shelf, after the packaged spine; each carries
+            its editor beside it, because a custom is theirs to change. */}
+        {customRhythms.map((option) => (
+          <span key={option.id} className="drills__own">
+            <button
+              type="button"
+              aria-pressed={settings.rhythmPatternId === option.id}
+              className={`segmented__option drill ${
+                settings.rhythmPatternId === option.id ? 'is-selected' : ''
+              }`}
+              onClick={() => update('rhythmPatternId', option.id)}
+            >
+              {option.name}
+            </button>
+            <button
+              type="button"
+              className="segmented__option drill rhythm-shelf__edit"
+              aria-label={`Edit ${option.name}`}
+              onClick={() => setRhythmEditing(option)}
+            >
+              ✎
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          className="segmented__option drill"
+          onClick={() => setRhythmEditing(null)}
+        >
+          {t('rhythm.new')}
+        </button>
       </div>
+      {rhythmEditing !== 'closed' && (
+        <RhythmPatternEditor
+          editing={rhythmEditing}
+          onSaved={(id) => {
+            update('rhythmPatternId', id);
+            setRhythmShelf((n) => n + 1);
+            setRhythmEditing('closed');
+          }}
+          onClose={() => {
+            setRhythmShelf((n) => n + 1);
+            setRhythmEditing('closed');
+          }}
+        />
+      )}
     </div>
   ) : null;
 

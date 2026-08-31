@@ -4,6 +4,7 @@ import { difficultyById } from '../exercise/difficulty';
 import { metreFor } from '../domain/metre';
 import { defaultLengthFor, generateExercise, HORIZON_BARS } from '../exercise/generate';
 import { collectionOf } from '../exercise/collections';
+import { resolveRhythmPattern } from '../exercise/rhythm';
 import { canRekeyKind } from '../exercise/rekey';
 import { randomSeed } from '../exercise/rng';
 import type { Exercise } from '../exercise/types';
@@ -203,6 +204,12 @@ export function App() {
         themeSteps: shape?.themeSteps ?? settings.themeSteps,
         selection: shape?.themeSteps ? 'defined' : settings.selection,
         rhythmPatternId: settings.rhythmPatternId,
+        /* Resolved HERE — the player's own shelf first — because the
+           generator is pure and storage is the app's business. Behind the
+           literal so the free build never references the custom store. */
+        ...(typeof __HAS_RHYTHM__ !== 'undefined' && __HAS_RHYTHM__ && settings.kind === 'rhythm'
+          ? { rhythmPattern: resolveRhythmPattern(settings.rhythmPatternId) }
+          : {}),
         cycles: shape?.cycles ?? length.cycles,
         register: settings.register,
         range: settings.range ?? undefined,
