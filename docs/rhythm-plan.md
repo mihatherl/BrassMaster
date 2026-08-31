@@ -117,28 +117,79 @@ small: the beat numbers (1–6 covers every metre the app writes), "e", "and",
 cannot disagree. The same shape as `hints.ts`, which derives fingerings from
 the note rather than storing them.
 
-**The clips are synthesized, offline** (re-ruled 2026-08-30: the player does
-not want his own voice on them, and the original rejection of synthesis was
-of RUNTIME synthesis — the Web Speech API cannot be scheduled — which
-pre-rendered clips never suffer). Piper TTS, locally, from a voice model
-whose training corpus permits commercial use: the first candidates are
-`en_GB-vctk-medium` (VCTK, CC BY 4.0 — attribution required, so the credits
-gain a line the day a clip ships). The licensing gate is the Essen-corpus
-lesson applied to audio, and it is why a "free voice generator" website is
-not an option for a paid app. The ear rule stands unchanged: candidates are
-auditioned by the player — `~/Desktop/syllable-audition.html` plays all
-three candidate voices on the Web Audio clock, counting real bars at a
-chosen tempo — and nothing ships unchosen. "A person counting sounds like
-teaching" remains true and remains his to weigh; a second counting system
-is now a second generation run rather than a second recording session.
-Generation notes travel with the clips (`~/Desktop/syllable-clips/README`):
-length-scale 0.85, "a" spoken as "uh", "e" as "ee", trimmed to onset,
-peak-normalised.
+**The player's voice is the default** (re-ruled twice on 2026-08-30 and
+2026-08-31, and this is where it landed): he records the clips from a
+scripted session (`~/Desktop/recording-script.txt` — phrases counted to a
+60 bpm click in earphones, sliced on the grid afterwards, with isolated
+words as insurance). The original reasoning stands restored — a person
+counting sounds like teaching, and his own voice is licensing-clean by
+definition.
+
+The intervening day produced a **synthesized fallback that remains
+auditioned and available**: Piper TTS, `en_GB-vctk-medium` (VCTK, CC BY
+4.0 — attribution required if it ever ships), three candidate speakers at
+`~/Desktop/syllable-audition.html`, playing real bars on the Web Audio
+clock. Kept because the pipeline is reproducible and the licensing gate is
+recorded: the rejection of synthesis was only ever of RUNTIME synthesis
+(the Web Speech API cannot be scheduled), and a "free voice generator"
+website is not an option for a paid app — the Essen-corpus lesson applied
+to audio. His voice and the robots meet on the same audition page; the ear
+rule picks.
+
+**The triplet words are his tradition's, not the band method's** (ruled
+2026-08-31): *"my people always use pine-app-le"* — and a seven-note run
+is *"pine-app-le pine-app-le pine"*. "1-trip-let" is the American
+band-method convention and is kept as an alternative clip set. The two are
+different in KIND, worth recording: number systems are positional (the
+count tells you where you are in the bar), pineapple is a grouping word
+(it tells you what the figure feels like and gives up the beat number).
+The counting-system-as-data architecture holds both without a new
+mechanism, which is precisely what it was designed for.
 
 The syllable player is **not a `Voice`** — that interface is pitched
 (`play(midi, …)`) and a syllable has no midi. It is a sibling of the
 metronome: a scheduler that reads the exercise and speaks the demonstration
 spans.
+
+## The voice-pack recorder (proposed by the player, 2026-08-31; not built)
+
+> Let's also create an editor on top of that, so any user can record their
+> voice and their words in their language as a replacement, at a variety of
+> speeds etc. I could even use that tool to create the default packaged
+> vocalisation of the rhythm patterns.
+
+The annotation-tool pattern again: build the tool, and the human records
+the content — first the player making the shipped default, then any user
+making their own. What it settles and what it opens:
+
+- **A pack is recordings per SLOT of an existing counting system.** The
+  mapping (position → slot) is the system's and stays data authored with
+  the app; the pack fills the slots with a voice. A German player
+  recording "und" into the `and` slot has translated the count without
+  touching a mapping — which is how "their words in their language" stays
+  a recording job rather than a schema job.
+- **The recorder is the slicing pipeline with a face.** The desktop script
+  already counts phrases to a click and slices on the grid; the in-app
+  tool does the same with the metronome it already has — count along, and
+  the slots fill themselves. Re-record one slot by tapping it.
+- **Speed variants are real, not "etc."**: a syllable spoken naturally at
+  60 bpm is too long at 160. Two recordings per slot (a spoken and a
+  clipped one), the scheduler choosing by tempo, beats time-stretching —
+  which mangles consonants exactly where a count lives.
+- **Paid, on the phone, stored with the library** (the v3 ruling: the
+  phone owns it), and it uses the microphone — `getUserMedia` is already
+  `check:web`'s tripwire for Phase 2, so the free build is already fenced
+  against it leaking. This does NOT wait for Phase 2's detector: recording
+  is capture, not pitch detection.
+- **The ear rule, per pack**: a user's own pack is theirs and ships
+  nowhere; the DEFAULT pack the player records with this tool goes through
+  his ear like everything else.
+
+**Build order unchanged**: the scripted session gets the default voice NOW
+without the tool; the recorder replaces the desktop pipeline when it is
+built, and slots into the paid app beside the authored-cells builder —
+both are "record/author your own material" tools and should feel like
+siblings.
 
 ## The progression
 
