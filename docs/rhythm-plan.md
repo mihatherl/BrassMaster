@@ -265,7 +265,13 @@ the test table: one cell is a triplet quaver, two a triplet crotchet,
 all three held ARE a crotchet and engrave as one; ties run into and out
 of a triplet beat; the dotted-crotchet merger demands its borrowed half
 come from a division-4 beat, since half a triplet beat is not a place a
-note can end. And one rule found by the engraver's own output: **a rest
+note can end. A second rest rule came from the player misreading the
+engraver's output as bad arithmetic (2026-09-01): **silence inside a
+triplet figure is written in triplet-quaver rests, one per third, never
+a triplet-crotchet rest** — that glyph is a crotchet rest whose value
+depends on noticing the bracket, which is precisely how it misreads. A
+fully silent triplet beat is no figure at all and keeps its plain
+crotchet rest. And one rule found by the engraver's own output: **a rest
 never dots in simple time** — a note may (the march's own s–e. figure),
 but a rest shows the subdivision it silences, so three sixteenths of
 silence split at the half-beat. `gridFromBars` infers each beat's

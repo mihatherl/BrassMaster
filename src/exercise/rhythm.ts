@@ -439,6 +439,18 @@ function mergedBeats(
   const toBeat = 1 - inBeat;
   const take = Math.min(want, toBeat);
   /*
+   * Silence inside a triplet figure is written in triplet-QUAVER rests,
+   * one per third, never merged to a triplet-crotchet rest: that glyph
+   * is a crotchet rest whose value depends on noticing the bracket, and
+   * the player read one as a full beat the day it was emitted
+   * (2026-09-01) — "mathematically it doesn't work" is exactly how it
+   * misreads. A fully silent triplet beat is no figure at all and keeps
+   * its plain crotchet rest.
+   */
+  if (rest && grid[Math.floor(at + 1e-9)]?.division === 3 && take < 1 - 1e-9) {
+    return Math.min(take, 1 / 3);
+  }
+  /*
    * A dotted rest is not written in simple time: a note may dot off the
    * beat (the march's own s–e. figure), but a rest shows the subdivision
    * it silences — so three sixteenths of silence split at the half-beat,

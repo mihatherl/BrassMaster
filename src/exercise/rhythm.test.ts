@@ -230,8 +230,14 @@ describe('the grid, engraved', () => {
   it('writes rests per beat, largest first, never tied', () => {
     expect(engrave('x--- ..x- .... ....')).toEqual(['0q re 0e rh']);
     expect(engrave('..x- ..x- ..x- ..x-')).toEqual(['re 0e re 0e re 0e re 0e']);
-    // Triplet rests wear the triplet's own values.
+    // Triplet rests wear the triplet QUAVER, one per third — never the
+    // triplet-crotchet rest, a glyph whose value depends on noticing the
+    // bracket (misread as a full beat the day it was emitted).
     expect(engrave('.x. x-- x--- x---')).toEqual(['rt 0t rt 0q 0q 0q']);
+    expect(engrave('x.. x--- x--- x---')).toEqual(['0t rt rt 0q 0q 0q']);
+    expect(engrave('..x x--- x--- x---')).toEqual(['rt rt 0t 0q 0q 0q']);
+    // A fully silent triplet beat is no figure: a plain crotchet rest.
+    expect(engrave('x--- ... x--- x---')).toEqual(['0q rq 0q 0q']);
     // A rest never dots: three sixteenths of silence split at the
     // half-beat from either side, where a NOTE keeps the march's own
     // off-beat dotted quaver.
