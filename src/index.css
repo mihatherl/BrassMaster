@@ -2701,10 +2701,17 @@ input[type='checkbox'] {
   background: none; color: inherit; padding: 0.1rem 0; font-size: 0.6rem; font-weight: 600;
   opacity: 0.85; cursor: pointer; }
 .rhythm-beat__toggle:hover { background: #8882; opacity: 1; }
-.rhythm-cell__count { pointer-events: none; font-size: 0.6rem; font-weight: 700;
+.rhythm-cell__count { pointer-events: none; font-size: 0.85rem; font-weight: 700;
   color: inherit; opacity: 0.9; }
 .rhythm-grid[data-bar] { position: relative; }
-.rhythm-cell { aspect-ratio: 1 / 1.4; min-width: 0; border: 1px solid var(--line, #8886);
+/*
+ * A FIXED height, not an aspect ratio: ratio-sized cells made a triplet
+ * beat's wider cells taller too, so flipping one beat's division grew the
+ * whole row and stretched its neighbours' toggle buttons — the "funny"
+ * jump the player saw (2026-09-01). Height belongs to the row; only width
+ * follows the division.
+ */
+.rhythm-cell { height: 2.6rem; min-width: 0; border: 1px solid var(--line, #8886);
   border-left-width: 0; background: none; padding: 0; touch-action: none;
   display: flex; align-items: center; justify-content: center; color: inherit; }
 .rhythm-cell.is-beat { border-left-width: 2px; }
