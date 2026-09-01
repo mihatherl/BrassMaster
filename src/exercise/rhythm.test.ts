@@ -4,6 +4,7 @@ import {
   barsFromGrid,
   countableSyllable,
   previewExerciseFromBars,
+  syllablesForBars,
   beatCountLabels,
   CUSTOM_RHYTHMS_KEY,
   deleteCustomRhythm,
@@ -305,6 +306,30 @@ describe('the grid, engraved', () => {
     const exercise = previewExerciseFromBars(['0T 0t 0t 0t 0t 0q 0q'], [4, 4], instrument, 'treble');
     const groups = exercise.notes.map((note) => note.tupletGroup);
     expect(groups).toEqual([0, 0, 1, 1, 1, -1, -1]);
+  });
+
+  it('counts every beat, at each beat’s own level — the player’s spec', () => {
+    /*
+     * His exact case (2026-09-01): only the "e" of beat two painted. The
+     * first beat's rest carries "1"; beat two breaks into 2 e & a with
+     * the e bright; the two-beat rest goes "3 4" — the count never skips
+     * a beat, and dimmed means it continues, through silence or sustain.
+     */
+    const entries = syllablesForBars(['rq rs 0s re rh'], [4, 4]);
+    expect(entries.map((entry) => `${entry.text}${entry.rest ? '·' : ''}`)).toEqual([
+      '1·', '2·', 'e', '&·', 'a·', '3·', '4·',
+    ]);
+    // A held note's tail counts on dimmed, exactly as a rest does.
+    expect(
+      syllablesForBars(['0w'], [4, 4]).map((entry) => `${entry.text}${entry.rest ? '·' : ''}`),
+    ).toEqual(['1', '2·', '3·', '4·']);
+    // The crotchet triplet floats against plain dimmed numbers: its
+    // off-beat members join neither the level nor the marks.
+    expect(
+      syllablesForBars(['0T 0T 0T 0q 0q'], [4, 4]).map(
+        (entry) => `${entry.text}${entry.rest ? '·' : ''}`,
+      ),
+    ).toEqual(['1', '2·', '3', '4']);
   });
 
   it('silences the count on a crotchet triplet’s off-beat members', () => {

@@ -79,12 +79,19 @@ describe('the rhythm exercise', () => {
   it('prints the count on its own channel, in the printed forms', () => {
     const exercise = generateExercise(options({ rhythmPatternId: 'dotted-pair', cycles: 1 }));
     const pattern = rhythmPatternById('dotted-pair');
-    const spoken = syllablesFor(patternEvents(pattern)[0]).filter((s) => s !== null);
-    // Three statements of the one-bar pattern, each fully annotated — and
-    // "and" prints as "&", the 1-e-&-a convention, never the spoken word.
-    expect(exercise.syllables).toHaveLength(spoken.length * 3);
-    expect(exercise.syllables!.slice(0, spoken.length).map((entry) => entry.text)).toEqual(
-      spoken.map((syllable) => (syllable === 'and' ? '&' : syllable)),
+    const spokenWords = syllablesFor(patternEvents(pattern)[0]).filter((s) => s !== null);
+    // Three statements, each counted PER POSITION at its beats' own level:
+    // the dotted pair reads "1 · 2 & · 3 · 4 &" — bright where an attack
+    // speaks, dimmed where the count continues — and "and" prints as "&".
+    const first = exercise.syllables!.filter((entry) => entry.atBeat < 4);
+    expect(first.map((entry) => `${entry.text}${entry.rest ? '·' : ''}`)).toEqual([
+      '1', '2·', '&', '3', '4·', '&',
+    ]);
+    expect(exercise.syllables).toHaveLength(first.length * 3);
+    // The voice's share is the unmarked half, and it is the old spoken list.
+    const spoken = exercise.syllables!.filter((entry) => !entry.rest).slice(0, spokenWords.length);
+    expect(spoken.map((entry) => entry.text)).toEqual(
+      spokenWords.map((syllable) => (syllable === 'and' ? '&' : syllable)),
     );
     // Labels stay what they are elsewhere: section text, none here.
     expect(exercise.labels).toHaveLength(0);

@@ -538,6 +538,83 @@ export function countableSyllable(barBeat: number, beats: number): Syllable | nu
 }
 
 /**
+ * The printed count for a pattern, one entry per counting POSITION — the
+ * player's correction of 2026-09-01, replacing a mark-per-engraved-symbol
+ * rule that under-counted: *"the first beat rest should have 1 against
+ * it, the second broken into 2 e & a with the e in bold… the two-beat
+ * rest should go 3 4."*
+ *
+ * The rules, each his:
+ * - **every beat gets its number** — the count never skips a beat, so a
+ *   two-beat rest is "3 4" and a held semibreve counts on dimmed under
+ *   its own tail;
+ * - **within a beat, the level is the beat's own finest onset** — a
+ *   semiquaver anywhere in the beat means the whole beat counts
+ *   "n e & a", quavers alone mean "n &", nothing means the number;
+ * - **bright means an attack speaks here; dimmed means the count
+ *   continues** — through silence and through sustain alike. The voice,
+ *   when its clips exist, reads only the bright (unmarked) entries: a
+ *   rest is still not spoken.
+ * - a crotchet triplet's off-beat members stay out of both the level and
+ *   the marks (`countableSyllable`), so the figure floats against plain
+ *   dimmed beat numbers — which is how it is actually counted.
+ */
+export function syllablesForBars(
+  bars: readonly string[],
+  metrePair: readonly [number, number],
+): Array<LabelEvent & { rest?: true }> {
+  const barBeats = metreFor(metrePair[0], metrePair[1]).barBeats;
+  interface Onset { at: number; spoken: boolean }
+  const onsets: Onset[] = [];
+  let at = 0;
+  let tiedInto = false;
+  for (const bar of bars) {
+    let barBeat = 0;
+    for (const event of parseCell(bar)) {
+      if (event.rest) {
+        onsets.push({ at: at + barBeat, spoken: false });
+        tiedInto = false;
+      } else {
+        if (!tiedInto && countableSyllable(barBeat, event.beats) !== null) {
+          onsets.push({ at: at + barBeat, spoken: true });
+        }
+        tiedInto = event.tied === true;
+      }
+      barBeat += event.beats;
+    }
+    at += barBeats;
+  }
+
+  const totalBeats = bars.length * barBeats;
+  const entries: Array<LabelEvent & { rest?: true }> = [];
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+  for (let beat = 0; beat < totalBeats; beat++) {
+    const inBeat = onsets
+      .filter((onset) => onset.at >= beat - 1e-6 && onset.at < beat + 1 - 1e-6)
+      .map((onset) => ({ ...onset, position: onset.at - beat }));
+    const thirds = inBeat.some((onset) => near(onset.position * 3, Math.round(onset.position * 3)) && !near(onset.position * 4, Math.round(onset.position * 4)));
+    const positions = thirds
+      ? [0, 1 / 3, 2 / 3]
+      : inBeat.some((onset) => near(onset.position % 0.5, 0.25))
+        ? [0, 0.25, 0.5, 0.75]
+        : inBeat.some((onset) => near(onset.position, 0.5))
+          ? [0, 0.5]
+          : [0];
+    for (const position of positions) {
+      const syllable = syllableFor(beat + position);
+      if (!syllable) continue;
+      const spoken = inBeat.some((onset) => near(onset.position, position) && onset.spoken);
+      entries.push({
+        atBeat: beat + position,
+        text: printedSyllable(syllable),
+        ...(spoken ? {} : { rest: true as const }),
+      });
+    }
+  }
+  return entries;
+}
+
+/**
  * The grid's bars as a small engraved exercise — the stave the tool shows
  * in place of yesterday's chips (the player, 2026-09-01: *"just plonk all
  * the notes onto the stave as a C"*). One written pitch per clef, chosen
@@ -556,7 +633,6 @@ export function previewExerciseFromBars(
   const pitch = clef === 'treble' ? 72 : 48;
   const slots: Slot[] = [];
   const pitches: number[] = [];
-  const syllables: Array<LabelEvent & { rest?: true }> = [];
   let at = 0;
   let tiedInto = false;
   for (const bar of bars) {
@@ -567,18 +643,9 @@ export function previewExerciseFromBars(
       if (event.rest) {
         slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
         tiedInto = false;
-        // The count carries on through the silence, marked as silence.
-        const syllable = countableSyllable(barBeat, event.beats);
-        if (syllable) {
-          syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable), rest: true });
-        }
       } else {
         slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious: tiedInto });
-        if (!tiedInto) {
-          pitches.push(pitch);
-          const syllable = countableSyllable(barBeat, event.beats);
-          if (syllable) syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable) });
-        }
+        if (!tiedInto) pitches.push(pitch);
         tiedInto = event.tied === true;
       }
       barBeat += event.beats;
@@ -597,7 +664,7 @@ export function previewExerciseFromBars(
     labels: [],
     tempo: [],
   });
-  exercise.syllables = syllables;
+  exercise.syllables = syllablesForBars(bars, metrePair);
   return exercise;
 }
 

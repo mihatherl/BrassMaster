@@ -228,13 +228,20 @@ the cells, so the button can afford to be a number: the cells say what
 the division means. The flip still resets its beat's cells — states
 cannot map honestly across divisions.
 
-**The printed count runs through the rests, dimmed** (the player,
-2026-09-01) — you keep counting through a rest when you play, so the
-page counts on where the mouth rests, one mark per engraved rest symbol
-in the horizon grey. The VOICE is untouched: a rest is still not spoken,
-and the clip scheduler will read only the unmarked syllable entries.
-Off-beats are the proving case — "1 & 2 &" with the numbers dimmed is
-exactly what the off-beat quavers are read against.
+**The printed count is complete: every beat, at each beat's own level**
+(the player, 2026-09-01, correcting the first cut the same day — a mark
+per engraved symbol under-counted, ending a 4/4 bar's count at "3"). His
+spec, now the rule in `syllablesForBars`: every beat gets its number, so
+a two-beat rest reads "3 4" and a semibreve counts on under its own
+tail; within a beat the level is the beat's finest onset — one
+semiquaver anywhere makes the whole beat read "n e & a"; **bright means
+an attack speaks here, dimmed means the count continues**, through
+silence and sustain alike. The VOICE is untouched: it reads only the
+bright entries, and a rest is still not spoken. The crotchet triplet
+floats against plain dimmed numbers, its off-beat members joining
+neither the level nor the marks — which is how the figure is actually
+counted. One emission serves the preview and the play screen, so the
+tool and the run cannot disagree about the count.
 
 **A bracket covers the figure, rests included** (the player, 2026-09-01:
 one painted cell in a triplet beat *"probably still needs the bracket

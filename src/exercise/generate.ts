@@ -42,7 +42,7 @@ import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
 import { planTempo } from './tempo-plan';
 import type { Exercise, ExerciseKind, LabelEvent } from './types';
-import { countableSyllable, patternEvents, printedSyllable, rhythmPatternById, type RhythmPattern } from './rhythm';
+import { patternEvents, rhythmPatternById, syllablesForBars, type RhythmPattern } from './rhythm';
 import type { CellEvent } from './cells';
 
 /**
@@ -448,6 +448,11 @@ function rhythmExercise(options: GenerateOptions): Exercise {
     for (let statement = 0; statement < statements; statement++) {
       const demo = statement === 0;
       if (demo) demoSpans.push([at, at + patternBeats]);
+      /* The printed count, per position at each beat's own level — the one
+         emission the preview also uses, offset to this statement. */
+      for (const entry of syllablesForBars(pattern.bars, pattern.metre)) {
+        syllables.push({ ...entry, atBeat: at + entry.atBeat });
+      }
       /* The alternation restarts each statement, so every play answers the
          demonstration it just heard, note for note. */
       side = 0;
@@ -458,19 +463,11 @@ function rhythmExercise(options: GenerateOptions): Exercise {
           if (!duration) throw new Error(`unwritable duration in ${pattern.id}`);
           if (event.rest) {
             slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
-            const syllable = countableSyllable(barBeat, event.beats);
-            if (syllable) {
-              syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable), rest: true });
-            }
           } else {
             const tiedFromPrevious = continuation.has(event);
             slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious });
             if (!tiedFromPrevious) {
               pitches.push(pair[side]);
-              const syllable = countableSyllable(barBeat, event.beats);
-              if (syllable) {
-                syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable) });
-              }
               side = 1 - side;
             }
           }
