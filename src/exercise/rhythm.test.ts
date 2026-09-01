@@ -1,14 +1,15 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import {
-  barsFromTokens,
+  barsFromGrid,
   CUSTOM_RHYTHMS_KEY,
   deleteCustomRhythm,
+  gridCount,
+  gridFromBars,
   loadCustomRhythms,
-  parsePatternForCount,
   resolveRhythmPattern,
   saveCustomRhythm,
-  tokensFromBars,
+  type GridCell,
   type RhythmPattern,
 } from './rhythm';
 import {
@@ -119,61 +120,105 @@ describe('the pattern library', () => {
   });
 });
 
-describe('the annotation tool’s validation', () => {
+describe('the grid, engraved', () => {
   /*
-   * `barsFromTokens` is where the tool's rules live; the component only
-   * shows its verdict. Each rule is the difference between a rhythm that
-   * plays and one that drifts against the metronome — mutation-tested,
-   * because a validation that stops refusing fails silently.
+   * The heart of the annotation tool: what the player paints against what
+   * the page prints. The governing ruling (2026-09-01) is SHOW THE BEAT,
+   * WITH TIES — splits at every beat boundary, mergers only where the
+   * table in `mergedLength` names them — so each case here is one row of
+   * that ruling made concrete. `x` attacks, `-` holds, `.` rests.
    */
-  const q = { code: 'q' } as const;
-  const e = { code: 'e' } as const;
+  const grid = (drawn: string): GridCell[] =>
+    [...drawn.replace(/\s/g, '')].map((c) => (c === 'x' ? 'attack' : c === '-' ? 'hold' : 'rest'));
+  const engrave = (drawn: string, metre: [number, number] = [4, 4]) => {
+    const verdict = barsFromGrid(grid(drawn), metre);
+    if ('error' in verdict) throw new Error(verdict.error);
+    return verdict.bars;
+  };
 
-  it('accepts whole bars and writes the library’s own token strings', () => {
-    const verdict = barsFromTokens([q, e, e, q, { code: 'q', rest: true }], [4, 4]);
-    expect(verdict).toEqual({ bars: ['0q 0e 0e 0q rq'] });
-    // Two bars are two strings — the shape `patternEvents` reads back.
-    const two = barsFromTokens([q, q, q, q, q, q, q, q], [4, 4]);
-    expect('bars' in two && two.bars).toHaveLength(2);
+  it('writes the plain figures as themselves', () => {
+    expect(engrave('x---x---x---x---')).toEqual(['0q 0q 0q 0q']);
+    expect(engrave('x---------------')).toEqual(['0w']);
+    expect(engrave('x-------x-------')).toEqual(['0h 0h']);
+    expect(engrave('x-----x-x-----x-')).toEqual(['0q. 0e 0q. 0e']);
+    expect(engrave('x-x-x-x-x-x-x-x-')).toEqual(['0e 0e 0e 0e 0e 0e 0e 0e']);
+    expect(engrave('x--- x--- x---', [3, 4])).toEqual(['0q 0q 0q']);
+    expect(engrave('x--- ---- ----', [3, 4])).toEqual(['0h.']);
   });
 
-  it('refuses a partial bar, an empty rhythm and an all-rest one, by name', () => {
-    expect(barsFromTokens([q, q, q], [4, 4])).toHaveProperty('error');
-    expect(barsFromTokens([], [4, 4])).toHaveProperty('error');
-    const silent = barsFromTokens(
-      [{ code: 'h', rest: true }, { code: 'h', rest: true }],
-      [4, 4],
-    );
-    expect('error' in silent && silent.error).toContain('nothing to play');
+  it('ties across the beat rather than writing the syncopation shorthand', () => {
+    // A crotchet-length note from the "&" of one: two tied quavers, never
+    // the off-beat crotchet — the strict half of the ruling.
+    expect(engrave('x-x---x-x---x---')).toEqual(['0e 0e~ 0e 0e 0q 0q']);
   });
 
-  it('refuses an event that crosses the bar line', () => {
-    // Three crotchets then a minim: the minim starts on beat 4 of a 4/4
-    // bar and ends inside the next — unwritable without a tie.
-    const verdict = barsFromTokens([q, q, q, { code: 'h' }], [4, 4]);
-    expect('error' in verdict && verdict.error).toContain('bar line');
-  });
-
-  it('refuses the dotted semiquaver the count cannot name', () => {
-    const verdict = barsFromTokens([{ code: 's', dotted: true }], [4, 4]);
-    expect(verdict).toHaveProperty('error');
-  });
-
-  it('round-trips a stored pattern back into tokens, and refuses grammar it cannot edit', () => {
-    const tokens = tokensFromBars(['0q. 0e 0h']);
-    expect(tokens).toEqual([
-      { code: 'q', dotted: true },
-      { code: 'e' },
-      { code: 'h' },
+  it('ties across the bar line, which the chip editor never could', () => {
+    expect(engrave('x---x---x---x--- --x-x---x---x---')).toEqual([
+      '0q 0q 0q 0q~',
+      '0e 0e 0q 0q 0q',
     ]);
-    // A tie is real grammar the editor does not speak yet — null, never a lie.
-    expect(tokensFromBars(['0q 0e 0e~ 0e 0e 0q'])).toBeNull();
   });
 
-  it('derives the printed count live, silence over rests', () => {
-    expect(parsePatternForCount([q, { code: 'e', rest: true }, e, q, q])).toEqual([
-      '1', null, '&', '3', '4',
+  it('permits the named mergers and no others', () => {
+    // The half-bar minim from either half of 4/4…
+    expect(engrave('x-------x---x---')).toEqual(['0h 0q 0q']);
+    expect(engrave('x---x---x-------')).toEqual(['0q 0q 0h']);
+    // …but never from beat two, which would hide the middle of the bar.
+    expect(engrave('x---x-------x---')).toEqual(['0q 0q~ 0q 0q']);
+    // The minim reads clean from either lower beat of 3/4.
+    expect(engrave('x-------x---', [3, 4])).toEqual(['0h 0q']);
+    expect(engrave('x---x-------', [3, 4])).toEqual(['0q 0h']);
+    // The dotted crotchet may not carry across 4/4's half-bar.
+    expect(engrave('x---x-----x-x---')).toEqual(['0q 0q~ 0e 0e 0q']);
+  });
+
+  it('writes rests per beat, largest first, never tied', () => {
+    expect(engrave('x---..x-........')).toEqual(['0q re 0e rh']);
+    expect(engrave('..x-..x-..x-..x-')).toEqual(['re 0e re 0e re 0e re 0e']);
+    // A whole silent bar mid-pattern is the bar-rest convention, per metre.
+    expect(engrave('x--------------- ---------------- x---------------')).toEqual([
+      '0w~', '0w', '0w',
     ]);
+    expect(engrave('x---x---x---x--- ................ x---x---x---x---')).toEqual([
+      '0q 0q 0q 0q', 'rw', '0q 0q 0q 0q',
+    ]);
+  });
+
+  it('refuses an empty grid and one that opens mid-note, by name', () => {
+    expect(barsFromGrid(grid('................'), [4, 4])).toHaveProperty('error');
+    const midNote = barsFromGrid(grid('----x-----------'), [4, 4]);
+    expect('error' in midNote && midNote.error).toContain('start with an attack');
+  });
+
+  it('round-trips: what the grid engraves reads back as the same grid', () => {
+    for (const drawn of [
+      'x---x---x---x---',
+      'x-----x-x-----x-',
+      'x-x---x-x---x---',
+      '..x-..x-..x-..x-',
+      'x---x---x---x--- --x-x---x---x---',
+    ]) {
+      const bars = engrave(drawn);
+      expect(gridFromBars(bars), drawn).toEqual(grid(drawn));
+    }
+  });
+
+  it('loads every straight packaged pattern and declines the triplet grammar', () => {
+    for (const pattern of RHYTHM_PATTERNS) {
+      const cells = gridFromBars(pattern.bars);
+      // Everything in stages 1–4 is straight; a triplet stage would be null.
+      expect(cells, pattern.id).not.toBeNull();
+      const back = barsFromGrid(cells!, pattern.metre);
+      expect('bars' in back, pattern.id).toBe(true);
+    }
+    expect(gridFromBars(['0t 1t 2t 0q 0q 0q'])).toBeNull();
+  });
+
+  it('prints the count over the columns from the one mapping', () => {
+    expect(gridCount([4, 4])).toEqual([
+      '1', 'e', '&', 'a', '2', 'e', '&', 'a', '3', 'e', '&', 'a', '4', 'e', '&', 'a',
+    ]);
+    expect(gridCount([3, 4]).slice(0, 4)).toEqual(['1', 'e', '&', 'a']);
   });
 });
 

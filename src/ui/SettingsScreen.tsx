@@ -649,6 +649,8 @@ export function SettingsScreen({
       {rhythmEditing !== 'closed' && (
         <RhythmPatternEditor
           editing={rhythmEditing}
+          instrumentId={settings.instrumentId}
+          clef={settings.clef}
           onSaved={(id) => {
             update('rhythmPatternId', id);
             setRhythmShelf((n) => n + 1);

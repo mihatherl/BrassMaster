@@ -21,6 +21,11 @@
  */
 
 import { parseCell, type CellEvent } from './cells';
+import { assembleExercise, type Slot } from './assemble';
+import { durationFromBeats } from '../domain/rhythm';
+import { metreFor } from '../domain/metre';
+import type { Clef, Instrument } from '../domain/instruments';
+import type { Exercise, LabelEvent } from './types';
 
 /* ------------------------------------------------------------------ */
 /* The counting system                                                 */
@@ -176,112 +181,261 @@ export function rhythmPatternById(id: string): RhythmPattern {
 /* ------------------------------------------------------------------ */
 
 /**
- * One event as the annotation tool edits it: a length, a dot, note or
- * rest. No stave and no pitch — the player's own framing of the tool
- * (2026-08-31): "there is no stave, just a note length indicator and a
- * rest length indicator."
+ * The annotation tool's grid — the player's redesign, 2026-08-31/09-01:
  *
- * Deliberately narrower than `parseCell`'s grammar: no triplets (they
- * come in threes and the editor cannot yet keep that honest) and no
- * dotted semiquaver (its off-positions fall between the counting
- * system's syllables, and a note the voice cannot count does not belong
- * in a counting tool). Every position this grammar can produce is a
- * multiple of a semiquaver, which the 1-e-&-a mapping names in full.
+ * > Break each bar up into some number of divisions per beat… say 16
+ * > divisions in a 4/4 bar. The user colors those divisions… either play
+ * > or rest. [With] a "rearticulation" marker. From what the user is
+ * > drawing, some notes appear to identify how that would look, using
+ * > combinations of dotted notes, tied notes, rests of various durations.
+ *
+ * A cell is one of three states — the rearticulation marker turned out to
+ * be the whole data model: "play" paints an attack followed by holds, and
+ * the marker is just "this cell attacks rather than holds". Two crotchets
+ * against a minim is `x-x-` against `x---`. The step sequencer's model,
+ * because fifty years of drum machines prove the musically untrained can
+ * program rhythms with it — and because the grid makes yesterday's
+ * validation UNREPRESENTABLE rather than checked: a grid of whole bars
+ * cannot hold a partial bar or cross past its own edge.
+ *
+ * Four cells per beat, semiquaver resolution. Triplets need a per-beat
+ * division and are deliberately absent from the first grid; the packaged
+ * triplet patterns simply decline to open in it (`gridFromBars` → null)
+ * rather than being mangled.
  */
-export interface RhythmToken {
-  code: 'w' | 'h' | 'q' | 'e' | 's';
-  dotted?: boolean;
-  rest?: boolean;
-}
+export type GridCell = 'attack' | 'hold' | 'rest';
 
-const TOKEN_BEATS: Record<RhythmToken['code'], number> = { w: 4, h: 2, q: 1, e: 0.5, s: 0.25 };
+export const CELLS_PER_BEAT = 4;
 
-export function tokenBeats(token: RhythmToken): number {
-  return TOKEN_BEATS[token.code] * (token.dotted ? 1.5 : 1);
+export function gridBarCells(metre: readonly [number, number]): number {
+  return Math.round((4 / metre[1]) * metre[0] * CELLS_PER_BEAT);
 }
 
 /**
- * Turns the editor's token list into the library's bar strings, or says
- * exactly why it cannot.
+ * The grid, engraved — the derivation the player asked to SEE, and the
+ * ruling that governs it (2026-09-01): **show the beat, with ties.** A
+ * note is split at every beat boundary and tied back together; the only
+ * mergers are the ones engraving practice treats as transparent, each
+ * named below. A syncopation shorthand (the off-beat crotchet) is
+ * deliberately NOT written: this app teaches reading, and what learners
+ * read here should show them where the beats fall. Shorthands can join a
+ * curated list later, one at a time, by the player's eye on the preview.
  *
- * The rules are the ones that keep a pattern playable and speakable:
- * whole bars only ("the rhythm goes for at least one, or otherwise a
- * whole number, of bars" — the player's spec), no event across a bar
- * line (unwritable without a tie, which the tool does not yet draw), a
- * dotted semiquaver nowhere (unspeakable), and something in it at all.
+ * Rests never tie; a rest run is written per beat, largest value first,
+ * with the whole-bar rest as the one merger (the semibreve-rest
+ * convention, spelled per metre because the bar's length is the point).
  */
-export function barsFromTokens(
-  tokens: readonly RhythmToken[],
+export function barsFromGrid(
+  cells: readonly GridCell[],
   metre: readonly [number, number],
 ): { bars: string[] } | { error: string } {
-  if (tokens.length === 0) return { error: 'Nothing here yet — add a note.' };
-  const barBeats = (4 / metre[1]) * metre[0];
-  const bars: string[][] = [];
+  const perBar = gridBarCells(metre);
+  if (cells.length === 0 || cells.length % perBar !== 0) {
+    return { error: 'The grid is not whole bars — this is a bug, not an input.' };
+  }
+  if (!cells.includes('attack')) return { error: 'Nothing to play yet — paint a note.' };
+  if (cells[0] === 'hold') return { error: 'The rhythm opens mid-note — start with an attack.' };
+
+  interface Piece { cell: number; len: number; rest: boolean; tieFrom: boolean }
+  const pieces: Piece[] = [];
   let at = 0;
-  for (const token of tokens) {
-    if (token.code === 's' && token.dotted) {
-      return { error: 'A dotted semiquaver lands between the count’s syllables.' };
+  while (at < cells.length) {
+    const rest = cells[at] === 'rest';
+    let end = at + 1;
+    while (
+      end < cells.length &&
+      (rest ? cells[end] === 'rest' : cells[end] === 'hold') &&
+      // A run never leaves its own bar here; bar-crossing shows as a tie.
+      end % perBar !== 0
+    ) {
+      end++;
     }
-    const beats = tokenBeats(token);
-    const bar = Math.floor(at / barBeats + 1e-9);
-    const end = at + beats;
-    if (end > (bar + 1) * barBeats + 1e-9) {
-      return {
-        error: `Bar ${bar + 1} cannot hold that: it crosses the bar line.`,
-      };
-    }
-    while (bars.length <= bar) bars.push([]);
-    bars[bar].push(`${token.rest ? 'r' : '0'}${token.code}${token.dotted ? '.' : ''}`);
+    // A note run may continue into the next bar as holds; take them too,
+    // marking the border so the engraver ties across it.
+    while (!rest && end < cells.length && cells[end] === 'hold') end++;
+    pieces.push(...engravePieces(at, end - at, rest, metre));
     at = end;
   }
-  const whole = Math.round(at / barBeats);
-  if (Math.abs(at - whole * barBeats) > 1e-9 || whole === 0) {
-    const filled = at / barBeats;
-    return {
-      error: `Fills ${filled % 1 === 0 ? filled : filled.toFixed(2)} bars — a rhythm is a whole number of them.`,
-    };
-  }
-  if (bars.every((bar) => bar.every((token) => token.startsWith('r')))) {
-    return { error: 'All rests — there is nothing to play.' };
+
+  const bars: string[][] = Array.from({ length: cells.length / perBar }, () => []);
+  for (const [index, piece] of pieces.entries()) {
+    const token = `${piece.rest ? 'r' : '0'}${codeFor(piece.len)}${
+      !piece.rest && index + 1 < pieces.length && pieces[index + 1].tieFrom ? '~' : ''
+    }`;
+    bars[Math.floor(piece.cell / perBar)].push(token);
   }
   return { bars: bars.map((bar) => bar.join(' ')) };
 }
 
-/** The editor's reading of a stored bar, for editing a pattern again. */
-export function tokensFromBars(bars: readonly string[]): RhythmToken[] | null {
-  const tokens: RhythmToken[] = [];
-  for (const bar of bars) {
-    for (const event of parseCell(bar)) {
-      const code = (Object.entries(TOKEN_BEATS).find(
-        ([, beats]) => Math.abs(event.beats - beats) < 1e-9,
-      ) ?? Object.entries(TOKEN_BEATS).find(
-        ([, beats]) => Math.abs(event.beats - beats * 1.5) < 1e-9,
-      ))?.[0] as RhythmToken['code'] | undefined;
-      // A packaged pattern may use grammar the editor does not speak yet —
-      // triplets, ties. Null says "copy it by ear, not by button".
-      if (!code || event.tied) return null;
-      const dotted = Math.abs(event.beats - TOKEN_BEATS[code] * 1.5) < 1e-9;
-      tokens.push({ code, ...(dotted ? { dotted: true } : {}), ...(event.rest ? { rest: true } : {}) });
-    }
+/** A run in cells → engraved pieces, split at beats, merged where named. */
+function engravePieces(
+  cell: number,
+  len: number,
+  rest: boolean,
+  metre: readonly [number, number],
+): Array<{ cell: number; len: number; rest: boolean; tieFrom: boolean }> {
+  const perBar = gridBarCells(metre);
+  const pieces: Array<{ cell: number; len: number; rest: boolean; tieFrom: boolean }> = [];
+  let at = cell;
+  let left = len;
+  let first = true;
+  while (left > 0) {
+    const inBar = at % perBar;
+    const take = mergedLength(inBar, Math.min(left, perBar - inBar), rest, metre);
+    pieces.push({ cell: at, len: take, rest, tieFrom: !first && !rest });
+    at += take;
+    left -= take;
+    first = false;
   }
-  return tokens;
+  return pieces;
 }
 
 /**
- * The printed count for the editor's token list, one entry per token —
- * the same mapping the play screen speaks from, read live as the author
- * builds, so the tool can never show a rhythm whose count differs from
- * what the run will print. Null over rests and over any position the
- * system does not name (which the editor's grammar cannot produce, but
- * the function does not assume that).
+ * The longest single value that may be written from this in-bar position —
+ * the whole of the show-the-beat ruling, as a table of permissions:
+ *
+ * - within a beat, anything (1–4 cells is s, e, e., q);
+ * - the whole bar (semibreve in 4/4, dotted minim in 3/4, minim in 2/4);
+ * - the half bar of 4/4, from either half's start — never from beat 2,
+ *   which would hide the middle of the bar;
+ * - the minim in 3/4 from beat 1 or 2, which convention reads clean;
+ * - the dotted crotchet from a beat that does not carry it across 4/4's
+ *   half-bar — stage 3's own figure, printed as itself.
+ *
+ * Everything longer or elsewhere waits for the next boundary and ties.
  */
-export function parsePatternForCount(tokens: readonly RhythmToken[]): Array<string | null> {
-  let beat = 0;
-  return tokens.map((token) => {
-    const syllable = token.rest ? null : syllableFor(beat);
-    beat += tokenBeats(token);
+function mergedLength(
+  inBar: number,
+  want: number,
+  rest: boolean,
+  metre: readonly [number, number],
+): number {
+  const perBar = gridBarCells(metre);
+  const beat = CELLS_PER_BEAT;
+  const onBeat = inBar % beat === 0;
+  if (inBar === 0 && want >= perBar) return perBar;
+  const is44 = perBar === 16;
+  const is34 = perBar === 12;
+  /* The half-bar of 4/4 merges for notes AND rests — the minim rest is
+     how a half-bar of silence is actually printed — where 3/4 keeps its
+     rests in crotchets, as convention does: a minim rest means "half of a
+     bar that divides in two", which 3/4 is not. */
+  if (is44 && (inBar === 0 || inBar === 8) && want >= 8) return 8;
+  if (!rest) {
+    if (is34 && (inBar === 0 || inBar === 4) && want >= 8) return 8;
+    if (onBeat && want >= 6 && (!is44 || inBar === 0 || inBar === 8)) return 6;
+  }
+  const toBeat = beat - (inBar % beat);
+  return Math.min(want, toBeat);
+}
+
+/** Cells → one written value. The grid can only produce these lengths. */
+function codeFor(len: number): string {
+  const codes: Record<number, string> = {
+    1: 's', 2: 'e', 3: 'e.', 4: 'q', 6: 'q.', 8: 'h', 12: 'h.', 16: 'w',
+  };
+  const code = codes[len];
+  if (!code) throw new Error(`unwritable length ${len} cells`);
+  return code;
+}
+
+/**
+ * A stored pattern back onto the grid, or null where it cannot go — a
+ * triplet or any off-grid position. Null means "this one is played, not
+ * edited", never a mangling. A tie's far end lands as holds: a tie IS the
+ * absence of a rearticulation, which is the grid saying what the notation
+ * says.
+ */
+export function gridFromBars(bars: readonly string[]): GridCell[] | null {
+  const cells: GridCell[] = [];
+  let tiedInto = false;
+  for (const bar of bars) {
+    for (const event of parseCell(bar)) {
+      const span = event.beats * CELLS_PER_BEAT;
+      if (Math.abs(span - Math.round(span)) > 1e-9) return null;
+      const len = Math.round(span);
+      if (event.rest) {
+        for (let i = 0; i < len; i++) cells.push('rest');
+        tiedInto = false;
+      } else {
+        cells.push(tiedInto ? 'hold' : 'attack');
+        for (let i = 1; i < len; i++) cells.push('hold');
+        tiedInto = event.tied === true;
+      }
+    }
+  }
+  return cells;
+}
+
+/**
+ * The count over the grid's columns — one entry per cell, the syllable
+ * where the counting system names that position, blank elsewhere. The
+ * header row of the tool, and the same mapping everything else speaks.
+ */
+export function gridCount(metre: readonly [number, number]): Array<string | null> {
+  return Array.from({ length: gridBarCells(metre) }, (_, cell) => {
+    const syllable = syllableFor(cell / CELLS_PER_BEAT);
     return syllable === null ? null : printedSyllable(syllable);
   });
+}
+
+/**
+ * The grid's bars as a small engraved exercise — the stave the tool shows
+ * in place of yesterday's chips (the player, 2026-09-01: *"just plonk all
+ * the notes onto the stave as a C"*). One written pitch per clef, chosen
+ * to sit mid-stave and inside every instrument's compass so the preview
+ * never greys as unplayable; the count rides along on the same channel
+ * the play screen prints. This is also the bridge the cell designer will
+ * cross: the same stave, with the vertical axis unlocked.
+ */
+export function previewExerciseFromBars(
+  bars: readonly string[],
+  metrePair: readonly [number, number],
+  instrument: Instrument,
+  clef: Clef,
+): Exercise {
+  const metre = metreFor(metrePair[0], metrePair[1]);
+  const pitch = clef === 'treble' ? 72 : 48;
+  const slots: Slot[] = [];
+  const pitches: number[] = [];
+  const syllables: LabelEvent[] = [];
+  let at = 0;
+  let tiedInto = false;
+  for (const bar of bars) {
+    let barBeat = 0;
+    for (const event of parseCell(bar)) {
+      const duration = durationFromBeats(event.beats);
+      if (!duration) throw new Error(`unwritable duration in preview: ${bar}`);
+      if (event.rest) {
+        slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
+        tiedInto = false;
+      } else {
+        slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious: tiedInto });
+        if (!tiedInto) {
+          pitches.push(pitch);
+          const syllable = syllableFor(barBeat);
+          if (syllable) syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable) });
+        }
+        tiedInto = event.tied === true;
+      }
+      barBeat += event.beats;
+    }
+    at += metre.barBeats;
+  }
+  const exercise = assembleExercise(slots, pitches, {
+    instrument,
+    clef,
+    keys: [{ fromBeat: 0, fifths: 0 }],
+    metres: [{ fromBeat: 0, metre }],
+    totalBeats: at,
+    chosenBeats: at,
+    seed: 0,
+    kind: 'rhythm',
+    labels: [],
+    tempo: [],
+  });
+  exercise.syllables = syllables;
+  return exercise;
 }
 
 /**

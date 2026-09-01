@@ -166,7 +166,56 @@ The syllable player is **not a `Voice`** — that interface is pitched
 metronome: a scheduler that reads the exercise and speaks the demonstration
 spans.
 
-## The annotation tool (the player's spec, 2026-08-31 — **built the same day**)
+## The annotation tool — redesigned as a grid, 2026-09-01, and rebuilt
+
+The chip editor below lived one day. The player, having played with it:
+
+> Break each bar up into some number of divisions per beat… say 16
+> divisions in a 4/4 bar. The user colors those divisions… play or rest…
+> [with] a "rearticulation" marker. From what the user is drawing, some
+> notes appear to identify how that would look, using combinations of
+> dotted notes, tied notes, rests of various durations.
+
+The step sequencer's model, and better than the chips for a reason worth
+stating: **the grid makes the chip editor's validation unrepresentable
+rather than checked** — a grid of whole bars cannot hold a partial bar or
+write past its own edge. The rearticulation marker collapsed into the data
+model itself: a cell is attack, hold or rest, and two crotchets against a
+minim is `x-x-` against `x---`.
+
+**The rulings, all the player's (2026-09-01):**
+
+- **Gesture: paint and split.** Drag paints a note (attack plus holds),
+  tap inside one splits it (the rearticulation), tap its start deletes.
+  No marker mode, no modes at all.
+- **Engrave with ties — show the beat.** A note splits at every beat
+  boundary and ties back together; the syncopation shorthand (the
+  off-beat crotchet) is deliberately not written, because this app
+  teaches reading and what learners read should show them the beats.
+  The permitted mergers are a named table (`mergedLength`): the whole
+  bar, 4/4's half-bar (notes AND rests — the minim rest is how printed
+  parts write it, where 3/4 keeps crotchet rests), 3/4's minim from
+  either lower beat, and the dotted crotchet where it does not cross
+  4/4's half-bar. Shorthands may join later, one at a time, by his eye.
+- **The stave replaced the chips outright.** *"Just plonk all the notes
+  onto the stave as a C"* — the derived notation, on one written pitch
+  (C5 treble, C3 bass, inside every compass), with the count above it,
+  IS the viewer. And it is the bridge: the cell designer opens the
+  vertical axis of this same stave, dragging notes to steps — which is
+  `authored-cells-plan.md`'s "rhythm first, then pitches" landing on
+  ground that now exists.
+
+**Ties became authorable** — across beats and across bar lines — which
+stage 4 of the spine needs and the chip grammar never could. Triplets
+still wait: they need a per-beat division (this beat in 4, that beat in
+3 — the counting system already resets per beat, so the grid can too),
+designed into the model's future and deliberately not in the first grid;
+packaged triplet patterns decline to open in it (`gridFromBars` → null)
+rather than being mangled. Storage is unchanged — the grid engraves to
+the same bars-of-tokens the library and generator already read, so every
+custom made in the chip editor loads in the grid.
+
+## The chip editor (the first design, 2026-08-31 — superseded above)
 
 > Build an annotation tool which allows the user to specify a rhythm…
 > prepopulate a few. There is no stave, just a note length indicator and

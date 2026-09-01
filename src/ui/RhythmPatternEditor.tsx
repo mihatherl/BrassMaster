@@ -1,54 +1,44 @@
 /**
- * The rhythm annotation tool — the player's spec, 2026-08-31:
+ * The rhythm annotation tool, second design — the player's, 2026-09-01:
  *
- * > Build an annotation tool which allows the user to specify a rhythm…
- * > prepopulate a few. There is no stave, just a note length indicator
- * > and rest length indicator. The rhythm goes for at least one (or
- * > otherwise a whole number) of bars.
+ * > Break each bar up into some number of divisions per beat… the user
+ * > colors those divisions… play or rest… [with] a "rearticulation"
+ * > marker. From what the user is drawing, some notes appear to identify
+ * > how that would look… The cell designer could work on top of this.
  *
- * A sequence of duration chips, appended by tapping a length, removed by
- * tapping the chip. The derived count (the positional 1-e-&-a mapping)
- * prints live above the note chips — the same `syllablesFor` the play
- * screen uses, so the tool can never promise a count the run will not
- * speak. Validation is `barsFromTokens`, which is also where the rules
- * live; this file only shows its verdict.
+ * A step-sequencer grid over the derived stave. The grid's three states
+ * (attack/hold/rest — the rearticulation marker turned out to be the data
+ * model) are painted by gesture: **drag to paint a note, tap inside it to
+ * split, tap its start to delete** — the player's ruled gesture model, no
+ * modes. The stave beneath is the engraved truth of the drawing, every
+ * note on one written C, ties shown at every beat the ruling splits at —
+ * it replaced the first design's chip row outright, because the notation
+ * IS the viewer, and it is the bridge the cell designer will cross when
+ * the vertical axis unlocks.
  *
- * Paid: reached only through the Rhythm tab, whose whole body is behind
- * `__HAS_RHYTHM__`, and `check:web` trips on the custom store's key.
+ * The first design's validation is mostly gone because the grid makes it
+ * unrepresentable: whole bars by construction, nothing past an edge to
+ * write into. What remains (`barsFromGrid`): something must attack.
  */
 
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { t } from '../i18n';
 import {
-  barsFromTokens,
+  barsFromGrid,
+  CELLS_PER_BEAT,
   deleteCustomRhythm,
+  gridBarCells,
+  gridCount,
+  gridFromBars,
   loadCustomRhythms,
-  parsePatternForCount,
+  previewExerciseFromBars,
   saveCustomRhythm,
-  tokenBeats,
-  tokensFromBars,
+  type GridCell,
   type RhythmPattern,
-  type RhythmToken,
 } from '../exercise/rhythm';
-
-const LENGTHS: ReadonlyArray<{ code: RhythmToken['code']; dotted?: boolean; label: string }> = [
-  { code: 'w', label: '𝅝' },
-  { code: 'h', label: '𝅗𝅥' },
-  { code: 'h', dotted: true, label: '𝅗𝅥·' },
-  { code: 'q', label: '♩' },
-  { code: 'q', dotted: true, label: '♩·' },
-  { code: 'e', label: '♪' },
-  { code: 'e', dotted: true, label: '♪·' },
-  { code: 's', label: '𝅘𝅥𝅯' },
-];
-/* Rests offer no dots: a dotted rest is two chips, and fewer buttons is
-   more tool. The semiquaver rest is absent because its syllable-silence
-   is indistinguishable from "too fast to mean anything" at this stage. */
-const REST_LENGTHS: ReadonlyArray<{ code: RhythmToken['code']; dotted?: boolean; label: string }> = [
-  { code: 'h', label: '𝄼' },
-  { code: 'q', label: '𝄽' },
-  { code: 'e', label: '𝄾' },
-];
+import { instrumentById, type Clef } from '../domain/instruments';
+import { currentTheme, StaveRenderer } from '../render/surface';
+import { Transport } from '../engine/clock';
 
 const METRES: ReadonlyArray<[number, number]> = [
   [2, 4],
@@ -57,25 +47,33 @@ const METRES: ReadonlyArray<[number, number]> = [
 ];
 
 interface RhythmPatternEditorProps {
-  /** The pattern being edited, or null for a fresh one. */
   editing: RhythmPattern | null;
+  instrumentId: string;
+  clef: Clef;
   onSaved: (id: string) => void;
   onClose: () => void;
 }
 
 export function RhythmPatternEditor({
   editing,
+  instrumentId,
+  clef,
   onSaved,
   onClose,
 }: RhythmPatternEditorProps): ReactElement {
   const [name, setName] = useState(editing?.name ?? '');
   const [metre, setMetre] = useState<readonly [number, number]>(editing?.metre ?? [4, 4]);
-  const [tokens, setTokens] = useState<RhythmToken[]>(
-    () => (editing ? tokensFromBars(editing.bars) : null) ?? [],
-  );
+  const [cells, setCells] = useState<GridCell[]>(() => {
+    const loaded = editing ? gridFromBars(editing.bars) : null;
+    return loaded ?? Array<GridCell>(gridBarCells(editing?.metre ?? [4, 4])).fill('rest');
+  });
+  /** While a paint drags, the cell it began at; null between gestures. */
+  const painting = useRef<number | null>(null);
+  const moved = useRef(false);
 
-  const verdict = useMemo(() => barsFromTokens(tokens, metre), [tokens, metre]);
-  const count = useMemo(() => parsePatternForCount(tokens), [tokens]);
+  const perBar = gridBarCells(metre);
+  const count = useMemo(() => gridCount(metre), [metre]);
+  const verdict = useMemo(() => barsFromGrid(cells, metre), [cells, metre]);
 
   const id =
     editing?.id ??
@@ -85,6 +83,48 @@ export function RhythmPatternEditor({
       ? 'You already have a rhythm by this name.'
       : null;
   const readyError = 'error' in verdict ? verdict.error : name.trim() === '' ? 'Name it.' : clash;
+
+  const press = (index: number) => {
+    moved.current = false;
+    if (cells[index] === 'rest') {
+      painting.current = index;
+      setCells(cells.map((cell, i) => (i === index ? 'attack' : cell)));
+    } else if (cells[index] === 'hold') {
+      // Tap inside a note splits it: the rearticulation gesture.
+      setCells(cells.map((cell, i) => (i === index ? 'attack' : cell)));
+    } else {
+      painting.current = index; // may become a delete on release
+    }
+  };
+
+  const enter = (index: number) => {
+    const from = painting.current;
+    if (from === null || index <= from) return;
+    moved.current = true;
+    // Extending absorbs whatever it crosses — the piano-roll's rule.
+    setCells(cells.map((cell, i) => (i > from && i <= index ? 'hold' : i === from ? 'attack' : cell)));
+  };
+
+  const release = (index: number) => {
+    const from = painting.current;
+    painting.current = null;
+    if (from === index && !moved.current && cells[index] === 'attack') {
+      // A tap on an attack deletes the whole note it begins.
+      let end = index + 1;
+      while (end < cells.length && cells[end] === 'hold') end++;
+      setCells(cells.map((cell, i) => (i >= index && i < end ? 'rest' : cell)));
+    }
+  };
+
+  const setBars = (bars: number) => {
+    const want = bars * perBar;
+    setCells(
+      cells.length >= want
+        ? cells.slice(0, want)
+        : [...cells, ...Array<GridCell>(want - cells.length).fill('rest')],
+    );
+  };
+  const barsNow = cells.length / perBar;
 
   return (
     <div className="sheet rhythm-editor" role="dialog" aria-modal="true" aria-label={t('rhythm.editor')}>
@@ -103,7 +143,13 @@ export function RhythmPatternEditor({
                 type="button"
                 className={`segmented__option ${metre[0] === n && metre[1] === d ? 'is-selected' : ''}`}
                 aria-pressed={metre[0] === n && metre[1] === d}
-                onClick={() => setMetre([n, d])}
+                onClick={() => {
+                  if (metre[0] === n && metre[1] === d) return;
+                  /* A different bar length re-cuts every boundary, so the
+                     drawing cannot survive it honestly: start clean. */
+                  setMetre([n, d]);
+                  setCells(Array<GridCell>(gridBarCells([n, d]) * barsNow).fill('rest'));
+                }}
               >
                 {n}/{d}
               </button>
@@ -112,62 +158,67 @@ export function RhythmPatternEditor({
         </div>
 
         <div className="field">
-          <span className="field__label">{t('rhythm.chips')}</span>
-          <div className="rhythm-editor__chips">
-            {tokens.map((token, index) => (
-              <button
-                key={index}
-                type="button"
-                className={`rhythm-chip ${token.rest ? 'is-rest' : ''}`}
-                onClick={() => setTokens(tokens.filter((_, i) => i !== index))}
-              >
-                <span className="rhythm-chip__count">{token.rest ? '' : (count[index] ?? '·')}</span>
-                <span className="rhythm-chip__glyph">
-                  {(token.rest ? REST_LENGTHS : LENGTHS).find(
-                    (l) => l.code === token.code && Boolean(l.dotted) === Boolean(token.dotted),
-                  )?.label ?? token.code}
+          <span className="field__label">{t('rhythm.grid')}</span>
+          {Array.from({ length: barsNow }, (_, bar) => (
+            <div
+              className="rhythm-grid"
+              key={bar}
+              data-bar={bar + 1}
+              style={{ gridTemplateColumns: `repeat(${perBar}, minmax(0, 1fr))` }}
+            >
+              {count.map((syllable, column) => (
+                <span key={`c${column}`} className="rhythm-grid__count">
+                  {syllable ?? ''}
                 </span>
-              </button>
-            ))}
-            {tokens.length === 0 && <span className="muted">{t('rhythm.empty')}</span>}
+              ))}
+              {Array.from({ length: perBar }, (_, column) => {
+                const index = bar * perBar + column;
+                const state = cells[index];
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`rhythm-cell is-${state} ${column % CELLS_PER_BEAT === 0 ? 'is-beat' : ''}`}
+                    aria-label={`Bar ${bar + 1} cell ${column + 1}: ${state}`}
+                    onPointerDown={(e) => {
+                      // Released so the paint's pointerenter reaches siblings.
+                      e.currentTarget.releasePointerCapture(e.pointerId);
+                      press(index);
+                    }}
+                    onPointerEnter={() => enter(index)}
+                    onPointerUp={() => release(index)}
+                  />
+                );
+              })}
+            </div>
+          ))}
+          <div className="row">
+            <button type="button" className="segmented__option" onClick={() => setBars(barsNow + 1)}>
+              {t('rhythm.addBar')}
+            </button>
+            <button
+              type="button"
+              className="segmented__option"
+              disabled={barsNow <= 1}
+              onClick={() => setBars(barsNow - 1)}
+            >
+              {t('rhythm.removeBar')}
+            </button>
           </div>
         </div>
 
-        <div className="field">
-          <span className="field__label">{t('rhythm.addNote')}</span>
-          <div className="row">
-            {LENGTHS.map((length) => (
-              <button
-                key={length.label}
-                type="button"
-                className="rhythm-add"
-                onClick={() =>
-                  setTokens([...tokens, { code: length.code, ...(length.dotted ? { dotted: true } : {}) }])
-                }
-              >
-                {length.label}
-              </button>
-            ))}
-          </div>
-          <span className="field__label">{t('rhythm.addRest')}</span>
-          <div className="row">
-            {REST_LENGTHS.map((length) => (
-              <button
-                key={length.label}
-                type="button"
-                className="rhythm-add"
-                onClick={() => setTokens([...tokens, { code: length.code, rest: true }])}
-              >
-                {length.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <p className={`field__note ${readyError ? '' : 'muted'}`} role="status">
-          {readyError ??
-            `${'bars' in verdict ? verdict.bars.length : 0} bar${'bars' in verdict && verdict.bars.length === 1 ? '' : 's'} of ${metre[0]}/${metre[1]}, ${tokens.reduce((sum, token) => sum + tokenBeats(token), 0)} beats — ready.`}
-        </p>
+        {'bars' in verdict ? (
+          <RhythmStavePreview bars={verdict.bars} metre={metre} instrumentId={instrumentId} clef={clef} />
+        ) : (
+          <p className="field__note" role="status">
+            {verdict.error}
+          </p>
+        )}
+        {readyError && 'bars' in verdict && (
+          <p className="field__note" role="status">
+            {readyError}
+          </p>
+        )}
       </div>
 
       <div className="sheet__actions">
@@ -191,8 +242,7 @@ export function RhythmPatternEditor({
           className="button button--primary"
           disabled={readyError !== null}
           onClick={() => {
-            const bars = (verdict as { bars: string[] }).bars;
-            saveCustomRhythm({ id, name: name.trim(), metre, stage: 1, bars });
+            saveCustomRhythm({ id, name: name.trim(), metre, stage: 1, bars: (verdict as { bars: string[] }).bars });
             onSaved(id);
           }}
         >
@@ -201,4 +251,51 @@ export function RhythmPatternEditor({
       </div>
     </div>
   );
+}
+
+/**
+ * The drawing, engraved — a static stave on one written C, ties and all,
+ * with the count above it. The same suspended-transport trick the course
+ * editor's tune preview proved: `StaveRenderer` wants a Transport for its
+ * clock, so it gets one over a context that never starts.
+ */
+function RhythmStavePreview({
+  bars,
+  metre,
+  instrumentId,
+  clef,
+}: {
+  bars: readonly string[];
+  metre: readonly [number, number];
+  instrumentId: string;
+  clef: Clef;
+}): ReactElement {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 1) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * ratio);
+    canvas.height = Math.round(rect.height * ratio);
+    const context = new AudioContext();
+    void context.suspend();
+    const exercise = previewExerciseFromBars(bars, metre, instrumentById(instrumentId), clef);
+    const renderer = new StaveRenderer({
+      canvas,
+      exercise,
+      transport: new Transport(context, 80),
+      theme: currentTheme(),
+      scrollSpeed: 0,
+      readingMode: 'paged',
+      verdictFor: () => undefined,
+    });
+    renderer.draw();
+    return () => {
+      renderer.stop();
+      void context.close();
+    };
+  }, [bars, metre, instrumentId, clef]);
+  return <canvas ref={ref} className="rhythm-editor__stave" />;
 }

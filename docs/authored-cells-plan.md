@@ -93,6 +93,13 @@ open — the player's word wins once he has seen both in a sentence.**
 
 ## The builder: rhythm first, then pitches
 
+> **The rhythm half exists (2026-09-01).** The rhythm mode's annotation
+> tool — a step grid engraved live onto a stave on one written C, per
+> `rhythm-plan.md`'s redesigned tool section — is this builder's first
+> phase built standalone. The cell designer's remaining work is the
+> vertical axis: pitch handles on that same stave, dragged in diatonic
+> steps. The section below predates the grid and reads accordingly.
+
 The player's design, and the reason a MuseScore is not needed:
 
 > If that builder was able to allow the user to select from a defined

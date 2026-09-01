@@ -2681,20 +2681,24 @@ input[type='checkbox'] {
 }
 
 /*
- * The rhythm annotation tool (paid; RhythmPatternEditor.tsx). Chips are
- * the rhythm: glyph below, its count above — the same two lines the play
- * screen draws, so the tool reads like the run it produces.
+ * The rhythm annotation tool (paid; RhythmPatternEditor.tsx), second
+ * design: a step grid over the engraved stave. Cells group visually by
+ * beat — the count row above them is the same 1-e-&-a the play screen
+ * prints — and a note is an attack cell with its holds joined to it, so
+ * the drawing reads as notes even before the stave says so.
  */
 .rhythm-editor .sheet__body { flex-direction: column; gap: 0.8rem; padding: 1rem; overflow-y: auto; }
 .rhythm-editor .row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.rhythm-editor__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: flex-end;
-  min-height: 3.6rem; padding: 0.4rem; border: 1px dashed var(--line, #8886); border-radius: 8px; }
-.rhythm-chip { display: flex; flex-direction: column; align-items: center; gap: 0.05rem;
-  min-width: 2.2rem; padding: 0.25rem 0.4rem; border-radius: 8px;
-  border: 1px solid var(--line, #8886); background: none; color: inherit; font: inherit; }
-.rhythm-chip__count { font-size: 0.7rem; font-weight: 700; min-height: 0.9rem; }
-.rhythm-chip__glyph { font-size: 1.4rem; line-height: 1.1; }
-.rhythm-chip.is-rest { opacity: 0.6; }
-.rhythm-add { font-size: 1.3rem; min-width: 2.6rem; padding: 0.3rem 0.5rem; border-radius: 8px;
-  border: 1px solid var(--line, #8886); background: none; color: inherit; }
+/* Columns come from the component: a bar of 3/4 is twelve, not sixteen. */
+.rhythm-grid { display: grid; gap: 2px 0; margin: 0.3rem 0; }
+.rhythm-grid[data-bar] { position: relative; }
+.rhythm-grid__count { text-align: center; font-size: 0.65rem; font-weight: 700; opacity: 0.75;
+  min-height: 0.9rem; }
+.rhythm-cell { aspect-ratio: 1 / 1.4; min-width: 0; border: 1px solid var(--line, #8886);
+  border-left-width: 0; background: none; padding: 0; touch-action: none; }
+.rhythm-cell.is-beat { border-left-width: 2px; }
+.rhythm-cell:first-of-type { border-left-width: 2px; }
+.rhythm-cell.is-attack { background: var(--accent, #4a6a9a); border-radius: 4px 0 0 4px; }
+.rhythm-cell.is-hold { background: var(--accent, #4a6a9a); opacity: 0.55; }
+.rhythm-editor__stave { width: 100%; height: 7.5rem; display: block; }
 .rhythm-shelf__edit { font-size: 0.85rem; padding: 0.2rem 0.45rem; }
