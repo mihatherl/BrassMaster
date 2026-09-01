@@ -67,8 +67,15 @@ export function RhythmPatternEditor({
     const loaded = editing ? gridFromBars(editing.bars) : null;
     return loaded ?? Array<GridCell>(gridBarCells(editing?.metre ?? [4, 4])).fill('rest');
   });
-  /** While a paint drags, the cell it began at; null between gestures. */
-  const painting = useRef<number | null>(null);
+  /**
+   * The gesture in flight, decided AT THE PRESS — because the press
+   * itself changes the cell, release cannot read the cell to know what
+   * the press meant. The first cut did exactly that: a tap on a rest
+   * painted an attack, and release then saw "an attack under an unmoved
+   * pointer" and deleted the note it had just made — so single notes
+   * vanished unless dragged (found by the player, 2026-09-01).
+   */
+  const gesture = useRef<{ kind: 'paint' | 'delete'; from: number } | null>(null);
   const moved = useRef(false);
 
   const perBar = gridBarCells(metre);
@@ -87,29 +94,35 @@ export function RhythmPatternEditor({
   const press = (index: number) => {
     moved.current = false;
     if (cells[index] === 'rest') {
-      painting.current = index;
+      gesture.current = { kind: 'paint', from: index };
       setCells(cells.map((cell, i) => (i === index ? 'attack' : cell)));
     } else if (cells[index] === 'hold') {
       // Tap inside a note splits it: the rearticulation gesture.
+      gesture.current = null;
       setCells(cells.map((cell, i) => (i === index ? 'attack' : cell)));
     } else {
-      painting.current = index; // may become a delete on release
+      gesture.current = { kind: 'delete', from: index };
     }
   };
 
   const enter = (index: number) => {
-    const from = painting.current;
-    if (from === null || index <= from) return;
+    const active = gesture.current;
+    if (active?.kind !== 'paint' || index <= active.from) return;
     moved.current = true;
     // Extending absorbs whatever it crosses — the piano-roll's rule.
-    setCells(cells.map((cell, i) => (i > from && i <= index ? 'hold' : i === from ? 'attack' : cell)));
+    setCells(
+      cells.map((cell, i) =>
+        i > active.from && i <= index ? 'hold' : i === active.from ? 'attack' : cell,
+      ),
+    );
   };
 
   const release = (index: number) => {
-    const from = painting.current;
-    painting.current = null;
-    if (from === index && !moved.current && cells[index] === 'attack') {
-      // A tap on an attack deletes the whole note it begins.
+    const active = gesture.current;
+    gesture.current = null;
+    // Only a press that BEGAN on an attack may delete — a paint that ends
+    // where it started is a freshly made note, and it stays.
+    if (active?.kind === 'delete' && active.from === index && !moved.current) {
       let end = index + 1;
       while (end < cells.length && cells[end] === 'hold') end++;
       setCells(cells.map((cell, i) => (i >= index && i < end ? 'rest' : cell)));
@@ -182,7 +195,7 @@ export function RhythmPatternEditor({
                     aria-label={`Bar ${bar + 1} cell ${column + 1}: ${state}`}
                     onPointerDown={(e) => {
                       // Released so the paint's pointerenter reaches siblings.
-                      e.currentTarget.releasePointerCapture(e.pointerId);
+                      e.currentTarget.releasePointerCapture?.(e.pointerId);
                       press(index);
                     }}
                     onPointerEnter={() => enter(index)}
