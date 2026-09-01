@@ -42,6 +42,7 @@ import {
   drawBeamGroup,
   drawFingeringHint,
   drawTuplet,
+  type TupletMember,
   drawMultiBarRest,
   drawNote,
   drawRest,
@@ -1300,7 +1301,7 @@ export class StaveRenderer {
     const { exercise, theme } = this.options;
     const layout: LayoutNote[] = [];
     const groups = new Map<number, LayoutNote[]>();
-    const tuplets = new Map<number, LayoutNote[]>();
+    const tuplets = new Map<number, TupletMember[]>();
     const hints: Array<{ note: LayoutNote; text: string; room: number }> = [];
 
     exercise.notes.forEach((note, index) => {
@@ -1361,7 +1362,17 @@ export class StaveRenderer {
      * crotchet triplet as five plain crotchets in a 4/4 bar. Found by the
      * player's eye on that preview, 2026-09-01.
      */
-    for (const group of tuplets.values()) drawTuplet(this.ctx, this.metrics, group, 3, theme.note);
+    for (const rest of exercise.rests) {
+      if (rest.tupletGroup === undefined) continue;
+      const x = xForBeat(rest.startBeat);
+      if (x < -80 || x > this.width + 80) continue;
+      const group = tuplets.get(rest.tupletGroup) ?? [];
+      group.push({ x, duration: rest.duration });
+      tuplets.set(rest.tupletGroup, group);
+    }
+    for (const group of tuplets.values()) {
+      drawTuplet(this.ctx, this.metrics, group.sort((a, b) => a.x - b.x), 3, theme.note);
+    }
     this.drawTies(xForBeat);
     for (const { note, text, room } of hints) {
       drawFingeringHint(this.ctx, this.metrics, note, text, room, theme.hint, theme.background);

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   barsFromGrid,
   countableSyllable,
+  previewExerciseFromBars,
   beatCountLabels,
   CUSTOM_RHYTHMS_KEY,
   deleteCustomRhythm,
@@ -24,6 +25,7 @@ import {
 } from './rhythm';
 import { parseCell } from './cells';
 import { metreFor } from '../domain/metre';
+import { instrumentById } from '../domain/instruments';
 
 /**
  * The rhythm mode's pure core, tested the way `cells.ts` is: the library
@@ -275,6 +277,34 @@ describe('the grid, engraved', () => {
     // Mixed WITHIN one beat stays out: a quaver and a triplet third in
     // the same beat is nothing any division can hold.
     expect(gridFromBars(['0e 0t 0t 0q 0q 0q'])).toBeNull();
+  });
+
+  it('brackets a figure whole, rests included, even around a lone note', () => {
+    /*
+     * The player's report (2026-09-01): one painted cell in a triplet
+     * beat still needs the bracket with its 3. The figure is the unit —
+     * a triplet quaver between triplet rests groups with them, and the
+     * bracket the renderers draw spans the whole beat.
+     */
+    const instrument = instrumentById('eb-bass');
+    const exercise = previewExerciseFromBars(['rt 0t rt 0q 0q 0q'], [4, 4], instrument, 'treble');
+    expect(exercise.notes[0].duration.tuplet).toBe(3);
+    expect(exercise.notes[0].tupletGroup).toBe(0);
+    const tupletRests = exercise.rests.filter((rest) => rest.tupletGroup !== undefined);
+    expect(tupletRests).toHaveLength(2);
+    expect(tupletRests.every((rest) => rest.tupletGroup === 0)).toBe(true);
+    // The plain crotchets stay outside any figure.
+    expect(exercise.notes.slice(1).every((note) => note.tupletGroup === -1)).toBe(true);
+  });
+
+  it('closes a bracket at the figure’s own length, not a notehead count', () => {
+    // A triplet crotchet tied from a straight beat, then quaver triplets:
+    // the T+t figure closes at one beat, the t-t-t at the next — never a
+    // bracket over six that would read as a sextuplet.
+    const instrument = instrumentById('eb-bass');
+    const exercise = previewExerciseFromBars(['0T 0t 0t 0t 0t 0q 0q'], [4, 4], instrument, 'treble');
+    const groups = exercise.notes.map((note) => note.tupletGroup);
+    expect(groups).toEqual([0, 0, 1, 1, 1, -1, -1]);
   });
 
   it('silences the count on a crotchet triplet’s off-beat members', () => {

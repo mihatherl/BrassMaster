@@ -228,6 +228,17 @@ the cells, so the button can afford to be a number: the cells say what
 the division means. The flip still resets its beat's cells — states
 cannot map honestly across divisions.
 
+**A bracket covers the figure, rests included** (the player, 2026-09-01:
+one painted cell in a triplet beat *"probably still needs the bracket
+beneath with the 3"*). The tuplet grouping was rebuilt from a run of
+noteheads to the figure itself: notes and rests on one merged timeline,
+a bracket closing where the accumulated tuplet length reaches a whole
+number of beats — which is also what keeps two triplet beats from
+reading as a sextuplet, by the figure's own arithmetic rather than a
+notehead count. Rests carry `tupletGroup` now, both surfaces stretch the
+bracket over them, and a lone triplet quaver between triplet rests
+prints exactly as a part would print it.
+
 **"In 5" is an entry on that list plus its dues, and the dues are the
 design**: a new division must have writable durations (`Duration.tuplet`
 is typed `3`, so a fifth of a beat cannot currently be spelled at all),

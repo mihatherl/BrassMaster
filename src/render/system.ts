@@ -19,6 +19,7 @@ import type { Exercise } from '../exercise/types';
 import {
   drawBeamGroup,
   drawTuplet,
+  type TupletMember,
   drawFingeringHint,
   drawMultiBarRest,
   drawNote,
@@ -652,7 +653,7 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
 
   const loose: LayoutNote[] = [];
   const beamed = new Map<number, LayoutNote[]>();
-  const tuplets = new Map<number, LayoutNote[]>();
+  const tuplets = new Map<number, TupletMember[]>();
   const hints: Array<{ note: LayoutNote; text: string; room: number }> = [];
 
   exercise.notes.forEach((note, index) => {
@@ -721,8 +722,17 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
    * bracket at the margin says "this continues" where nothing at all would say
    * the rhythm changed.
    */
+  /* The silent members: a rest inside a figure stretches its bracket. */
+  for (const rest of exercise.rests) {
+    if (rest.tupletGroup === undefined || rest.startBeat < firstBeat || rest.startBeat >= lastBeat) {
+      continue;
+    }
+    const group = tuplets.get(rest.tupletGroup) ?? [];
+    group.push({ x: xForBeat(rest.startBeat), duration: rest.duration });
+    tuplets.set(rest.tupletGroup, group);
+  }
   for (const group of tuplets.values()) {
-    drawTuplet(ctx, metrics, group, 3, theme.note);
+    drawTuplet(ctx, metrics, group.sort((a, b) => a.x - b.x), 3, theme.note);
   }
 
   /*

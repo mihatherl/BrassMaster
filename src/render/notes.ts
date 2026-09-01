@@ -704,17 +704,28 @@ const TUPLET_HOOK = 0.45;
  * figure reads as part of the mark rather than as something printed on top of
  * it.
  */
+export interface TupletMember {
+  x: number;
+  duration: Duration;
+  /** Absent for a rest inside the figure — it stretches the bracket and
+      says nothing about which side the bracket sits. */
+  pitch?: LayoutNote['pitch'];
+}
+
 export function drawTuplet(
   ctx: CanvasRenderingContext2D,
   m: StaveMetrics,
-  notes: LayoutNote[],
+  notes: TupletMember[],
   numeral: number,
   colour: string,
 ): void {
   if (notes.length < 2) return;
 
-  const steps = notes.map((n) => diatonicStep(n.pitch));
   const middleStep = m.bottomLineStep + 4;
+  const steps = notes
+    .filter((n) => n.pitch !== undefined)
+    .map((n) => diatonicStep(n.pitch!));
+  if (steps.length === 0) steps.push(middleStep);
   const up = Math.max(...steps) - middleStep <= middleStep - Math.min(...steps);
   const direction = up ? -1 : 1;
 

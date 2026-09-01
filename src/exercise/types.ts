@@ -135,6 +135,14 @@ export interface RestEvent {
   startBeat: number;
   duration: Duration;
   /**
+   * The tuplet bracket this rest sits inside, where it sits in one — a
+   * triplet figure with a silent member still brackets the whole figure,
+   * rests included, or a lone triplet quaver reads as an ordinary note
+   * (the player, 2026-09-01: one painted cell in a triplet beat "probably
+   * still needs the bracket beneath with the 3"). Absent everywhere else.
+   */
+  tupletGroup?: number;
+  /**
    * Bars this rest covers when it is a **multi-bar rest** — the thick bar with
    * a count over it that a brass part is full of. Absent for an ordinary rest,
    * which is the only kind the generator makes.

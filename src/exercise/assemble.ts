@@ -13,7 +13,7 @@
 import { acceptedMasks as fingeringMasks, primaryFingering } from '../domain/fingering';
 import { soundingFromWritten, type Clef, type Instrument } from '../domain/instruments';
 import { keyAt, needsAccidental, spellInKey, type KeyChange } from '../domain/keys';
-import { isBeamable, snapBeat, type Duration } from '../domain/rhythm';
+import { isBeamable, snapBeat, type Duration, durationBeats } from '../domain/rhythm';
 import { barAt, beatOfBar, metreAt, type MetreChange } from '../domain/metre';
 import { midiOf, type Letter, type SpelledPitch } from '../domain/pitch';
 import type { TempoEvent } from '../domain/tempo';
@@ -173,7 +173,7 @@ export function assembleExercise(
     });
   }
 
-  assignTupletGroups(notes);
+  assignTupletGroups(notes, rests);
   assignBeamGroups(notes, rests, metres);
   assignAccidentals(notes, metres, keys);
 
@@ -208,38 +208,57 @@ export function assembleExercise(
  * silently dropped. Better a wrong-looking bracket than a rhythm that does not
  * add up and says nothing.
  */
-function assignTupletGroups(notes: NoteEvent[]): void {
-  let group = 0;
-  let index = 0;
+function assignTupletGroups(notes: NoteEvent[], rests: RestEvent[]): void {
+  /*
+   * A bracket covers a FIGURE, not a run of noteheads: the merged
+   * timeline of notes and rests, grouped while the durations are tuplet
+   * values, closing where the accumulated length reaches a whole number
+   * of beats. Three triplet quavers close at one; three triplet
+   * crotchets at two; a triplet quaver among triplet rests closes at one
+   * with the rests INSIDE the bracket, which is how a figure with silent
+   * members is printed — and how a lone painted cell in the grid's
+   * triplet beat keeps its 3 (the player's report, 2026-09-01).
+   *
+   * Closing on the whole beat is also what keeps two triplet beats from
+   * swallowing each other into a bracket over six, which reads as a
+   * sextuplet — the rule the old exactly-three-noteheads version
+   * enforced by count, now enforced by the figure's own length.
+   */
+  const events: Array<{ startBeat: number; duration: Duration; take: (group: number) => void }> = [
+    ...notes.map((note) => ({
+      startBeat: note.startBeat,
+      duration: note.duration,
+      take: (group: number) => {
+        note.tupletGroup = group;
+      },
+    })),
+    ...rests.map((rest) => ({
+      startBeat: rest.startBeat,
+      duration: rest.duration,
+      take: (group: number) => {
+        rest.tupletGroup = group;
+      },
+    })),
+  ].sort((a, b) => a.startBeat - b.startBeat);
 
-  while (index < notes.length) {
-    const { duration } = notes[index];
-    if (!duration.tuplet) {
-      index++;
+  let group = 0;
+  let open = false;
+  let sum = 0;
+  for (const event of events) {
+    if (!event.duration.tuplet) {
+      if (open) group++;
+      open = false;
+      sum = 0;
       continue;
     }
-
-    /*
-     * Exactly three to a bracket, not however many happen to be adjacent.
-     *
-     * Two triplet beats in a row are the same value and the same tuplet, so a
-     * run-length rule swallows both into one bracket over six — which reads as
-     * a sextuplet, a different rhythm. The beams get this right on their own
-     * because they break at the pulse; the bracket has to be told.
-     */
-    let end = index;
-    while (
-      end + 1 < notes.length &&
-      end + 1 - index < duration.tuplet &&
-      notes[end + 1].duration.tuplet === duration.tuplet &&
-      notes[end + 1].duration.value === duration.value
-    ) {
-      end++;
+    open = true;
+    event.take(group);
+    sum += durationBeats(event.duration);
+    if (Math.abs(sum - Math.round(sum)) < 1e-9) {
+      group++;
+      open = false;
+      sum = 0;
     }
-
-    for (let i = index; i <= end; i++) notes[i].tupletGroup = group;
-    group++;
-    index = end + 1;
   }
 }
 
