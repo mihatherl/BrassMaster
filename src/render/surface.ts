@@ -41,6 +41,7 @@ import {
   dotRoom,
   drawBeamGroup,
   drawFingeringHint,
+  drawTuplet,
   drawMultiBarRest,
   drawNote,
   drawRest,
@@ -1299,6 +1300,7 @@ export class StaveRenderer {
     const { exercise, theme } = this.options;
     const layout: LayoutNote[] = [];
     const groups = new Map<number, LayoutNote[]>();
+    const tuplets = new Map<number, LayoutNote[]>();
     const hints: Array<{ note: LayoutNote; text: string; room: number }> = [];
 
     exercise.notes.forEach((note, index) => {
@@ -1333,6 +1335,12 @@ export class StaveRenderer {
         hints.push({ note: item, text: hint, room });
       }
 
+      if (note.tupletGroup >= 0) {
+        const group = tuplets.get(note.tupletGroup) ?? [];
+        group.push(item);
+        tuplets.set(note.tupletGroup, group);
+      }
+
       if (note.beamGroup >= 0) {
         const group = groups.get(note.beamGroup) ?? [];
         group.push(item);
@@ -1344,6 +1352,16 @@ export class StaveRenderer {
 
     for (const note of layout) drawNote(this.ctx, this.metrics, note);
     for (const group of groups.values()) drawBeamGroup(this.ctx, this.metrics, group);
+    /*
+     * The tuplet brackets, which this line NEVER drew: `drawTuplet` lived
+     * only in the paged system, so scrolling mode printed triplets as
+     * ordinary notes with no numeral — misreadable as exactly what they
+     * are not — and the rhythm tool's one-system preview, which routes
+     * through here (`stacked()` wants more than one system), showed a
+     * crotchet triplet as five plain crotchets in a 4/4 bar. Found by the
+     * player's eye on that preview, 2026-09-01.
+     */
+    for (const group of tuplets.values()) drawTuplet(this.ctx, this.metrics, group, 3, theme.note);
     this.drawTies(xForBeat);
     for (const { note, text, room } of hints) {
       drawFingeringHint(this.ctx, this.metrics, note, text, room, theme.hint, theme.background);

@@ -387,6 +387,28 @@ function mergedBeats(
     ) {
       return 1.5;
     }
+    /*
+     * The crotchet triplet — three in the time of two — is the first
+     * entry on the ruled shorthand list (the player, 2026-09-01): a note
+     * of two-thirds may cross the beat inside an ALIGNED pair of
+     * triplet beats, because every printed part writes the figure as
+     * three crotchets under one bracket, never as tied triplet quavers.
+     * Aligned means the pair a minim could sit on — beats one-two or
+     * three-four — so the figure can never straddle 4/4's half-bar.
+     */
+    const pairStart = Math.floor(inBar / 2 + 1e-9) * 2;
+    const inPair = inBar - pairStart;
+    const pairFirst = Math.floor(at - inBar + 1e-9) + pairStart;
+    if (
+      want >= 2 / 3 - 1e-9 &&
+      grid[pairFirst]?.division === 3 &&
+      grid[pairFirst + 1]?.division === 3 &&
+      inPair < 2 - 1e-9 &&
+      Math.abs(inPair * 3 - Math.round(inPair * 3)) < 1e-6 &&
+      Math.round(inPair * 3) % 2 === 0
+    ) {
+      return 2 / 3;
+    }
   }
   // To the next boundary the beat's own division can name.
   const inBeat = at - Math.floor(at + 1e-9);
@@ -479,6 +501,19 @@ export function gridFromBars(bars: readonly string[]): GridBeat[] | null {
 }
 
 /**
+ * The syllable an onset actually gets, duration considered: the off-beat
+ * members of a crotchet triplet take NOTHING, because "trip" and "let"
+ * are one beat's own subdivisions and a note two-thirds of a beat long
+ * belongs to a figure counted over two — the voice stays silent sooner
+ * than say something false, which is the mapping's own rule.
+ */
+export function countableSyllable(barBeat: number, beats: number): Syllable | null {
+  const within = barBeat - Math.floor(barBeat + 1e-6);
+  if (within > 1e-6 && beats >= 2 / 3 - 1e-9) return null;
+  return syllableFor(barBeat);
+}
+
+/**
  * The grid's bars as a small engraved exercise — the stave the tool shows
  * in place of yesterday's chips (the player, 2026-09-01: *"just plonk all
  * the notes onto the stave as a C"*). One written pitch per clef, chosen
@@ -512,7 +547,7 @@ export function previewExerciseFromBars(
         slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious: tiedInto });
         if (!tiedInto) {
           pitches.push(pitch);
-          const syllable = syllableFor(barBeat);
+          const syllable = countableSyllable(barBeat, event.beats);
           if (syllable) syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable) });
         }
         tiedInto = event.tied === true;

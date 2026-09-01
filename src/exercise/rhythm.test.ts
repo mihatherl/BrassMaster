@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   barsFromGrid,
+  countableSyllable,
   beatCountLabels,
   CUSTOM_RHYTHMS_KEY,
   deleteCustomRhythm,
@@ -176,6 +177,23 @@ describe('the grid, engraved', () => {
     expect(engrave('x--- --x ---- x---')).toEqual(['0q~ 0T 0t~ 0q 0q']);
   });
 
+  it('writes the crotchet triplet whole — three in the time of two', () => {
+    /*
+     * The first entry on the shorthand list (the player, 2026-09-01):
+     * a pair of triplet beats whose onsets sit on the two-thirds grid
+     * engraves as triplet crotchets under one bracket, never as tied
+     * triplet quavers — which is how every printed part has it.
+     */
+    expect(engrave('x-x -x- x--- x---')).toEqual(['0T 0T 0T 0q 0q']);
+    // From the second aligned pair too.
+    expect(engrave('x--- x--- x-x -x-')).toEqual(['0q 0q 0T 0T 0T']);
+    // But an UNALIGNED pair still splits and ties: the figure may not
+    // straddle the half-bar, exactly like the minim.
+    expect(engrave('x--- x-x -x- x---')).toEqual(['0q 0T 0t~ 0t 0T 0q']);
+    // And mixing a triplet crotchet with spoken triplet quavers is fine.
+    expect(engrave('x-x xxx x--- x---')).toEqual(['0T 0t 0t 0t 0t 0q 0q']);
+  });
+
   it('refuses no mixture, because the grid cannot draw one', () => {
     // A division-3 beat has three cells; there is no cell for an "e".
     // The type system carries this rule, so the test only documents it.
@@ -240,6 +258,7 @@ describe('the grid, engraved', () => {
       'x--- xxx x--- x-x',
       'x--- -xx x--- x---',
       'x--- x--- x--- x--- --x- x--- x--- x---',
+      'x-x -x- x--- x---',
     ]) {
       const bars = engrave(drawn);
       expect(gridFromBars(bars), drawn).toEqual(gridOf(drawn));
@@ -256,6 +275,17 @@ describe('the grid, engraved', () => {
     // Mixed WITHIN one beat stays out: a quaver and a triplet third in
     // the same beat is nothing any division can hold.
     expect(gridFromBars(['0e 0t 0t 0q 0q 0q'])).toBeNull();
+  });
+
+  it('silences the count on a crotchet triplet’s off-beat members', () => {
+    // "trip" and "let" are one beat's subdivisions; a two-thirds note
+    // belongs to a figure counted over two beats, so its off-beat
+    // members say nothing rather than something false.
+    expect(countableSyllable(0, 2 / 3)).toBe('1');
+    expect(countableSyllable(2 / 3, 2 / 3)).toBeNull();
+    expect(countableSyllable(1 + 1 / 3, 2 / 3)).toBeNull();
+    // Quaver-triplet members keep their words.
+    expect(countableSyllable(2 / 3, 1 / 3)).toBe('let');
   });
 
   it('labels a beat in its own count', () => {

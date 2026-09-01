@@ -234,6 +234,27 @@ silence split at the half-beat. `gridFromBars` infers each beat's
 division from what lands inside it, so the packaged triplet patterns of
 stage 7, when written, open in the grid instead of declining.
 
+**The crotchet triplet — three in the time of two — followed the same day**
+(the player: *"is it feasible that a triplet would be applied over two
+beats?"*), and it is the shorthand list's first entry: an ALIGNED pair of
+triplet beats (the pair a minim could sit on, never straddling 4/4's
+half-bar) whose onsets sit on the two-thirds grid engraves as triplet
+crotchets under one bracket, not as tied triplet quavers — which is how
+every printed part writes it. Drawing it needs no new gesture: flip both
+beats of the pair and paint across them. Its off-beat members take **no
+count syllable** (`countableSyllable`): "trip" and "let" are one beat's
+own subdivisions, and the voice stays silent sooner than say something
+false — which is honestly how the figure is taught, floated against a
+two-beat frame. Half-bar (minim) triplets are out until asked for.
+
+**And the preview's eye found a renderer gap older than this mode**: the
+scrolling surface never drew tuplet numerals at all — `drawTuplet` lived
+only in the paged system — so free play in scrolling mode has been
+printing triplets as ordinary notes with no 3 on them since triplet
+cells first shipped. Both surfaces draw the bracket now. The rhythm
+tool's one-system preview routes through the scrolling line (`stacked()`
+wants more than one system), which is how the gap surfaced.
+
 ## The chip editor (the first design, 2026-08-31 — superseded above)
 
 > Build an annotation tool which allows the user to specify a rhythm…

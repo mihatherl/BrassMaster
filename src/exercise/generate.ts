@@ -42,7 +42,7 @@ import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
 import { planTempo } from './tempo-plan';
 import type { Exercise, ExerciseKind, LabelEvent } from './types';
-import { patternEvents, printedSyllable, rhythmPatternById, syllableFor, type RhythmPattern } from './rhythm';
+import { countableSyllable, patternEvents, printedSyllable, rhythmPatternById, type RhythmPattern } from './rhythm';
 import type { CellEvent } from './cells';
 
 /**
@@ -463,7 +463,7 @@ function rhythmExercise(options: GenerateOptions): Exercise {
             slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious });
             if (!tiedFromPrevious) {
               pitches.push(pair[side]);
-              const syllable = syllableFor(barBeat);
+              const syllable = countableSyllable(barBeat, event.beats);
               if (syllable) {
                 syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable) });
               }

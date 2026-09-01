@@ -2706,5 +2706,7 @@ input[type='checkbox'] {
 .rhythm-cell.is-beat { border-left-width: 2px; }
 .rhythm-cell.is-attack { background: var(--accent, #4a6a9a); border-radius: 4px 0 0 4px; }
 .rhythm-cell.is-hold { background: var(--accent, #4a6a9a); opacity: 0.55; }
-.rhythm-editor__stave { width: 100%; height: 7.5rem; display: block; }
+/* Tall enough for a tuplet bracket under stem-down notes — 7.5rem cropped
+   the crotchet triplet's own numeral off the bottom edge. */
+.rhythm-editor__stave { width: 100%; height: 11rem; display: block; }
 .rhythm-shelf__edit { font-size: 0.85rem; padding: 0.2rem 0.45rem; }
