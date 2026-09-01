@@ -25,15 +25,17 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { t } from '../i18n';
 import {
   barsFromGrid,
-  CELLS_PER_BEAT,
+  beatCountLabels,
+  beatsPerBar,
   deleteCustomRhythm,
-  gridBarCells,
-  gridCount,
+  flattenGrid,
+  freshGrid,
   gridFromBars,
   loadCustomRhythms,
   previewExerciseFromBars,
+  rebuildGrid,
   saveCustomRhythm,
-  type GridCell,
+  type GridBeat,
   type RhythmPattern,
 } from '../exercise/rhythm';
 import { instrumentById, type Clef } from '../domain/instruments';
@@ -63,10 +65,11 @@ export function RhythmPatternEditor({
 }: RhythmPatternEditorProps): ReactElement {
   const [name, setName] = useState(editing?.name ?? '');
   const [metre, setMetre] = useState<readonly [number, number]>(editing?.metre ?? [4, 4]);
-  const [cells, setCells] = useState<GridCell[]>(() => {
+  const [grid, setGrid] = useState<GridBeat[]>(() => {
     const loaded = editing ? gridFromBars(editing.bars) : null;
-    return loaded ?? Array<GridCell>(gridBarCells(editing?.metre ?? [4, 4])).fill('rest');
+    return loaded ?? freshGrid(editing?.metre ?? [4, 4]);
   });
+  const cells = useMemo(() => flattenGrid(grid), [grid]);
   /**
    * The gesture in flight, decided AT THE PRESS — because the press
    * itself changes the cell, release cannot read the cell to know what
@@ -78,9 +81,8 @@ export function RhythmPatternEditor({
   const gesture = useRef<{ kind: 'paint' | 'delete'; from: number } | null>(null);
   const moved = useRef(false);
 
-  const perBar = gridBarCells(metre);
-  const count = useMemo(() => gridCount(metre), [metre]);
-  const verdict = useMemo(() => barsFromGrid(cells, metre), [cells, metre]);
+  const perBar = beatsPerBar(metre);
+  const verdict = useMemo(() => barsFromGrid(grid, metre), [grid, metre]);
 
   const id =
     editing?.id ??
@@ -95,11 +97,11 @@ export function RhythmPatternEditor({
     moved.current = false;
     if (cells[index] === 'rest') {
       gesture.current = { kind: 'paint', from: index };
-      setCells(cells.map((cell, i) => (i === index ? 'attack' : cell)));
+      setGrid(rebuildGrid(grid, cells.map((cell, i) => (i === index ? 'attack' : cell))));
     } else if (cells[index] === 'hold') {
       // Tap inside a note splits it: the rearticulation gesture.
       gesture.current = null;
-      setCells(cells.map((cell, i) => (i === index ? 'attack' : cell)));
+      setGrid(rebuildGrid(grid, cells.map((cell, i) => (i === index ? 'attack' : cell))));
     } else {
       gesture.current = { kind: 'delete', from: index };
     }
@@ -110,9 +112,12 @@ export function RhythmPatternEditor({
     if (active?.kind !== 'paint' || index <= active.from) return;
     moved.current = true;
     // Extending absorbs whatever it crosses — the piano-roll's rule.
-    setCells(
-      cells.map((cell, i) =>
-        i > active.from && i <= index ? 'hold' : i === active.from ? 'attack' : cell,
+    setGrid(
+      rebuildGrid(
+        grid,
+        cells.map((cell, i) =>
+          i > active.from && i <= index ? 'hold' : i === active.from ? 'attack' : cell,
+        ),
       ),
     );
   };
@@ -125,19 +130,35 @@ export function RhythmPatternEditor({
     if (active?.kind === 'delete' && active.from === index && !moved.current) {
       let end = index + 1;
       while (end < cells.length && cells[end] === 'hold') end++;
-      setCells(cells.map((cell, i) => (i >= index && i < end ? 'rest' : cell)));
+      setGrid(rebuildGrid(grid, cells.map((cell, i) => (i >= index && i < end ? 'rest' : cell))));
     }
   };
 
+  const barsNow = grid.length / perBar;
   const setBars = (bars: number) => {
-    const want = bars * perBar;
-    setCells(
-      cells.length >= want
-        ? cells.slice(0, want)
-        : [...cells, ...Array<GridCell>(want - cells.length).fill('rest')],
+    setGrid(
+      bars <= barsNow
+        ? grid.slice(0, bars * perBar)
+        : [...grid, ...freshGrid(metre, bars - barsNow)],
     );
   };
-  const barsNow = cells.length / perBar;
+  /**
+   * The numeral owns its beat, so tapping it cycles the beat's division —
+   * four to three and back. The beat's cells reset to rests on the flip,
+   * because four states cannot map honestly onto three (ruled with the
+   * build, 2026-09-01).
+   */
+  const toggleDivision = (beatIndex: number) =>
+    setGrid(
+      grid.map((beat, i) =>
+        i === beatIndex
+          ? {
+              division: (beat.division === 4 ? 3 : 4) as GridBeat['division'],
+              cells: Array(beat.division === 4 ? 3 : 4).fill('rest') as GridBeat['cells'],
+            }
+          : beat,
+      ),
+    );
 
   return (
     <div className="sheet rhythm-editor" role="dialog" aria-modal="true" aria-label={t('rhythm.editor')}>
@@ -161,7 +182,7 @@ export function RhythmPatternEditor({
                   /* A different bar length re-cuts every boundary, so the
                      drawing cannot survive it honestly: start clean. */
                   setMetre([n, d]);
-                  setCells(Array<GridCell>(gridBarCells([n, d]) * barsNow).fill('rest'));
+                  setGrid(freshGrid([n, d], barsNow));
                 }}
               >
                 {n}/{d}
@@ -173,34 +194,54 @@ export function RhythmPatternEditor({
         <div className="field">
           <span className="field__label">{t('rhythm.grid')}</span>
           {Array.from({ length: barsNow }, (_, bar) => (
-            <div
-              className="rhythm-grid"
-              key={bar}
-              data-bar={bar + 1}
-              style={{ gridTemplateColumns: `repeat(${perBar}, minmax(0, 1fr))` }}
-            >
-              {count.map((syllable, column) => (
-                <span key={`c${column}`} className="rhythm-grid__count">
-                  {syllable ?? ''}
-                </span>
-              ))}
-              {Array.from({ length: perBar }, (_, column) => {
-                const index = bar * perBar + column;
-                const state = cells[index];
+            <div className="rhythm-grid" key={bar} data-bar={bar + 1}>
+              {grid.slice(bar * perBar, (bar + 1) * perBar).map((beat, beatInBar) => {
+                const beatIndex = bar * perBar + beatInBar;
+                const before = grid
+                  .slice(0, beatIndex)
+                  .reduce((sum, entry) => sum + entry.division, 0);
+                const labels = beatCountLabels(beatInBar, beat.division);
                 return (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`rhythm-cell is-${state} ${column % CELLS_PER_BEAT === 0 ? 'is-beat' : ''}`}
-                    aria-label={`Bar ${bar + 1} cell ${column + 1}: ${state}`}
-                    onPointerDown={(e) => {
-                      // Released so the paint's pointerenter reaches siblings.
-                      e.currentTarget.releasePointerCapture?.(e.pointerId);
-                      press(index);
-                    }}
-                    onPointerEnter={() => enter(index)}
-                    onPointerUp={() => release(index)}
-                  />
+                  <div
+                    key={beatIndex}
+                    className="rhythm-beat"
+                    style={{ gridTemplateColumns: `repeat(${beat.division}, minmax(0, 1fr))` }}
+                  >
+                    {labels.map((label, column) => (
+                      <button
+                        key={`l${column}`}
+                        type="button"
+                        className={`rhythm-grid__count ${column === 0 ? 'is-numeral' : ''}`}
+                        tabIndex={column === 0 ? 0 : -1}
+                        aria-label={
+                          column === 0
+                            ? `Beat ${beatInBar + 1} of bar ${bar + 1}: divided in ${beat.division}. Tap to switch.`
+                            : undefined
+                        }
+                        onClick={column === 0 ? () => toggleDivision(beatIndex) : undefined}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                    {beat.cells.map((state, column) => {
+                      const index = before + column;
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          className={`rhythm-cell is-${state} ${column === 0 ? 'is-beat' : ''}`}
+                          aria-label={`Bar ${bar + 1} beat ${beatInBar + 1} cell ${column + 1}: ${state}`}
+                          onPointerDown={(e) => {
+                            // Released so the paint's pointerenter reaches siblings.
+                            e.currentTarget.releasePointerCapture?.(e.pointerId);
+                            press(index);
+                          }}
+                          onPointerEnter={() => enter(index)}
+                          onPointerUp={() => release(index)}
+                        />
+                      );
+                    })}
+                  </div>
                 );
               })}
             </div>

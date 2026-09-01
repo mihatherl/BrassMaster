@@ -2,14 +2,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   barsFromGrid,
+  beatCountLabels,
   CUSTOM_RHYTHMS_KEY,
   deleteCustomRhythm,
-  gridCount,
   gridFromBars,
   loadCustomRhythms,
   resolveRhythmPattern,
   saveCustomRhythm,
+  type GridBeat,
   type GridCell,
+  type GridDivision,
   type RhythmPattern,
 } from './rhythm';
 import {
@@ -122,103 +124,143 @@ describe('the pattern library', () => {
 
 describe('the grid, engraved', () => {
   /*
-   * The heart of the annotation tool: what the player paints against what
-   * the page prints. The governing ruling (2026-09-01) is SHOW THE BEAT,
-   * WITH TIES — splits at every beat boundary, mergers only where the
-   * table in `mergedLength` names them — so each case here is one row of
-   * that ruling made concrete. `x` attacks, `-` holds, `.` rests.
+   * The heart of the annotation tool, per-beat since 2026-09-01: what
+   * the player paints against what the page prints, under SHOW THE
+   * BEAT, WITH TIES. In the drawings below, beats are space-separated
+   * groups: four marks is a division-4 beat (1-e-&-a), three marks a
+   * triplet beat (1-trip-let). `x` attacks, `-` holds, `.` rests.
    */
-  const grid = (drawn: string): GridCell[] =>
-    [...drawn.replace(/\s/g, '')].map((c) => (c === 'x' ? 'attack' : c === '-' ? 'hold' : 'rest'));
+  const gridOf = (drawn: string): GridBeat[] =>
+    drawn
+      .trim()
+      .split(/\s+/)
+      .map((group) => {
+        if (group.length !== 3 && group.length !== 4) throw new Error(`bad beat "${group}"`);
+        return {
+          division: group.length as GridDivision,
+          cells: [...group].map((c) => (c === 'x' ? 'attack' : c === '-' ? 'hold' : 'rest')) as GridCell[],
+        };
+      });
   const engrave = (drawn: string, metre: [number, number] = [4, 4]) => {
-    const verdict = barsFromGrid(grid(drawn), metre);
+    const verdict = barsFromGrid(gridOf(drawn), metre);
     if ('error' in verdict) throw new Error(verdict.error);
     return verdict.bars;
   };
 
   it('writes the plain figures as themselves', () => {
-    expect(engrave('x---x---x---x---')).toEqual(['0q 0q 0q 0q']);
-    expect(engrave('x---------------')).toEqual(['0w']);
-    expect(engrave('x-------x-------')).toEqual(['0h 0h']);
-    expect(engrave('x-----x-x-----x-')).toEqual(['0q. 0e 0q. 0e']);
-    expect(engrave('x-x-x-x-x-x-x-x-')).toEqual(['0e 0e 0e 0e 0e 0e 0e 0e']);
+    expect(engrave('x--- x--- x--- x---')).toEqual(['0q 0q 0q 0q']);
+    expect(engrave('x--- ---- ---- ----')).toEqual(['0w']);
+    expect(engrave('x--- ---- x--- ----')).toEqual(['0h 0h']);
+    expect(engrave('x--- --x- x--- --x-')).toEqual(['0q. 0e 0q. 0e']);
+    expect(engrave('x-x- x-x- x-x- x-x-')).toEqual(['0e 0e 0e 0e 0e 0e 0e 0e']);
     expect(engrave('x--- x--- x---', [3, 4])).toEqual(['0q 0q 0q']);
     expect(engrave('x--- ---- ----', [3, 4])).toEqual(['0h.']);
   });
 
+  it('writes a triplet beat in its own values, beside straight ones', () => {
+    // The player's "superimposed": a triplet sits in one beat while its
+    // neighbours stay in semiquavers, exactly as a printed part has it.
+    expect(engrave('x--- xxx x--- x---')).toEqual(['0q 0t 0t 0t 0q 0q']);
+    expect(engrave('x--- x-x x--- x---')).toEqual(['0q 0T 0t 0q 0q']);
+    expect(engrave('x--- xx- x--- x---')).toEqual(['0q 0t 0T 0q 0q']);
+    // Three held triplet quavers ARE a crotchet, and engrave as one.
+    expect(engrave('x--- x-- x--- x---')).toEqual(['0q 0q 0q 0q']);
+  });
+
+  it('ties into and out of a triplet beat at the boundary', () => {
+    // A note from beat 1 held into the first triplet third, then two
+    // spoken triplet notes: crotchet tied to a triplet quaver.
+    expect(engrave('x--- -xx x--- x---')).toEqual(['0q~ 0t 0t 0t 0q 0q']);
+    // And both at once: a crotchet tied INTO the triplet's last third,
+    // then that attack tied OUT through the whole next beat.
+    expect(engrave('x--- --x ---- x---')).toEqual(['0q~ 0T 0t~ 0q 0q']);
+  });
+
+  it('refuses no mixture, because the grid cannot draw one', () => {
+    // A division-3 beat has three cells; there is no cell for an "e".
+    // The type system carries this rule, so the test only documents it.
+    expect(gridOf('x--- x-x').length).toBe(2);
+  });
+
   it('ties across the beat rather than writing the syncopation shorthand', () => {
-    // A crotchet-length note from the "&" of one: two tied quavers, never
-    // the off-beat crotchet — the strict half of the ruling.
-    expect(engrave('x-x---x-x---x---')).toEqual(['0e 0e~ 0e 0e 0q 0q']);
+    expect(engrave('x-x- --x- x--- x---')).toEqual(['0e 0e~ 0e 0e 0q 0q']);
   });
 
   it('ties across the bar line, which the chip editor never could', () => {
-    expect(engrave('x---x---x---x--- --x-x---x---x---')).toEqual([
+    expect(engrave('x--- x--- x--- x--- --x- x--- x--- x---')).toEqual([
       '0q 0q 0q 0q~',
       '0e 0e 0q 0q 0q',
     ]);
   });
 
   it('permits the named mergers and no others', () => {
-    // The half-bar minim from either half of 4/4…
-    expect(engrave('x-------x---x---')).toEqual(['0h 0q 0q']);
-    expect(engrave('x---x---x-------')).toEqual(['0q 0q 0h']);
-    // …but never from beat two, which would hide the middle of the bar.
-    expect(engrave('x---x-------x---')).toEqual(['0q 0q~ 0q 0q']);
-    // The minim reads clean from either lower beat of 3/4.
-    expect(engrave('x-------x---', [3, 4])).toEqual(['0h 0q']);
-    expect(engrave('x---x-------', [3, 4])).toEqual(['0q 0h']);
-    // The dotted crotchet may not carry across 4/4's half-bar.
-    expect(engrave('x---x-----x-x---')).toEqual(['0q 0q~ 0e 0e 0q']);
+    expect(engrave('x--- ---- x--- x---')).toEqual(['0h 0q 0q']);
+    expect(engrave('x--- x--- x--- ----')).toEqual(['0q 0q 0h']);
+    expect(engrave('x--- x--- ---- x---')).toEqual(['0q 0q~ 0q 0q']);
+    expect(engrave('x--- ---- x---', [3, 4])).toEqual(['0h 0q']);
+    expect(engrave('x--- x--- ----', [3, 4])).toEqual(['0q 0h']);
+    expect(engrave('x--- x--- --x- x---')).toEqual(['0q 0q~ 0e 0e 0q']);
+    // The dotted crotchet may not borrow its half from a triplet beat —
+    // half of a division-3 beat is not a place a note can end — so a
+    // beat-and-a-third writes as a crotchet tied to a triplet quaver.
+    expect(engrave('x--- -x- x-x x---')).toEqual(['0q~ 0t 0T 0T 0t 0q']);
   });
 
   it('writes rests per beat, largest first, never tied', () => {
-    expect(engrave('x---..x-........')).toEqual(['0q re 0e rh']);
-    expect(engrave('..x-..x-..x-..x-')).toEqual(['re 0e re 0e re 0e re 0e']);
-    // A whole silent bar mid-pattern is the bar-rest convention, per metre.
-    expect(engrave('x--------------- ---------------- x---------------')).toEqual([
-      '0w~', '0w', '0w',
-    ]);
-    expect(engrave('x---x---x---x--- ................ x---x---x---x---')).toEqual([
-      '0q 0q 0q 0q', 'rw', '0q 0q 0q 0q',
+    expect(engrave('x--- ..x- .... ....')).toEqual(['0q re 0e rh']);
+    expect(engrave('..x- ..x- ..x- ..x-')).toEqual(['re 0e re 0e re 0e re 0e']);
+    // Triplet rests wear the triplet's own values.
+    expect(engrave('.x. x-- x--- x---')).toEqual(['rt 0t rt 0q 0q 0q']);
+    // A rest never dots: three sixteenths of silence split at the
+    // half-beat from either side, where a NOTE keeps the march's own
+    // off-beat dotted quaver.
+    expect(engrave('x... x--- x--- x---')).toEqual(['0s rs re 0q 0q 0q']);
+    expect(engrave('...x x--- x--- x---')).toEqual(['re rs 0s 0q 0q 0q']);
+    expect(engrave('x-.. x--- x--- x---')).toEqual(['0e re 0q 0q 0q']);
+    expect(engrave('.x-- x--- x--- x---')).toEqual(['rs 0e. 0q 0q 0q']);
+    // A silent middle bar is the bar-rest, whatever surrounds it.
+    expect(engrave('x--- ---- ---- ---- .... .... .... .... x--- ---- ---- ----')).toEqual([
+      '0w', 'rw', '0w',
     ]);
   });
 
   it('refuses an empty grid and one that opens mid-note, by name', () => {
-    expect(barsFromGrid(grid('................'), [4, 4])).toHaveProperty('error');
-    const midNote = barsFromGrid(grid('----x-----------'), [4, 4]);
+    const silent = barsFromGrid(gridOf('.... .... .... ....'), [4, 4]);
+    expect(silent).toHaveProperty('error');
+    const midNote = barsFromGrid(gridOf('---- x--- x--- x---'), [4, 4]);
     expect('error' in midNote && midNote.error).toContain('start with an attack');
   });
 
   it('round-trips: what the grid engraves reads back as the same grid', () => {
     for (const drawn of [
-      'x---x---x---x---',
-      'x-----x-x-----x-',
-      'x-x---x-x---x---',
-      '..x-..x-..x-..x-',
-      'x---x---x---x--- --x-x---x---x---',
+      'x--- x--- x--- x---',
+      'x--- --x- x--- --x-',
+      'x-x- --x- x--- x---',
+      '..x- ..x- ..x- ..x-',
+      'x--- xxx x--- x-x',
+      'x--- -xx x--- x---',
+      'x--- x--- x--- x--- --x- x--- x--- x---',
     ]) {
       const bars = engrave(drawn);
-      expect(gridFromBars(bars), drawn).toEqual(grid(drawn));
+      expect(gridFromBars(bars), drawn).toEqual(gridOf(drawn));
     }
   });
 
-  it('loads every straight packaged pattern and declines the triplet grammar', () => {
+  it('loads every packaged pattern, triplet grammar included now', () => {
     for (const pattern of RHYTHM_PATTERNS) {
-      const cells = gridFromBars(pattern.bars);
-      // Everything in stages 1–4 is straight; a triplet stage would be null.
-      expect(cells, pattern.id).not.toBeNull();
-      const back = barsFromGrid(cells!, pattern.metre);
+      const grid = gridFromBars(pattern.bars);
+      expect(grid, pattern.id).not.toBeNull();
+      const back = barsFromGrid(grid!, pattern.metre);
       expect('bars' in back, pattern.id).toBe(true);
     }
-    expect(gridFromBars(['0t 1t 2t 0q 0q 0q'])).toBeNull();
+    // Mixed WITHIN one beat stays out: a quaver and a triplet third in
+    // the same beat is nothing any division can hold.
+    expect(gridFromBars(['0e 0t 0t 0q 0q 0q'])).toBeNull();
   });
 
-  it('prints the count over the columns from the one mapping', () => {
-    expect(gridCount([4, 4])).toEqual([
-      '1', 'e', '&', 'a', '2', 'e', '&', 'a', '3', 'e', '&', 'a', '4', 'e', '&', 'a',
-    ]);
-    expect(gridCount([3, 4]).slice(0, 4)).toEqual(['1', 'e', '&', 'a']);
+  it('labels a beat in its own count', () => {
+    expect(beatCountLabels(0, 4)).toEqual(['1', 'e', '&', 'a']);
+    expect(beatCountLabels(2, 3)).toEqual(['3', 'trip', 'let']);
   });
 });
 

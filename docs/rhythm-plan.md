@@ -206,14 +206,33 @@ minim is `x-x-` against `x---`.
   ground that now exists.
 
 **Ties became authorable** — across beats and across bar lines — which
-stage 4 of the spine needs and the chip grammar never could. Triplets
-still wait: they need a per-beat division (this beat in 4, that beat in
-3 — the counting system already resets per beat, so the grid can too),
-designed into the model's future and deliberately not in the first grid;
-packaged triplet patterns decline to open in it (`gridFromBars` → null)
-rather than being mangled. Storage is unchanged — the grid engraves to
-the same bars-of-tokens the library and generator already read, so every
-custom made in the chip editor loads in the grid.
+stage 4 of the spine needs and the chip grammar never could. Storage is
+unchanged — the grid engraves to the same bars-of-tokens the library and
+generator already read, so every custom made in the chip editor loads in
+the grid.
+
+**Triplets landed the next day (2026-09-01), as the per-beat division the
+model was shaped for.** A beat divides in four (counted 1-e-&-a) or in
+three (1-trip-let) — the counting system resets per beat, so the grid's
+resolution does too, and a triplet sits beside semiquavers in one bar as
+it does on a printed part. The player's word for it — *"superimposed on
+top of the 1-e-and-a rhythm"* — is musically exact: the beat stays the
+unit, which is precisely why the rejected alternative (one fine grid of
+twelfths both fit into) was rejected: it would let the user draw
+positions no stave can print, reopening the hole the grid closes. **The
+numeral is the toggle** — it owns the beat, it was already drawn, tap it
+to flip the division — and the flip resets that beat's cells, because
+four states cannot map honestly onto three. Engraving additions, each in
+the test table: one cell is a triplet quaver, two a triplet crotchet,
+all three held ARE a crotchet and engrave as one; ties run into and out
+of a triplet beat; the dotted-crotchet merger demands its borrowed half
+come from a division-4 beat, since half a triplet beat is not a place a
+note can end. And one rule found by the engraver's own output: **a rest
+never dots in simple time** — a note may (the march's own s–e. figure),
+but a rest shows the subdivision it silences, so three sixteenths of
+silence split at the half-beat. `gridFromBars` infers each beat's
+division from what lands inside it, so the packaged triplet patterns of
+stage 7, when written, open in the grid instead of declining.
 
 ## The chip editor (the first design, 2026-08-31 — superseded above)
 

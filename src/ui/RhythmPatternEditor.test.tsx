@@ -83,3 +83,41 @@ describe('the grid’s gestures', () => {
     expect(state()).toBe('..x-............');
   });
 });
+
+describe('the beat’s division toggle', () => {
+  it('the numeral flips its own beat to triplets, resetting its cells', () => {
+    const { container, state, tap, cells } = open();
+    // Paint something in beat 2, then flip beat 2: the flip clears it —
+    // four states cannot map honestly onto three.
+    tap(4);
+    expect(state()).toBe('....x...........');
+    const numerals = container.querySelectorAll('.rhythm-grid__count.is-numeral');
+    expect(numerals).toHaveLength(4);
+    fireEvent.click(numerals[1]);
+    // Beat 2 is now three cells: 15 in all, and beat 2 is empty again.
+    expect(cells()).toHaveLength(15);
+    expect(state()).toBe('...............');
+    // Its count row says trip-let.
+    const labels = [...container.querySelectorAll('.rhythm-grid__count')].map((el) => el.textContent);
+    expect(labels).toEqual(['1', 'e', '&', 'a', '2', 'trip', 'let', '3', 'e', '&', 'a', '4', 'e', '&', 'a']);
+  });
+
+  it('a triplet painted after the flip engraves in triplet values', () => {
+    const { container, cells, tap, getByText } = open();
+    fireEvent.change(container.querySelector('input')!, { target: { value: 'Trip' } });
+    const drag = (from: number, to: number) => {
+      fireEvent.pointerDown(cells()[from]);
+      for (let i = from + 1; i <= to; i++) fireEvent.pointerEnter(cells()[i]);
+      fireEvent.pointerUp(cells()[to]);
+    };
+    drag(0, 3); // a crotchet on beat 1
+    fireEvent.click(container.querySelectorAll('.rhythm-grid__count.is-numeral')[1]);
+    // Beat 2 is now cells 4–6: three separate triplet attacks.
+    tap(4); tap(5); tap(6);
+    drag(7, 10); // a crotchet on beat 3 (the grid is 15 cells now)
+    drag(11, 14); // and on beat 4
+    fireEvent.click(getByText('Save'));
+    const stored = JSON.parse(localStorage.getItem('brass-trainer:rhythms')!);
+    expect(stored[stored.length - 1].bars).toEqual(['0q 0t 0t 0t 0q 0q']);
+  });
+});

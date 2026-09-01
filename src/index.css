@@ -2689,15 +2689,21 @@ input[type='checkbox'] {
  */
 .rhythm-editor .sheet__body { flex-direction: column; gap: 0.8rem; padding: 1rem; overflow-y: auto; }
 .rhythm-editor .row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-/* Columns come from the component: a bar of 3/4 is twelve, not sixteen. */
-.rhythm-grid { display: grid; gap: 2px 0; margin: 0.3rem 0; }
+/* A bar is a row of beat groups; each beat is its own little grid whose
+   columns are its division — four for semiquavers, three for a triplet —
+   so the triplet's cells come out wider on the same beat width, which is
+   the truth of the thing. The numeral is a button: it toggles its beat. */
+.rhythm-grid { display: flex; gap: 3px; margin: 0.3rem 0; }
+.rhythm-beat { flex: 1; display: grid; gap: 2px 0; min-width: 0; }
+.rhythm-grid__count { border: 0; background: none; color: inherit; padding: 0;
+  text-align: center; font-size: 0.65rem; font-weight: 700; opacity: 0.75; min-height: 0.9rem; }
+.rhythm-grid__count.is-numeral { border: 1px solid var(--line, #8886); border-radius: 4px;
+  opacity: 1; cursor: pointer; }
+.rhythm-grid__count:not(.is-numeral) { pointer-events: none; }
 .rhythm-grid[data-bar] { position: relative; }
-.rhythm-grid__count { text-align: center; font-size: 0.65rem; font-weight: 700; opacity: 0.75;
-  min-height: 0.9rem; }
 .rhythm-cell { aspect-ratio: 1 / 1.4; min-width: 0; border: 1px solid var(--line, #8886);
   border-left-width: 0; background: none; padding: 0; touch-action: none; }
 .rhythm-cell.is-beat { border-left-width: 2px; }
-.rhythm-cell:first-of-type { border-left-width: 2px; }
 .rhythm-cell.is-attack { background: var(--accent, #4a6a9a); border-radius: 4px 0 0 4px; }
 .rhythm-cell.is-hold { background: var(--accent, #4a6a9a); opacity: 0.55; }
 .rhythm-editor__stave { width: 100%; height: 7.5rem; display: block; }
