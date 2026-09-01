@@ -219,12 +219,22 @@ it does on a printed part. The player's word for it — *"superimposed on
 top of the 1-e-and-a rhythm"* — is musically exact: the beat stays the
 unit, which is precisely why the rejected alternative (one fine grid of
 twelfths both fit into) was rejected: it would let the user draw
-positions no stave can print, reopening the hole the grid closes. **The toggle is a beat-wide button naming what a tap gives you** —
-"triplet" over a straight beat, the count over a triplet one — re-ruled
-2026-09-01 within hours of the numeral version: *"click on beat number
-isn't quite intuitive."* The count moved INTO the cells themselves, so
-the labels teach the grid they sit on. The flip still resets its beat's
-cells, because four states cannot map honestly onto three. Engraving additions, each in
+positions no stave can print, reopening the hole the grid closes. **The toggle is a beat-wide button reading "in 4" / "in 3"**, cycling an
+ordered list (`GRID_DIVISIONS`) — the player's own generalisation,
+reached in two steps the same day: first away from the numeral (*"click
+on beat number isn't quite intuitive"*), then past "triplet"/"1 e & a"
+to the number itself, *"or perhaps even 'in 5'"*. The count lives INSIDE
+the cells, so the button can afford to be a number: the cells say what
+the division means. The flip still resets its beat's cells — states
+cannot map honestly across divisions.
+
+**"In 5" is an entry on that list plus its dues, and the dues are the
+design**: a new division must have writable durations (`Duration.tuplet`
+is typed `3`, so a fifth of a beat cannot currently be spelled at all),
+engraving values and a tuplet numeral, an answer from the counting
+system even if that answer is deliberate silence, and a reason from real
+band parts — which for quintuplets is thin. "In 2" and every even split
+are already trivial inside division 4, as the player noted himself. Engraving additions, each in
 the test table: one cell is a triplet quaver, two a triplet crotchet,
 all three held ARE a crotchet and engrave as one; ties run into and out
 of a triplet beat; the dotted-crotchet merger demands its borrowed half

@@ -94,13 +94,13 @@ describe('the beat’s division toggle', () => {
     // Each beat wears one toggle naming what a tap gives you.
     const toggles = container.querySelectorAll('.rhythm-beat__toggle');
     expect(toggles).toHaveLength(4);
-    expect(toggles[1].textContent).toBe('triplet');
+    expect(toggles[1].textContent).toBe('in 4');
     fireEvent.click(toggles[1]);
     // Beat 2 is now three cells: 15 in all, and beat 2 is empty again.
     expect(cells()).toHaveLength(15);
     expect(state()).toBe('...............');
-    // Its toggle offers the way back, and its cells carry the count.
-    expect(container.querySelectorAll('.rhythm-beat__toggle')[1].textContent).toBe('1 e & a');
+    // Its toggle names the new state, and its cells carry the count.
+    expect(container.querySelectorAll('.rhythm-beat__toggle')[1].textContent).toBe('in 3');
     const labels = [...container.querySelectorAll('.rhythm-cell__count')].map((el) => el.textContent);
     expect(labels).toEqual(['1', 'e', '&', 'a', '2', 'trip', 'let', '3', 'e', '&', 'a', '4', 'e', '&', 'a']);
   });

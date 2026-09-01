@@ -219,6 +219,30 @@ export type GridCell = 'attack' | 'hold' | 'rest';
  */
 export type GridDivision = 3 | 4;
 
+/**
+ * The divisions a beat may cycle through, in the order the toggle walks
+ * them — the player's generalisation (2026-09-01): the button says
+ * "in 4", "in 3", and one day "in 5", because "in 2" and every even
+ * split are already trivial inside division 4.
+ *
+ * **Admitting a new number is an entry here PLUS its dues**, and the
+ * dues are why the list is short: a division must have (a) writable
+ * durations — `Duration.tuplet` is typed `3` today, so a fifth of a
+ * beat cannot even be spelled; (b) engraving values and a tuplet
+ * numeral; (c) an answer from the counting system, even if that answer
+ * is deliberate silence; and (d) a reason from real parts, which for
+ * quintuplets in band writing is thin. The grid's own law is the gate:
+ * every cell must be a position the count can name and the stave can
+ * write.
+ */
+export const GRID_DIVISIONS: readonly GridDivision[] = [4, 3];
+
+/** The division after this one, as the beat's toggle cycles. */
+export function nextDivision(division: GridDivision): GridDivision {
+  const at = GRID_DIVISIONS.indexOf(division);
+  return GRID_DIVISIONS[(at + 1) % GRID_DIVISIONS.length];
+}
+
 export interface GridBeat {
   division: GridDivision;
   /** Exactly `division` cells. */

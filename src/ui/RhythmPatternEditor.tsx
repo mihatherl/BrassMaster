@@ -27,6 +27,7 @@ import {
   barsFromGrid,
   beatCountLabels,
   beatsPerBar,
+  nextDivision,
   deleteCustomRhythm,
   flattenGrid,
   freshGrid,
@@ -153,8 +154,8 @@ export function RhythmPatternEditor({
       grid.map((beat, i) =>
         i === beatIndex
           ? {
-              division: (beat.division === 4 ? 3 : 4) as GridBeat['division'],
-              cells: Array(beat.division === 4 ? 3 : 4).fill('rest') as GridBeat['cells'],
+              division: nextDivision(beat.division),
+              cells: Array(nextDivision(beat.division)).fill('rest') as GridBeat['cells'],
             }
           : beat,
       ),
@@ -212,6 +213,11 @@ export function RhythmPatternEditor({
                         triplet one — because "tap the numeral" was not a
                         gesture anyone could guess (the player, 2026-09-01).
                         The count itself moved INTO the cells. */}
+                    {/* Named for its state, cycled by a tap — "in 4",
+                        "in 3", and whatever GRID_DIVISIONS earns next
+                        (the player's generalisation, 2026-09-01). The
+                        count in the cells below says what each division
+                        means, so the button can afford to be a number. */}
                     <button
                       type="button"
                       className="rhythm-beat__toggle"
@@ -219,7 +225,7 @@ export function RhythmPatternEditor({
                       aria-label={`Beat ${beatInBar + 1} of bar ${bar + 1}: divided in ${beat.division}. Tap to switch.`}
                       onClick={() => toggleDivision(beatIndex)}
                     >
-                      {beat.division === 4 ? t('rhythm.triplet') : t('rhythm.straight')}
+                      {t('rhythm.division', { n: String(beat.division) })}
                     </button>
                     {beat.cells.map((state, column) => {
                       const index = before + column;
