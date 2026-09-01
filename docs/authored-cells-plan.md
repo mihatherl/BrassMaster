@@ -93,6 +93,20 @@ open — the player's word wins once he has seen both in a sentence.**
 
 ## The builder: rhythm first, then pitches
 
+> **The player's own framing of the payoff, worth keeping verbatim
+> (2026-09-01):** *"when presented with a nasty 4-bar section of
+> syncopated music, they might just place the rhythm right then and
+> there, drag the notes to their right spot and off they go with a
+> practice tool."* That is this plan's use case sharpened to a moment:
+> transcription at the music stand, minutes before practising it. And
+> one genuinely new thread grew from it: *"handy too if they could
+> orchestrate some other melodic part against it, because that's what
+> they'll be dealing with in real life"* — a SECOND part sounding
+> against the player's own. Not this plan's scope, and not lost either:
+> it is roadmap **Phase 6 (Orchestration)** arriving from a new
+> direction, and the day authored cells meet Phase 6, an authored cell
+> with a companion line is the join.
+
 > **The rhythm half exists (2026-09-01).** The rhythm mode's annotation
 > tool — a step grid engraved live onto a stave on one written C, per
 > `rhythm-plan.md`'s redesigned tool section — is this builder's first

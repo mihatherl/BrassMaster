@@ -2695,14 +2695,18 @@ input[type='checkbox'] {
    the truth of the thing. The numeral is a button: it toggles its beat. */
 .rhythm-grid { display: flex; gap: 3px; margin: 0.3rem 0; }
 .rhythm-beat { flex: 1; display: grid; gap: 2px 0; min-width: 0; }
-.rhythm-grid__count { border: 0; background: none; color: inherit; padding: 0;
-  text-align: center; font-size: 0.65rem; font-weight: 700; opacity: 0.75; min-height: 0.9rem; }
-.rhythm-grid__count.is-numeral { border: 1px solid var(--line, #8886); border-radius: 4px;
-  opacity: 1; cursor: pointer; }
-.rhythm-grid__count:not(.is-numeral) { pointer-events: none; }
+/* The beat-wide toggle names what a tap gives you; the count lives in the
+   cells themselves, so the labels teach the grid they sit on. */
+.rhythm-beat__toggle { border: 1px solid var(--line, #8886); border-radius: 4px;
+  background: none; color: inherit; padding: 0.1rem 0; font-size: 0.6rem; font-weight: 600;
+  opacity: 0.85; cursor: pointer; }
+.rhythm-beat__toggle:hover { background: #8882; opacity: 1; }
+.rhythm-cell__count { pointer-events: none; font-size: 0.6rem; font-weight: 700;
+  color: inherit; opacity: 0.9; }
 .rhythm-grid[data-bar] { position: relative; }
 .rhythm-cell { aspect-ratio: 1 / 1.4; min-width: 0; border: 1px solid var(--line, #8886);
-  border-left-width: 0; background: none; padding: 0; touch-action: none; }
+  border-left-width: 0; background: none; padding: 0; touch-action: none;
+  display: flex; align-items: center; justify-content: center; color: inherit; }
 .rhythm-cell.is-beat { border-left-width: 2px; }
 .rhythm-cell.is-attack { background: var(--accent, #4a6a9a); border-radius: 4px 0 0 4px; }
 .rhythm-cell.is-hold { background: var(--accent, #4a6a9a); opacity: 0.55; }

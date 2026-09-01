@@ -207,22 +207,20 @@ export function RhythmPatternEditor({
                     className="rhythm-beat"
                     style={{ gridTemplateColumns: `repeat(${beat.division}, minmax(0, 1fr))` }}
                   >
-                    {labels.map((label, column) => (
-                      <button
-                        key={`l${column}`}
-                        type="button"
-                        className={`rhythm-grid__count ${column === 0 ? 'is-numeral' : ''}`}
-                        tabIndex={column === 0 ? 0 : -1}
-                        aria-label={
-                          column === 0
-                            ? `Beat ${beatInBar + 1} of bar ${bar + 1}: divided in ${beat.division}. Tap to switch.`
-                            : undefined
-                        }
-                        onClick={column === 0 ? () => toggleDivision(beatIndex) : undefined}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                    {/* The toggle spans its beat and names what tapping GIVES
+                        you — "triplet" on a straight beat, the count on a
+                        triplet one — because "tap the numeral" was not a
+                        gesture anyone could guess (the player, 2026-09-01).
+                        The count itself moved INTO the cells. */}
+                    <button
+                      type="button"
+                      className="rhythm-beat__toggle"
+                      style={{ gridColumn: '1 / -1' }}
+                      aria-label={`Beat ${beatInBar + 1} of bar ${bar + 1}: divided in ${beat.division}. Tap to switch.`}
+                      onClick={() => toggleDivision(beatIndex)}
+                    >
+                      {beat.division === 4 ? t('rhythm.triplet') : t('rhythm.straight')}
+                    </button>
                     {beat.cells.map((state, column) => {
                       const index = before + column;
                       return (
@@ -238,7 +236,9 @@ export function RhythmPatternEditor({
                           }}
                           onPointerEnter={() => enter(index)}
                           onPointerUp={() => release(index)}
-                        />
+                        >
+                          <span className="rhythm-cell__count">{labels[column]}</span>
+                        </button>
                       );
                     })}
                   </div>

@@ -219,10 +219,12 @@ it does on a printed part. The player's word for it — *"superimposed on
 top of the 1-e-and-a rhythm"* — is musically exact: the beat stays the
 unit, which is precisely why the rejected alternative (one fine grid of
 twelfths both fit into) was rejected: it would let the user draw
-positions no stave can print, reopening the hole the grid closes. **The
-numeral is the toggle** — it owns the beat, it was already drawn, tap it
-to flip the division — and the flip resets that beat's cells, because
-four states cannot map honestly onto three. Engraving additions, each in
+positions no stave can print, reopening the hole the grid closes. **The toggle is a beat-wide button naming what a tap gives you** —
+"triplet" over a straight beat, the count over a triplet one — re-ruled
+2026-09-01 within hours of the numeral version: *"click on beat number
+isn't quite intuitive."* The count moved INTO the cells themselves, so
+the labels teach the grid they sit on. The flip still resets its beat's
+cells, because four states cannot map honestly onto three. Engraving additions, each in
 the test table: one cell is a triplet quaver, two a triplet crotchet,
 all three held ARE a crotchet and engrave as one; ties run into and out
 of a triplet beat; the dotted-crotchet merger demands its borrowed half
