@@ -556,7 +556,7 @@ export function previewExerciseFromBars(
   const pitch = clef === 'treble' ? 72 : 48;
   const slots: Slot[] = [];
   const pitches: number[] = [];
-  const syllables: LabelEvent[] = [];
+  const syllables: Array<LabelEvent & { rest?: true }> = [];
   let at = 0;
   let tiedInto = false;
   for (const bar of bars) {
@@ -567,6 +567,11 @@ export function previewExerciseFromBars(
       if (event.rest) {
         slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
         tiedInto = false;
+        // The count carries on through the silence, marked as silence.
+        const syllable = countableSyllable(barBeat, event.beats);
+        if (syllable) {
+          syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable), rest: true });
+        }
       } else {
         slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious: tiedInto });
         if (!tiedInto) {

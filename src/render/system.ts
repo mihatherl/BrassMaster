@@ -639,15 +639,16 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
    */
   for (const syllable of exercise.syllables ?? []) {
     if (syllable.atBeat < firstBeat || syllable.atBeat >= lastBeat) continue;
-    const index = exercise.notes.findIndex(
-      (note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9,
-    );
+    // A count over silence wears the horizon grey: kept, and kept quiet.
+    const index = syllable.rest
+      ? -1
+      : exercise.notes.findIndex((note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9);
     drawSyllable(
       ctx,
       metrics,
       xForBeat(syllable.atBeat),
       syllable.text,
-      index >= 0 ? options.colourFor(index) : theme.note,
+      syllable.rest ? theme.horizon : index >= 0 ? options.colourFor(index) : theme.note,
     );
   }
 

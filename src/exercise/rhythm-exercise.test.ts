@@ -101,11 +101,27 @@ describe('the rhythm exercise', () => {
     }
   });
 
-  it('gives rests their silence: no label where nothing is spoken', () => {
+  it('counts through the rests on the page, marked as silence', () => {
+    /*
+     * Re-ruled 2026-09-01: the PRINT counts on where the mouth rests —
+     * you keep counting through a rest when you play — drawn dimmed,
+     * while the voice keeps the plan's rule and will speak only the
+     * unmarked entries. Off-beats are the proving case: the dimmed beat
+     * numbers are exactly what the off-beat quavers are read against.
+     */
     const exercise = generateExercise(options({ rhythmPatternId: 'off-beats', cycles: 1 }));
-    // Every count sits on a note's onset, never on a rest's.
-    const onsets = new Set(exercise.notes.map((note) => note.startBeat));
-    for (const entry of exercise.syllables ?? []) expect(onsets.has(entry.atBeat)).toBe(true);
-    expect(exercise.syllables!.length).toBeGreaterThan(0);
+    const noteOnsets = new Set(exercise.notes.map((note) => note.startBeat));
+    const restOnsets = new Set(exercise.rests.map((rest) => rest.startBeat));
+    const spoken = exercise.syllables!.filter((entry) => !entry.rest);
+    const silent = exercise.syllables!.filter((entry) => entry.rest);
+    expect(spoken.length).toBeGreaterThan(0);
+    expect(silent.length).toBeGreaterThan(0);
+    for (const entry of spoken) expect(noteOnsets.has(entry.atBeat)).toBe(true);
+    for (const entry of silent) expect(restOnsets.has(entry.atBeat)).toBe(true);
+    // The off-beat bar reads "1 & 2 & …": numbers silent, ands spoken.
+    const first = exercise.syllables!.filter((entry) => entry.atBeat < 4);
+    expect(first.map((entry) => `${entry.text}${entry.rest ? '·' : ''}`)).toEqual([
+      '1·', '&', '2·', '&', '3·', '&', '4·', '&',
+    ]);
   });
 });

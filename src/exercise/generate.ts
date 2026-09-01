@@ -441,7 +441,7 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   const pitches: number[] = [];
   /** Beat spans of the demonstration statements, for blanking after assembly. */
   const demoSpans: Array<[number, number]> = [];
-  const syllables: LabelEvent[] = [];
+  const syllables: Array<LabelEvent & { rest?: true }> = [];
   let at = 0;
   let side = 0;
   for (let round = 0; round < rounds; round++) {
@@ -458,6 +458,10 @@ function rhythmExercise(options: GenerateOptions): Exercise {
           if (!duration) throw new Error(`unwritable duration in ${pattern.id}`);
           if (event.rest) {
             slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
+            const syllable = countableSyllable(barBeat, event.beats);
+            if (syllable) {
+              syllables.push({ atBeat: at + barBeat, text: printedSyllable(syllable), rest: true });
+            }
           } else {
             const tiedFromPrevious = continuation.has(event);
             slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious });

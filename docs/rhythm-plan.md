@@ -228,6 +228,14 @@ the cells, so the button can afford to be a number: the cells say what
 the division means. The flip still resets its beat's cells — states
 cannot map honestly across divisions.
 
+**The printed count runs through the rests, dimmed** (the player,
+2026-09-01) — you keep counting through a rest when you play, so the
+page counts on where the mouth rests, one mark per engraved rest symbol
+in the horizon grey. The VOICE is untouched: a rest is still not spoken,
+and the clip scheduler will read only the unmarked syllable entries.
+Off-beats are the proving case — "1 & 2 &" with the numbers dimmed is
+exactly what the off-beat quavers are read against.
+
 **A bracket covers the figure, rests included** (the player, 2026-09-01:
 one painted cell in a triplet beat *"probably still needs the bracket
 beneath with the 3"*). The tuplet grouping was rebuilt from a run of

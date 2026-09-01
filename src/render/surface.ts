@@ -1188,15 +1188,16 @@ export class StaveRenderer {
     for (const syllable of exercise.syllables ?? []) {
       const x = xForBeat(syllable.atBeat);
       if (x < this.headerWidth - 60 || x > this.width + 60) continue;
-      const index = exercise.notes.findIndex(
-        (note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9,
-      );
+      // A count over silence wears the horizon grey: kept, and kept quiet.
+      const index = syllable.rest
+        ? -1
+        : exercise.notes.findIndex((note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9);
       drawSyllable(
         ctx,
         this.metrics,
         x,
         syllable.text,
-        index >= 0 ? this.noteColour(index) : theme.note,
+        syllable.rest ? theme.horizon : index >= 0 ? this.noteColour(index) : theme.note,
       );
     }
 

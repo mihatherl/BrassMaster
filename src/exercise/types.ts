@@ -218,8 +218,14 @@ export interface Exercise {
    * label style and printed "and" straight through the next beat's "3".
    * The text is the printed FORM ("&" for the spoken "and", the standard
    * 1 e & a), while the clip scheduler will speak from the mapping itself.
+   *
+   * `rest: true` marks a count printed over silence (the player,
+   * 2026-09-01: *"include the count for the rests, but in a different
+   * color"*): the page counts on where the mouth rests, drawn in the
+   * horizon grey, and the voice — when its clips exist — reads only the
+   * unmarked entries, keeping the plan's rule that a rest is not spoken.
    */
-  syllables?: LabelEvent[];
+  syllables?: Array<LabelEvent & { rest?: true }>;
   /** Length of the exercise in crotchets. */
   totalBeats: number;
   /**
