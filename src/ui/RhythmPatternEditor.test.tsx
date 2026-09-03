@@ -277,4 +277,39 @@ describe('moving a note', () => {
     const cells = JSON.parse(localStorage.getItem('brass-trainer:cells')!);
     expect(cells[0].notes[0]).toEqual({ degree: 1 });
   });
+
+  it('♯ and ♭ state the spelling, each a toggle, and a step-move clears it', () => {
+    /*
+     * Letter first, then accidental (ruled 2026-09-03): G sharp is
+     * "drag to G, tap ♯" and A flat is "drag to A, tap ♭" — a half-step
+     * increment cannot know which spelling the copied page shows. The
+     * accidental belongs to the note it was written on, so moving the
+     * note a step returns it to the scale's own note.
+     */
+    localStorage.clear();
+    const utils = withNotes();
+    fireEvent.change(utils.container.querySelector('input')!, { target: { value: 'A' } });
+    const canvas = utils.container.querySelector('.rhythm-editor__stave')!;
+    fireEvent.pointerDown(canvas, { clientX: 0, clientY: 80 });
+    fireEvent.pointerUp(canvas);
+    const sharp = () => utils.getByLabelText('Sharp');
+    const flat = () => utils.getByLabelText('Flat');
+    fireEvent.click(sharp());
+    expect(sharp().getAttribute('aria-pressed')).toBe('true');
+    // The other accidental replaces it; a second tap on it is the natural.
+    fireEvent.click(flat());
+    expect(sharp().getAttribute('aria-pressed')).toBe('false');
+    expect(flat().getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(flat());
+    expect(flat().getAttribute('aria-pressed')).toBe('false');
+    // Raise it and save: the alteration reaches the stored cell.
+    fireEvent.click(sharp());
+    fireEvent.change(utils.container.querySelectorAll('input')[1], { target: { value: 'Raised' } });
+    fireEvent.click(utils.getByText('Save'));
+    const cells = JSON.parse(localStorage.getItem('brass-trainer:cells')!);
+    expect(cells[0].notes[0]).toEqual({ degree: 1, alter: 1 });
+    // And a step-move drops it: a fresh position means the plain note.
+    fireEvent.click(utils.getByLabelText('Up a step'));
+    expect(sharp().getAttribute('aria-pressed')).toBe('false');
+  });
 });

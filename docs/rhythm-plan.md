@@ -726,6 +726,28 @@ colouring now read through `attackIndexByNote`, so a tied note selects,
 lights and drags as the one attack it is, every notehead of it
 together.
 
+**Accidentals: letter first, then the accidental (ruled 2026-09-03,
+third pass — the player: how to make a G into G sharp or A flat?).**
+His proposed half-step increment on the move buttons was argued down
+and he ratified the alternative: one press up from G is G sharp OR A
+flat — the same sound, two different things to read — and which one is
+right is exactly what the page being transcribed says, so no rule may
+guess. The cell format already kept the distinction (degree 5 raised
+is not degree 6 lowered), and the UI now states it the way the printed
+part does: **♯ and ♭ buttons beside the move arrows**, each a toggle
+on the selected note (`inflectedNote`) — G sharp is "drag to G, tap
+♯", A flat is "drag to A, tap ♭", and tapping the active accidental is
+the natural. **A step-move drops the accidental**: it was written on
+the note it inflected, and a fresh position means the scale's own
+note. And **the stave prints the author's spelling**: the preview
+settles each note's letter from its degree under the lens key and
+hands `assembleExercise` the settled spelling it already refuses to
+second-guess — left to `spellInKey`, a written G sharp could arrive
+respelled as A flat. A spelling that would need a double accidental
+falls back to the key's own, the rule that app never prints one.
+Playback needed nothing: `cellAsTheme` had carried `alter` since the
+format was born; only the way to write it was missing.
+
 Multi-select — a playlist of patterns and cells, as themes already
 has — is what remains.
 

@@ -36,6 +36,7 @@ import {
   flattenGrid,
   freshGrid,
   gridFromBars,
+  inflectedNote,
   loadCustomRhythms,
   movedNote,
   previewExerciseFromBars,
@@ -219,6 +220,18 @@ export function RhythmPatternEditor({
     if (selected === null || !line) return;
     setLine(line.map((note, i) => (i === selected ? movedNote(note, steps) : note)));
   };
+  /**
+   * The ♯/♭ buttons — letter first, then accidental, as the printed part
+   * states it (ruled 2026-09-03): a half-step increment was rejected
+   * because one press up from G is G sharp OR A flat, and which one is
+   * right is what the page being copied says. The author states the
+   * spelling; no rule ever guesses. Each button toggles its alteration.
+   */
+  const inflect = (alter: -1 | 1) => {
+    if (selected === null || !line) return;
+    setLine(line.map((note, i) => (i === selected ? inflectedNote(note, alter) : note)));
+  };
+  const selectedNote = selected !== null && line ? line[selected] : undefined;
 
   const setBars = (bars: number) => {
     setGrid(
@@ -469,6 +482,26 @@ export function RhythmPatternEditor({
                 onClick={() => nudge(-1)}
               >
                 ↓
+              </button>
+              <button
+                type="button"
+                className={`segmented__option ${selectedNote?.alter === 1 ? 'is-selected' : ''}`}
+                disabled={selected === null}
+                aria-label={t('rhythm.sharp')}
+                aria-pressed={selectedNote?.alter === 1}
+                onClick={() => inflect(1)}
+              >
+                ♯
+              </button>
+              <button
+                type="button"
+                className={`segmented__option ${selectedNote?.alter === -1 ? 'is-selected' : ''}`}
+                disabled={selected === null}
+                aria-label={t('rhythm.flat')}
+                aria-pressed={selectedNote?.alter === -1}
+                onClick={() => inflect(-1)}
+              >
+                ♭
               </button>
             </div>
           )}

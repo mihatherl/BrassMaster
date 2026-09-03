@@ -21,6 +21,7 @@ import {
   cellFitsKeys,
   CELLS_KEY,
   deleteCell,
+  inflectedNote,
   loadCells,
   movedNote,
   randomNotesFor,
@@ -569,7 +570,64 @@ describe('moving a note by scale steps', () => {
     expect(movedNote({ degree: 7, octave: -1 }, 1)).toEqual({ degree: 1 });
   });
 
-  it('carries the alteration with the note', () => {
-    expect(movedNote({ degree: 4, alter: -1 }, 7)).toEqual({ degree: 4, alter: -1, octave: 1 });
+  it('drops the alteration — it was written on the note it inflected', () => {
+    // Ruled 2026-09-03 with the accidental buttons: a fresh position
+    // means the scale's own note; sharpen it again if the page says so.
+    expect(movedNote({ degree: 4, alter: -1 }, 7)).toEqual({ degree: 4, octave: 1 });
+    expect(movedNote({ degree: 5, alter: 1, octave: -1 }, 1)).toEqual({ degree: 6, octave: -1 });
+  });
+});
+
+describe('the accidental buttons — letter first, then the accidental (2026-09-03)', () => {
+  /*
+   * A half-step increment was rejected: one press up from G is G sharp
+   * OR A flat, and which is right is what the page being copied says.
+   * The author states the spelling — the degree names the letter, the
+   * button names the accidental — and no rule ever guesses.
+   */
+  it('toggles: set, replaced by the other, cleared by its own second tap', () => {
+    expect(inflectedNote({ degree: 5 }, 1)).toEqual({ degree: 5, alter: 1 });
+    expect(inflectedNote({ degree: 5, alter: 1 }, -1)).toEqual({ degree: 5, alter: -1 });
+    expect(inflectedNote({ degree: 5, alter: 1 }, 1)).toEqual({ degree: 5 });
+    expect(inflectedNote({ degree: 2, octave: 1 }, -1)).toEqual({ degree: 2, octave: 1, alter: -1 });
+  });
+
+  it('the stave prints the author’s spelling, never a respelling', () => {
+    /*
+     * The same sound, two different things to read: degree 5 raised IS
+     * G sharp and degree 6 lowered IS A flat, and each prints as the
+     * one the author wrote. Left to `spellInKey`, both arrived as one
+     * of them.
+     */
+    const instrument = instrumentById('eb-bass');
+    const sharp = previewExerciseFromBars(
+      ['0q rq rh'], [4, 4], instrument, 'treble', [{ degree: 5, alter: 1 }],
+    );
+    expect(sharp.notes[0].pitch).toMatchObject({ letter: 'G', alter: 1 });
+    const flat = previewExerciseFromBars(
+      ['0q rq rh'], [4, 4], instrument, 'treble', [{ degree: 6, alter: -1 }],
+    );
+    expect(flat.notes[0].pitch).toMatchObject({ letter: 'A', alter: -1 });
+  });
+
+  it('spells with the lens key’s own letters', () => {
+    // Written in E flat, degree 6 lowered is C flat — the letter C with
+    // a flat, exactly as the copied page prints it.
+    const instrument = instrumentById('eb-bass');
+    const exercise = previewExerciseFromBars(
+      ['0q rq rh'], [4, 4], instrument, 'treble', [{ degree: 6, alter: -1 }], -3,
+    );
+    expect(exercise.notes[0].pitch).toMatchObject({ letter: 'C', alter: -1 });
+  });
+
+  it('never prints a double accidental, falling back to the key’s spelling', () => {
+    // Written in B major, degree 7 is A sharp; raised again it would be
+    // A double-sharp, which this app never prints — the fallback spells
+    // the sound in the key instead.
+    const instrument = instrumentById('eb-bass');
+    const exercise = previewExerciseFromBars(
+      ['0q rq rh'], [4, 4], instrument, 'treble', [{ degree: 7, alter: 1 }], 5,
+    );
+    expect(Math.abs(exercise.notes[0].pitch.alter)).toBeLessThanOrEqual(1);
   });
 });

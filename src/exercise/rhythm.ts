@@ -22,9 +22,10 @@
 
 import { parseCell, type CellEvent } from './cells';
 import { realiseTheme, type Theme, type ThemeEvent } from './theme';
-import { MAJOR_SCALE, tonicPitchClass } from '../domain/keys';
+import { MAJOR_SCALE, spellWithLetter, tonicPitchClass } from '../domain/keys';
+import { LETTERS } from '../domain/pitch';
 import { createRng } from './rng';
-import { assembleExercise, type Slot } from './assemble';
+import { assembleExercise, type Slot, type SlotPitch } from './assemble';
 import { durationFromBeats } from '../domain/rhythm';
 import { metreFor } from '../domain/metre';
 import type { Clef, Instrument } from '../domain/instruments';
@@ -668,7 +669,10 @@ export function previewExerciseFromBars(
   const wanted = ((tonicPitchClass(fifths) % 12) + 12) % 12;
   const home = anchor - ((((anchor % 12) - wanted) % 12) + 12) % 12;
   const slots: Slot[] = [];
-  const pitches: number[] = [];
+  const pitches: SlotPitch[] = [];
+  /* The lens key's scale letters ascend from its tonic letter — a fifth
+     up the circle is four letters up the scale. */
+  const tonicLetter = (((fifths * 4) % 7) + 7) % 7;
   let at = 0;
   let attack = 0;
   let tiedInto = false;
@@ -684,16 +688,25 @@ export function previewExerciseFromBars(
         slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious: tiedInto });
         if (!tiedInto) {
           const note = notes?.[attack];
-          /* Degrees of C, so a drag reads directly as scale steps; the
-             run itself places them in whatever key the player chose. */
-          pitches.push(
-            note
-              ? home +
-                  MAJOR_SCALE[(note.degree - 1) % 7] +
-                  (note.alter ?? 0) +
-                  12 * (note.octave ?? 0)
-              : home,
-          );
+          const midi = note
+            ? home +
+              MAJOR_SCALE[(note.degree - 1) % 7] +
+              (note.alter ?? 0) +
+              12 * (note.octave ?? 0)
+            : home;
+          /* The author's spelling, settled here rather than left to
+             `spellInKey`: the degree names the LETTER (the lens key's
+             own scale letters) and the alter names the accidental, so a
+             raised fifth prints as the sharp the copied page showed and
+             is never respelled as the flat above it (ruled 2026-09-03,
+             with the accidental buttons). A spelling that would need a
+             double accidental falls back to the bare number, which
+             `assembleExercise` spells in the key — the house rule that
+             no double accidental is ever printed. */
+          const spelled = note
+            ? spellWithLetter(midi, LETTERS[(tonicLetter + note.degree - 1) % 7])
+            : null;
+          pitches.push(spelled ?? midi);
           attack++;
         }
         tiedInto = event.tied === true;
@@ -952,14 +965,30 @@ export function reconcileNotes(
  * { octave } : {})` over `...note` keeps a STALE octave whenever the move
  * lands back in the home octave, which pinned a dragged note a seventh
  * from the hand for the rest of the gesture (found 2026-09-03).
+ *
+ * The alteration does NOT travel (ruled 2026-09-03, with the accidental
+ * buttons): it was written on the note it inflected, and a fresh
+ * position means the scale's own note — sharpen it again if the page
+ * says so.
  */
 export function movedNote(note: CellNote, steps: number): CellNote {
   const flat = note.degree - 1 + (note.octave ?? 0) * 7 + steps;
   const octave = Math.floor(flat / 7);
   const moved: CellNote = { degree: (((flat % 7) + 7) % 7) + 1 };
-  if (note.alter) moved.alter = note.alter;
   if (octave) moved.octave = octave;
   return moved;
+}
+
+/**
+ * A note inflected by the ♯ or ♭ button: set the alteration, or clear it
+ * where it already holds — the buttons are toggles, and the natural is
+ * the absence both this format and the stave already mean by it.
+ */
+export function inflectedNote(note: CellNote, alter: -1 | 1): CellNote {
+  const inflected: CellNote = { degree: note.degree };
+  if (note.octave) inflected.octave = note.octave;
+  if (note.alter !== alter) inflected.alter = alter;
+  return inflected;
 }
 
 export function randomNotesFor(bars: readonly string[], seed: number): CellNote[] {
