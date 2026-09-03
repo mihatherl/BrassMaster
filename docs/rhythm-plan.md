@@ -648,11 +648,21 @@ spot, or one of the cells written on it.
   spelled it against C, so an E flat pattern arrived under a blank
   signature covered in sharps.
 
+**The cell editor landed the same day**: the rhythm tool grew an *Add
+notes* mode, which fills one note per attack and lets each be **dragged
+up and down the stave the grid already draws** — the bridge the player
+named on 2026-09-01, crossed. A drag moves in whole stave steps because
+a cell is degrees and a step of the stave IS a step of the scale;
+dragging past the seventh continues into the next octave rather than
+stopping, which is what dragging up a stave plainly means. The renderer
+reports where it drew each note (`StaveRenderer.noteLayout`) rather than
+the editor recomputing layout beside it — two answers to "where is that
+note" would drift the moment either changed. Saving writes the cell
+**beside** its rhythm, never instead of it, with the snapshot the
+parent-child ruling requires.
+
 Multi-select — a playlist of patterns and cells, as themes already
-has — is deliberately next rather than now, and the **cell editor**
-(dragging notes on the stave the grid already draws) is the piece that
-makes the tab worth having. What exists today can play a written cell;
-nothing yet writes one.
+has — is what remains.
 
 ## Open, and named so they are not forgotten
 

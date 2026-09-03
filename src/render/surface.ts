@@ -35,6 +35,7 @@ import { barAt, barCount, beatOfBar, metreAt } from '../domain/metre';
 import { durationBeats } from '../domain/rhythm';
 import type { Transport } from '../engine/clock';
 import type { Verdict } from '../engine/judge';
+import { diatonicStep } from '../domain/pitch';
 import { isUnplayable, type Exercise } from '../exercise/types';
 import {
   accidentalRoom,
@@ -546,6 +547,38 @@ export class StaveRenderer {
     const inside = spans.find(([from, to]) => beat >= from - 1e-9 && beat < to - 1e-9);
     if (inside) return inside;
     return beat < spans[0][0] ? spans[0] : null;
+  }
+
+  /**
+   * Where each note was drawn, and the geometry to read a pointer back
+   * into a stave step — what the cell editor needs to drag a note up
+   * and down the very stave this renderer just drew (2026-09-03).
+   *
+   * Asked of the renderer rather than recomputed beside it: layout is
+   * this class's business, and a second implementation of "where is
+   * that note" would drift from the picture the moment either changed.
+   * A one-system preview only; the editor draws no more than that.
+   */
+  noteLayout(): {
+    notes: Array<{ index: number; x: number; step: number }>;
+    stepAtY: (y: number) => number;
+    staveSpace: number;
+  } {
+    const { exercise } = this.options;
+    const origin = this.originX(0);
+    const xForBeat = (beat: number) => this.strikeX + this.xAt(beat) - origin;
+    const m = this.metrics;
+    return {
+      notes: exercise.notes.map((note, index) => ({
+        index,
+        x: xForBeat(note.startBeat),
+        step: diatonicStep(note.pitch),
+      })),
+      // The inverse of `yForStep`, rounded to the nearest line or space.
+      stepAtY: (y: number) =>
+        Math.round(m.bottomLineStep + ((m.bottomLineY - y) * 2) / m.staveSpace),
+      staveSpace: m.staveSpace,
+    };
   }
 
   /** The current horizontal scale. Exposed for tests and for debugging layout. */

@@ -24,6 +24,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { t } from '../i18n';
 import {
+  attacksIn,
   barsFromGrid,
   beatCountLabels,
   beatsPerBar,
@@ -34,8 +35,11 @@ import {
   gridFromBars,
   loadCustomRhythms,
   previewExerciseFromBars,
+  randomNotesFor,
   rebuildGrid,
+  saveCell,
   saveCustomRhythm,
+  type CellNote,
   type GridBeat,
   type RhythmPattern,
 } from '../exercise/rhythm';
@@ -71,6 +75,15 @@ export function RhythmPatternEditor({
     return loaded ?? freshGrid(editing?.metre ?? [4, 4]);
   });
   const cells = useMemo(() => flattenGrid(grid), [grid]);
+  /**
+   * The line, where a cell is being written over this rhythm — the
+   * vertical axis of the same stave (the player's bridge, 2026-09-01,
+   * built 2026-09-03). Null is rhythm-only; switching to notes fills
+   * the line with tonics, so every attack has a note to drag.
+   */
+  const [line, setLine] = useState<CellNote[] | null>(null);
+  const [cellName, setCellName] = useState('');
+
   /**
    * The gesture in flight, decided AT THE PRESS — because the press
    * itself changes the cell, release cannot read the cell to know what
@@ -267,8 +280,55 @@ export function RhythmPatternEditor({
           </div>
         </div>
 
+        {'bars' in verdict && (
+          <div className="row">
+            {/* The vertical axis of the same stave: rhythm alone, or a
+                line to drag on it (the player's bridge, 2026-09-01). */}
+            <button
+              type="button"
+              className={`segmented__option ${line === null ? 'is-selected' : ''}`}
+              onClick={() => setLine(null)}
+            >
+              {t('rhythm.rhythmOnly')}
+            </button>
+            <button
+              type="button"
+              className={`segmented__option ${line !== null ? 'is-selected' : ''}`}
+              onClick={() =>
+                setLine(line ?? attacksIn(verdict.bars).map(() => ({ degree: 1 })))
+              }
+            >
+              {t('rhythm.addNotes')}
+            </button>
+            {line !== null && (
+              <button
+                type="button"
+                className="segmented__option"
+                onClick={() => setLine(randomNotesFor(verdict.bars, Date.now() % 100000))}
+              >
+                {t('rhythm.randomNotes')}
+              </button>
+            )}
+          </div>
+        )}
+        {line !== null && (
+          <label className="field">
+            <span className="field__label">{t('rhythm.cellName')}</span>
+            <input
+              value={cellName}
+              onChange={(e) => setCellName(e.target.value)}
+              placeholder={t('rhythm.cellPlaceholder')}
+            />
+          </label>
+        )}
         {'bars' in verdict ? (
-          <RhythmStavePreview bars={verdict.bars} metre={metre} instrumentId={instrumentId} clef={clef} />
+          <RhythmStavePreview
+            bars={verdict.bars}
+            metre={metre}
+            instrumentId={instrumentId}
+            clef={clef}
+            {...(line ? { notes: line, onNotes: setLine } : {})}
+          />
         ) : (
           <p className="field__note" role="status">
             {verdict.error}
@@ -302,7 +362,24 @@ export function RhythmPatternEditor({
           className="button button--primary"
           disabled={readyError !== null}
           onClick={() => {
-            saveCustomRhythm({ id, name: name.trim(), metre, stage: 1, bars: (verdict as { bars: string[] }).bars });
+            const bars = (verdict as { bars: string[] }).bars;
+            saveCustomRhythm({ id, name: name.trim(), metre, stage: 1, bars });
+            /*
+             * A cell is saved BESIDE its rhythm, never instead of it:
+             * the pattern is the parent and stays on the shelf, and the
+             * cell carries a snapshot of its bars so a later edit to
+             * the rhythm cannot break it (the ruling of 2026-09-03).
+             */
+            if (line && cellName.trim()) {
+              saveCell({
+                id: `${id}-${cellName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+                name: cellName.trim(),
+                patternId: id,
+                metre,
+                bars,
+                notes: line,
+              });
+            }
             onSaved(id);
           }}
         >
@@ -324,13 +401,23 @@ function RhythmStavePreview({
   metre,
   instrumentId,
   clef,
+  notes,
+  onNotes,
 }: {
   bars: readonly string[];
   metre: readonly [number, number];
   instrumentId: string;
   clef: Clef;
+  /** The line, where this is a cell being written; absent draws the rhythm. */
+  notes?: readonly CellNote[];
+  onNotes?: (notes: CellNote[]) => void;
 }): ReactElement {
   const ref = useRef<HTMLCanvasElement>(null);
+  /** Where the renderer put each note, for the drag's hit test. */
+  const layout = useRef<ReturnType<StaveRenderer['noteLayout']> | null>(null);
+  /** The note being dragged, and the step it started on. */
+  const dragging = useRef<{ index: number; from: number } | null>(null);
+
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
@@ -341,7 +428,13 @@ function RhythmStavePreview({
     canvas.height = Math.round(rect.height * ratio);
     const context = new AudioContext();
     void context.suspend();
-    const exercise = previewExerciseFromBars(bars, metre, instrumentById(instrumentId), clef);
+    const exercise = previewExerciseFromBars(
+      bars,
+      metre,
+      instrumentById(instrumentId),
+      clef,
+      notes,
+    );
     const renderer = new StaveRenderer({
       canvas,
       exercise,
@@ -352,10 +445,80 @@ function RhythmStavePreview({
       verdictFor: () => undefined,
     });
     renderer.draw();
+    layout.current = renderer.noteLayout();
     return () => {
       renderer.stop();
       void context.close();
     };
-  }, [bars, metre, instrumentId, clef]);
-  return <canvas ref={ref} className="rhythm-editor__stave" />;
+  }, [bars, metre, instrumentId, clef, notes]);
+
+  /*
+   * The drag, in the canvas's own coordinates. A pointer picks the
+   * nearest notehead by x and then follows the stave in whole steps —
+   * lines and spaces, never semitones, because a cell is degrees and a
+   * step of the STAVE is a step of the scale. Accidentals are the
+   * keyboard's job, not the drag's.
+   */
+  const at = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = ref.current;
+    const map = layout.current;
+    if (!canvas || !map || map.notes.length === 0) return null;
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    const x = (event.clientX - rect.left) * scale;
+    const y = (event.clientY - rect.top) * scale;
+    const nearest = map.notes.reduce((best, note) =>
+      Math.abs(note.x - x) < Math.abs(best.x - x) ? note : best,
+    );
+    // Within a notehead's reach, or the pointer meant the stave, not a note.
+    if (Math.abs(nearest.x - x) > map.staveSpace * 2) return null;
+    return { note: nearest, step: map.stepAtY(y) };
+  };
+
+  const move = (index: number, steps: number) => {
+    if (!onNotes || !notes) return;
+    const line = notes.map((note, i) => {
+      if (i !== index) return note;
+      /*
+       * Degrees are 1–7 with an octave beside them, so a step past the
+       * seventh is the tonic an octave up — the walk continues rather
+       * than stopping at an edge, which is what dragging up a stave
+       * plainly means.
+       */
+      const flat = (note.degree - 1) + (note.octave ?? 0) * 7 + steps;
+      const octave = Math.floor(flat / 7);
+      return { ...note, degree: (((flat % 7) + 7) % 7) + 1, ...(octave ? { octave } : {}) };
+    });
+    onNotes(line);
+  };
+
+  return (
+    <canvas
+      ref={ref}
+      className={`rhythm-editor__stave ${onNotes ? 'is-draggable' : ''}`}
+      onPointerDown={(event) => {
+        if (!onNotes) return;
+        const hit = at(event);
+        if (!hit) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragging.current = { index: hit.note.index, from: hit.step };
+      }}
+      onPointerMove={(event) => {
+        const drag = dragging.current;
+        if (!drag || !onNotes) return;
+        const map = layout.current;
+        const canvas = ref.current;
+        if (!map || !canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const y = (event.clientY - rect.top) * (canvas.width / rect.width);
+        const step = map.stepAtY(y);
+        if (step === drag.from) return;
+        move(drag.index, step - drag.from);
+        dragging.current = { index: drag.index, from: step };
+      }}
+      onPointerUp={() => {
+        dragging.current = null;
+      }}
+    />
+  );
 }

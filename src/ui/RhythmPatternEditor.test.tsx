@@ -124,3 +124,59 @@ describe('the beat’s division toggle', () => {
     expect(stored[stored.length - 1].bars).toEqual(['0q 0t 0t 0t 0q 0q']);
   });
 });
+
+describe('the cell editor — notes on the rhythm', () => {
+  /*
+   * The vertical axis of the stave the grid already draws (the player's
+   * bridge, 2026-09-01). Dragging is a pointer gesture on a canvas, so
+   * what is testable here is the state machine around it: a line
+   * appears with one note per attack, and saving writes a cell beside
+   * its rhythm rather than instead of it.
+   */
+  const paintCrotchets = (utils: ReturnType<typeof open>) => {
+    for (const start of [0, 4, 8, 12]) {
+      fireEvent.pointerDown(utils.cells()[start]);
+      for (let i = start + 1; i < start + 4; i++) fireEvent.pointerEnter(utils.cells()[i]);
+      fireEvent.pointerUp(utils.cells()[start + 3]);
+    }
+  };
+
+  it('gives every attack a note when notes are added', () => {
+    const utils = open();
+    paintCrotchets(utils);
+    fireEvent.click(utils.getByText('Add notes'));
+    // Four crotchets, so four notes to drag — and a name field for them.
+    expect(utils.container.querySelectorAll('input')).toHaveLength(2);
+    expect(utils.getByText('Rhythm only')).toBeTruthy();
+  });
+
+  it('saves the cell beside its rhythm, with a snapshot of the bars', () => {
+    localStorage.clear();
+    const utils = open();
+    fireEvent.change(utils.container.querySelector('input')!, { target: { value: 'Parent' } });
+    paintCrotchets(utils);
+    fireEvent.click(utils.getByText('Add notes'));
+    fireEvent.change(utils.container.querySelectorAll('input')[1], { target: { value: 'Line' } });
+    fireEvent.click(utils.getByText('Save'));
+
+    const rhythms = JSON.parse(localStorage.getItem('brass-trainer:rhythms')!);
+    const cells = JSON.parse(localStorage.getItem('brass-trainer:cells')!);
+    // The pattern stays a pattern; the cell points at it and carries its own copy.
+    expect(rhythms).toHaveLength(1);
+    expect(rhythms[0].bars).toEqual(['0q 0q 0q 0q']);
+    expect(cells).toHaveLength(1);
+    expect(cells[0].patternId).toBe(rhythms[0].id);
+    expect(cells[0].bars).toEqual(rhythms[0].bars);
+    expect(cells[0].notes).toHaveLength(4);
+  });
+
+  it('saves no cell where the rhythm was left alone', () => {
+    localStorage.clear();
+    const utils = open();
+    fireEvent.change(utils.container.querySelector('input')!, { target: { value: 'Bare' } });
+    paintCrotchets(utils);
+    fireEvent.click(utils.getByText('Save'));
+    expect(localStorage.getItem('brass-trainer:cells')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('brass-trainer:rhythms')!)).toHaveLength(1);
+  });
+});

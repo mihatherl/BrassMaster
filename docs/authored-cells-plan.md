@@ -107,6 +107,15 @@ open — the player's word wins once he has seen both in a sentence.**
 > direction, and the day authored cells meet Phase 6, an authored cell
 > with a companion line is the join.
 
+> **Built 2026-09-03: the whole builder, rhythm and pitch.** The
+> rhythm mode's tool now writes cells — a grid for the rhythm, an *Add
+> notes* mode that puts one note per attack on the engraved stave, and a
+> drag in whole scale steps. Cells live under their patterns in the
+> Pattern tab (`rhythm-plan.md` has the structure and the rulings), are
+> stored as degrees so they play in any key, and carry a snapshot of
+> their parent's bars. What this plan still owns: cells inside COURSES,
+> by value, and the seam to Phase 6 noted above.
+>
 > **The rhythm half exists (2026-09-01).** The rhythm mode's annotation
 > tool — a step grid engraved live onto a stave on one written C, per
 > `rhythm-plan.md`'s redesigned tool section — is this builder's first

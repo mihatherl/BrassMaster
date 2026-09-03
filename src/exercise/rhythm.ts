@@ -22,6 +22,7 @@
 
 import { parseCell, type CellEvent } from './cells';
 import { realiseTheme, type Theme, type ThemeEvent } from './theme';
+import { MAJOR_SCALE } from '../domain/keys';
 import { createRng } from './rng';
 import { assembleExercise, type Slot } from './assemble';
 import { durationFromBeats } from '../domain/rhythm';
@@ -642,12 +643,20 @@ export function previewExerciseFromBars(
   metrePair: readonly [number, number],
   instrument: Instrument,
   clef: Clef,
+  /**
+   * The line, where the preview is a cell being written: one degree per
+   * attack, drawn in C so the stave shows the shape the author is
+   * dragging. Absent draws every note on one written C, which is the
+   * rhythm-only face of the same picture.
+   */
+  notes?: readonly CellNote[],
 ): Exercise {
   const metre = metreFor(metrePair[0], metrePair[1]);
-  const pitch = clef === 'treble' ? 72 : 48;
+  const home = clef === 'treble' ? 72 : 48;
   const slots: Slot[] = [];
   const pitches: number[] = [];
   let at = 0;
+  let attack = 0;
   let tiedInto = false;
   for (const bar of bars) {
     let barBeat = 0;
@@ -659,7 +668,20 @@ export function previewExerciseFromBars(
         tiedInto = false;
       } else {
         slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious: tiedInto });
-        if (!tiedInto) pitches.push(pitch);
+        if (!tiedInto) {
+          const note = notes?.[attack];
+          /* Degrees of C, so a drag reads directly as scale steps; the
+             run itself places them in whatever key the player chose. */
+          pitches.push(
+            note
+              ? home +
+                  MAJOR_SCALE[(note.degree - 1) % 7] +
+                  (note.alter ?? 0) +
+                  12 * (note.octave ?? 0)
+              : home,
+          );
+          attack++;
+        }
         tiedInto = event.tied === true;
       }
       barBeat += event.beats;
@@ -828,6 +850,20 @@ export function cellFitsKeys(
  * compete with sight-reading, whose own generator is the place for
  * real melodic variety.
  */
+/**
+ * The attacks in a rhythm — every sounded event that is not the far end
+ * of a tie. One note is written per attack, so this is the length of a
+ * cell's line and the address space its drag works in.
+ */
+export function attacksIn(bars: readonly string[]): CellEvent[] {
+  const events = bars.flatMap((bar) => parseCell(bar));
+  return events.filter((event, index) => {
+    if (event.rest) return false;
+    const previous = events[index - 1];
+    return !(previous && previous.tied === true && previous.rest !== true);
+  });
+}
+
 export function randomNotesFor(bars: readonly string[], seed: number): CellNote[] {
   const rng = createRng(seed);
   /*
@@ -836,12 +872,7 @@ export function randomNotesFor(bars: readonly string[], seed: number): CellNote[
    * note, and it is identified by what precedes it. Caught by a test
    * written from the rule rather than from this code.
    */
-  const events = bars.flatMap((bar) => parseCell(bar));
-  const sounded = events.filter((event, index) => {
-    if (event.rest) return false;
-    const previous = events[index - 1];
-    return !(previous && previous.tied === true && previous.rest !== true);
-  });
+  const sounded = attacksIn(bars);
   const notes: CellNote[] = [];
   /*
    * The walk lives in the middle of the scale rather than on the floor:
