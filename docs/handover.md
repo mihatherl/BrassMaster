@@ -1,4 +1,4 @@
-# Handover — 2026-08-30, the day the themes named their tunes and rhythm began
+# Handover — 2026-09-03, the days rhythm mode became a workshop
 
 You are picking up **one third** of a workspace, from a parent folder holding
 three repositories. This one is *Brass Master*: the practice app, free on the
@@ -9,144 +9,154 @@ The second is the parked MusicXML generator. The third is
 **Read this file, then `../CLAUDE.md`, then one plan document for the task in
 front of you. Nothing else, until you need it.**
 
-The previous handover is `handover-2026-08-30-axes.md` — the night the level
-axes were built. Everything it says stands except where this file says
-otherwise; it remains the place for the axes model's history, the editor's
-x-axis arc and the gate order's reasoning. This one covers a single long day
-of working *with* the player, in conversation: **v2.65.0**, one release
-carrying ten distinct pieces, each gated as it landed.
+The previous handover is `handover-2026-08-30-themes.md` — the day the themes
+named their tunes and rhythm began. Everything it says stands except where
+this file says otherwise. This one covers **v2.66.0**: four days of working
+with the player in tight conversation, twenty-two commits, almost all of them
+inside rhythm mode — which went from "slice 1, printed count, no editor" to a
+tool the player used on the real music he must play at the eisteddfod.
 
 ## What to read, and what to leave alone
 
 | | When |
 |---|---|
 | `handover.md` — this file | Now, all of it |
-| **`roadmap.md`** | Now, and before proposing any feature. **Phase 2 (microphone) is deferred** behind a sample corpus the player records after the eisteddfod (mid-September 2026) |
+| **`roadmap.md`** | Now, and before proposing any feature. Phase 2 (microphone) is deferred behind a sample corpus recorded **after the eisteddfod, mid-September 2026** |
 | `../CLAUDE.md` | Now. The seam, and which remote is which |
-| **`rhythm-plan.md`** | Before any rhythm work — **scheduled and slice 1 built** 2026-08-30; the header says what exists |
-| **`explicit-themes-plan.md`** | Before touching themes levels, the tune picker or `instruments` — built, with the build's own corrections recorded at the foot |
-| **`authored-cells-plan.md`** | Designed, not built, not formally ratified — the player's own concept, next after rhythm |
-| `level-axes-plan.md` | Before any course-schema or editor work |
-| `handover-2026-08-30-axes.md` | For anything about the axes build itself |
-| `course-plan.md` | Pedagogy; its cells section is superseded and says so |
+| **`rhythm-plan.md`** | Before ANY rhythm/pattern/cell work. It is the living record: every ruling of these four days is written into it, dated, in order |
+| `authored-cells-plan.md` | Mostly absorbed — its builder now exists inside rhythm mode; what it still owns is cells inside COURSES, and the Phase 6 note |
+| `explicit-themes-plan.md`, `level-axes-plan.md` | Before course-schema or editor work |
+| `handover-2026-08-30-themes.md` | For the themes axis, instruments, the editor fold — all still standing and still unplayed |
 | `device-testing.md` | Before any session touching the shell or a phone |
 
 ## Where this stands
 
-**v2.65.0, one commit for the whole day** — less granular than the house
-style of a release per piece, and deliberately: the pieces interleave in the
-same files and each intermediate state was gated live during the session,
-but could not be re-gated retroactively as separate commits.
-**1,720 tests across 88 files.** Gate order unchanged (build → build:web →
-checks → **build:dev last**; `vite preview` serves whatever sits in `dist/`).
+**v2.66.0, tagged with this handover; 1,763 tests across 93 files.** The
+gate order matters and bit twice more: `build` → `build:web` → `check:web`
+(it reads `dist/app`, which **`build:dev` deletes**) → `check:channel` →
+**`build:dev` last**, restoring the tailnet copy on 4173. `npm run preview`
+serves whatever sits in `dist/`; hard-reload before believing any page.
 
-**The build order is now: the player's playing pass → rhythm (continue) →
-authored cells → microphone (after the eisteddfod).** Ruled by the player
-2026-08-30; the roadmap's Phase 2 note records why.
+**The build order stands**: the player's playing pass → finish rhythm →
+cells-in-courses → microphone (after the eisteddfod). Authored cells moved
+early because the player kept pulling them forward, and the builder is now
+DONE ahead of its plan's own phases.
 
-## The day's pieces, newest machinery first
+## What rhythm mode is now — the shape, not the diff
 
-- **Rhythm drills, slice 1** (`rhythm-plan.md` header lists it). The pattern
-  library (spine stages 1–4) and syllable mapping in `exercise/rhythm.ts`;
-  the demonstration-then-play generator in `generate.ts` (`rhythmExercise`);
-  the printed count — **1 e & a, centred on the notehead, greying with its
-  demo bars** — as `Exercise.syllables`, its own channel after riding
-  `labels` collided; `__HAS_RHYTHM__` with a `check:web` tripwire that
-  **caught two real leaks on its first day** (JSX evaluates whether rendered
-  or not; the generator dispatch ships unless the literal folds it). Demo
-  bars are unjudged BY DATA (`acceptedMasks: []`) and silent under reference
-  playback (scoped to rhythm — imported unreachable notes still sound).
-  Unplayable notes now draw in horizon grey. Rhythm's tab asks one question
-  (which pattern): no key, no difficulty, no signature, no Reading control
-  at the gate — the material answers all four. **The voice waits on the
-  player's clips**: eleven syllables, one phone session, nothing sounds
-  until they exist.
-- **A themes level names its tunes** (`explicit-themes-plan.md`). The
-  `themes` axis carries `{id, fifths}` steps; `themeCount` is deleted and
-  refused by name; stage widths are each tune's own bars; the picker draws
-  the actual notes (`ThemePicker`, a portalled modal — the stage clips
-  overflow, the handover's own trap). A tune's key is the step's:
-  `AXES.fifths.kinds` excludes themes, which refuses axis AND scalar
-  through the one table.
-- **`instruments` at course scope** — who a course is for, pedagogical
-  before technical (a tuba player's material differs from a cornet
-  player's even early on; **never render "suitable for"** — the check can
-  only refute). Editor warns on an undeclared course; reader accepts.
-- **Schema narrowings**: `metre` to phrases only (drills force 4/4 in the
-  generator — a live silent-ignore fixed); Key and Difficulty gone from a
-  themes level's header (`NEEDS_DIFFICULTY.themes: false` — and note the
-  read-side fault it exposed: absence must stay absent, an empty
-  `difficultyId` reaches `difficultyById`, which **throws**).
-- **Editor readability**: levels are cards with solid header bars, folding
-  to name + one summary chip + controls; collapse keyed by id, not index.
-  A fresh level states **only its name** — the material and tempo axis
-  moved to course defaults, where inheritance already carries them.
-- **The bars axis drives stage widths now** (it drew the rule's figure and
-  lied); a drag writes the AXIS, not the rules, or the level silently grew.
-  Cycles deliberately excluded — no honest static bars-per-cycle exists.
-- **Range rows** got their own height; the figure shrinks to fit rather
-  than cropping; fingerings off in the editor (`fingerings: false` on
-  `drawRangeStave`) and a fixed `height` option, because the callout's
-  height fed `inkExtent` and the stave resized under a moving bound.
+One tab, named **Rhythm**, structured as the player specced it 2026-09-03:
+metre filter → **cards** (a pattern's name + first bar engraved) → a card
+**expands in place** to offer *Rhythm only*, *Random notes*, or the **cells**
+written on that pattern. Key is a **choice, not a filter** (cells are
+degrees); a cell out of the instrument's compass in a key greys with the
+reason, as the themes picker does. Still missing: **multi-select** (a
+playlist of patterns/cells, like themes) and any way to EDIT an existing
+cell (only rhythms have ✎).
+
+**The editor** ("+ New rhythm"): a step-sequencer grid — drag paints a note,
+tap inside splits it, tap its start deletes; a beat-wide toggle reads
+"in 4"/"in 3" and cycles `GRID_DIVISIONS` (admitting "in 5" is an entry plus
+its dues, written at the list). The engraved stave below is the truth of the
+drawing, on one written C — or, in **Add notes** mode, the cell being
+written: one note per attack, dragged in whole scale steps (or click to
+select — amber — then arrows/keyboard), carrying past the seventh into the
+next octave. **"Written in"** picks the transcriber's key: signature,
+register and spellings follow; the cell stays degrees underneath and the
+lens is stored on it (`AuthoredCell.fifths`). The stave **runs to multiple
+lines** when the bars need them.
+
+**Engraving is a ruled system now, all in `rhythm-plan.md`**: show the beat,
+with ties; a named merger table (whole bar, 4/4's half-bar for notes AND
+rests, 3/4's minim, the dotted crotchet with its half from a division-4
+beat, the crotchet triplet on an aligned pair); rests never dot and triplet
+silence is triplet-quaver rests; brackets cover the FIGURE, rests included,
+closing on the figure's own length. The scrolling surface finally draws
+tuplet numerals — a gap shipped since triplet cells existed, found by the
+preview.
+
+**The count**: one emission (`syllablesForBars`) serves editor and play
+screen — every beat at its own finest level, bright where an attack speaks,
+dimmed through silence AND sustain, restarting at every bar line, silent on
+a crotchet triplet's off-beat members. The voice will read only the bright
+entries. **Demonstration bars are written as one bar rest** with the count
+above; the **answer highlight follows the playhead**, one bar at a time.
+
+**The run**: the alternating pair must take valves on BOTH notes (G-open
+asked nothing of the fingers — seven of eleven instrument/clef pairs were
+wrong); a cell's line plays over the pattern in the chosen key, and only a
+run WITH a line prints a signature. **The sampler** was why short notes
+died: the release now scales (at most a third of a note) and a note shorter
+than its sample's bloom joins the recording where it has spoken —
+tuba-worst, measured at 115–245ms.
 
 ## Where I went wrong, so you need not
 
-- **The backtick-in-a-CSS-comment fault, twice in one day** — the previous
-  handover documents it and I hit it anyway, both times when a comment
-  quoted a code identifier. Both times the failed build meant the next
-  browser test ran a STALE bundle and reported the bug as still present.
-  Check the build's exit before believing any screenshot.
-- **`npx vitest run` without `VITE_TARGET=app` folds every `__HAS_` flag
-  false** — flag-gated code silently takes the free path and a mutation run
-  reports nonsense. `npm test` sets the target; bare vitest does not.
-- **JSX evaluates whether rendered or not.** A flag-gated *render* does not
-  tree-shake the data it references; the expression itself must fold
-  (`__HAS_RHYTHM__ ? (...) : null`). The tripwire caught it; trust the
-  tripwire over reachability reasoning.
-- **The tools import `src` with no defines**, so a bare flag read in shared
-  modules throws under tsx. `typeof __HAS_X__ !== 'undefined' && __HAS_X__`
-  folds identically under Vite and survives the tools.
-- **A second session in one engine test anchors at the clock the first
-  left behind** — reset `audioTime` or the run plays backwards.
+- **The drag fought its own redraw**: it re-read the pointer against the
+  renderer's layout, and the layout rescales as notes climb into ledger
+  lines. Anchor a gesture to the pointer's own travel, never to geometry
+  the gesture itself moves.
+- **`noteLayout` must mirror the stacked page** (per-system metrics,
+  justified x) or every note on line two is untouchable.
+- **The sheet's column flexbox shrank the grown canvas back** — inline
+  height loses to flex-shrink. `flex-shrink: 0` on anything that sizes
+  itself.
+- **The JSX-evaluates-anyway leak, a third time**: the card grid referenced
+  `RHYTHM_PATTERNS` outside the literal. Trust the tripwire, not
+  reachability reasoning; `check:web` has caught every one.
+- **`grep -c` exits 1 on zero matches** and silently kills `&&` chains —
+  two commits nearly didn't happen. Terminate such chains with `|| true` or
+  split lines.
+- **My test expectations were wrong five times while the engraver was
+  right.** When a received value disagrees, hand-compute before "fixing"
+  the code — every real fault here was found by LOOKING at output, every
+  false alarm by trusting my own arithmetic.
+- **Multi-line exposed dormant bugs**: the count numbered beats absolutely
+  ("1..6" then blank), invisible until a pattern was long enough. When a
+  dimension grows, re-test the invariants that were only ever exercised
+  small.
 
 ## What is deliberately left open
 
-- **The keystore backup is STILL not done** — seventh handover to say so.
-- **Nothing from this day has been played or heard.** The playing pass in
-  front of everything: the bundled course for parity, a support-axis level,
-  the themes picker, the awkward-notes course (`~/Desktop/awkward-notes.json`,
-  sight-reading G flat for Eb bass treble — 21% of notes are C flat), and
-  now rhythm's first patterns. The player's ear settles rounds-per-stage,
-  tolerance, and the spine's order.
-- **The syllable clips** — the player's own voice is the default again
-  (re-ruled 2026-08-31; the day's full arc is in `rhythm-plan.md`'s voice
-  section). His script is `~/Desktop/recording-script.txt`; his raw file
-  arrives at `~/Desktop/counting-raw` and is sliced on the 60 bpm grid.
-  Triplets say **pine-app-le** (his tradition), with 1-trip-let kept as an
-  alternative set. The synthesized candidates remain auditioned fallbacks.
-  A **voice-pack recorder** is designed in the same section — any user's
-  voice and language over a system's slots, paid, on the phone — and the
-  player would use it to make future defaults. Until a voice is chosen,
-  the count is print.
-- **Rhythm slices 2+**: the clip scheduler (a metronome sibling, not a
-  `Voice`), stages 1–3 withdrawal, spine stages 5–9, courses (`LevelKind`
-  deliberately still excludes rhythm — the discriminated-material schema
-  question in the plan must be answered first).
-- **Native review of the seven language packs** — now including the rhythm
-  bucket's three strings ×7, machine-drafted like the rest.
-- **The authored-cells build** (plan exists; the format is a small Theme).
-- The **note picker** parked in roadmap § 7 with its spelling catch.
+- **THE PLAYING PASS — now three sessions deep in unplayed machinery.**
+  The bundled course parity check, a support-axis level, the themes tune
+  picker, `~/Desktop/awkward-notes.json`, rhythm rounds, and now cells. The
+  player HAS started using the editor on real music (that is where the last
+  eight faults came from), but no full rhythm round has been played and
+  nothing has been heard.
+- **The counting voice**: his script is `~/Desktop/recording-script.txt`
+  (positional; trip-let; pineapple recorded as a second system in the
+  plan); the raw file lands at `~/Desktop/counting-raw`; three synthetic
+  candidates wait at `~/Desktop/syllable-audition.html`. The **clip
+  scheduler** (a metronome sibling) is unbuilt and waits on a chosen voice.
+  The **voice-pack recorder** is designed in `rhythm-plan.md`, not built.
+- **Multi-select** of patterns/cells; **editing an existing cell**; the
+  **hover colour's** worth (only the player's hand can judge it); the E32
+  touch pass on the grid gestures (`device-testing.md`).
+- **Cells inside courses** — `authored-cells-plan.md`'s remaining scope: a
+  `cells` LevelKind, embedded BY VALUE, editor verdicts against declared
+  instruments.
+- **`barsFromGrid`'s validation sentences are English** in every locale
+  (exercise-layer strings the i18n guard cannot see); the rhythm i18n
+  bucket is machine-drafted like the rest — the native-review item grows.
+- **The keystore backup is STILL not done** — eighth handover to say so.
+  `~/keystores/brassmaster/`, off this machine.
+- **Spine stages 5–9** are unwritten pattern data; stage/difficulty filter
+  on the cards is designed (packaged stage + computed density) but unbuilt.
 
 ## How to work here
 
-Small, complete changes; the full gate in order, exit codes checked.
-Mutation-test anything that guards — this day: the instruments refusals,
-the metre narrowing, themeCount's refusal, the tune-step reader, the width
-rule, the drag's axis-write, demo blanking, alternation, the pattern metre,
-the playback skip. Write rulings into the code at their sites, dated.
-Design before building, and **let the player play it before believing it**:
-every visual fault this day was found by a screenshot or by his eye, never
-by the DOM. Playwright against `localhost:4173`, hard-reload before
-trusting the editor page. Push `origin`, never `legacy`; tag; confirm the
-deploy; the paid fingerprints stay out of the free bundle — the tripwires
-now prove five features' worth. Nothing ships unheard.
+Small, complete changes; the full gate in the stated order with exit codes
+checked — and `check:web` before `build:dev`, never after. Mutation-test
+what guards (these days: the engraver's mergers, tie emission, the valved
+pair, demo blanking, figure-closure brackets, the cell snapshot, the octave
+carry, the release scale, the bloom join — every one killed a test). Write
+rulings into `rhythm-plan.md` dated, at the section they amend; the plan is
+the memory and it works — four days of rulings were navigable because of
+it. **Let the player use the thing**: every fault worth fixing came from
+his hands or eyes on real music, and his reports are usually the diagnosis
+("the drag delta y might be doing something funny" — it was). Playwright
+against 4173, element screenshots not clips, hard reload, check the build's
+exit before believing any picture. Push `origin`, never `legacy`; tag;
+confirm the deploy; the tripwires now guard five features and have earned
+their keep three times over. Nothing ships unheard — and now the tool
+exists to make the music, that rule is about to matter daily.
