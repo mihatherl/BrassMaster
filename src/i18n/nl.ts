@@ -80,6 +80,7 @@ export const NL: Pack = {
   'gate.preferences': 'Voorkeuren',
   'gate.metronome': 'Metronoom',
   'gate.conductor': 'Dirigent',
+  'gate.beatBands': 'Telschaduw',
   'gate.metronomeVolume': 'Metronoomvolume',
   'gate.metronomeVolumeNote':
     'Je hoort het terwijl je het instelt. De klik is zo gestemd dat hij over een instrument in de kamer heen draagt — zet hem zachter als je tegen de stem van de app in leest.',

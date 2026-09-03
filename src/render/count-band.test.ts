@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest';
+import { bandCells, spacesBelowFor } from './count-band';
+import { metreFor } from '../domain/metre';
+
+/**
+ * The count band's pure layout (the player's design, 2026-09-03): cells
+ * per pulse, even fractions of the bar below where engraving is uneven
+ * above, and the alternating tint counted globally so a bar line never
+ * sits between two like tints.
+ */
+
+const fourFour = (totalBeats: number, syllables?: Array<{ atBeat: number; text: string; rest?: true }>) => ({
+  metres: [{ fromBeat: 0, metre: metreFor(4, 4) }],
+  totalBeats,
+  syllables,
+});
+
+describe('the band’s cells', () => {
+  it('cuts one cell per pulse, evenly across each bar', () => {
+    const cells = bandCells(fourFour(8), 0, 8);
+    expect(cells).toHaveLength(8);
+    expect(cells.map((cell) => cell.fromBeat)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    // Even quarters of the bar, restarting at the bar line.
+    expect(cells[1].fromFraction).toBeCloseTo(0.25);
+    expect(cells[1].toFraction).toBeCloseTo(0.5);
+    expect(cells[5].fromFraction).toBeCloseTo(0.25);
+    expect(cells[5].barFromBeat).toBe(4);
+  });
+
+  it('counts the tint globally, so 3/4 alternates across the bar line', () => {
+    // Three pulses a bar: parity per-bar would put like tints either side
+    // of every bar line, which is exactly where a boundary must show.
+    const cells = bandCells(
+      { metres: [{ fromBeat: 0, metre: metreFor(3, 4) }], totalBeats: 6 },
+      0,
+      6,
+    );
+    expect(cells.map((cell) => cell.pulse)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it('segments compound time by the felt beat', () => {
+    // 6/8 is two dotted-crotchet pulses, not six quavers.
+    const cells = bandCells(
+      { metres: [{ fromBeat: 0, metre: metreFor(6, 8) }], totalBeats: 3 },
+      0,
+      3,
+    );
+    expect(cells).toHaveLength(2);
+    expect(cells[0].toBeat).toBeCloseTo(1.5);
+    expect(cells[1].fromFraction).toBeCloseTo(0.5);
+  });
+
+  it('gives a cell’s entries even slots within the cell', () => {
+    const cells = bandCells(
+      fourFour(4, [
+        { atBeat: 0, text: '1' },
+        { atBeat: 0.5, text: '&' },
+        { atBeat: 1, text: '2', rest: true },
+      ]),
+      0,
+      4,
+    );
+    // Two marks share beat one's quarter equally…
+    expect(cells[0].entries.map((entry) => entry.text)).toEqual(['1', '&']);
+    expect(cells[0].entries[0].fraction).toBeCloseTo(0.0625);
+    expect(cells[0].entries[1].fraction).toBeCloseTo(0.1875);
+    // …and a lone mark sits at the centre of its own.
+    expect(cells[1].entries[0].fraction).toBeCloseTo(0.375);
+    expect(cells[1].entries[0].rest).toBe(true);
+  });
+
+  it('clips to the system’s beats without splitting a cell', () => {
+    const cells = bandCells(fourFour(8), 4, 8);
+    expect(cells).toHaveLength(4);
+    expect(cells[0].barFromBeat).toBe(4);
+    // The pulse count stays global: the second line's tints line up with
+    // where the first line left off.
+    expect(cells[0].pulse).toBe(4);
+  });
+});
+
+describe('the room the band asks for below the stave', () => {
+  it('asks nothing extra where nothing is counted', () => {
+    expect(spacesBelowFor(false, 0)).toBe(3.5);
+    expect(spacesBelowFor(false, 4)).toBe(3.5);
+  });
+
+  it('fits the base clearance until ledger lines push it down', () => {
+    // The band was sized to live in the 3.5 spaces every system already
+    // keeps below its bottom line; a page of counted music stays as
+    // dense as one without.
+    expect(spacesBelowFor(true, 0)).toBe(3.5);
+    expect(spacesBelowFor(true, 3)).toBeGreaterThan(3.5);
+    // Deeper music pushes further; a pedal-register note is capped so it
+    // cannot spend the page on empty air.
+    expect(spacesBelowFor(true, 20)).toBe(spacesBelowFor(true, 5));
+  });
+});

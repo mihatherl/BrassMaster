@@ -38,8 +38,10 @@ import {
   drawTimeSignature,
   layoutKeySignature,
   timeSignatureWidth,
+  yForPitch,
   type StaveMetrics,
 } from './stave';
+import { bandCells, BAND_GAP, BAND_HEIGHT, BAND_MARGIN } from './count-band';
 import type { StaveTheme } from './surface';
 
 /**
@@ -111,6 +113,11 @@ export interface SystemOptions {
   colourFor: (noteIndex: number) => string;
   /** The answer bar to light, where one is current. See `currentAnswerSpan`. */
   answerSpan?: [number, number] | null;
+  /** Whether the beat shading tints this run. The count band itself draws
+      whenever the exercise carries a count; this is only the colour. */
+  beatTint?: boolean;
+  /** The system's own floor, past which the count band may not reach. */
+  bandFloorY?: number;
   /** Text to write under a note, or null for most of them. */
   annotationFor?: (noteIndex: number) => string | null;
   /** Fingering to print above a note, for the ones the player struggles with. */
@@ -482,29 +489,139 @@ export function drawLabelEvent(
 }
 
 /**
- * One count mark above its notehead — rhythm mode's printed teaching line.
+ * The count band: the beat shading behind the notes, and the label bar
+ * beneath the stave where the printed count lives (the player's design,
+ * ratified 2026-09-03 — it replaced count marks drawn ABOVE the stave,
+ * where they fought the bar numbers, tempo marks and fingering callouts
+ * for one strip).
  *
- * Upright and small where a label is bold italic, and CENTRED on the onset
- * where a label sets left: a count belongs to its note the way a fingering
- * hint does, and the first cut, which borrowed the label style, printed
- * "and" clean through the next beat's "3". It sits just above the stave, in
- * the band below the tempo mark, because it is read WITH the music rather
- * than about it.
+ * Each pulse is a ribbon: over the stave it spans the pulse's ENGRAVED
+ * width, behind the notes at a tint the music reads straight through;
+ * below the bottom line its edges curve to the pulse's EVEN cell in the
+ * label bar, where its syllables sit at even intervals. Engraving gives
+ * room to the notes; the count is even in time; the curve is the eye's
+ * guide between the two.
+ *
+ * The label bar and its syllables draw whenever the exercise carries a
+ * count — they ARE the teaching. The tint is a run option (`tint`),
+ * off elsewhere by default, on in rhythm mode; with it off the count
+ * keeps its bar and only the colour goes. In an exercise with no count
+ * at all the tint shades the stave region alone: there is no bar to
+ * curve down to.
+ *
+ * All the colour rules the count was ruled with survive the move: bright
+ * means an attack speaks (the note's own colour, so a demonstration
+ * bar's count greys with its bar), dimmed-through-silence-and-sustain
+ * wears the horizon grey.
  */
-export function drawSyllable(
+export function drawCountBand(
   ctx: CanvasRenderingContext2D,
   metrics: StaveMetrics,
-  x: number,
-  text: string,
-  colour: string,
+  options: {
+    exercise: Exercise;
+    firstBeat: number;
+    lastBeat: number;
+    xForBeat: (beat: number) => number;
+    theme: StaveTheme;
+    colourFor: (noteIndex: number) => string;
+    /** Lowest y the band may reach — the system's own floor. */
+    floorY: number;
+    /** Whether the beat shading is on for this run. */
+    tint: boolean;
+    /** Horizontal cull for the scrolling surface; the page needs none. */
+    clipX?: { min: number; max: number };
+  },
 ): void {
-  const { staveSpace } = metrics;
+  const { exercise, firstBeat, lastBeat, xForBeat, theme, tint } = options;
+  const counted = (exercise.syllables?.length ?? 0) > 0;
+  if (!counted && !tint) return;
+  const { staveSpace, bottomLineY, topLineY } = metrics;
+
+  const cells = bandCells(exercise, firstBeat, lastBeat).filter((cell) => {
+    if (!options.clipX) return true;
+    return (
+      xForBeat(cell.barToBeat) >= options.clipX.min &&
+      xForBeat(cell.barFromBeat) <= options.clipX.max
+    );
+  });
+  if (cells.length === 0) return;
+
+  /*
+   * Where the label bar sits on THIS system: just under this line's own
+   * lowest notehead, never higher than the base gap, never past the
+   * system's floor — per system rather than per bar, so the bar holds
+   * one height across a line instead of wobbling under the reading eye.
+   */
+  let deepest = bottomLineY;
+  for (const note of exercise.notes) {
+    if (note.startBeat < firstBeat || note.startBeat >= lastBeat) continue;
+    deepest = Math.max(deepest, yForPitch(metrics, note.pitch));
+    if (note.alternative) deepest = Math.max(deepest, yForPitch(metrics, note.alternative.pitch));
+  }
+  const bandTop = Math.min(
+    Math.max(bottomLineY + BAND_GAP * staveSpace, deepest + 0.6 * staveSpace),
+    options.floorY - (BAND_HEIGHT + BAND_MARGIN) * staveSpace,
+  );
+  const bandBottom = bandTop + BAND_HEIGHT * staveSpace;
+
   ctx.save();
-  ctx.fillStyle = colour;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = `600 ${Math.round(staveSpace * 1.05)}px system-ui, sans-serif`;
-  ctx.fillText(text, x, metrics.topLineY - staveSpace * 1.6);
+
+  if (tint) {
+    const tintTop = topLineY - 0.75 * staveSpace;
+    for (const cell of cells) {
+      const barLeft = xForBeat(cell.barFromBeat);
+      const barRight = xForBeat(cell.barToBeat);
+      const topLeft = xForBeat(cell.fromBeat);
+      const topRight = xForBeat(cell.toBeat);
+      ctx.fillStyle = cell.pulse % 2 === 0 ? theme.beatBand : theme.beatBandAlt;
+      if (!counted) {
+        // No count, no bar: the shading alone, over the stave region.
+        ctx.fillRect(topLeft, tintTop, topRight - topLeft, bottomLineY + 0.75 * staveSpace - tintTop);
+        continue;
+      }
+      const botLeft = barLeft + cell.fromFraction * (barRight - barLeft);
+      const botRight = barLeft + cell.toFraction * (barRight - barLeft);
+      /* One ribbon: square over the stave, S-curved sides through the
+         gap, square again through the label bar. */
+      const curveMid = (bottomLineY + bandTop) / 2;
+      ctx.beginPath();
+      ctx.moveTo(topLeft, tintTop);
+      ctx.lineTo(topRight, tintTop);
+      ctx.lineTo(topRight, bottomLineY);
+      ctx.bezierCurveTo(topRight, curveMid, botRight, curveMid, botRight, bandTop);
+      ctx.lineTo(botRight, bandBottom);
+      ctx.lineTo(botLeft, bandBottom);
+      ctx.lineTo(botLeft, bandTop);
+      ctx.bezierCurveTo(botLeft, curveMid, topLeft, curveMid, topLeft, bottomLineY);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  if (counted) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `600 ${Math.round(staveSpace * 1.05)}px system-ui, sans-serif`;
+    const middle = bandTop + (BAND_HEIGHT / 2) * staveSpace;
+    for (const cell of cells) {
+      const barLeft = xForBeat(cell.barFromBeat);
+      const barRight = xForBeat(cell.barToBeat);
+      for (const entry of cell.entries) {
+        // A count over silence or sustain wears the horizon grey: the
+        // count continues, and quietly.
+        const index = entry.rest
+          ? -1
+          : exercise.notes.findIndex((note) => Math.abs(note.startBeat - entry.atBeat) < 1e-9);
+        ctx.fillStyle = entry.rest
+          ? theme.horizon
+          : index >= 0
+            ? options.colourFor(index)
+            : theme.note;
+        ctx.fillText(entry.text, barLeft + entry.fraction * (barRight - barLeft), middle);
+      }
+    }
+  }
+
   ctx.restore();
 }
 
@@ -644,24 +761,21 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
   }
 
   /*
-   * The printed count, centred on each spoken onset and wearing its note's
-   * colour — a demonstration bar's count greys with its notes, because the
-   * count and the music are one thing to the eye that is learning them.
+   * The count band: beat shading behind the notes and the label bar
+   * beneath the stave — where the printed count moved on 2026-09-03,
+   * out of the crowded strip above. Painted here, AFTER the stave and
+   * before the notes, so the tint sits behind the music it segments.
    */
-  for (const syllable of exercise.syllables ?? []) {
-    if (syllable.atBeat < firstBeat || syllable.atBeat >= lastBeat) continue;
-    // A count over silence wears the horizon grey: kept, and kept quiet.
-    const index = syllable.rest
-      ? -1
-      : exercise.notes.findIndex((note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9);
-    drawSyllable(
-      ctx,
-      metrics,
-      xForBeat(syllable.atBeat),
-      syllable.text,
-      syllable.rest ? theme.horizon : index >= 0 ? options.colourFor(index) : theme.note,
-    );
-  }
+  drawCountBand(ctx, metrics, {
+    exercise,
+    firstBeat,
+    lastBeat,
+    xForBeat,
+    theme,
+    colourFor: options.colourFor,
+    floorY: options.bandFloorY ?? metrics.bottomLineY + 3.5 * staveSpace,
+    tint: options.beatTint === true,
+  });
 
   const loose: LayoutNote[] = [];
   const beamed = new Map<number, LayoutNote[]>();

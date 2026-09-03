@@ -30,6 +30,7 @@ import { corpusSummary } from '../exercise/corpus';
 import { t, type StringKey } from '../i18n';
 import {
   audioLeadFor,
+  beatBandsFor,
   CONDUCTOR_STYLE_RANGE,
   CUSHION_RANGE,
   FINGERING_MODES,
@@ -298,6 +299,29 @@ export function ReadyControls({
               onChange={(event) => update('conductorEnabled', event.target.checked)}
             />
             <span>{t('gate.conductor')}</span>
+          </label>
+          {/*
+           * The beat shading (the player's option, 2026-09-03): the count
+           * band's tinted ribbons behind the notes. In the beat section
+           * because it is the beat made visible — the third way, after
+           * the click and the conductor, of being shown where the beats
+           * fall. Two memories behind one checkbox: rhythm mode's own
+           * (on until turned off) and everyone else's (off until asked) —
+           * `beatBandsFor` resolves, here and at the renderer, so the
+           * box and the stave cannot disagree.
+           */}
+          <label className="field field--inline">
+            <input
+              type="checkbox"
+              checked={beatBandsFor(settings)}
+              onChange={(event) =>
+                update(
+                  settings.kind === 'rhythm' ? 'beatBandsRhythm' : 'beatBands',
+                  event.target.checked,
+                )
+              }
+            />
+            <span>{t('gate.beatBands')}</span>
           </label>
         </div>
         {(isPinned('metronomeEnabled') || isPinned('conductorEnabled')) && (

@@ -1155,6 +1155,17 @@ body {
   gap: 0.75rem;
 }
 
+/*
+ * Fields in a row keep no bottom margin of their own: the grid stretches
+ * every cell to the row's height, so a first field still wearing `.field`'s
+ * margin was shorter inside its cell than its `:last-child` neighbour and
+ * its centred content rode visibly higher — the gate's metronome checkbox
+ * sat out of line with the conductor's (the player, 2026-09-03).
+ */
+.field-row > .field {
+  margin-bottom: 0;
+}
+
 select,
 input[type='range'] {
   width: 100%;

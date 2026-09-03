@@ -748,6 +748,59 @@ falls back to the key's own, the rule that app never prints one.
 Playback needed nothing: `cellAsTheme` had carried `alter` since the
 format was born; only the way to write it was missing.
 
+## The count band (the player's design, 2026-09-03, fourth pass; built the same day)
+
+The printed count left the strip above the stave, where it fought the
+bar numbers, tempo marks, labels and fingering callouts (*"we may be
+trying to do too much above the stave… the fingerings overlap with
+these labels"*), and moved into **the count band**: each pulse is a
+lightly tinted ribbon that spans the pulse's ENGRAVED width behind the
+notes, then curves below the bottom line into an even cell of a **label
+bar**, where its syllables sit at even intervals (*"more-or-less even
+divisions of horizontal space"*). The fingering callout kept the top —
+its capsule-on-a-needle design is invested in pointing down. The
+ratified points, each the player's or accepted by him:
+
+- **The segment is the pulse** — the count resets per beat, the grid
+  divides per beat, the voice speaks per beat. In compound time the
+  pulse is the felt beat (6/8 is two cells). The tint alternates two
+  strengths of ONE ink (a zebra, never two hues — the verdict colours
+  and the answer wash keep their monopoly on meaning), counted
+  globally so 3/4's bar lines never sit between like tints.
+- **Even below, engraved above**: label cells divide each bar evenly by
+  pulse; a cell's marks divide the cell evenly. The stave above gives
+  room to the notes; the count is even in time; the curve joins them.
+- **Everything ruled about the count survives, relocated**: bright
+  means an attack speaks (the note's own colour, so a demonstration
+  bar's count greys with it), dimmed-through-silence-and-sustain wears
+  the horizon grey, and the voice will read only the bright entries.
+  `syllablesForBars` is untouched — presentation only.
+- **The push-down is per system**: the label bar sits just under its
+  own line's lowest notehead, constant across the line (a bar dodging
+  down mid-line would wobble under the reading eye), and the system
+  grows below the bottom line to hold it (`spacesBelowFor`) — capped,
+  so one pedal note cannot spend a page on air. The band was sized to
+  fit the 3.5 spaces every system already keeps below, so a counted
+  page with no deep ledger lines is exactly as dense as before.
+- **The tint is a run option; the count is not.** The label bar and
+  its syllables draw whenever the exercise carries a count — they are
+  the teaching. The tint ("Beat shading", in the gate's beat section
+  beside the metronome and conductor, where the beat's other faces
+  live) is on by default in rhythm mode, off by default everywhere
+  else, with **two stored memories** so the rhythm switch and the
+  everyone-else switch cannot reach into each other (`beatBands`,
+  `beatBandsRhythm`, resolved only through `beatBandsFor`). In an
+  exercise with no count the tint shades the stave region alone.
+- Both surfaces draw the band (`drawCountBand`, shared), because the
+  editor preview routes through the scrolling line and the play screen
+  through the stacked page — the tool and the run show one picture.
+  The editor preview always tints: the tool shows the full design.
+
+Found on the way: the gate's metronome and conductor checkboxes sat
+out of line — `.field`'s bottom margin inside `.field-row`'s stretched
+grid cells lifted the first label's centred content above the second's.
+Fields in a row keep no margin now.
+
 Multi-select — a playlist of patterns and cells, as themes already
 has — is what remains.
 

@@ -82,6 +82,7 @@ export const ES: Pack = {
   'gate.preferences': 'Preferencias',
   'gate.metronome': 'Metrónomo',
   'gate.conductor': 'Director',
+  'gate.beatBands': 'Sombreado de pulsos',
   'gate.metronomeVolume': 'Volumen del metrónomo',
   'gate.metronomeVolumeNote':
     'Lo oyes mientras lo ajustas. El clic está timbrado para pasar por encima de un instrumento en la sala: bájalo cuando leas contra la voz de la aplicación.',

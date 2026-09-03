@@ -137,6 +137,7 @@ export const EN = {
   'gate.preferences': 'Preferences',
   'gate.metronome': 'Metronome',
   'gate.conductor': 'Conductor',
+  'gate.beatBands': 'Beat shading',
   'gate.metronomeVolume': 'Metronome volume',
   'gate.metronomeVolumeNote':
     'You will hear it as you move it. The click is pitched to carry over an instrument in the room — turn it down when you are reading against the app’s own voice.',

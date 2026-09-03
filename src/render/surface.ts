@@ -58,8 +58,8 @@ import {
   drawBarNumber,
   drawSignatureChange,
   drawSystem,
+  drawCountBand,
   drawLabelEvent,
-  drawSyllable,
   drawTempoEvent,
   justifiedX,
   signatureChangeRoom,
@@ -76,9 +76,11 @@ import {
   drawTimeSignature,
   measureStaveHeader,
   staveMetrics,
+  yForPitch,
   yForStep,
   type StaveMetrics,
 } from './stave';
+import { spacesBelowFor } from './count-band';
 
 /** Floor on how little of the coming music may be visible, however narrow the screen. */
 const MIN_BEATS_VISIBLE = 3;
@@ -201,6 +203,15 @@ export interface StaveTheme {
       read as "this one is yours", never as a verdict. */
   answer: string;
   /**
+   * The beat shading's alternating pair — one ink at two strengths, a
+   * zebra rather than two hues, so the segments read as structure and
+   * never as meaning: the verdict colours and the answer wash keep their
+   * monopoly on saying things. Light enough to read music straight
+   * through.
+   */
+  beatBand: string;
+  beatBandAlt: string;
+  /**
    * A bar chosen to practise: a wash behind the notation, not a change to it.
    *
    * The same blue the strike line uses, at the strength its glow is drawn at.
@@ -226,6 +237,8 @@ export const LIGHT_THEME: StaveTheme = {
   hint: '#6b6960',
   horizon: '#b6b2a8',
   answer: '#2f6fd022',
+  beatBand: 'rgba(59, 58, 54, 0.075)',
+  beatBandAlt: 'rgba(59, 58, 54, 0.025)',
   selection: 'rgba(47, 111, 208, 0.16)',
   selectionPending: 'rgba(47, 111, 208, 0.07)',
 };
@@ -244,6 +257,8 @@ export const DARK_THEME: StaveTheme = {
   hint: '#9a9ba3',
   horizon: '#565962',
   answer: '#5a8fd733',
+  beatBand: 'rgba(242, 241, 236, 0.085)',
+  beatBandAlt: 'rgba(242, 241, 236, 0.03)',
   selection: 'rgba(99, 161, 255, 0.22)',
   selectionPending: 'rgba(99, 161, 255, 0.10)',
 };
@@ -380,6 +395,13 @@ export interface StaveRendererOptions {
   noteColourFor?: (index: number) => string | undefined;
   /** Fingering to print above a note, for the ones the player struggles with. */
   hintFor?: (noteIndex: number) => string | undefined;
+  /**
+   * Whether the beat shading tints the run (the player's option,
+   * 2026-09-03) — the count band itself draws whenever the exercise
+   * carries a count; this is only its colour. On by default in rhythm
+   * mode, off elsewhere; see `beatBandsFor` in settings.
+   */
+  beatTint?: boolean;
   /**
    * Reports the stave-space ceiling whenever the layout settles, so the rest
    * of the play screen can size itself in the same unit as the notation.
@@ -744,14 +766,33 @@ export class StaveRenderer {
     // where the value is settled — nothing below changes it, and the paged
     // branch returns early.
     this.options.onLayout?.(widthAllows);
+
+    /*
+     * How tall one system is, in stave spaces. `SYSTEM_SPACES` for plain
+     * music; a counted exercise grows BELOW the bottom line to hold the
+     * count band, deeper again where the music's own ledger lines reach
+     * down (the player's spec, 2026-09-03). Measured on a unit stave so
+     * the answer cannot depend on the staveSpace it is about to decide.
+     */
+    const counted = (this.options.exercise.syllables?.length ?? 0) > 0;
+    const unit = staveMetrics(this.options.exercise.clef, 0, 1);
+    let depthBelow = 0;
+    for (const note of this.options.exercise.notes) {
+      depthBelow = Math.max(depthBelow, yForPitch(unit, note.pitch) - unit.bottomLineY);
+      if (note.alternative) {
+        depthBelow = Math.max(depthBelow, yForPitch(unit, note.alternative.pitch) - unit.bottomLineY);
+      }
+    }
+    const systemSpaces = 8.5 + spacesBelowFor(counted, depthBelow);
+
     this.systemsShown = paged
-      ? Math.max(1, Math.round(this.height / (SYSTEM_SPACES * widthAllows)))
+      ? Math.max(1, Math.round(this.height / (systemSpaces * widthAllows)))
       : 1;
     const staveSpace = Math.max(
       6,
-      Math.min(widthAllows, this.height / (SYSTEM_SPACES * this.systemsShown)),
+      Math.min(widthAllows, this.height / (systemSpaces * this.systemsShown)),
     );
-    this.systemHeight = SYSTEM_SPACES * staveSpace;
+    this.systemHeight = systemSpaces * staveSpace;
     this.metrics = staveMetrics(
       this.options.exercise.clef,
       this.height / 2 - 2 * staveSpace,
@@ -1311,25 +1352,21 @@ export class StaveRenderer {
     }
 
     /*
-     * The printed count, centred on each spoken onset. Drawn in the note
-     * colour so a demonstration bar's count greys with its notes — the
-     * count and the music are one thing to the eye that is learning them.
+     * The count band — beat shading and the label bar beneath the stave,
+     * where the printed count moved on 2026-09-03. The scrolling line
+     * culls by x exactly as the syllables it replaced did.
      */
-    for (const syllable of exercise.syllables ?? []) {
-      const x = xForBeat(syllable.atBeat);
-      if (x < this.headerWidth - 60 || x > this.width + 60) continue;
-      // A count over silence wears the horizon grey: kept, and kept quiet.
-      const index = syllable.rest
-        ? -1
-        : exercise.notes.findIndex((note) => Math.abs(note.startBeat - syllable.atBeat) < 1e-9);
-      drawSyllable(
-        ctx,
-        this.metrics,
-        x,
-        syllable.text,
-        syllable.rest ? theme.horizon : index >= 0 ? this.noteColour(index) : theme.note,
-      );
-    }
+    drawCountBand(ctx, this.metrics, {
+      exercise,
+      firstBeat: 0,
+      lastBeat: exercise.totalBeats,
+      xForBeat,
+      theme,
+      colourFor: (index) => this.noteColour(index),
+      floorY: this.height,
+      tint: this.options.beatTint === true,
+      clipX: { min: this.headerWidth - 60, max: this.width + 60 },
+    });
 
     this.drawNotes(xForBeat);
     ctx.restore();
@@ -1423,6 +1460,8 @@ export class StaveRenderer {
         colourFor: (note) => this.noteColour(note),
         answerSpan: this.currentAnswerSpan(beat),
         hintFor: this.options.hintFor,
+        beatTint: this.options.beatTint === true,
+        bandFloorY: top + this.systemHeight,
         final,
         clef,
       });

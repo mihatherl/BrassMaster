@@ -284,13 +284,16 @@ describe('the app', () => {
       expect(document.querySelectorAll('.ready-controls .cards--two').length).toBe(3);
     });
 
-    it('puts the two time-keepers on one line', () => {
+    it('keeps the beat’s switches in one row, the shading beside the time-keepers', () => {
       renderApp();
       fireEvent.click(screen.getByRole('button', { name: 'Start' }));
 
+      // The two time-keepers share the row's first line; the beat shading
+      // (2026-09-03) joined the same section because it is the beat made
+      // visible — the third way of being shown where the beats fall.
       const row = document.querySelector('.ready-controls .field-row');
       const labels = [...(row?.querySelectorAll('label span') ?? [])].map((s) => s.textContent);
-      expect(labels).toEqual(['Metronome', 'Conductor']);
+      expect(labels).toEqual(['Metronome', 'Conductor', 'Beat shading']);
     });
   });
 

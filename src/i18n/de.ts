@@ -83,6 +83,7 @@ export const DE: Pack = {
   'gate.preferences': 'Einstellungen',
   'gate.metronome': 'Metronom',
   'gate.conductor': 'Dirigent',
+  'gate.beatBands': 'Schlagzeiten schattieren',
   'gate.metronomeVolume': 'Metronom-Lautstärke',
   'gate.metronomeVolumeNote':
     'Du hörst es, während du es einstellst. Der Klick ist so gestimmt, dass er über ein Instrument im Raum trägt — dreh ihn leiser, wenn du gegen die Stimme der App liest.',

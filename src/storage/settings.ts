@@ -233,6 +233,17 @@ export interface Settings {
    * because finding the beat in a vague gesture is a skill in itself.
    */
   conductorStyle: number;
+  /**
+   * Whether the beat shading tints the stave — the count band's ribbons
+   * (2026-09-03). Two memories rather than one, because the player ruled
+   * two defaults: rhythm mode teaches the beat, so it opens shaded and
+   * remembers its own switch; everywhere else the shading is an aid a
+   * player asks for, off until they do. One boolean cannot say both, and
+   * a toggle in one place should not reach into the other. Resolve
+   * through `beatBandsFor`, never by reading either field at a use site.
+   */
+  beatBands: boolean;
+  beatBandsRhythm: boolean;
   playbackMode: PlaybackMode;
   /**
    * Multiplies the window either side of the beat within which a fingering
@@ -556,6 +567,10 @@ export const DEFAULT_SETTINGS: Settings = {
   // What the spike's slider calls "lively", which is where the fixed value sat
   // for as long as there was one: clearly beaten, without being a march.
   conductorStyle: 0.55,
+  // The player's two defaults (2026-09-03): rhythm mode opens shaded,
+  // everything else waits to be asked.
+  beatBands: false,
+  beatBandsRhythm: true,
   playbackMode: 'reference',
   timingTolerance: 1.5,
   weakNoteDrilling: true,
@@ -569,6 +584,15 @@ export const DEFAULT_SETTINGS: Settings = {
   audioOutputs: [{ ...DEVICE_OUTPUT }],
   audioOutputId: DEVICE_OUTPUT_ID,
 };
+
+/**
+ * Which beat-shading memory this run reads and writes: rhythm mode's own,
+ * or everyone else's. The one resolver, so the gate's checkbox and the
+ * renderer's tint cannot disagree about which switch is in force.
+ */
+export function beatBandsFor(settings: Pick<Settings, 'kind' | 'beatBands' | 'beatBandsRhythm'>): boolean {
+  return settings.kind === 'rhythm' ? settings.beatBandsRhythm : settings.beatBands;
+}
 
 /**
  * What the three-way setting was before it was three-way.

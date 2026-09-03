@@ -81,6 +81,7 @@ export const IT: Pack = {
   'gate.preferences': 'Preferenze',
   'gate.metronome': 'Metronomo',
   'gate.conductor': 'Direttore',
+  'gate.beatBands': 'Ombreggiatura dei battiti',
   'gate.metronomeVolume': 'Volume del metronomo',
   'gate.metronomeVolumeNote':
     'Lo senti mentre lo regoli. Il clic è intonato per passare sopra uno strumento nella stanza: abbassalo quando leggi contro la voce dell’applicazione.',

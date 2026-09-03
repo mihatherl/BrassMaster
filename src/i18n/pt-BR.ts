@@ -93,6 +93,7 @@ export const PT_BR: Pack = {
   'gate.preferences': 'Preferências',
   'gate.metronome': 'Metrônomo',
   'gate.conductor': 'Regente',
+  'gate.beatBands': 'Sombreado dos tempos',
   'gate.metronomeVolume': 'Volume do metrônomo',
   'gate.metronomeVolumeNote':
     'Você ouve enquanto ajusta. O clique é timbrado para passar por cima de um instrumento na sala: abaixe quando estiver lendo contra a voz do aplicativo.',

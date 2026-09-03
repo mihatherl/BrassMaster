@@ -7,6 +7,7 @@ import { COLLECTIONS, playableThemes } from '../exercise/collections';
 import {
   AUDIO_LEAD_RANGE,
   audioLeadFor,
+  beatBandsFor,
   DEFAULT_SETTINGS,
   DEVICE_OUTPUT,
   DEVICE_OUTPUT_ID,
@@ -657,5 +658,21 @@ describe('the language a visitor arrives in', () => {
      */
     store({ tempo: 96 });
     expect(loadSettings().locale).toBe('en');
+  });
+});
+
+describe('the beat shading’s two memories', () => {
+  /*
+   * The player's two defaults (2026-09-03): rhythm mode teaches the beat
+   * and opens shaded; everywhere else the shading waits to be asked. One
+   * resolver so the gate and the renderer read the same switch.
+   */
+  it('resolves rhythm mode to its own memory and the rest to the other', () => {
+    expect(beatBandsFor({ ...DEFAULT_SETTINGS, kind: 'rhythm' })).toBe(true);
+    expect(beatBandsFor({ ...DEFAULT_SETTINGS, kind: 'phrases' })).toBe(false);
+    expect(
+      beatBandsFor({ ...DEFAULT_SETTINGS, kind: 'rhythm', beatBandsRhythm: false }),
+    ).toBe(false);
+    expect(beatBandsFor({ ...DEFAULT_SETTINGS, kind: 'drills', beatBands: true })).toBe(true);
   });
 });

@@ -664,6 +664,9 @@ function RhythmStavePreview({
       scrollSpeed: 0,
       readingMode: 'paged',
       verdictFor: () => undefined,
+      // The tool always shows the full picture: the count band shaded,
+      // whatever the player's run option says (that option is the run's).
+      beatTint: true,
       /* Editing colours, read per draw: the gesture outranks everything.
          Compared as attacks, so every notehead of a tied note lights
          together — they are one note, held. */

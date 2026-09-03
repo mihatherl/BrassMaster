@@ -33,7 +33,7 @@ import { loadStats } from '../storage/stats';
 import { SCORE_WINDOW_BARS, type NoteJudgement, type SessionSummary, type Verdict } from '../engine/judge';
 import { currentTheme, StaveRenderer } from '../render/surface';
 import type { Exercise } from '../exercise/types';
-import { audioLeadFor, type Settings } from '../storage/settings';
+import { audioLeadFor, beatBandsFor, type Settings } from '../storage/settings';
 import { patternFor } from '../render/conductor';
 import { barLabel } from '../render/system';
 import { ConductorPanel } from './ConductorPanel';
@@ -595,6 +595,9 @@ export function PlayScreen({
       // the note it is tied from rather than staying unmarked beside it.
       verdictFor: (index) => verdictsRef.current[headsRef.current[index]],
       hintFor: (index) => hintsRef.current?.for(index),
+      // The beat shading, resolved through the one resolver — rhythm
+      // mode's own memory, or everyone else's (the player, 2026-09-03).
+      beatTint: beatBandsFor(settings),
       // White as far as the run is committed, and grey beyond — read per
       // frame, so accepting the offer turns the next block white at once.
       whiteUntil: () => session.endBeat,
