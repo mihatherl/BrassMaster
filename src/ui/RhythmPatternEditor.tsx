@@ -705,10 +705,19 @@ function RhythmStavePreview({
       // so the arrows stay reachable without a picture.
       return notes.length > 0 ? { index: 0, x: 0, y: 0, step: 0 } : null;
     }
+    /*
+     * The pointer is compared UNSCALED: the renderer's resize() applies
+     * the devicePixelRatio as a canvas transform, so everything it draws
+     * — and everything `noteLayout` reports — is already in CSS pixels,
+     * the pointer's own unit. The first cut multiplied by
+     * `canvas.width / rect.width` (the ratio), which was invisible at
+     * ratio 1 and pushed every hit zone left of its note at any zoom or
+     * HiDPI ratio, the error growing with x (the player, 2026-09-04:
+     * *"I have to click some way to the left of the note"*).
+     */
     const rect = canvas.getBoundingClientRect();
-    const scale = canvas.width / rect.width;
-    const x = (event.clientX - rect.left) * scale;
-    const y = (event.clientY - rect.top) * scale;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
     const nearest = map.notes.reduce((best, note) =>
       Math.hypot(note.x - x, note.y - y) < Math.hypot(best.x - x, best.y - y) ? note : best,
     );
@@ -738,7 +747,9 @@ function RhythmStavePreview({
           index: hit.index,
           startY: event.clientY - rect.top,
           startDegree: notes[hit.index].degree - 1 + (notes[hit.index].octave ?? 0) * 7,
-          space: layout.current.staveSpace / (event.currentTarget.width / rect.width),
+          // Already CSS pixels — the renderer draws under a ratio
+          // transform — so the pointer's travel divides it directly.
+          space: layout.current.staveSpace,
         };
       }}
       onPointerMove={(event) => {

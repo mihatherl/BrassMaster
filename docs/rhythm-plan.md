@@ -801,6 +801,23 @@ out of line — `.field`'s bottom margin inside `.field-row`'s stretched
 grid cells lifted the first label's centred content above the second's.
 Fields in a row keep no margin now.
 
+**The hit test was scaled twice (the player, 2026-09-04: "I have to
+click some way to the left of the note").** The stave's hit test
+multiplied the pointer by `canvas.width / rect.width` — the
+devicePixelRatio — but the renderer's own resize() already applies
+that ratio as a canvas transform, so everything it draws and
+everything `noteLayout` reports is in CSS pixels, the pointer's own
+unit. At ratio 1 the multiply was invisible, which is why every
+headless check passed; at any zoom or HiDPI ratio it pushed the hit
+zone left of its note by an error that GREW with x (at ratio 2,
+measured by probe, nothing on the stave was selectable at all). The
+pointer is compared unscaled now, the drag's step size likewise, and
+the probe puts every selection zone centred on its glyph at both
+ratios. The lesson beside the 2026-09-03 drag fault, and the same
+family: a gesture must share one coordinate space with the picture it
+touches, and a factor that is 1 on the development machine is a fault
+that ships.
+
 **The edges follow the engraver (the player's eye, 2026-09-04: "the
 shading is out of alignment").** The first cut drew cell edges at
 `xForBeat`, which names a beat's COLUMN CENTRE — so every edge sliced
