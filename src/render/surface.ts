@@ -533,6 +533,21 @@ export class StaveRenderer {
     return verdictColour(this.verdictFor(index), theme);
   }
 
+  /**
+   * The answer bar the playhead is inside, or null — rhythm mode's
+   * "this one is yours, now" (ruled 2026-09-03, sharpening a static
+   * highlight over every answer bar into a moving one). Before the run
+   * starts the playhead sits at or before zero, and the first answer bar
+   * lights so the ask is legible while the demonstration plays.
+   */
+  private currentAnswerSpan(beat: number): [number, number] | null {
+    const spans = this.options.exercise.playSpans;
+    if (!spans || spans.length === 0) return null;
+    const inside = spans.find(([from, to]) => beat >= from - 1e-9 && beat < to - 1e-9);
+    if (inside) return inside;
+    return beat < spans[0][0] ? spans[0] : null;
+  }
+
   /** The current horizontal scale. Exposed for tests and for debugging layout. */
   get scale(): {
     /** Constant while scrolling; the average across the exercise when paged. */
@@ -1060,19 +1075,20 @@ export class StaveRenderer {
     ctx.rect(this.headerWidth, 0, this.width - this.headerWidth, this.height);
     ctx.clip();
 
-    /* The answer bars, painted first so the stave and notes sit on top. */
-    for (const [from, to] of exercise.playSpans ?? []) {
-      const left = xForBeat(from);
-      const right = xForBeat(to);
-      if (right < this.headerWidth || left > this.width) continue;
-      ctx.fillStyle = theme.answer;
-      const top = this.metrics.topLineY - this.metrics.staveSpace * 1.5;
-      ctx.fillRect(
-        Math.max(left, this.headerWidth),
-        top,
-        Math.min(right, this.width) - Math.max(left, this.headerWidth),
-        this.metrics.staveSpace * 7,
-      );
+    /* The bar being played NOW, painted first so the stave sits on top. */
+    const answer = this.currentAnswerSpan(beat);
+    if (answer) {
+      const left = Math.max(xForBeat(answer[0]), this.headerWidth);
+      const right = Math.min(xForBeat(answer[1]), this.width);
+      if (right > left) {
+        ctx.fillStyle = theme.answer;
+        ctx.fillRect(
+          left,
+          this.metrics.topLineY - this.metrics.staveSpace * 1.5,
+          right - left,
+          this.metrics.staveSpace * 7,
+        );
+      }
     }
 
     ctx.strokeStyle = theme.stave;
@@ -1312,6 +1328,7 @@ export class StaveRenderer {
         lastBar,
         theme,
         colourFor: (note) => this.noteColour(note),
+        answerSpan: this.currentAnswerSpan(beat),
         hintFor: this.options.hintFor,
         final,
         clef,

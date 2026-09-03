@@ -50,7 +50,16 @@ describe('the rhythm exercise', () => {
      */
     const inDemo = (beat: number) => (beat >= 0 && beat < 4) || (beat >= 12 && beat < 16);
     expect(exercise.notes.some((note) => inDemo(note.startBeat))).toBe(false);
-    expect(exercise.rests.filter((rest) => inDemo(rest.startBeat)).length).toBeGreaterThan(0);
+    /*
+     * ONE bar rest per demonstration bar, not the figure's own rests one
+     * for one (2026-09-03): the small rests are the notation of a figure
+     * being read, and a bar where nothing is played says its nothing
+     * once, as a printed part does.
+     */
+    const demoRests = exercise.rests.filter((rest) => inDemo(rest.startBeat));
+    expect(demoRests).toHaveLength(2);
+    expect(demoRests.map((rest) => rest.startBeat)).toEqual([0, 12]);
+    expect(demoRests.every((rest) => rest.duration.value === 'whole')).toBe(true);
     // Nothing is unplayable any more: there are no demo notes to blank.
     expect(exercise.notes.some(isUnplayable)).toBe(false);
     // And the four answer bars are marked for the highlight.
@@ -77,6 +86,27 @@ describe('the rhythm exercise', () => {
       );
       expect(bar.map((note) => note.writtenMidi)).toEqual([pair[0], pair[1], pair[0], pair[1]]);
     }
+  });
+
+  it('lights one answer bar, following the playhead', () => {
+    /*
+     * The highlight is "the bar you are playing NOW" (the player,
+     * 2026-09-03, sharpening a static wash over every answer bar). Before
+     * the run it names the first ask, so the request is legible while the
+     * demonstration plays; during a demonstration it names none.
+     */
+    const exercise = generateExercise(options());
+    const spans = exercise.playSpans!;
+    const at = (beat: number) => {
+      const inside = spans.find(([from, to]) => beat >= from - 1e-9 && beat < to - 1e-9);
+      return inside ?? (beat < spans[0][0] ? spans[0] : null);
+    };
+    expect(at(-1)).toEqual([4, 8]);
+    expect(at(2)).toEqual([4, 8]);
+    expect(at(5)).toEqual([4, 8]);
+    expect(at(9)).toEqual([8, 12]);
+    expect(at(13)).toBeNull();
+    expect(at(17)).toEqual([16, 20]);
   });
 
   it('never alternates onto an open note, on any instrument or clef', () => {

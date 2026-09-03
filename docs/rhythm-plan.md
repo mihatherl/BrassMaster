@@ -476,6 +476,15 @@ marking is **positive** — the app says which bar is yours rather than
 dimming the ones that are not — a soft wash behind the stave
 (`theme.answer`, defined in both themes) over `Exercise.playSpans`.
 
+Sharpened the same day: the wash lights **the bar being played now**,
+one at a time, following the playhead — before the run it names the
+first ask, so the request is legible while the demonstration plays, and
+during a demonstration it names none. And a demonstration bar is **one
+bar rest**, not the figure's own rests one for one: the small rests are
+the notation of a figure being read, and belong in the bars the player
+is reading; a bar where nothing is played says its nothing once, as a
+printed part does.
+
 Paged, never scrolling: one bar (or one pattern) large on the screen, the
 syllables printed above each note — derived, like the fingering hints below
 are — and the repetitions written out so what is judged is what is shown.

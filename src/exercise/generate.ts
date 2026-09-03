@@ -515,9 +515,9 @@ function rhythmExercise(options: GenerateOptions): Exercise {
            * so the eye reads the rhythm while the ear hears it — which
            * is the teaching this mode exists for.
            */
-          if (event.rest || demo) {
+          if (event.rest && !demo) {
             slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
-          } else {
+          } else if (!demo) {
             const tiedFromPrevious = continuation.has(event);
             slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious });
             if (!tiedFromPrevious) {
@@ -527,7 +527,21 @@ function rhythmExercise(options: GenerateOptions): Exercise {
           }
           barBeat += event.beats;
         }
-        if (!demo) playSpans.push([at, at + barBeats]);
+        /*
+         * A demonstration bar is ONE bar rest, not the pattern's own
+         * rests one for one (the player, 2026-09-03). The small rests
+         * are the figure's own notation and belong in the bars he is
+         * reading; in a bar where nothing is to be played they are eight
+         * marks saying the same nothing, and a bar rest says it once —
+         * which is how a part prints a silent bar.
+         */
+        if (demo) {
+          const barRest = durationFromBeats(barBeats);
+          if (!barRest) throw new Error(`unwritable bar length ${barBeats}`);
+          slots.push({ startBeat: at, duration: barRest, isRest: true, tiedFromPrevious: false });
+        } else {
+          playSpans.push([at, at + barBeats]);
+        }
         at += barBeats;
       }
     }

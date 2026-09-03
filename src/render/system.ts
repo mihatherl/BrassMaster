@@ -109,6 +109,8 @@ export interface SystemOptions {
   lastBar: number;
   theme: StaveTheme;
   colourFor: (noteIndex: number) => string;
+  /** The answer bar to light, where one is current. See `currentAnswerSpan`. */
+  answerSpan?: [number, number] | null;
   /** Text to write under a note, or null for most of them. */
   annotationFor?: (noteIndex: number) => string | null;
   /** Fingering to print above a note, for the ones the player struggles with. */
@@ -517,11 +519,11 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
   const { beatsPerBar, beatUnit } = metreAt(exercise.metres, firstBeat);
   const rightEdge = xForBeat(lastBeat) - BAR_LINE_SETBACK * staveSpace;
 
-  /* The answer bars, painted first so the stave and notes sit on top. */
-  for (const [from, to] of exercise.playSpans ?? []) {
-    if (to <= firstBeat + 1e-9 || from >= lastBeat - 1e-9) continue;
-    const left = xForBeat(Math.max(from, firstBeat));
-    const right = xForBeat(Math.min(to, lastBeat));
+  /* The bar being played now, painted first so the stave sits on top. */
+  const answer = options.answerSpan;
+  if (answer && answer[1] > firstBeat + 1e-9 && answer[0] < lastBeat - 1e-9) {
+    const left = xForBeat(Math.max(answer[0], firstBeat));
+    const right = xForBeat(Math.min(answer[1], lastBeat));
     ctx.fillStyle = theme.answer;
     ctx.fillRect(left, metrics.topLineY - staveSpace * 1.5, right - left, staveSpace * 7);
   }
