@@ -158,6 +158,16 @@ export interface Settings {
    * grace a stale `drillId` gets.
    */
   rhythmPatternId: string;
+  /**
+   * The Pattern tab's metre filter, and which line is played over the
+   * chosen pattern — a written cell's id, `RANDOM_CELL` for notes made
+   * up on the spot, or absent for the rhythm alone (2026-09-03). Ids
+   * rather than objects, so this file needs no import from the rhythm
+   * module: pulling the pattern library into shared storage code would
+   * put it in the free bundle, which the i18n packs taught.
+   */
+  patternMetre?: readonly [number, number];
+  cellId?: string;
   /*
    * How long a run is, is no longer here.
    *

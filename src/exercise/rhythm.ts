@@ -21,6 +21,8 @@
  */
 
 import { parseCell, type CellEvent } from './cells';
+import { realiseTheme, type Theme, type ThemeEvent } from './theme';
+import { createRng } from './rng';
 import { assembleExercise, type Slot } from './assemble';
 import { durationFromBeats } from '../domain/rhythm';
 import { metreFor } from '../domain/metre';
@@ -678,6 +680,206 @@ export function previewExerciseFromBars(
   });
   exercise.syllables = syllablesForBars(bars, metrePair);
   return exercise;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cells — a pattern with notes on it                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A **cell**: an authored line of pitches laid over a pattern's rhythm —
+ * the thing the player called *"dragging the notes up and down on the
+ * stave"* (2026-09-01), living under its pattern rather than beside it
+ * (2026-09-03: *"select one, and see options for authored cells for that
+ * rhythm"*). On screen the whole feature is **Pattern**; "cell" stays a
+ * code word, because `cells.ts` already spends it on the composer's
+ * one-bar unit.
+ *
+ * **Degrees, not pitches** — the same choice `ThemeNote` makes, and for
+ * the same reason: a cell written once plays in any key, which is what
+ * lets the key selector be a choice rather than a filter. `degree` is
+ * 1–7 of the major scale in force; `alter` inflects it; `octave` offsets
+ * from the home octave.
+ *
+ * **The rhythm is a snapshot, not a link.** `bars` are the pattern's own
+ * token strings copied at birth, and `patternId` is provenance only. A
+ * cell written on a rhythm stays what it was written as, even if its
+ * parent is later edited — the alternative is a live dependency that
+ * silently breaks every cell the day a bar is added, which is the fault
+ * this format exists to avoid.
+ */
+export interface CellNote {
+  degree: number;
+  alter?: -1 | 1;
+  octave?: number;
+}
+
+export interface AuthoredCell {
+  id: string;
+  name: string;
+  /** The pattern this was written on — provenance, for grouping the list. */
+  patternId: string;
+  metre: readonly [number, number];
+  /** The rhythm, copied from the pattern at birth. */
+  bars: readonly string[];
+  /** One entry per sounded note in `bars`, in play order. */
+  notes: readonly CellNote[];
+}
+
+/**
+ * The id that means "notes made up for me" rather than a written cell —
+ * the always-available option on every pattern (the player, 2026-09-03).
+ * A sentinel rather than a flag, so a selection is always one id.
+ */
+export const RANDOM_CELL = 'random';
+
+/** The player's own cells, on the phone, beside their rhythms. */
+export const CELLS_KEY = 'brass-trainer:cells';
+
+export function loadCells(): AuthoredCell[] {
+  try {
+    const raw = localStorage.getItem(CELLS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (entry): entry is AuthoredCell =>
+        typeof entry === 'object' && entry !== null &&
+        typeof (entry as AuthoredCell).id === 'string' &&
+        typeof (entry as AuthoredCell).patternId === 'string' &&
+        Array.isArray((entry as AuthoredCell).bars) &&
+        Array.isArray((entry as AuthoredCell).notes),
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function saveCell(cell: AuthoredCell): void {
+  const rest = loadCells().filter((entry) => entry.id !== cell.id);
+  localStorage.setItem(CELLS_KEY, JSON.stringify([...rest, cell]));
+}
+
+export function deleteCell(id: string): void {
+  localStorage.setItem(CELLS_KEY, JSON.stringify(loadCells().filter((entry) => entry.id !== id)));
+}
+
+/**
+ * A cell as a `Theme`, which is what the app already knows how to
+ * realise, fit to an instrument and play. The whole of the playback
+ * story: `realiseTheme` refuses where the compass will not hold it, and
+ * that refusal is what greys a key in the picker.
+ */
+export function cellAsTheme(cell: AuthoredCell): Theme {
+  const events: ThemeEvent[] = [];
+  let index = 0;
+  for (const bar of cell.bars) {
+    for (const event of parseCell(bar)) {
+      if (event.rest) {
+        events.push({ rest: true, beats: event.beats });
+        continue;
+      }
+      const note = cell.notes[index++] ?? { degree: 1 };
+      events.push({
+        degree: note.degree,
+        ...(note.alter ? { alter: note.alter } : {}),
+        ...(note.octave ? { octave: note.octave } : {}),
+        beats: event.beats,
+        ...(event.tied ? { tied: true } : {}),
+      });
+    }
+  }
+  return {
+    id: cell.id,
+    name: cell.name,
+    difficulty: 'easy',
+    metres: [[cell.metre[0], cell.metre[1]]],
+    bars: cell.bars.length,
+    events,
+  };
+}
+
+/**
+ * The keys a cell can actually be played in, on this instrument and
+ * clef — the themes picker's `fitsFor` rule applied to patterns (the
+ * player, 2026-09-03: *"some themes aren't available in all instrument
+ * selections… the same will go for patterns, if they defy the range"*).
+ * A key the compass will not hold is shown and disabled, never hidden.
+ */
+export function cellFitsKeys(
+  cell: AuthoredCell,
+  instrument: Instrument,
+  clef: Clef,
+  keys: readonly number[],
+): number[] {
+  const theme = cellAsTheme(cell);
+  const metre = metreFor(cell.metre[0], cell.metre[1]);
+  return keys.filter(
+    (fifths) => realiseTheme(theme, { instrument, clef, fifths, metre }) !== null,
+  );
+}
+
+/**
+ * Sensible random notes over a rhythm — the player's ask of 2026-09-03,
+ * and the option every pattern carries before any cell is written.
+ *
+ * A short scalewise walk with the occasional third, starting and ending
+ * on the tonic: the shape a method book writes for a rhythm exercise.
+ * Deliberately narrow — this exists so a rhythm has notes on it, not to
+ * compete with sight-reading, whose own generator is the place for
+ * real melodic variety.
+ */
+export function randomNotesFor(bars: readonly string[], seed: number): CellNote[] {
+  const rng = createRng(seed);
+  /*
+   * One note per ATTACK. `tied` marks the head of a tie, so filtering by
+   * it drops the wrong event — the far end is the one that takes no new
+   * note, and it is identified by what precedes it. Caught by a test
+   * written from the rule rather than from this code.
+   */
+  const events = bars.flatMap((bar) => parseCell(bar));
+  const sounded = events.filter((event, index) => {
+    if (event.rest) return false;
+    const previous = events[index - 1];
+    return !(previous && previous.tied === true && previous.rest !== true);
+  });
+  const notes: CellNote[] = [];
+  /*
+   * The walk lives in the middle of the scale rather than on the floor:
+   * opening on the tonic and stepping from there spent half its moves
+   * bouncing off degree 1, which came out as a drone. It opens on the
+   * tonic, rises to the middle, wanders, and closes on the tonic — the
+   * shape a method book writes for a rhythm exercise.
+   */
+  let degree = 1;
+  for (let i = 0; i < sounded.length; i++) {
+    if (i === 0) {
+      degree = 1;
+    } else if (i === sounded.length - 1) {
+      degree = 1;
+    } else {
+      /*
+       * Steps mostly, a third now and then, turning at the edges rather
+       * than clamping: clamping pinned the walk to the tonic — from
+       * degree 1 every downward move landed back on 1, so half the line
+       * did not move at all and the first draft came out as a drone.
+       */
+      const step = rng.chance(0.75) ? 1 : 2;
+      /*
+       * Biased towards the middle of the scale rather than an even coin:
+       * an unbiased walk that turns at the edges still spent its early
+       * moves bouncing off the tonic it opened on, which came out as a
+       * drone. The pull is gentle — a two-in-three lean towards degree
+       * four — so the line still wanders, it just does not sit on the
+       * floor. Turning replaces clamping at the edges either way.
+       */
+      const pull = degree < 4 ? 0.67 : degree > 4 ? 0.33 : 0.5;
+      const up = rng.chance(pull) ? 1 : -1;
+      const wanted = degree + step * up;
+      degree = wanted < 1 ? degree + step : wanted > 7 ? degree - step : wanted;
+    }
+    notes.push({ degree });
+  }
+  return notes;
 }
 
 /**

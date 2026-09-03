@@ -15,6 +15,14 @@ import {
   type GridBeat,
   type GridCell,
   type GridDivision,
+  cellAsTheme,
+  cellFitsKeys,
+  CELLS_KEY,
+  deleteCell,
+  loadCells,
+  randomNotesFor,
+  saveCell,
+  type AuthoredCell,
   type RhythmPattern,
 } from './rhythm';
 import {
@@ -376,5 +384,106 @@ describe('the player’s own shelf', () => {
     expect(loadCustomRhythms()).toEqual([]);
     localStorage.setItem(CUSTOM_RHYTHMS_KEY, JSON.stringify([{ id: 42 }, null, 'x']));
     expect(loadCustomRhythms()).toEqual([]);
+  });
+});
+
+describe('cells — a pattern with notes on it', () => {
+  /*
+   * The player's structure, 2026-09-03: metre, then patterns, then the
+   * cells written on each. A cell is degrees over a snapshot of its
+   * pattern's rhythm, so it plays in any key and cannot break when its
+   * parent is edited.
+   */
+  const cell: AuthoredCell = {
+    id: 'c1',
+    name: 'Walk',
+    patternId: 'four-crotchets',
+    metre: [4, 4],
+    bars: ['0q 0q 0q 0q'],
+    notes: [{ degree: 1 }, { degree: 2 }, { degree: 3 }, { degree: 1 }],
+  };
+
+  it('becomes a Theme the app can already realise and play', () => {
+    const theme = cellAsTheme(cell);
+    expect(theme.events).toHaveLength(4);
+    expect(theme.events.map((e) => ('degree' in e ? e.degree : 'rest'))).toEqual([1, 2, 3, 1]);
+    expect(theme.metres).toEqual([[4, 4]]);
+  });
+
+  it('keeps rests in the rhythm and spends notes only on sounded events', () => {
+    const withRests: AuthoredCell = {
+      ...cell,
+      bars: ['0q rq 0q rq'],
+      notes: [{ degree: 5 }, { degree: 4, alter: -1 }],
+    };
+    const theme = cellAsTheme(withRests);
+    expect(theme.events.map((e) => ('rest' in e ? 'rest' : e.degree))).toEqual([5, 'rest', 4, 'rest']);
+    // The chromatic inflection survives — a flattened fourth in G IS a C flat.
+    expect(theme.events[2]).toMatchObject({ degree: 4, alter: -1 });
+  });
+
+  it('offers only the keys the instrument can hold, as the themes picker does', () => {
+    const instrument = instrumentById('eb-bass');
+    const keys = [-3, -1, 0, 2];
+    const fits = cellFitsKeys(cell, instrument, 'treble', keys);
+    expect(fits.length).toBeGreaterThan(0);
+    // A cell that leaps two octaves fits fewer keys than a stepwise one.
+    const wide: AuthoredCell = {
+      ...cell,
+      notes: [{ degree: 1, octave: -1 }, { degree: 1, octave: 1 }, { degree: 1 }, { degree: 1 }],
+    };
+    expect(cellFitsKeys(wide, instrument, 'treble', keys).length).toBeLessThanOrEqual(fits.length);
+  });
+
+  it('stores, resolves and deletes on the player’s own shelf', () => {
+    localStorage.clear();
+    saveCell(cell);
+    expect(loadCells()).toHaveLength(1);
+    saveCell({ ...cell, name: 'Walk again' });
+    expect(loadCells()).toHaveLength(1);
+    expect(loadCells()[0].name).toBe('Walk again');
+    deleteCell('c1');
+    expect(loadCells()).toEqual([]);
+    localStorage.setItem(CELLS_KEY, 'not json');
+    expect(loadCells()).toEqual([]);
+  });
+
+  it('writes sensible random notes over any rhythm', () => {
+    /*
+     * The always-available option before a cell is written: a scalewise
+     * walk that opens and closes on the tonic, one note per sounded
+     * event and none for the rests.
+     */
+    const notes = randomNotesFor(['0q rq 0e 0e 0q'], 7);
+    expect(notes).toHaveLength(4);
+    expect(notes[0].degree).toBe(1);
+    expect(notes[notes.length - 1].degree).toBe(1);
+    /*
+     * And it must actually MOVE. The first draft clamped at the scale's
+     * edges and opened on the tonic, so from degree 1 every downward
+     * step landed back on 1 and the line came out a drone. It now opens
+     * on the tonic, rises to the middle and turns at the edges.
+     */
+    const wide = randomNotesFor(['0e 0e 0e 0e 0e 0e 0e 0e'], 1);
+    expect(new Set(wide.map((note) => note.degree)).size).toBeGreaterThan(2);
+    for (const note of notes) {
+      expect(note.degree).toBeGreaterThanOrEqual(1);
+      expect(note.degree).toBeLessThanOrEqual(7);
+    }
+    // Steps mostly: no leap wider than a third anywhere in the line.
+    for (let i = 1; i < notes.length - 1; i++) {
+      expect(Math.abs(notes[i].degree - notes[i - 1].degree)).toBeLessThanOrEqual(2);
+    }
+    // Seeded, so a pattern's random line is stable while it is on screen.
+    expect(randomNotesFor(['0q rq 0e 0e 0q'], 7)).toEqual(notes);
+  });
+
+  it('spends no note on a tie’s far end, which is not a new note', () => {
+    // Six events, none a rest; the fourth is a tie's far end and takes
+    // no new note, so five attacks get five degrees.
+    const notes = randomNotesFor(['0q 0e 0e~ 0e 0e 0q'], 3);
+    expect(notes).toHaveLength(5);
+    // And the tie's own head still has one: only the continuation is skipped.
+    expect(randomNotesFor(['0h~ 0h'], 3)).toHaveLength(1);
   });
 });

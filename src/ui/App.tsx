@@ -4,7 +4,13 @@ import { difficultyById } from '../exercise/difficulty';
 import { metreFor } from '../domain/metre';
 import { defaultLengthFor, generateExercise, HORIZON_BARS } from '../exercise/generate';
 import { collectionOf } from '../exercise/collections';
-import { resolveRhythmPattern } from '../exercise/rhythm';
+import {
+  loadCells,
+  randomNotesFor,
+  RANDOM_CELL,
+  resolveRhythmPattern,
+  type CellNote,
+} from '../exercise/rhythm';
 import { canRekeyKind } from '../exercise/rekey';
 import { randomSeed } from '../exercise/rng';
 import type { Exercise } from '../exercise/types';
@@ -86,6 +92,28 @@ interface Finished {
   fromCourse: boolean;
   /** False when nobody played: see `wasAttempted`. Such a run is never filed. */
   attempted: boolean;
+}
+
+/**
+ * The line a rhythm run plays over its pattern, from the player's
+ * choice: a written cell, notes invented for this run, or nothing.
+ *
+ * Resolved here rather than in the generator because storage is the
+ * app's business and the generator is pure — the same seam
+ * `resolveRhythmPattern` crosses.
+ */
+function cellNotesFor(
+  settings: Settings,
+  seed: number,
+): { cellNotes?: readonly CellNote[] } {
+  const pattern = resolveRhythmPattern(settings.rhythmPatternId);
+  if (settings.cellId === RANDOM_CELL) {
+    return { cellNotes: randomNotesFor(pattern.bars, seed) };
+  }
+  const cell = settings.cellId
+    ? loadCells().find((entry) => entry.id === settings.cellId)
+    : undefined;
+  return cell ? { cellNotes: cell.notes } : {};
 }
 
 export function App() {
@@ -208,7 +236,13 @@ export function App() {
            generator is pure and storage is the app's business. Behind the
            literal so the free build never references the custom store. */
         ...(typeof __HAS_RHYTHM__ !== 'undefined' && __HAS_RHYTHM__ && settings.kind === 'rhythm'
-          ? { rhythmPattern: resolveRhythmPattern(settings.rhythmPatternId) }
+          ? {
+              rhythmPattern: resolveRhythmPattern(settings.rhythmPatternId),
+              /* The line over the pattern: a written cell, notes made up
+                 for this run, or nothing — which plays the alternating
+                 pair rhythm mode defaults to. */
+              ...cellNotesFor(settings, seed),
+            }
           : {}),
         cycles: shape?.cycles ?? length.cycles,
         register: settings.register,

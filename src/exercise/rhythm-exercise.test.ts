@@ -136,6 +136,22 @@ describe('the rhythm exercise', () => {
     }
   });
 
+  it('prints its key only when it has notes to put in one', () => {
+    /*
+     * A pattern with a LINE is in a key and prints its signature; a bare
+     * rhythm has none, which is the plan's constraint and keeps every
+     * eye on the rhythm. The first cut placed the line for the chosen
+     * key and spelled it against C, so an E flat pattern came out under
+     * a blank signature covered in sharps (2026-09-03).
+     */
+    const line = [{ degree: 1 }, { degree: 2 }, { degree: 3 }, { degree: 4 }];
+    const inEflat = generateExercise(options({ fifths: -3, cellNotes: line }));
+    expect(inEflat.keys).toEqual([{ fromBeat: 0, fifths: -3 }]);
+    expect(inEflat.notes.some((note) => note.showAccidental)).toBe(false);
+    // And a rhythm with no line keeps no signature, whatever key is set.
+    expect(generateExercise(options({ fifths: -3 })).keys).toEqual([{ fromBeat: 0, fifths: 0 }]);
+  });
+
   it('is keyless: no signature, and the chosen key cannot reach it', () => {
     // The plan's constraint — no key, no key set — honoured in free play:
     // C is the absence of a signature, every eye on the rhythm.

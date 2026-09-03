@@ -611,6 +611,49 @@ of a real attack cannot be heard in a note shorter than the attack. What
 the fix buys is the *pitch* arriving — the player hearing which note it
 was and when — which is what the mode is for.
 
+## The Pattern tab, and cells under their patterns (2026-09-03)
+
+The player's structure, replacing a flat pattern list — and it settles
+the naming problem the cells plan left open, because **a cell is not a
+sibling of a rhythm but a child of one**:
+
+> I select 3/4 as a tempo, see some rhythms authored for 3/4. Select
+> one, and see options for authored cells for that rhythm.
+
+So: **the whole feature is called Pattern**; the tab keeps the name
+Rhythm because that is what you always start from. Metre and key
+selectors above, then a grid of cards — a pattern's name and its first
+bar engraved — and a card **expands in place** (ruled over a popup) to
+offer the ways of playing it: the rhythm alone, notes made up on the
+spot, or one of the cells written on it.
+
+- **The key selector is a CHOICE, not a filter.** A cell is degrees, so
+  it plays in any key — which is the whole reason the format is
+  degree-based. What key *can* do is disqualify: a cell that will not
+  fit the instrument's compass in a given key is shown disabled with the
+  reason, exactly as the themes picker greys a tune (`cellFitsKeys`,
+  which is `realiseTheme` asked once per key).
+- **The rhythm is a snapshot inside the cell**, not a live link:
+  `patternId` is provenance for grouping the list, and `bars` are copied
+  at birth. A cell written on a rhythm stays what it was written as when
+  its parent is edited — the alternative silently breaks every cell the
+  day a bar is added.
+- **Random notes** are the always-available option (the player's ask): a
+  scalewise walk that opens and closes on the tonic, gently biased
+  towards the middle of the scale. Two drafts were drones before that
+  bias — clamping at the scale's edges pinned the walk to the tonic it
+  opened on, and turning at the edges was not enough on its own.
+- **A pattern with a line prints its key signature; a bare rhythm does
+  not.** The first cut placed the line for the chosen key and then
+  spelled it against C, so an E flat pattern arrived under a blank
+  signature covered in sharps.
+
+Multi-select — a playlist of patterns and cells, as themes already
+has — is deliberately next rather than now, and the **cell editor**
+(dragging notes on the stave the grid already draws) is the piece that
+makes the tab worth having. What exists today can play a written cell;
+nothing yet writes one.
+
 ## Open, and named so they are not forgotten
 
 - **The clip recordings**: who records them is settled (the player); when is

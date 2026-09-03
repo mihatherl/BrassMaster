@@ -20,6 +20,7 @@ import {
   scalePitchClasses,
   spellInKey,
   spellWithLetter,
+  MAJOR_SCALE,
   tonicPitchClass,
   tourKey,
   type KeyChange,
@@ -42,7 +43,13 @@ import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
 import { planTempo } from './tempo-plan';
 import type { Exercise, ExerciseKind, LabelEvent } from './types';
-import { patternEvents, rhythmPatternById, syllablesForBars, type RhythmPattern } from './rhythm';
+import {
+  patternEvents,
+  rhythmPatternById,
+  syllablesForBars,
+  type CellNote,
+  type RhythmPattern,
+} from './rhythm';
 import type { CellEvent } from './cells';
 
 /**
@@ -260,6 +267,12 @@ export interface GenerateOptions {
    * is pure and the tools import it with no DOM at all.
    */
   rhythmPattern?: RhythmPattern;
+  /**
+   * The line played over the pattern: degrees, one per attack. Absent
+   * plays the alternating pair, which is rhythm mode's own default and
+   * the only shape that makes timing observable on buttons.
+   */
+  cellNotes?: readonly CellNote[];
 }
 
 interface Candidate {
@@ -383,6 +396,21 @@ function restsFilling(from: number, beats: number, metre: Metre): Slot[] {
  * absence of one: no signature, every eye on the rhythm. The pair sits at
  * the comfortable middle of the instrument's compass.
  */
+/**
+ * A cell's degree as a written pitch, near the register the rhythm pair
+ * sits in. Degrees are of the major scale of the key in force — the same
+ * reading `ThemeNote` has — so a cell plays in any key, which is what
+ * makes the Pattern tab's key selector a choice rather than a filter.
+ */
+function degreePitch(note: CellNote, near: number, fifths: number): number {
+  const tonic = tonicPitchClass(fifths);
+  const semitones = MAJOR_SCALE[(note.degree - 1) % 7] + (note.alter ?? 0);
+  const wanted = (((tonic + semitones) % 12) + 12) % 12;
+  // The nearest octave to the pair's own, so the line sits where the eye is.
+  const base = near - ((((near % 12) - wanted) % 12) + 12) % 12;
+  return base + 12 * (note.octave ?? 0);
+}
+
 function rhythmExercise(options: GenerateOptions): Exercise {
   const pattern = options.rhythmPattern ?? rhythmPatternById(options.rhythmPatternId ?? '');
   const metre = metreFor(pattern.metre[0], pattern.metre[1]);
@@ -488,6 +516,8 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   const syllables: Array<LabelEvent & { rest?: true }> = [];
   let at = 0;
   let side = 0;
+  /** Attacks so far, which is how a cell's notes are addressed. */
+  let attack = 0;
   for (let round = 0; round < rounds; round++) {
     for (let statement = 0; statement < statements; statement++) {
       const demo = statement === 0;
@@ -500,6 +530,7 @@ function rhythmExercise(options: GenerateOptions): Exercise {
       /* The alternation restarts each statement, so every play answers the
          demonstration it just heard, note for note. */
       side = 0;
+      attack = 0;
       for (const bar of bars) {
         let barBeat = 0;
         for (const event of bar) {
@@ -521,7 +552,17 @@ function rhythmExercise(options: GenerateOptions): Exercise {
             const tiedFromPrevious = continuation.has(event);
             slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious });
             if (!tiedFromPrevious) {
-              pitches.push(pair[side]);
+              /*
+               * A cell's own line where one was chosen, else the
+               * alternating pair. The line is degrees of the key in
+               * force, placed near the register the pair sits in, so a
+               * pattern reads where the eye already is.
+               */
+              const cellNote = options.cellNotes?.[attack];
+              pitches.push(
+                cellNote ? degreePitch(cellNote, pair[0], options.fifths) : pair[side],
+              );
+              attack++;
               side = 1 - side;
             }
           }
@@ -551,7 +592,15 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   const exercise = assembleExercise(slots, pitches, {
     instrument: options.instrument,
     clef: options.clef,
-    keys: [{ fromBeat: 0, fifths: 0 }],
+    /*
+     * A pattern with a LINE on it is in a key and prints its signature;
+     * a bare rhythm has no key at all and prints none, which is the
+     * plan's own constraint (no key, no key set) and keeps every eye on
+     * the rhythm. Before this, a line was placed for the chosen key and
+     * then spelled against C — so an E flat pattern came out under a
+     * blank signature covered in sharps.
+     */
+    keys: [{ fromBeat: 0, fifths: options.cellNotes ? options.fifths : 0 }],
     metres: [{ fromBeat: 0, metre }],
     totalBeats,
     chosenBeats: totalBeats,

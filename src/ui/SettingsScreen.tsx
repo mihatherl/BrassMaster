@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { INSTRUMENTS, availableClefs, instrumentById, writtenRange } from '../domain/instruments';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from 'react';
+import {
+  INSTRUMENTS,
+  availableClefs,
+  instrumentById,
+  writtenRange,
+  type Clef,
+} from '../domain/instruments';
 import { keyNameFor, orderByCloseness } from '../domain/keys';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
@@ -11,7 +17,17 @@ import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
-import { loadCustomRhythms, RHYTHM_PATTERNS, type RhythmPattern } from '../exercise/rhythm';
+import {
+  cellFitsKeys,
+  loadCells,
+  loadCustomRhythms,
+  previewExerciseFromBars,
+  RANDOM_CELL,
+  RHYTHM_PATTERNS,
+  type RhythmPattern,
+} from '../exercise/rhythm';
+import { currentTheme, StaveRenderer } from '../render/surface';
+import { Transport } from '../engine/clock';
 import { RhythmPatternEditor } from './RhythmPatternEditor';
 import { LOCALES, t, tCount, type StringKey } from '../i18n';
 import type { ExerciseKind } from '../exercise/types';
@@ -63,6 +79,63 @@ function describeSpan(semitones: number): string {
  * opens; beyond the cap only what is already chosen can be undone, and the
  * last one standing cannot be — an exercise has to be in some key.
  */
+/** The metres a pattern may be written in — the editor's own list. */
+const PATTERN_METRES: ReadonlyArray<[number, number]> = [
+  [2, 4],
+  [3, 4],
+  [4, 4],
+];
+
+/**
+ * A pattern's first bar, engraved on one written C — the card's face.
+ * The same static-preview trick the rhythm editor and the course
+ * editor's tune picker use: `StaveRenderer` wants a transport for its
+ * clock, so it gets one over a context that never starts.
+ */
+function PatternFigure({
+  pattern,
+  instrumentId,
+  clef,
+}: {
+  pattern: RhythmPattern;
+  instrumentId: string;
+  clef: Clef;
+}): ReactElement {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 1) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * ratio);
+    canvas.height = Math.round(rect.height * ratio);
+    const context = new AudioContext();
+    void context.suspend();
+    const exercise = previewExerciseFromBars(
+      pattern.bars.slice(0, 1),
+      pattern.metre,
+      instrumentById(instrumentId),
+      clef,
+    );
+    const renderer = new StaveRenderer({
+      canvas,
+      exercise,
+      transport: new Transport(context, 80),
+      theme: currentTheme(),
+      scrollSpeed: 0,
+      readingMode: 'paged',
+      verdictFor: () => undefined,
+    });
+    renderer.draw();
+    return () => {
+      renderer.stop();
+      void context.close();
+    };
+  }, [pattern, instrumentId, clef]);
+  return <canvas ref={ref} className="pattern-card__figure" />;
+}
+
 function KeysGrid({
   keySet,
   keyName,
@@ -438,11 +511,30 @@ export function SettingsScreen({
      shelf after a save — the store is the truth, this only asks again. */
   const [rhythmEditing, setRhythmEditing] = useState<RhythmPattern | null | 'closed'>('closed');
   const [rhythmShelf, setRhythmShelf] = useState(0);
+  /** Which pattern card is expanded, showing its ways of being played. */
+  const [openPattern, setOpenPattern] = useState<string | null>(null);
   const customRhythms = useMemo(
     () => (__HAS_RHYTHM__ && settings.kind === 'rhythm' ? loadCustomRhythms() : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings.kind, rhythmShelf],
   );
+  const patternCells = useMemo(
+    () => (__HAS_RHYTHM__ && settings.kind === 'rhythm' ? loadCells() : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.kind, rhythmShelf],
+  );
+  /* Packaged first, then the player's own; filtered by the metre chosen,
+     or all of them where no metre is. */
+  const shownPatterns = useMemo(() => {
+    /* The literal, not just the kind: this module is in both builds, so
+       an unguarded reference keeps the pattern library alive through the
+       bundle — the leak `check:web` caught the day the tab was built,
+       and again the day it grew a card grid. */
+    if (!__HAS_RHYTHM__) return [];
+    const all = [...RHYTHM_PATTERNS, ...customRhythms];
+    const metre = settings.patternMetre;
+    return metre ? all.filter((p) => p.metre[0] === metre[0] && p.metre[1] === metre[1]) : all;
+  }, [customRhythms, settings.patternMetre]);
   // The one summary the screen still writes itself: which output the strip's
   // note names. Everything else announces itself in place now — the chip, the
   // open material box, the gate's accordion lines.
@@ -597,55 +689,162 @@ export function SettingsScreen({
    * pairs" tripwire caught it on its first run. The literal here is what
    * folds the expression away and lets `rhythm.ts` shake out.
    */
+  /*
+   * The Pattern tab (the player's structure, 2026-09-03): a metre filter,
+   * then a grid of cards — each a pattern's name and its first bar
+   * engraved — and a card EXPANDS in place (not a popup, ruled the same
+   * day) to offer the ways of playing it: random notes, or one of the
+   * cells authored on it. The key selector beside the metre is a
+   * CHOICE, not a filter: a cell is degrees, so it plays in any key its
+   * instrument can hold — and the ones it cannot are shown disabled with
+   * the reason, exactly as the themes picker greys a tune.
+   */
   const patternField = __HAS_RHYTHM__ ? (
-    <div className="field">
-      <span className="field__label">{t('rhythm.pattern')}</span>
-      <div className="drills">
-        {RHYTHM_PATTERNS.map((option) => (
+    <>
+      <div className="field">
+        <span className="field__label">{t('rhythm.metre')}</span>
+        <div className="row">
+          {PATTERN_METRES.map(([n, d]) => {
+            const chosen = settings.patternMetre?.[0] === n && settings.patternMetre?.[1] === d;
+            return (
+              <button
+                key={`${n}/${d}`}
+                type="button"
+                className={`segmented__option ${chosen ? 'is-selected' : ''}`}
+                aria-pressed={chosen}
+                onClick={() => update('patternMetre', chosen ? undefined : [n, d])}
+              >
+                {n}/{d}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="field">
+        <span className="field__label">{t('rhythm.pattern')}</span>
+        <div className="pattern-grid">
+          {shownPatterns.map((option) => {
+            const open = openPattern === option.id;
+            const cells = patternCells.filter((cell) => cell.patternId === option.id);
+            return (
+              <div key={option.id} className={`pattern-card ${open ? 'is-open' : ''}`}>
+                <button
+                  type="button"
+                  className="pattern-card__head"
+                  aria-expanded={open}
+                  onClick={() => setOpenPattern(open ? null : option.id)}
+                >
+                  <span className="pattern-card__name">{option.name}</span>
+                  <PatternFigure
+                    pattern={option}
+                    instrumentId={settings.instrumentId}
+                    clef={settings.clef}
+                  />
+                </button>
+                {open && (
+                  <div className="pattern-card__ways">
+                    <button
+                      type="button"
+                      className={`segmented__option ${
+                        settings.rhythmPatternId === option.id && !settings.cellId
+                          ? 'is-selected'
+                          : ''
+                      }`}
+                      onClick={() =>
+                        onChange(
+                          sanitise({
+                            ...settings,
+                            rhythmPatternId: option.id,
+                            cellId: undefined,
+                          }),
+                        )
+                      }
+                    >
+                      {t('rhythm.rhythmOnly')}
+                    </button>
+                    <button
+                      type="button"
+                      className={`segmented__option ${
+                        settings.rhythmPatternId === option.id && settings.cellId === RANDOM_CELL
+                          ? 'is-selected'
+                          : ''
+                      }`}
+                      onClick={() =>
+                        onChange(
+                          sanitise({
+                            ...settings,
+                            rhythmPatternId: option.id,
+                            cellId: RANDOM_CELL,
+                          }),
+                        )
+                      }
+                    >
+                      {t('rhythm.randomNotes')}
+                    </button>
+                    {cells.map((cell) => {
+                      const fits = cellFitsKeys(
+                        cell,
+                        instrument,
+                        settings.clef,
+                        settings.keySet.length > 0 ? settings.keySet : [settings.fifths],
+                      );
+                      const unfit = fits.length === 0;
+                      return (
+                        <button
+                          key={cell.id}
+                          type="button"
+                          disabled={unfit}
+                          title={
+                            unfit
+                              ? t('rhythm.unfit', { instrument: instrument.name })
+                              : undefined
+                          }
+                          className={`segmented__option ${
+                            settings.cellId === cell.id ? 'is-selected' : ''
+                          }`}
+                          onClick={() =>
+                            onChange(
+                              sanitise({
+                                ...settings,
+                                rhythmPatternId: option.id,
+                                cellId: cell.id,
+                              }),
+                            )
+                          }
+                        >
+                          {cell.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="row">
           <button
-            key={option.id}
             type="button"
-            aria-pressed={settings.rhythmPatternId === option.id}
-            className={`segmented__option drill ${
-              settings.rhythmPatternId === option.id ? 'is-selected' : ''
-            }`}
-            onClick={() => update('rhythmPatternId', option.id)}
+            className="segmented__option"
+            onClick={() => setRhythmEditing(null)}
           >
-            {option.name}
+            {t('rhythm.new')}
           </button>
-        ))}
-        {/* The player's own shelf, after the packaged spine; each carries
-            its editor beside it, because a custom is theirs to change. */}
-        {customRhythms.map((option) => (
-          <span key={option.id} className="drills__own">
+          {customRhythms.map((option) => (
             <button
+              key={`edit-${option.id}`}
               type="button"
-              aria-pressed={settings.rhythmPatternId === option.id}
-              className={`segmented__option drill ${
-                settings.rhythmPatternId === option.id ? 'is-selected' : ''
-              }`}
-              onClick={() => update('rhythmPatternId', option.id)}
-            >
-              {option.name}
-            </button>
-            <button
-              type="button"
-              className="segmented__option drill rhythm-shelf__edit"
+              className="segmented__option rhythm-shelf__edit"
               aria-label={`Edit ${option.name}`}
               onClick={() => setRhythmEditing(option)}
             >
-              ✎
+              ✎ {option.name}
             </button>
-          </span>
-        ))}
-        <button
-          type="button"
-          className="segmented__option drill"
-          onClick={() => setRhythmEditing(null)}
-        >
-          {t('rhythm.new')}
-        </button>
+          ))}
+        </div>
       </div>
+
       {rhythmEditing !== 'closed' && (
         <RhythmPatternEditor
           editing={rhythmEditing}
@@ -662,7 +861,7 @@ export function SettingsScreen({
           }}
         />
       )}
-    </div>
+    </>
   ) : null;
 
   const sourceField = (
