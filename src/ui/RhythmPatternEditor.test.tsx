@@ -180,3 +180,53 @@ describe('the cell editor — notes on the rhythm', () => {
     expect(JSON.parse(localStorage.getItem('brass-trainer:rhythms')!)).toHaveLength(1);
   });
 });
+
+describe('moving a note', () => {
+  /*
+   * The player, 2026-09-03: dragging up dropped the note "down to middle
+   * C or something", and no note could be pushed onto the ledger lines
+   * above the stave. The drag re-read the pointer against the layout
+   * after every move — and the layout MOVES, because the renderer
+   * rescales the stave as notes climb into ledger lines, so the anchor
+   * shifted under the gesture. It now measures the pointer's own travel
+   * from a single anchor taken at the press.
+   *
+   * The gesture itself is a canvas pointer sequence; what is testable
+   * here is the arrow path he asked for beside it, which shares the
+   * step arithmetic — including the carry past the seventh that made
+   * the ledger lines unreachable.
+   */
+  const withNotes = () => {
+    const utils = open();
+    for (const start of [0, 4, 8, 12]) {
+      fireEvent.pointerDown(utils.cells()[start]);
+      for (let i = start + 1; i < start + 4; i++) fireEvent.pointerEnter(utils.cells()[i]);
+      fireEvent.pointerUp(utils.cells()[start + 3]);
+    }
+    fireEvent.click(utils.getByText('Add notes'));
+    return utils;
+  };
+
+  it('cannot move a note until one is chosen', () => {
+    const utils = withNotes();
+    expect((utils.getByLabelText('Up a step') as HTMLButtonElement).disabled).toBe(true);
+    expect(utils.getByText('Tap a note, then move it')).toBeTruthy();
+  });
+
+  it('carries past the seventh into the next octave, so ledger lines are reachable', () => {
+    localStorage.clear();
+    const utils = withNotes();
+    fireEvent.change(utils.container.querySelector('input')!, { target: { value: 'P' } });
+    // Select the first note through the canvas's own hit test.
+    const canvas = utils.container.querySelector('.rhythm-editor__stave')!;
+    fireEvent.pointerDown(canvas, { clientX: 0, clientY: 80 });
+    fireEvent.pointerUp(canvas);
+    // Nine steps up from the tonic: past the seventh, into the octave above.
+    for (let i = 0; i < 9; i++) fireEvent.click(utils.getByLabelText('Up a step'));
+    fireEvent.change(utils.container.querySelectorAll('input')[1], { target: { value: 'High' } });
+    fireEvent.click(utils.getByText('Save'));
+    const cells = JSON.parse(localStorage.getItem('brass-trainer:cells')!);
+    // Degree 1 + 9 steps = degree 3 of the octave above.
+    expect(cells[0].notes[0]).toEqual({ degree: 3, octave: 1 });
+  });
+});

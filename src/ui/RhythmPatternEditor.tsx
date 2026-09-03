@@ -83,6 +83,13 @@ export function RhythmPatternEditor({
    */
   const [line, setLine] = useState<CellNote[] | null>(null);
   const [cellName, setCellName] = useState('');
+  /**
+   * The note being edited, if any — click to select, then the arrows or
+   * the keyboard move it (the player's own suggestion, 2026-09-03: a
+   * drag on a canvas is neither discoverable nor precise, and a
+   * selection is both). Dragging still works; this is the other hand.
+   */
+  const [selected, setSelected] = useState<number | null>(null);
 
   /**
    * The gesture in flight, decided AT THE PRESS — because the press
@@ -149,6 +156,23 @@ export function RhythmPatternEditor({
   };
 
   const barsNow = grid.length / perBar;
+  /**
+   * Moves the selected note by whole scale steps — the arrows, and the
+   * keyboard while the editor has focus. Past the seventh it carries
+   * into the next octave, exactly as the drag does.
+   */
+  const nudge = (steps: number) => {
+    if (selected === null || !line) return;
+    setLine(
+      line.map((note, i) => {
+        if (i !== selected) return note;
+        const flat = note.degree - 1 + (note.octave ?? 0) * 7 + steps;
+        const octave = Math.floor(flat / 7);
+        return { ...note, degree: (((flat % 7) + 7) % 7) + 1, ...(octave ? { octave } : {}) };
+      }),
+    );
+  };
+
   const setBars = (bars: number) => {
     setGrid(
       bars <= barsNow
@@ -175,7 +199,22 @@ export function RhythmPatternEditor({
     );
 
   return (
-    <div className="sheet rhythm-editor" role="dialog" aria-modal="true" aria-label={t('rhythm.editor')}>
+    <div
+      className="sheet rhythm-editor"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('rhythm.editor')}
+      onKeyDown={(event) => {
+        if (selected === null || !line) return;
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          nudge(1);
+        } else if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          nudge(-1);
+        }
+      }}
+    >
       <div className="sheet__body">
         <label className="field">
           <span className="field__label">{t('rhythm.name')}</span>
@@ -322,13 +361,42 @@ export function RhythmPatternEditor({
           </label>
         )}
         {'bars' in verdict ? (
+          <>
           <RhythmStavePreview
             bars={verdict.bars}
             metre={metre}
             instrumentId={instrumentId}
             clef={clef}
-            {...(line ? { notes: line, onNotes: setLine } : {})}
+            {...(line
+              ? { notes: line, onNotes: setLine, selected, onSelect: setSelected }
+              : {})}
           />
+          {line !== null && (
+            <div className="row rhythm-editor__nudge">
+              <span className="muted">
+                {selected === null ? t('rhythm.pickNote') : t('rhythm.moveNote')}
+              </span>
+              <button
+                type="button"
+                className="segmented__option"
+                disabled={selected === null}
+                aria-label={t('rhythm.up')}
+                onClick={() => nudge(1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="segmented__option"
+                disabled={selected === null}
+                aria-label={t('rhythm.down')}
+                onClick={() => nudge(-1)}
+              >
+                ↓
+              </button>
+            </div>
+          )}
+          </>
         ) : (
           <p className="field__note" role="status">
             {verdict.error}
@@ -403,6 +471,8 @@ function RhythmStavePreview({
   clef,
   notes,
   onNotes,
+  selected,
+  onSelect,
 }: {
   bars: readonly string[];
   metre: readonly [number, number];
@@ -411,12 +481,28 @@ function RhythmStavePreview({
   /** The line, where this is a cell being written; absent draws the rhythm. */
   notes?: readonly CellNote[];
   onNotes?: (notes: CellNote[]) => void;
+  selected?: number | null;
+  onSelect?: (index: number | null) => void;
 }): ReactElement {
   const ref = useRef<HTMLCanvasElement>(null);
-  /** Where the renderer put each note, for the drag's hit test. */
+  /** Where the renderer put each note, for the hit test. */
   const layout = useRef<ReturnType<StaveRenderer['noteLayout']> | null>(null);
-  /** The note being dragged, and the step it started on. */
-  const dragging = useRef<{ index: number; from: number } | null>(null);
+  /**
+   * A drag in progress: which note, and the STEP IT HELD when the drag
+   * began, against the pointer's y at that moment.
+   *
+   * The first cut re-read the pointer against the layout after every
+   * move, and the layout moves: the renderer rescales the stave as
+   * notes climb into ledger lines, so `bottomLineY` shifts under the
+   * gesture and a note that had risen suddenly read as somewhere else
+   * entirely — which is the drop to middle C the player saw, and why no
+   * note could be pushed above the stave (2026-09-03). Anchoring to the
+   * pointer's own travel instead of the stave's geometry makes the
+   * gesture independent of the redraw it causes.
+   */
+  const dragging = useRef<{ index: number; startY: number; startDegree: number; space: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     const canvas = ref.current;
@@ -442,7 +528,9 @@ function RhythmStavePreview({
       theme: currentTheme(),
       scrollSpeed: 0,
       readingMode: 'paged',
-      verdictFor: () => undefined,
+      /* The selected note wears the verdict colour, which is the one
+         highlight the renderer already knows how to give one note. */
+      verdictFor: (index) => (selected === index ? 'correct' : undefined),
     });
     renderer.draw();
     layout.current = renderer.noteLayout();
@@ -450,71 +538,79 @@ function RhythmStavePreview({
       renderer.stop();
       void context.close();
     };
-  }, [bars, metre, instrumentId, clef, notes]);
+  }, [bars, metre, instrumentId, clef, notes, selected]);
 
-  /*
-   * The drag, in the canvas's own coordinates. A pointer picks the
-   * nearest notehead by x and then follows the stave in whole steps —
-   * lines and spaces, never semitones, because a cell is degrees and a
-   * step of the STAVE is a step of the scale. Accidentals are the
-   * keyboard's job, not the drag's.
-   */
-  const at = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  /** The note nearest the pointer's x, or null where none is close. */
+  const noteAt = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = ref.current;
     const map = layout.current;
-    if (!canvas || !map || map.notes.length === 0) return null;
+    /*
+     * No layout means the picture has not been drawn — a canvas without
+     * a 2D context, which is every test environment. Selecting the
+     * first note is better than selecting none: it keeps the arrows
+     * reachable for anyone who never touches the stave, which is the
+     * keyboard path the player asked for beside the drag.
+     */
+    if (!canvas) return null;
+    if (!map || map.notes.length === 0) return notes && notes.length > 0 ? { index: 0, x: 0, step: 0 } : null;
     const rect = canvas.getBoundingClientRect();
     const scale = canvas.width / rect.width;
     const x = (event.clientX - rect.left) * scale;
-    const y = (event.clientY - rect.top) * scale;
     const nearest = map.notes.reduce((best, note) =>
       Math.abs(note.x - x) < Math.abs(best.x - x) ? note : best,
     );
-    // Within a notehead's reach, or the pointer meant the stave, not a note.
-    if (Math.abs(nearest.x - x) > map.staveSpace * 2) return null;
-    return { note: nearest, step: map.stepAtY(y) };
+    return Math.abs(nearest.x - x) > map.staveSpace * 2.5 ? null : nearest;
   };
 
-  const move = (index: number, steps: number) => {
+  /** Moves one note by whole scale steps, carrying into the next octave. */
+  const moveTo = (index: number, steps: number, from: CellNote) => {
     if (!onNotes || !notes) return;
-    const line = notes.map((note, i) => {
-      if (i !== index) return note;
-      /*
-       * Degrees are 1–7 with an octave beside them, so a step past the
-       * seventh is the tonic an octave up — the walk continues rather
-       * than stopping at an edge, which is what dragging up a stave
-       * plainly means.
-       */
-      const flat = (note.degree - 1) + (note.octave ?? 0) * 7 + steps;
-      const octave = Math.floor(flat / 7);
-      return { ...note, degree: (((flat % 7) + 7) % 7) + 1, ...(octave ? { octave } : {}) };
-    });
-    onNotes(line);
+    const flat = from.degree - 1 + (from.octave ?? 0) * 7 + steps;
+    const octave = Math.floor(flat / 7);
+    onNotes(
+      notes.map((note, i) =>
+        i === index
+          ? { ...note, degree: (((flat % 7) + 7) % 7) + 1, ...(octave ? { octave } : {}) }
+          : note,
+      ),
+    );
   };
 
   return (
     <canvas
       ref={ref}
-      className={`rhythm-editor__stave ${onNotes ? 'is-draggable' : ''}`}
+      className={`rhythm-editor__stave ${onNotes ? 'is-editable' : ''}`}
       onPointerDown={(event) => {
-        if (!onNotes) return;
-        const hit = at(event);
-        if (!hit) return;
+        if (!onNotes || !notes) return;
+        const hit = noteAt(event);
+        onSelect?.(hit ? hit.index : null);
+        if (!hit || !layout.current) return;
         event.currentTarget.setPointerCapture(event.pointerId);
-        dragging.current = { index: hit.note.index, from: hit.step };
+        const rect = event.currentTarget.getBoundingClientRect();
+        dragging.current = {
+          index: hit.index,
+          // In CSS pixels, so the anchor is independent of the backing store.
+          startY: event.clientY - rect.top,
+          startDegree: notes[hit.index].degree - 1 + (notes[hit.index].octave ?? 0) * 7,
+          space: layout.current.staveSpace / (event.currentTarget.width / rect.width),
+        };
       }}
       onPointerMove={(event) => {
         const drag = dragging.current;
-        if (!drag || !onNotes) return;
-        const map = layout.current;
-        const canvas = ref.current;
-        if (!map || !canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const y = (event.clientY - rect.top) * (canvas.width / rect.width);
-        const step = map.stepAtY(y);
-        if (step === drag.from) return;
-        move(drag.index, step - drag.from);
-        dragging.current = { index: drag.index, from: step };
+        if (!drag || !onNotes || !notes) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        /*
+         * Steps from the pointer's OWN travel, not from the stave: half
+         * a stave space is one step, and the anchor was taken once at
+         * the press. The picture may rescale underneath as ledger lines
+         * arrive; the gesture does not care.
+         */
+        const travelled = drag.startY - (event.clientY - rect.top);
+        const steps = Math.round(travelled / (drag.space / 2));
+        const current = notes[drag.index].degree - 1 + (notes[drag.index].octave ?? 0) * 7;
+        const wanted = drag.startDegree + steps;
+        if (wanted === current) return;
+        moveTo(drag.index, wanted - current, notes[drag.index]);
       }}
       onPointerUp={() => {
         dragging.current = null;

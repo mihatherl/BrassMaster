@@ -654,7 +654,21 @@ up and down the stave the grid already draws** — the bridge the player
 named on 2026-09-01, crossed. A drag moves in whole stave steps because
 a cell is degrees and a step of the stave IS a step of the scale;
 dragging past the seventh continues into the next octave rather than
-stopping, which is what dragging up a stave plainly means. The renderer
+stopping, which is what dragging up a stave plainly means.
+
+**A note is also selectable and moved by arrows** (the player's own
+suggestion the same day, after the first drag misbehaved): tap a note,
+then the ↑/↓ buttons or the keyboard move it. Two hands on the same
+arithmetic — the drag for speed, the selection for precision and for
+anyone who cannot drag at all.
+
+**The drag's frame of reference was the bug.** It re-read the pointer
+against the renderer's layout after every move, and the layout MOVES:
+the stave rescales as notes climb into ledger lines, so the anchor
+shifted under the gesture — the note "suddenly dropped down to middle C"
+and no note could be pushed above the stave at all. It now measures the
+pointer's own travel from a single anchor taken at the press, which
+makes the gesture independent of the redraw it causes. The renderer
 reports where it drew each note (`StaveRenderer.noteLayout`) rather than
 the editor recomputing layout beside it — two answers to "where is that
 note" would drift the moment either changed. Saving writes the cell
