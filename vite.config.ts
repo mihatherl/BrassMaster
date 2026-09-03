@@ -148,6 +148,21 @@ export default defineConfig({
     },
     VitePWA({
       registerType: 'autoUpdate',
+      /*
+       * The DEV channel runs no service worker — as a self-destroying one,
+       * because absence alone cannot reach an installed worker: the old
+       * worker serves the PRECACHED app and only ever replaces itself with
+       * whatever `sw.js` the server offers. 4173's dist is rebuilt many
+       * times a day, and a sample fetched mid-rebuild got the SPA fallback
+       * cached UNDER THE SAMPLE'S KEY — HTML decoded as audio, and the
+       * player hung on "Loading instrument…" through every refresh (the
+       * player, 2026-09-04). The destroyer installs over the wedged
+       * worker, unregisters, and the page reloads clean; the release
+       * channels keep the full offline PWA. The dev copy gives up
+       * offline, which a preview served off this machine never honestly
+       * had.
+       */
+      selfDestroying: channel === 'dev',
       // Registered by src/update.ts instead, which also reloads the page when a
       // new worker takes over — the generated script does not.
       injectRegister: null,

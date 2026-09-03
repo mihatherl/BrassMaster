@@ -7,6 +7,18 @@ stays until the fix is *verified on the device that showed it*, which is the
 lesson this repository has now paid for twice: a picture can disagree with a
 phone, and the phone is right.
 
+**The dev channel runs no service worker (2026-09-04).** 4173's dist is
+rebuilt many times a day, and a worker that precached a sample mid-rebuild
+stored the SPA fallback under the sample's key — HTML decoded as audio,
+and the player hung on "Loading instrument…" through every refresh. The
+dev build now ships a self-destroying `sw.js` (`selfDestroying` in
+`vite.config.ts`): it installs over any wedged worker, unregisters, and
+reloads the tab clean. Consequences for this log's own work: the dev copy
+on a phone has **no offline** — it needs the laptop serving — and a
+browser wedged from before the change heals itself after one or two
+reloads (or DevTools → Application → Clear site data, the manual road).
+The release channels keep the full offline PWA.
+
 ## Open
 
 *(none)*
