@@ -18,6 +18,7 @@ import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS } from '../exercise/types';
 import {
+  type AuthoredCell,
   cellFitsKeys,
   loadCells,
   loadCustomRhythms,
@@ -29,6 +30,7 @@ import {
 import { currentTheme, StaveRenderer } from '../render/surface';
 import { Transport } from '../engine/clock';
 import { RhythmPatternEditor } from './RhythmPatternEditor';
+import { CellEditor } from './CellEditor';
 import { LOCALES, t, tCount, type StringKey } from '../i18n';
 import type { ExerciseKind } from '../exercise/types';
 import { RangePicker } from './RangePicker';
@@ -510,6 +512,10 @@ export function SettingsScreen({
   /* The rhythm tool's sheet, and a counter that re-reads the player's own
      shelf after a save — the store is the truth, this only asks again. */
   const [rhythmEditing, setRhythmEditing] = useState<RhythmPattern | null | 'closed'>('closed');
+  /** The note editor's sheet: a pattern and, when reopening, its cell. */
+  const [cellEditing, setCellEditing] = useState<
+    { pattern: RhythmPattern; cell: AuthoredCell | null } | 'closed'
+  >('closed');
   const [rhythmShelf, setRhythmShelf] = useState(0);
   /** Which pattern card is expanded, showing its ways of being played. */
   const [openPattern, setOpenPattern] = useState<string | null>(null);
@@ -791,32 +797,66 @@ export function SettingsScreen({
                       );
                       const unfit = fits.length === 0;
                       return (
-                        <button
-                          key={cell.id}
-                          type="button"
-                          disabled={unfit}
-                          title={
-                            unfit
-                              ? t('rhythm.unfit', { instrument: instrument.name })
-                              : undefined
-                          }
-                          className={`segmented__option ${
-                            settings.cellId === cell.id ? 'is-selected' : ''
-                          }`}
-                          onClick={() =>
-                            onChange(
-                              sanitise({
-                                ...settings,
-                                rhythmPatternId: option.id,
-                                cellId: cell.id,
-                              }),
-                            )
-                          }
-                        >
-                          {cell.name}
-                        </button>
+                        <span key={cell.id} className="pattern-card__cell">
+                          <button
+                            type="button"
+                            disabled={unfit}
+                            title={
+                              unfit
+                                ? t('rhythm.unfit', { instrument: instrument.name })
+                                : undefined
+                            }
+                            className={`segmented__option ${
+                              settings.cellId === cell.id ? 'is-selected' : ''
+                            }`}
+                            onClick={() =>
+                              onChange(
+                                sanitise({
+                                  ...settings,
+                                  rhythmPatternId: option.id,
+                                  cellId: cell.id,
+                                }),
+                              )
+                            }
+                          >
+                            {cell.name}
+                          </button>
+                          {/* The little edit the player asked for (2026-09-04):
+                              straight into the note editor, no grid. */}
+                          <button
+                            type="button"
+                            className="segmented__option pattern-card__edit"
+                            aria-label={`Edit ${cell.name}`}
+                            onClick={() => setCellEditing({ pattern: option, cell })}
+                          >
+                            ✎
+                          </button>
+                        </span>
                       );
                     })}
+                    {/* Author a note progression on THIS pattern — packaged or
+                        custom alike; the cell snapshots the bars at birth. */}
+                    <button
+                      type="button"
+                      className="segmented__option"
+                      onClick={() => setCellEditing({ pattern: option, cell: null })}
+                    >
+                      {t('rhythm.newCell')}
+                    </button>
+                    {/* A custom rhythm is edited from its own card now — the
+                        ✎-chip shelf beside "+ New rhythm" is gone (the player
+                        disliked the labels it grew per authored line). */}
+                    {customRhythms.some((custom) => custom.id === option.id) && (
+                      <button
+                        type="button"
+                        className="segmented__option"
+                        onClick={() =>
+                          setRhythmEditing(customRhythms.find((c) => c.id === option.id) ?? null)
+                        }
+                      >
+                        ✎ {t('rhythm.editRhythm')}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -831,17 +871,6 @@ export function SettingsScreen({
           >
             {t('rhythm.new')}
           </button>
-          {customRhythms.map((option) => (
-            <button
-              key={`edit-${option.id}`}
-              type="button"
-              className="segmented__option rhythm-shelf__edit"
-              aria-label={`Edit ${option.name}`}
-              onClick={() => setRhythmEditing(option)}
-            >
-              ✎ {option.name}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -858,6 +887,28 @@ export function SettingsScreen({
           onClose={() => {
             setRhythmShelf((n) => n + 1);
             setRhythmEditing('closed');
+          }}
+        />
+      )}
+
+      {cellEditing !== 'closed' && (
+        <CellEditor
+          pattern={cellEditing.pattern}
+          editing={cellEditing.cell}
+          instrumentId={settings.instrumentId}
+          clef={settings.clef}
+          onSaved={(id) => {
+            /* The freshly written line becomes the selection, as a saved
+               rhythm does — the tool hands you the thing it made. */
+            onChange(
+              sanitise({ ...settings, rhythmPatternId: cellEditing.pattern.id, cellId: id }),
+            );
+            setRhythmShelf((n) => n + 1);
+            setCellEditing('closed');
+          }}
+          onClose={() => {
+            setRhythmShelf((n) => n + 1);
+            setCellEditing('closed');
           }}
         />
       )}

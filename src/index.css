@@ -2738,7 +2738,8 @@ input[type='checkbox'] {
 .rhythm-editor__stave.is-editable { cursor: grab; touch-action: none; }
 .rhythm-editor__stave.is-editable:active { cursor: grabbing; }
 .rhythm-editor__nudge { align-items: center; gap: 0.5rem; }
-.rhythm-shelf__edit { font-size: 0.85rem; padding: 0.2rem 0.45rem; }
+.pattern-card__cell { display: inline-flex; gap: 0.15rem; }
+.pattern-card__edit { font-size: 0.85rem; padding: 0.2rem 0.45rem; }
 
 /*
  * The Pattern tab's card grid (the player's structure, 2026-09-03):

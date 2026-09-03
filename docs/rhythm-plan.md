@@ -843,6 +843,24 @@ margin. The answer wash had the same convention and was corrected with
 it: the wash fills the bar it names, bar line to bar line, instead of
 starting on its first notehead and bleeding into the next bar.
 
+**The note editor became its own sheet (the player, 2026-09-04), and
+editing an existing cell — open since the cells landed — is closed.**
+His spec, three parts, all built: every pattern's card offers **"+
+Write notes"** (author a note progression on that pattern, packaged or
+custom — the cell snapshots the bars at birth as ever); every authored
+line wears **a little ✎** that opens *"a note editor, without the grid
+to edit the rhythm itself"*; and the **✎-chip shelf** beside "+ New
+rhythm" — one label per authored thing, which he disliked — is gone,
+a custom rhythm now edited from its own card's expanded ways. The
+sheet (`CellEditor`) shares the stave, drag, arrows and accidentals
+with the rhythm tool through the extracted `RhythmStavePreview`, so
+the two cannot drift. Two rules pinned in its tests: **a reopened cell
+keeps its own bars snapshot** even when its parent rhythm has since
+changed (the snapshot IS the cell), and **its id survives a rename**
+(the run's `cellId` and the picker address it). Delete lives on the
+sheet, the first way to remove a cell the app has had; a deleted
+selection falls back to the bare rhythm by the standing grace.
+
 Multi-select — a playlist of patterns and cells, as themes already
 has — is what remains.
 
