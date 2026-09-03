@@ -801,6 +801,19 @@ out of line — `.field`'s bottom margin inside `.field-row`'s stretched
 grid cells lifted the first label's centred content above the second's.
 Fields in a row keep no margin now.
 
+**The edges follow the engraver (the player's eye, 2026-09-04: "the
+shading is out of alignment").** The first cut drew cell edges at
+`xForBeat`, which names a beat's COLUMN CENTRE — so every edge sliced
+through the notehead it was meant to contain and the last cell spilled
+past the closing bar line. The rule now (`cellEdgeX`): an edge that IS
+a bar line sits where bar lines are drawn — `BAR_LINE_SETBACK` before
+the next column — and an edge inside the bar sits midway between the
+columns either side of it, because between beats there is no bar-line
+reserve to set back into; no edge reaches left of the line's own
+margin. The answer wash had the same convention and was corrected with
+it: the wash fills the bar it names, bar line to bar line, instead of
+starting on its first notehead and bleeding into the next bar.
+
 Multi-select — a playlist of patterns and cells, as themes already
 has — is what remains.
 

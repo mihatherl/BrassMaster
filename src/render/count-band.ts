@@ -119,6 +119,47 @@ export function bandCells(
 }
 
 /**
+ * Where a cell's edge sits on the page.
+ *
+ * `xForBeat` names a beat's COLUMN CENTRE, and the first cut used it
+ * raw — so every edge sliced through the very notehead it was meant to
+ * contain and the final cell spilled past the closing bar line (the
+ * player's eye, 2026-09-04). The engraver's own rules instead: an edge
+ * that IS a bar line sits where bar lines are drawn — the setback
+ * before the next column — and an edge inside the bar sits midway
+ * between the columns either side of it, because between beats there
+ * is no bar-line reserve to set back into. `limit` is the line's own
+ * left margin, where the signature ends and music may begin.
+ */
+export function cellEdgeX(
+  beat: number,
+  options: {
+    barLine: boolean;
+    /** Every column's beat (notes and rests), sorted ascending. */
+    columns: readonly number[];
+    xForBeat: (beat: number) => number;
+    /** The bar-line setback, in pixels: BAR_LINE_SETBACK × staveSpace. */
+    setbackX: number;
+    limit?: number;
+  },
+): number {
+  const { barLine, columns, xForBeat, setbackX } = options;
+  const limit = options.limit ?? -Infinity;
+  if (barLine) return Math.max(limit, xForBeat(beat) - setbackX);
+  let previous: number | null = null;
+  for (const at of columns) {
+    if (at >= beat - 1e-9) break;
+    previous = at;
+  }
+  return Math.max(
+    limit,
+    previous === null
+      ? xForBeat(beat) - setbackX
+      : (xForBeat(previous) + xForBeat(beat)) / 2,
+  );
+}
+
+/**
  * How many stave spaces a system needs below its bottom line.
  *
  * Base is the 3.5 the layout has always kept (`SYSTEM_SPACES`' own

@@ -1366,6 +1366,7 @@ export class StaveRenderer {
       floorY: this.height,
       tint: this.options.beatTint === true,
       clipX: { min: this.headerWidth - 60, max: this.width + 60 },
+      leftLimit: this.headerWidth,
     });
 
     this.drawNotes(xForBeat);

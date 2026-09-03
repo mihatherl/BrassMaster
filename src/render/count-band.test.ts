@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandCells, spacesBelowFor } from './count-band';
+import { bandCells, cellEdgeX, spacesBelowFor } from './count-band';
 import { metreFor } from '../domain/metre';
 
 /**
@@ -76,6 +76,36 @@ describe('the band’s cells', () => {
     // The pulse count stays global: the second line's tints line up with
     // where the first line left off.
     expect(cells[0].pulse).toBe(4);
+  });
+});
+
+describe('a cell’s edges on the page', () => {
+  /*
+   * The player's eye, 2026-09-04: the shading was out of alignment.
+   * `xForBeat` names a beat's COLUMN CENTRE, and edges drawn there
+   * sliced through the noteheads and spilled past the final bar line.
+   * The engraver's rules instead: bar-line edges sit at the setback,
+   * interior edges midway between the columns either side.
+   */
+  const xForBeat = (beat: number) => 100 + beat * 40;
+
+  it('a bar-line edge sits exactly where the bar line is drawn', () => {
+    expect(cellEdgeX(4, { barLine: true, columns: [0, 1, 2, 3], xForBeat, setbackX: 17.5 })).toBe(
+      xForBeat(4) - 17.5,
+    );
+  });
+
+  it('an interior edge splits the columns either side of it', () => {
+    // The previous column is the quaver at 1.5, not the beat before.
+    expect(cellEdgeX(2, { barLine: false, columns: [0, 1, 1.5], xForBeat, setbackX: 17.5 })).toBe(
+      (xForBeat(1.5) + xForBeat(2)) / 2,
+    );
+  });
+
+  it('never reaches left of the line’s own margin', () => {
+    expect(cellEdgeX(0, { barLine: true, columns: [], xForBeat, setbackX: 17.5, limit: 95 })).toBe(
+      95,
+    );
   });
 });
 

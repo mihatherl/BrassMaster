@@ -41,7 +41,7 @@ import {
   yForPitch,
   type StaveMetrics,
 } from './stave';
-import { bandCells, BAND_GAP, BAND_HEIGHT, BAND_MARGIN } from './count-band';
+import { bandCells, cellEdgeX, BAND_GAP, BAND_HEIGHT, BAND_MARGIN } from './count-band';
 import type { StaveTheme } from './surface';
 
 /**
@@ -530,12 +530,30 @@ export function drawCountBand(
     tint: boolean;
     /** Horizontal cull for the scrolling surface; the page needs none. */
     clipX?: { min: number; max: number };
+    /** The line's left margin — where the signature ends. Edges never
+        reach left of it. */
+    leftLimit?: number;
   },
 ): void {
   const { exercise, firstBeat, lastBeat, xForBeat, theme, tint } = options;
   const counted = (exercise.syllables?.length ?? 0) > 0;
   if (!counted && !tint) return;
   const { staveSpace, bottomLineY, topLineY } = metrics;
+
+  /* Cell edges follow the engraver, not the notehead centres — see
+     `cellEdgeX` for the fault its first cut had. */
+  const columns = [...exercise.notes, ...exercise.rests]
+    .map((event) => event.startBeat)
+    .sort((a, b) => a - b);
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+  const edgeFor = (beat: number, barLine: boolean) =>
+    cellEdgeX(beat, {
+      barLine,
+      columns,
+      xForBeat,
+      setbackX: BAR_LINE_SETBACK * staveSpace,
+      ...(options.leftLimit !== undefined ? { limit: options.leftLimit } : {}),
+    });
 
   const cells = bandCells(exercise, firstBeat, lastBeat).filter((cell) => {
     if (!options.clipX) return true;
@@ -569,10 +587,10 @@ export function drawCountBand(
   if (tint) {
     const tintTop = topLineY - 0.75 * staveSpace;
     for (const cell of cells) {
-      const barLeft = xForBeat(cell.barFromBeat);
-      const barRight = xForBeat(cell.barToBeat);
-      const topLeft = xForBeat(cell.fromBeat);
-      const topRight = xForBeat(cell.toBeat);
+      const barLeft = edgeFor(cell.barFromBeat, true);
+      const barRight = edgeFor(cell.barToBeat, true);
+      const topLeft = edgeFor(cell.fromBeat, near(cell.fromBeat, cell.barFromBeat));
+      const topRight = edgeFor(cell.toBeat, near(cell.toBeat, cell.barToBeat));
       ctx.fillStyle = cell.pulse % 2 === 0 ? theme.beatBand : theme.beatBandAlt;
       if (!counted) {
         // No count, no bar: the shading alone, over the stave region.
@@ -604,8 +622,8 @@ export function drawCountBand(
     ctx.font = `600 ${Math.round(staveSpace * 1.05)}px system-ui, sans-serif`;
     const middle = bandTop + (BAND_HEIGHT / 2) * staveSpace;
     for (const cell of cells) {
-      const barLeft = xForBeat(cell.barFromBeat);
-      const barRight = xForBeat(cell.barToBeat);
+      const barLeft = edgeFor(cell.barFromBeat, true);
+      const barRight = edgeFor(cell.barToBeat, true);
       for (const entry of cell.entries) {
         // A count over silence or sustain wears the horizon grey: the
         // count continues, and quietly.
@@ -639,8 +657,12 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
   /* The bar being played now, painted first so the stave sits on top. */
   const answer = options.answerSpan;
   if (answer && answer[1] > firstBeat + 1e-9 && answer[0] < lastBeat - 1e-9) {
-    const left = xForBeat(Math.max(answer[0], firstBeat));
-    const right = xForBeat(Math.min(answer[1], lastBeat));
+    /* Set back like the bar lines themselves, so the wash fills the bar
+       it names instead of starting on its first notehead and bleeding
+       into the next bar's opening (found with the count band's edges,
+       2026-09-04). */
+    const left = xForBeat(Math.max(answer[0], firstBeat)) - BAR_LINE_SETBACK * staveSpace;
+    const right = xForBeat(Math.min(answer[1], lastBeat)) - BAR_LINE_SETBACK * staveSpace;
     ctx.fillStyle = theme.answer;
     ctx.fillRect(left, metrics.topLineY - staveSpace * 1.5, right - left, staveSpace * 7);
   }
@@ -775,6 +797,7 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
     colourFor: options.colourFor,
     floorY: options.bandFloorY ?? metrics.bottomLineY + 3.5 * staveSpace,
     tint: options.beatTint === true,
+    leftLimit: musicLeft,
   });
 
   const loose: LayoutNote[] = [];
