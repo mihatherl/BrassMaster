@@ -698,6 +698,34 @@ note" would drift the moment either changed. Saving writes the cell
 **beside** its rhythm, never instead of it, with the snapshot the
 parent-child ruling requires.
 
+**Three more faults in the cell editor, found by the player dragging on
+real music (2026-09-03, second pass) — and the ruling that settles the
+first: a note belongs to its onset.** The line was seeded once, at the
+moment *Add notes* was pressed, and never resized; an attack painted
+afterwards drew (the preview falls back to the tonic) but had no entry
+in the line, so it could not be dragged, selected or nudged at all. The
+line now reconciles whenever the engraved bars change
+(`reconcileNotes`): a surviving onset keeps the note written on it, a
+new onset arrives on the tonic, a deleted onset takes its note with it
+— and the selection follows its onset by the same rule. The cheap
+alternative (pad the line at its end) was rejected because it silently
+shifts every pitch onto the wrong attack the moment a note is added
+mid-bar, which on real music is worse than the fault. Second, the
+jumping drag: the note constructor spread `...(octave ? { octave } :
+{})` over `...note`, so a move landing back in the HOME octave kept the
+stale octave and pinned the note a seventh from the hand for the rest
+of the gesture — visible only on drags that crossed the octave
+boundary, which is why it resisted description. One built constructor
+(`movedNote`) now serves the drag and the arrows, and the round trip is
+pinned by test. Third, latent under ties: `exercise.notes` writes a
+notehead for every tie continuation while the line holds one note per
+attack, so on any tied rhythm every notehead past the first tie
+hit-tested to the wrong note — or past the line's end, which is the
+first fault's symptom by another road. The stave's hit test and its
+colouring now read through `attackIndexByNote`, so a tied note selects,
+lights and drags as the one attack it is, every notehead of it
+together.
+
 Multi-select — a playlist of patterns and cells, as themes already
 has — is what remains.
 

@@ -179,6 +179,32 @@ describe('the cell editor — notes on the rhythm', () => {
     expect(localStorage.getItem('brass-trainer:cells')).toBeNull();
     expect(JSON.parse(localStorage.getItem('brass-trainer:rhythms')!)).toHaveLength(1);
   });
+
+  it('an attack painted AFTER the line was seeded joins it and can be moved', () => {
+    /*
+     * The player's repro of 2026-09-03: a semiquaver, Add notes, then a
+     * second semiquaver — which drew (the preview falls back to the
+     * tonic) but had no entry in the line, so it could not be dragged or
+     * nudged at all. A note belongs to its onset: the line reconciles on
+     * every change of the engraved bars, and the first note's pitch must
+     * survive the edit.
+     */
+    localStorage.clear();
+    const utils = open();
+    fireEvent.change(utils.container.querySelector('input')!, { target: { value: 'Grow' } });
+    utils.tap(0); // a semiquaver on beat 1
+    fireEvent.click(utils.getByText('Add notes'));
+    // Move the seeded note first, so reconciliation must carry a real pitch.
+    const canvas = utils.container.querySelector('.rhythm-editor__stave')!;
+    fireEvent.pointerDown(canvas, { clientX: 0, clientY: 80 });
+    fireEvent.pointerUp(canvas);
+    fireEvent.click(utils.getByLabelText('Up a step'));
+    utils.tap(4); // the repro: a second semiquaver, painted after the seeding
+    fireEvent.change(utils.container.querySelectorAll('input')[1], { target: { value: 'Two' } });
+    fireEvent.click(utils.getByText('Save'));
+    const cells = JSON.parse(localStorage.getItem('brass-trainer:cells')!);
+    expect(cells[0].notes).toEqual([{ degree: 2 }, { degree: 1 }]);
+  });
 });
 
 describe('moving a note', () => {
@@ -228,5 +254,27 @@ describe('moving a note', () => {
     const cells = JSON.parse(localStorage.getItem('brass-trainer:cells')!);
     // Degree 1 + 9 steps = degree 3 of the octave above.
     expect(cells[0].notes[0]).toEqual({ degree: 3, octave: 1 });
+  });
+
+  it('comes home from the octave above with no stale octave (the jumping drag)', () => {
+    /*
+     * Up nine steps and back down nine must land exactly where it began.
+     * The old constructor kept the octave it had whenever the move landed
+     * back in the home octave, so the round trip ended a seventh adrift —
+     * the "jumps to the bottom of the stave" the player could not pin
+     * down, because only gestures crossing the octave boundary showed it.
+     */
+    localStorage.clear();
+    const utils = withNotes();
+    fireEvent.change(utils.container.querySelector('input')!, { target: { value: 'R' } });
+    const canvas = utils.container.querySelector('.rhythm-editor__stave')!;
+    fireEvent.pointerDown(canvas, { clientX: 0, clientY: 80 });
+    fireEvent.pointerUp(canvas);
+    for (let i = 0; i < 9; i++) fireEvent.click(utils.getByLabelText('Up a step'));
+    for (let i = 0; i < 9; i++) fireEvent.click(utils.getByLabelText('Down a step'));
+    fireEvent.change(utils.container.querySelectorAll('input')[1], { target: { value: 'Home' } });
+    fireEvent.click(utils.getByText('Save'));
+    const cells = JSON.parse(localStorage.getItem('brass-trainer:cells')!);
+    expect(cells[0].notes[0]).toEqual({ degree: 1 });
   });
 });

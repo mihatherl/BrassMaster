@@ -25,6 +25,8 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { t } from '../i18n';
 import { MAJOR_KEYS } from '../domain/keys';
 import {
+  attackIndexByNote,
+  attackOnsets,
   attacksIn,
   barsFromGrid,
   beatCountLabels,
@@ -35,9 +37,11 @@ import {
   freshGrid,
   gridFromBars,
   loadCustomRhythms,
+  movedNote,
   previewExerciseFromBars,
   randomNotesFor,
   rebuildGrid,
+  reconcileNotes,
   saveCell,
   saveCustomRhythm,
   type CellNote,
@@ -56,6 +60,9 @@ import { Transport } from '../engine/clock';
  */
 const EDIT_SELECTED = '#e8a33d';
 const EDIT_HOVER = '#e8c98a';
+
+const sameBars = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((bar, i) => bar === b[i]);
 
 const METRES: ReadonlyArray<[number, number]> = [
   [2, 4],
@@ -123,6 +130,35 @@ export function RhythmPatternEditor({
   const perBar = beatsPerBar(metre);
   const verdict = useMemo(() => barsFromGrid(grid, metre), [grid, metre]);
 
+  /**
+   * A note belongs to its onset (ruled 2026-09-03). The line is seeded
+   * when notes are added, but the grid stays editable underneath it —
+   * and an attack painted after the seeding had no entry in the line, so
+   * it drew (the preview falls back to the tonic) yet could not be
+   * dragged, selected or nudged at all. Whenever the engraved bars
+   * change, the line reconciles: a surviving onset keeps the note
+   * written on it, a new onset arrives on the tonic, a deleted onset
+   * takes its note with it — and the selection follows its onset by the
+   * same rule. `lineBars` remembers which bars the line currently
+   * matches, held across any invalid grid states in between.
+   */
+  const lineBars = useRef<readonly string[] | null>(null);
+  useEffect(() => {
+    if (!line || !('bars' in verdict)) return;
+    const previous = lineBars.current;
+    lineBars.current = verdict.bars;
+    if (!previous || sameBars(previous, verdict.bars)) return;
+    setLine(reconcileNotes(previous, line, verdict.bars));
+    if (selected !== null) {
+      const onset = attackOnsets(previous)[selected];
+      const index =
+        onset === undefined
+          ? -1
+          : attackOnsets(verdict.bars).findIndex((at) => Math.abs(at - onset) < 1e-6);
+      setSelected(index >= 0 ? index : null);
+    }
+  }, [verdict, line, selected]);
+
   const id =
     editing?.id ??
     `custom-${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'rhythm'}`;
@@ -181,14 +217,7 @@ export function RhythmPatternEditor({
    */
   const nudge = (steps: number) => {
     if (selected === null || !line) return;
-    setLine(
-      line.map((note, i) => {
-        if (i !== selected) return note;
-        const flat = note.degree - 1 + (note.octave ?? 0) * 7 + steps;
-        const octave = Math.floor(flat / 7);
-        return { ...note, degree: (((flat % 7) + 7) % 7) + 1, ...(octave ? { octave } : {}) };
-      }),
-    );
+    setLine(line.map((note, i) => (i === selected ? movedNote(note, steps) : note)));
   };
 
   const setBars = (bars: number) => {
@@ -344,16 +373,21 @@ export function RhythmPatternEditor({
             <button
               type="button"
               className={`segmented__option ${line === null ? 'is-selected' : ''}`}
-              onClick={() => setLine(null)}
+              onClick={() => {
+                lineBars.current = null;
+                setLine(null);
+                setSelected(null);
+              }}
             >
               {t('rhythm.rhythmOnly')}
             </button>
             <button
               type="button"
               className={`segmented__option ${line !== null ? 'is-selected' : ''}`}
-              onClick={() =>
-                setLine(line ?? attacksIn(verdict.bars).map(() => ({ degree: 1 })))
-              }
+              onClick={() => {
+                lineBars.current = verdict.bars;
+                setLine(line ?? attacksIn(verdict.bars).map(() => ({ degree: 1 })));
+              }}
             >
               {t('rhythm.addNotes')}
             </button>
@@ -361,7 +395,10 @@ export function RhythmPatternEditor({
               <button
                 type="button"
                 className="segmented__option"
-                onClick={() => setLine(randomNotesFor(verdict.bars, Date.now() % 100000))}
+                onClick={() => {
+                  lineBars.current = verdict.bars;
+                  setLine(randomNotesFor(verdict.bars, Date.now() % 100000));
+                }}
               >
                 {t('rhythm.randomNotes')}
               </button>
@@ -531,6 +568,15 @@ function RhythmStavePreview({
   const renderer = useRef<StaveRenderer | null>(null);
   const layout = useRef<ReturnType<StaveRenderer['noteLayout']> | null>(null);
   /**
+   * Layout index → attack index. The renderer draws a notehead for every
+   * sounded event, tie continuations included; the line holds one note
+   * per attack. Selection, hover and the drag all speak in ATTACKS, so
+   * every read off the layout goes through this map — without it, on a
+   * tied rhythm each notehead past the first tie addressed the wrong
+   * note (or none, and the drag silently died).
+   */
+  const attackOf = useMemo(() => attackIndexByNote(bars), [bars]);
+  /**
    * Selection and hover live in refs read by the renderer's colour hook,
    * so a highlight change is one cheap `draw()` — never a rebuild, which
    * would mint an AudioContext per mouse movement.
@@ -585,11 +631,13 @@ function RhythmStavePreview({
       scrollSpeed: 0,
       readingMode: 'paged',
       verdictFor: () => undefined,
-      /* Editing colours, read per draw: the gesture outranks everything. */
+      /* Editing colours, read per draw: the gesture outranks everything.
+         Compared as attacks, so every notehead of a tied note lights
+         together — they are one note, held. */
       noteColourFor: (index) =>
-        index === selectedRef.current
+        attackOf[index] === selectedRef.current
           ? EDIT_SELECTED
-          : index === hovered.current
+          : attackOf[index] === hovered.current
             ? EDIT_HOVER
             : undefined,
     });
@@ -611,15 +659,15 @@ function RhythmStavePreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bars, metre, instrumentId, clef, notes, fifths, heightRem]);
 
-  /** The note nearest the pointer, by distance on the page, or null. */
+  /** The ATTACK nearest the pointer, by distance on the page, or null. */
   const noteAt = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = ref.current;
     const map = layout.current;
-    if (!canvas) return null;
+    if (!canvas || !notes) return null;
     if (!map || map.notes.length === 0) {
       // Undrawn (no 2D context — every test environment): the first note,
       // so the arrows stay reachable without a picture.
-      return notes && notes.length > 0 ? { index: 0, x: 0, y: 0, step: 0 } : null;
+      return notes.length > 0 ? { index: 0, x: 0, y: 0, step: 0 } : null;
     }
     const rect = canvas.getBoundingClientRect();
     const scale = canvas.width / rect.width;
@@ -628,20 +676,14 @@ function RhythmStavePreview({
     const nearest = map.notes.reduce((best, note) =>
       Math.hypot(note.x - x, note.y - y) < Math.hypot(best.x - x, best.y - y) ? note : best,
     );
-    return Math.hypot(nearest.x - x, nearest.y - y) > map.staveSpace * 3 ? null : nearest;
+    if (Math.hypot(nearest.x - x, nearest.y - y) > map.staveSpace * 3) return null;
+    const attack = attackOf[nearest.index];
+    return attack === undefined || attack >= notes.length ? null : { ...nearest, index: attack };
   };
 
-  const moveTo = (index: number, steps: number, from: CellNote) => {
-    if (!onNotes || !notes) return;
-    const flat = from.degree - 1 + (from.octave ?? 0) * 7 + steps;
-    const octave = Math.floor(flat / 7);
-    onNotes(
-      notes.map((note, i) =>
-        i === index
-          ? { ...note, degree: (((flat % 7) + 7) % 7) + 1, ...(octave ? { octave } : {}) }
-          : note,
-      ),
-    );
+  const moveTo = (index: number, steps: number) => {
+    if (!onNotes || !notes || !notes[index]) return;
+    onNotes(notes.map((note, i) => (i === index ? movedNote(note, steps) : note)));
   };
 
   return (
@@ -676,14 +718,14 @@ function RhythmStavePreview({
           }
           return;
         }
-        if (!onNotes || !notes) return;
+        if (!onNotes || !notes || !notes[drag.index]) return;
         const rect = event.currentTarget.getBoundingClientRect();
         const travelled = drag.startY - (event.clientY - rect.top);
         const steps = Math.round(travelled / (drag.space / 2));
         const current = notes[drag.index].degree - 1 + (notes[drag.index].octave ?? 0) * 7;
         const wanted = drag.startDegree + steps;
         if (wanted === current) return;
-        moveTo(drag.index, wanted - current, notes[drag.index]);
+        moveTo(drag.index, wanted - current);
       }}
       onPointerUp={() => {
         dragging.current = null;

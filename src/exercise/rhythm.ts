@@ -886,6 +886,82 @@ export function attacksIn(bars: readonly string[]): CellEvent[] {
   });
 }
 
+/**
+ * Where each attack falls, in beats from the start — the identity a note
+ * keeps while its rhythm is edited underneath it (ruled 2026-09-03: **a
+ * note belongs to its onset**). Same attack rule as `attacksIn`: a tie's
+ * far end is not an onset.
+ */
+export function attackOnsets(bars: readonly string[]): number[] {
+  const events = bars.flatMap((bar) => parseCell(bar));
+  const onsets: number[] = [];
+  let at = 0;
+  events.forEach((event, index) => {
+    const previous = events[index - 1];
+    if (!event.rest && !(previous && previous.tied === true && previous.rest !== true)) {
+      onsets.push(at);
+    }
+    at += event.beats;
+  });
+  return onsets;
+}
+
+/**
+ * For each written notehead — every sounded event in play order, tie
+ * continuations included, which is exactly `exercise.notes`' own order —
+ * the attack it belongs to. The stave's hit test needs this to read a
+ * notehead back into the line: the line holds one note per ATTACK, so on
+ * a tied rhythm the two counts diverge and every notehead past the first
+ * tie would otherwise address the wrong note.
+ */
+export function attackIndexByNote(bars: readonly string[]): number[] {
+  const events = bars.flatMap((bar) => parseCell(bar));
+  const map: number[] = [];
+  let attack = -1;
+  events.forEach((event, index) => {
+    if (event.rest) return;
+    const previous = events[index - 1];
+    if (!(previous && previous.tied === true && previous.rest !== true)) attack++;
+    map.push(attack);
+  });
+  return map;
+}
+
+/**
+ * The line carried across an edit of its rhythm: a surviving onset keeps
+ * the note written on it, a new onset arrives on the tonic, a deleted
+ * onset takes its note with it. Matching by position in the line instead
+ * (pad at the end) was rejected: it silently shifts every pitch onto the
+ * wrong attack the moment a note is added mid-bar.
+ */
+export function reconcileNotes(
+  oldBars: readonly string[],
+  notes: readonly CellNote[],
+  newBars: readonly string[],
+): CellNote[] {
+  const oldOnsets = attackOnsets(oldBars);
+  return attackOnsets(newBars).map((onset) => {
+    const kept = oldOnsets.findIndex((at) => Math.abs(at - onset) < 1e-6);
+    return (kept >= 0 ? notes[kept] : undefined) ?? { degree: 1 };
+  });
+}
+
+/**
+ * A note moved by whole scale steps, carrying past the seventh into the
+ * next octave. Built field by field rather than spread: `...(octave ?
+ * { octave } : {})` over `...note` keeps a STALE octave whenever the move
+ * lands back in the home octave, which pinned a dragged note a seventh
+ * from the hand for the rest of the gesture (found 2026-09-03).
+ */
+export function movedNote(note: CellNote, steps: number): CellNote {
+  const flat = note.degree - 1 + (note.octave ?? 0) * 7 + steps;
+  const octave = Math.floor(flat / 7);
+  const moved: CellNote = { degree: (((flat % 7) + 7) % 7) + 1 };
+  if (note.alter) moved.alter = note.alter;
+  if (octave) moved.octave = octave;
+  return moved;
+}
+
 export function randomNotesFor(bars: readonly string[], seed: number): CellNote[] {
   const rng = createRng(seed);
   /*

@@ -15,12 +15,16 @@ import {
   type GridBeat,
   type GridCell,
   type GridDivision,
+  attackIndexByNote,
+  attackOnsets,
   cellAsTheme,
   cellFitsKeys,
   CELLS_KEY,
   deleteCell,
   loadCells,
+  movedNote,
   randomNotesFor,
+  reconcileNotes,
   saveCell,
   type AuthoredCell,
   type RhythmPattern,
@@ -496,5 +500,76 @@ describe('cells — a pattern with notes on it', () => {
     expect(notes).toHaveLength(5);
     // And the tie's own head still has one: only the continuation is skipped.
     expect(randomNotesFor(['0h~ 0h'], 3)).toHaveLength(1);
+  });
+});
+
+describe('the line under an edited rhythm — a note belongs to its onset (2026-09-03)', () => {
+  /*
+   * The player's repro: seed the line with Add notes, paint another
+   * attack, and the new note drew (the preview falls back to the tonic)
+   * but could not be dragged, selected or nudged — the line never grew.
+   * The line now reconciles by ONSET: a surviving onset keeps its note,
+   * a new onset arrives on the tonic, a deleted one takes its note away.
+   */
+  it('places each attack at its onset, a tie’s far end taking none', () => {
+    expect(attackOnsets(['0q 0e~ 0e 0e re 0q'])).toEqual([0, 1, 2, 3]);
+  });
+
+  it('measures onsets across bar lines and through triplet beats', () => {
+    const onsets = attackOnsets(['0q 0t 0t 0t 0h', '0w']);
+    expect(onsets).toHaveLength(6);
+    [0, 1, 4 / 3, 5 / 3, 2, 4].forEach((at, i) => expect(onsets[i]).toBeCloseTo(at, 9));
+  });
+
+  it('maps every notehead to its attack, tie continuations included', () => {
+    // The engraved stave draws a notehead for the tie's far end too, so
+    // the hit test must fold it back onto the one attack it prolongs.
+    expect(attackIndexByNote(['0q 0e~ 0e 0e re 0q'])).toEqual([0, 1, 1, 2, 3]);
+    expect(attackIndexByNote(['0h 0h~', '0w'])).toEqual([0, 1, 1]);
+    // Untied, the map is the identity: notehead and attack are one.
+    expect(attackIndexByNote(['0q 0q rh'])).toEqual([0, 1]);
+  });
+
+  it('keeps a note on its onset when an attack is painted after it', () => {
+    // The repro itself: a semiquaver on beat 1, then one painted on beat 2.
+    const line = [{ degree: 3, octave: 1 }];
+    expect(reconcileNotes(['0s rs re rq rq rq'], line, ['0s rs re 0s rs re rh'])).toEqual([
+      { degree: 3, octave: 1 },
+      { degree: 1 },
+    ]);
+  });
+
+  it('an attack painted BEFORE the note does not steal its pitch', () => {
+    // Matching by position in the line would hand beat 2's note to the
+    // newcomer; matching by onset keeps it where it was written.
+    expect(reconcileNotes(['rq 0q rh'], [{ degree: 5 }], ['0q 0q rh'])).toEqual([
+      { degree: 1 },
+      { degree: 5 },
+    ]);
+  });
+
+  it('a deleted onset takes its note with it', () => {
+    expect(reconcileNotes(['0q 0q rh'], [{ degree: 2 }, { degree: 6 }], ['rq 0q rh'])).toEqual([
+      { degree: 6 },
+    ]);
+  });
+});
+
+describe('moving a note by scale steps', () => {
+  it('returns home from either octave with no stale octave key', () => {
+    /*
+     * The jumping drag of 2026-09-03: built with `...(octave ? { octave }
+     * : {})` over `...note`, a move landing back in the home octave kept
+     * the OLD octave, pinning the note a seventh from the hand for the
+     * rest of the gesture. The round trip must land exactly home.
+     */
+    const up = movedNote({ degree: 1 }, 9);
+    expect(up).toEqual({ degree: 3, octave: 1 });
+    expect(movedNote(up, -9)).toEqual({ degree: 1 });
+    expect(movedNote({ degree: 7, octave: -1 }, 1)).toEqual({ degree: 1 });
+  });
+
+  it('carries the alteration with the note', () => {
+    expect(movedNote({ degree: 4, alter: -1 }, 7)).toEqual({ degree: 4, alter: -1, octave: 1 });
   });
 });
