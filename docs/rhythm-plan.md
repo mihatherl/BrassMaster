@@ -662,6 +662,29 @@ then the ↑/↓ buttons or the keyboard move it. Two hands on the same
 arithmetic — the drag for speed, the selection for precision and for
 anyone who cannot drag at all.
 
+**Three more of the player's asks landed 2026-09-03, all from using it
+on real music** (eight bars for the eisteddfod, which did not fit):
+
+- **The stave runs to multiple lines.** The preview canvas grows to hold
+  every system the piece plans, and `noteLayout` mirrors the stacked
+  page's own per-system metrics and justified x, or every note on the
+  second line is untouchable. Found on the way: the sheet's column
+  flexbox silently shrank the grown canvas back (`flex-shrink: 0` is
+  the fix), and the printed count numbered beats ABSOLUTELY, so a
+  two-bar pattern read "1 2 3 4 5 6" and bars past the sixth beat went
+  blank — the count restarts at every bar line now, as counting does.
+- **The held note shows its state**: amber when selected or dragged, a
+  paler amber on hover — deliberately far from the verdict colours, so
+  "in hand" never reads as "judged". The renderer gained a
+  `noteColourFor` hook consulted before every other colouring rule, read
+  per draw so a highlight repaint is one `draw()`, never a rebuild.
+- **A key signature for transcription**: the author picks the key the
+  line is *written in* and the stave shows that page — signature, tonic
+  register, correct spellings. The cell stays degrees underneath and
+  plays in any key; `fifths` is kept on the cell as the authoring lens,
+  so re-editing shows what was written rather than a C-major
+  translation. A bare rhythm still prints no signature at all.
+
 **The drag's frame of reference was the bug.** It re-read the pointer
 against the renderer's layout after every move, and the layout MOVES:
 the stave rescales as notes climb into ledger lines, so the anchor

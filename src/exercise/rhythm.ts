@@ -22,7 +22,7 @@
 
 import { parseCell, type CellEvent } from './cells';
 import { realiseTheme, type Theme, type ThemeEvent } from './theme';
-import { MAJOR_SCALE } from '../domain/keys';
+import { MAJOR_SCALE, tonicPitchClass } from '../domain/keys';
 import { createRng } from './rng';
 import { assembleExercise, type Slot } from './assemble';
 import { durationFromBeats } from '../domain/rhythm';
@@ -616,7 +616,14 @@ export function syllablesForBars(
           ? [0, 0.5]
           : [0];
     for (const position of positions) {
-      const syllable = syllableFor(beat + position);
+      /*
+       * Numbered WITHIN the bar: the count restarts at every bar line,
+       * as counting does. Numbering absolutely ran a two-bar pattern
+       * "1 2 3 4 5 6" and left every bar past the sixth beat blank —
+       * seen the day an eight-bar pattern existed to show it
+       * (2026-09-03).
+       */
+      const syllable = syllableFor((beat % barBeats) + position);
       if (!syllable) continue;
       const spoken = inBeat.some((onset) => near(onset.position, position) && onset.spoken);
       entries.push({
@@ -650,9 +657,16 @@ export function previewExerciseFromBars(
    * rhythm-only face of the same picture.
    */
   notes?: readonly CellNote[],
+  /** The key the line is shown in — the transcriber's lens. Bare rhythms
+      ignore it: no notes, no key, no signature. */
+  fifths = 0,
 ): Exercise {
   const metre = metreFor(metrePair[0], metrePair[1]);
-  const home = clef === 'treble' ? 72 : 48;
+  const anchor = clef === 'treble' ? 72 : 48;
+  /* The tonic nearest the clef's comfortable middle, so every key sits
+     in the same region of the stave. */
+  const wanted = ((tonicPitchClass(fifths) % 12) + 12) % 12;
+  const home = anchor - ((((anchor % 12) - wanted) % 12) + 12) % 12;
   const slots: Slot[] = [];
   const pitches: number[] = [];
   let at = 0;
@@ -691,7 +705,7 @@ export function previewExerciseFromBars(
   const exercise = assembleExercise(slots, pitches, {
     instrument,
     clef,
-    keys: [{ fromBeat: 0, fifths: 0 }],
+    keys: [{ fromBeat: 0, fifths: notes ? fifths : 0 }],
     metres: [{ fromBeat: 0, metre }],
     totalBeats: at,
     chosenBeats: at,
@@ -742,6 +756,14 @@ export interface AuthoredCell {
   /** The pattern this was written on — provenance, for grouping the list. */
   patternId: string;
   metre: readonly [number, number];
+  /**
+   * The key the author WROTE it in (2026-09-03: someone transcribing a
+   * passage is copying a page that has a signature, and should see the
+   * same picture). The cell itself stays degrees and plays in any key —
+   * this is the authoring lens, kept so re-editing shows what was
+   * written, not a C-major translation of it.
+   */
+  fifths?: number;
   /** The rhythm, copied from the pattern at birth. */
   bars: readonly string[];
   /** One entry per sounded note in `bars`, in play order. */

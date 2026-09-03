@@ -357,6 +357,17 @@ describe('the grid, engraved', () => {
     expect(countableSyllable(2 / 3, 1 / 3)).toBe('let');
   });
 
+  it('restarts the count at every bar line', () => {
+    // Two bars of crotchets read "1 2 3 4 | 1 2 3 4" — never "5 6 7 8",
+    // and never silence past the sixth beat of a long pattern.
+    const entries = syllablesForBars(['0q 0q 0q 0q', '0q 0q 0q 0q'], [4, 4]);
+    expect(entries.map((entry) => entry.text)).toEqual(['1', '2', '3', '4', '1', '2', '3', '4']);
+    // Eight bars stay fully counted end to end.
+    const eight = syllablesForBars(Array(8).fill('0q 0q 0q 0q'), [4, 4]);
+    expect(eight).toHaveLength(32);
+    expect(eight.every((entry) => entry.text !== '')).toBe(true);
+  });
+
   it('labels a beat in its own count', () => {
     expect(beatCountLabels(0, 4)).toEqual(['1', 'e', '&', 'a']);
     expect(beatCountLabels(2, 3)).toEqual(['3', 'trip', 'let']);

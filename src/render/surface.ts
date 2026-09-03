@@ -76,6 +76,7 @@ import {
   drawTimeSignature,
   measureStaveHeader,
   staveMetrics,
+  yForStep,
   type StaveMetrics,
 } from './stave';
 
@@ -369,6 +370,14 @@ export interface StaveRendererOptions {
    * horizon and every static drawing.
    */
   whiteUntil?: () => number;
+  /**
+   * The cell editor's colour for a note — selected, hovered, dragged —
+   * consulted before every other colouring rule, because a gesture in
+   * progress outranks a verdict. Undefined hands the note back to the
+   * ordinary rules. Read per draw, so the editor repaints a highlight
+   * with a plain `draw()` rather than rebuilding the renderer.
+   */
+  noteColourFor?: (index: number) => string | undefined;
   /** Fingering to print above a note, for the ones the player struggles with. */
   hintFor?: (noteIndex: number) => string | undefined;
   /**
@@ -517,6 +526,10 @@ export class StaveRenderer {
    */
   private noteColour(index: number): string {
     const { exercise, theme } = this.options;
+    /* The editor's say, first: a selected or hovered note is about the
+       gesture in progress, not any verdict, so it outranks the rest. */
+    const editing = this.options.noteColourFor?.(index);
+    if (editing) return editing;
     /*
      * An unplayable note wears the horizon grey for the horizon's own
      * reason: nothing here is asked of the player. Before 2026-08-30 it
@@ -560,24 +573,71 @@ export class StaveRenderer {
    * A one-system preview only; the editor draws no more than that.
    */
   noteLayout(): {
-    notes: Array<{ index: number; x: number; step: number }>;
-    stepAtY: (y: number) => number;
+    notes: Array<{ index: number; x: number; y: number; step: number }>;
     staveSpace: number;
+    /** Lines the whole piece wants, and the height one takes — so the
+        editor can size its canvas to hold every bar. */
+    systems: number;
+    systemHeight: number;
   } {
     const { exercise } = this.options;
+    const m = this.metrics;
+    const systems = Math.max(1, this.systemStarts.length);
+
+    if (this.stacked()) {
+      /*
+       * The stacked page places each system with its own metrics and its
+       * own justified x — mirrored from `drawStack` for the STATIC case
+       * the editor draws (beat zero, no slide), because a hit test that
+       * ignored the second line put every note of it out of reach.
+       */
+      const { metres, totalBeats } = exercise;
+      const totalBars = barCount(metres, totalBeats);
+      const stackHeight = Math.min(this.systemsShown, systems) * this.systemHeight;
+      const padTop = Math.max(0, (this.height - stackHeight) / 2);
+      const notes: Array<{ index: number; x: number; y: number; step: number }> = [];
+      const spacing = this.spacing;
+      if (spacing) {
+        this.systemStarts.forEach((firstBar, systemIndex) => {
+          const top = padTop + systemIndex * this.systemHeight;
+          const metrics = staveMetrics(
+            exercise.clef,
+            top + m.staveSpace * SYSTEM_CLEARANCE,
+            m.staveSpace,
+          );
+          const lastBar = this.systemStarts[systemIndex + 1] ?? totalBars;
+          const firstBeat = beatOfBar(metres, firstBar);
+          const lastBeat = Math.min(totalBeats, beatOfBar(metres, lastBar));
+          const from =
+            systemIndex === 0 ? this.headerWidth : this.clefLessMarginFor(metrics, firstBeat);
+          const xForBeat = justifiedX(
+            spacing,
+            firstBeat,
+            lastBeat,
+            from,
+            this.width - from - m.staveSpace,
+            lastBar < totalBars,
+          );
+          exercise.notes.forEach((note, index) => {
+            if (note.startBeat < firstBeat - 1e-9 || note.startBeat >= lastBeat - 1e-9) return;
+            const step = diatonicStep(note.pitch);
+            notes.push({ index, x: xForBeat(note.startBeat), y: yForStep(metrics, step), step });
+          });
+        });
+      }
+      return { notes, staveSpace: m.staveSpace, systems, systemHeight: this.systemHeight };
+    }
+
     const origin = this.originX(0);
     const xForBeat = (beat: number) => this.strikeX + this.xAt(beat) - origin;
-    const m = this.metrics;
     return {
-      notes: exercise.notes.map((note, index) => ({
-        index,
-        x: xForBeat(note.startBeat),
-        step: diatonicStep(note.pitch),
-      })),
-      // The inverse of `yForStep`, rounded to the nearest line or space.
-      stepAtY: (y: number) =>
-        Math.round(m.bottomLineStep + ((m.bottomLineY - y) * 2) / m.staveSpace),
+      notes: exercise.notes.map((note, index) => {
+        const step = diatonicStep(note.pitch);
+        return { index, x: xForBeat(note.startBeat), y: yForStep(m, step), step };
+      }),
       staveSpace: m.staveSpace,
+      systems,
+      systemHeight: this.systemHeight || this.height,
     };
   }
 

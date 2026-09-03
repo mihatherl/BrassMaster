@@ -23,6 +23,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { t } from '../i18n';
+import { MAJOR_KEYS } from '../domain/keys';
 import {
   attacksIn,
   barsFromGrid,
@@ -46,6 +47,15 @@ import {
 import { instrumentById, type Clef } from '../domain/instruments';
 import { currentTheme, StaveRenderer } from '../render/surface';
 import { Transport } from '../engine/clock';
+
+/**
+ * The editing highlights: amber, deliberately far from every colour the
+ * play screen spends — the verdict green and red, the horizon grey, the
+ * answer wash's blue — so a held note reads as "in hand", never as
+ * judged. Hover is the same hue, paler.
+ */
+const EDIT_SELECTED = '#e8a33d';
+const EDIT_HOVER = '#e8c98a';
 
 const METRES: ReadonlyArray<[number, number]> = [
   [2, 4],
@@ -90,6 +100,14 @@ export function RhythmPatternEditor({
    * selection is both). Dragging still works; this is the other hand.
    */
   const [selected, setSelected] = useState<number | null>(null);
+  /**
+   * The key the line is written in — the transcriber's lens (the player,
+   * 2026-09-03: the page being copied has a signature, and the author
+   * should see the same picture). The cell stays degrees underneath and
+   * plays in any key; this chooses what the stave SHOWS, and is kept on
+   * the cell so re-editing shows what was written.
+   */
+  const [cellFifths, setCellFifths] = useState(0);
 
   /**
    * The gesture in flight, decided AT THE PRESS — because the press
@@ -351,14 +369,29 @@ export function RhythmPatternEditor({
           </div>
         )}
         {line !== null && (
-          <label className="field">
-            <span className="field__label">{t('rhythm.cellName')}</span>
-            <input
-              value={cellName}
-              onChange={(e) => setCellName(e.target.value)}
-              placeholder={t('rhythm.cellPlaceholder')}
-            />
-          </label>
+          <div className="row">
+            <label className="field">
+              <span className="field__label">{t('rhythm.cellName')}</span>
+              <input
+                value={cellName}
+                onChange={(e) => setCellName(e.target.value)}
+                placeholder={t('rhythm.cellPlaceholder')}
+              />
+            </label>
+            <label className="field">
+              <span className="field__label">{t('rhythm.cellKey')}</span>
+              <select
+                value={String(cellFifths)}
+                onChange={(e) => setCellFifths(Number(e.target.value))}
+              >
+                {MAJOR_KEYS.map((key) => (
+                  <option key={key.fifths} value={key.fifths}>
+                    {key.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         )}
         {'bars' in verdict ? (
           <>
@@ -368,7 +401,13 @@ export function RhythmPatternEditor({
             instrumentId={instrumentId}
             clef={clef}
             {...(line
-              ? { notes: line, onNotes: setLine, selected, onSelect: setSelected }
+              ? {
+                  notes: line,
+                  onNotes: setLine,
+                  fifths: cellFifths,
+                  selected,
+                  onSelect: setSelected,
+                }
               : {})}
           />
           {line !== null && (
@@ -444,6 +483,7 @@ export function RhythmPatternEditor({
                 name: cellName.trim(),
                 patternId: id,
                 metre,
+                fifths: cellFifths,
                 bars,
                 notes: line,
               });
@@ -471,6 +511,7 @@ function RhythmStavePreview({
   clef,
   notes,
   onNotes,
+  fifths = 0,
   selected,
   onSelect,
 }: {
@@ -481,28 +522,42 @@ function RhythmStavePreview({
   /** The line, where this is a cell being written; absent draws the rhythm. */
   notes?: readonly CellNote[];
   onNotes?: (notes: CellNote[]) => void;
+  /** The transcriber's lens: the key the line is drawn in. */
+  fifths?: number;
   selected?: number | null;
   onSelect?: (index: number | null) => void;
 }): ReactElement {
   const ref = useRef<HTMLCanvasElement>(null);
-  /** Where the renderer put each note, for the hit test. */
+  const renderer = useRef<StaveRenderer | null>(null);
   const layout = useRef<ReturnType<StaveRenderer['noteLayout']> | null>(null);
   /**
-   * A drag in progress: which note, and the STEP IT HELD when the drag
-   * began, against the pointer's y at that moment.
-   *
-   * The first cut re-read the pointer against the layout after every
-   * move, and the layout moves: the renderer rescales the stave as
-   * notes climb into ledger lines, so `bottomLineY` shifts under the
-   * gesture and a note that had risen suddenly read as somewhere else
-   * entirely — which is the drop to middle C the player saw, and why no
-   * note could be pushed above the stave (2026-09-03). Anchoring to the
-   * pointer's own travel instead of the stave's geometry makes the
-   * gesture independent of the redraw it causes.
+   * Selection and hover live in refs read by the renderer's colour hook,
+   * so a highlight change is one cheap `draw()` — never a rebuild, which
+   * would mint an AudioContext per mouse movement.
+   */
+  const selectedRef = useRef<number | null>(selected ?? null);
+  const hovered = useRef<number | null>(null);
+  /**
+   * A drag: which note, the pointer's y at the press, and the flat
+   * degree it held then. Steps come from the pointer's own travel — the
+   * stave rescales as notes climb into ledger lines, so a hit test read
+   * mid-gesture moves under the hand (the fault of 2026-09-03).
    */
   const dragging = useRef<{ index: number; startY: number; startDegree: number; space: number } | null>(
     null,
   );
+  /**
+   * The canvas's height, in rems — grown to hold every system the piece
+   * wants (the player, 2026-09-03: eight bars did not fit). The renderer
+   * reports how many lines it planned; one correction converges, because
+   * the line plan depends on width alone.
+   */
+  const [heightRem, setHeightRem] = useState(11);
+
+  useEffect(() => {
+    selectedRef.current = selected ?? null;
+    renderer.current?.draw();
+  }, [selected]);
 
   useEffect(() => {
     const canvas = ref.current;
@@ -520,49 +575,62 @@ function RhythmStavePreview({
       instrumentById(instrumentId),
       clef,
       notes,
+      fifths,
     );
-    const renderer = new StaveRenderer({
+    const drawn = new StaveRenderer({
       canvas,
       exercise,
       transport: new Transport(context, 80),
       theme: currentTheme(),
       scrollSpeed: 0,
       readingMode: 'paged',
-      /* The selected note wears the verdict colour, which is the one
-         highlight the renderer already knows how to give one note. */
-      verdictFor: (index) => (selected === index ? 'correct' : undefined),
+      verdictFor: () => undefined,
+      /* Editing colours, read per draw: the gesture outranks everything. */
+      noteColourFor: (index) =>
+        index === selectedRef.current
+          ? EDIT_SELECTED
+          : index === hovered.current
+            ? EDIT_HOVER
+            : undefined,
     });
-    renderer.draw();
-    layout.current = renderer.noteLayout();
+    drawn.draw();
+    renderer.current = drawn;
+    layout.current = drawn.noteLayout();
+    /* Grow to hold every line the piece wants, with headroom above the
+       first and below the last. Shrink only when a bar leaves. */
+    const wantRem = Math.max(
+      11,
+      (layout.current.systems * layout.current.systemHeight) / 16 + 3,
+    );
+    if (Math.abs(wantRem - heightRem) > 0.5) setHeightRem(wantRem);
     return () => {
-      renderer.stop();
+      drawn.stop();
+      renderer.current = null;
       void context.close();
     };
-  }, [bars, metre, instrumentId, clef, notes, selected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bars, metre, instrumentId, clef, notes, fifths, heightRem]);
 
-  /** The note nearest the pointer's x, or null where none is close. */
+  /** The note nearest the pointer, by distance on the page, or null. */
   const noteAt = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = ref.current;
     const map = layout.current;
-    /*
-     * No layout means the picture has not been drawn — a canvas without
-     * a 2D context, which is every test environment. Selecting the
-     * first note is better than selecting none: it keeps the arrows
-     * reachable for anyone who never touches the stave, which is the
-     * keyboard path the player asked for beside the drag.
-     */
     if (!canvas) return null;
-    if (!map || map.notes.length === 0) return notes && notes.length > 0 ? { index: 0, x: 0, step: 0 } : null;
+    if (!map || map.notes.length === 0) {
+      // Undrawn (no 2D context — every test environment): the first note,
+      // so the arrows stay reachable without a picture.
+      return notes && notes.length > 0 ? { index: 0, x: 0, y: 0, step: 0 } : null;
+    }
     const rect = canvas.getBoundingClientRect();
     const scale = canvas.width / rect.width;
     const x = (event.clientX - rect.left) * scale;
+    const y = (event.clientY - rect.top) * scale;
     const nearest = map.notes.reduce((best, note) =>
-      Math.abs(note.x - x) < Math.abs(best.x - x) ? note : best,
+      Math.hypot(note.x - x, note.y - y) < Math.hypot(best.x - x, best.y - y) ? note : best,
     );
-    return Math.abs(nearest.x - x) > map.staveSpace * 2.5 ? null : nearest;
+    return Math.hypot(nearest.x - x, nearest.y - y) > map.staveSpace * 3 ? null : nearest;
   };
 
-  /** Moves one note by whole scale steps, carrying into the next octave. */
   const moveTo = (index: number, steps: number, from: CellNote) => {
     if (!onNotes || !notes) return;
     const flat = from.degree - 1 + (from.octave ?? 0) * 7 + steps;
@@ -580,6 +648,7 @@ function RhythmStavePreview({
     <canvas
       ref={ref}
       className={`rhythm-editor__stave ${onNotes ? 'is-editable' : ''}`}
+      style={{ height: `${heightRem}rem` }}
       onPointerDown={(event) => {
         if (!onNotes || !notes) return;
         const hit = noteAt(event);
@@ -589,7 +658,6 @@ function RhythmStavePreview({
         const rect = event.currentTarget.getBoundingClientRect();
         dragging.current = {
           index: hit.index,
-          // In CSS pixels, so the anchor is independent of the backing store.
           startY: event.clientY - rect.top,
           startDegree: notes[hit.index].degree - 1 + (notes[hit.index].octave ?? 0) * 7,
           space: layout.current.staveSpace / (event.currentTarget.width / rect.width),
@@ -597,14 +665,19 @@ function RhythmStavePreview({
       }}
       onPointerMove={(event) => {
         const drag = dragging.current;
-        if (!drag || !onNotes || !notes) return;
+        if (!drag) {
+          if (!onNotes) return;
+          // Hover, so the stave says which note the hand is over.
+          const hit = noteAt(event);
+          const index = hit ? hit.index : null;
+          if (hovered.current !== index) {
+            hovered.current = index;
+            renderer.current?.draw();
+          }
+          return;
+        }
+        if (!onNotes || !notes) return;
         const rect = event.currentTarget.getBoundingClientRect();
-        /*
-         * Steps from the pointer's OWN travel, not from the stave: half
-         * a stave space is one step, and the anchor was taken once at
-         * the press. The picture may rescale underneath as ledger lines
-         * arrive; the gesture does not care.
-         */
         const travelled = drag.startY - (event.clientY - rect.top);
         const steps = Math.round(travelled / (drag.space / 2));
         const current = notes[drag.index].degree - 1 + (notes[drag.index].octave ?? 0) * 7;
@@ -614,6 +687,12 @@ function RhythmStavePreview({
       }}
       onPointerUp={() => {
         dragging.current = null;
+      }}
+      onPointerLeave={() => {
+        if (hovered.current !== null) {
+          hovered.current = null;
+          renderer.current?.draw();
+        }
       }}
     />
   );
