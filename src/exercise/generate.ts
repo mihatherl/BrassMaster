@@ -392,23 +392,39 @@ function rhythmExercise(options: GenerateOptions): Exercise {
 
   /*
    * The comfortable pair: two ADJACENT white notes nearest the middle of
-   * the written compass, both playable. Adjacent in the letter sense, so
-   * the page shows a step — D and E, the plan's own example — and never a
-   * leap; among white notes a neighbour is always one letter away.
+   * the written compass, both playable — and **neither of them open**.
+   *
+   * The open-note rule is the player's, 2026-09-03: *"G is open, so
+   * doesn't actually require the user to do anything. Maybe use D and
+   * E — something that requires definite action."* It is the whole
+   * point of the pair restated. On buttons the judge asks whether the
+   * right state was HELD inside the window, so a state held from before
+   * counts as on time; alternating two notes forces a fresh change at
+   * every onset, and the time of that change is the rhythm being
+   * measured. An open note has no state to change to — the player
+   * simply stops pressing, or never started — so half the alternation
+   * asks for nothing and the timing it was there to expose goes
+   * unmeasured. Seven of the eleven instrument-and-clef pairs picked an
+   * open note before this rule; the cornet's A–B was the only one that
+   * happened to be right.
    */
   const [low, high] = writtenRange(options.instrument, options.clef);
   const centre = Math.round((low + high) / 2);
   const white = (midi: number) => diatonicIn(midi, 0);
-  const playableAt = (midi: number) =>
-    isPlayable(soundingFromWritten(midi, options.instrument, options.clef), options.instrument);
+  const valved = (midi: number) => {
+    const sounding = soundingFromWritten(midi, options.instrument, options.clef);
+    if (!isPlayable(sounding, options.instrument)) return false;
+    const mask = primaryFingering(sounding, options.instrument)?.mask;
+    return mask !== undefined && mask !== 0;
+  };
   let pair: [number, number] | null = null;
-  for (let away = 0; away <= centre - low; away++) {
+  for (let away = 0; away <= high - low && !pair; away++) {
     for (const base of [centre - away, centre + away]) {
       for (const step of [1, 2]) {
         const top = base + step;
         if (base < low || top > high) continue;
         if (white(base) && white(top) && !white(base + 1) === (step === 2)) {
-          if (playableAt(base) && playableAt(top)) {
+          if (valved(base) && valved(top)) {
             pair = [base, top];
             break;
           }
@@ -416,7 +432,33 @@ function rhythmExercise(options: GenerateOptions): Exercise {
       }
       if (pair) break;
     }
-    if (pair) break;
+  }
+  /*
+   * Fall back to ANY adjacent playable pair rather than refusing: a
+   * horn whose middle register is all open notes should still drill
+   * rhythm, with the caveat that one of its two notes asks less.
+   */
+  if (!pair) {
+    for (let away = 0; away <= high - low && !pair; away++) {
+      for (const base of [centre - away, centre + away]) {
+        for (const step of [1, 2]) {
+          const top = base + step;
+          if (base < low || top > high) continue;
+          if (white(base) && white(top) && !white(base + 1) === (step === 2)) {
+            const sounding = (midi: number) =>
+              soundingFromWritten(midi, options.instrument, options.clef);
+            if (
+              isPlayable(sounding(base), options.instrument) &&
+              isPlayable(sounding(top), options.instrument)
+            ) {
+              pair = [base, top];
+              break;
+            }
+          }
+        }
+        if (pair) break;
+      }
+    }
   }
   if (!pair) throw new Error('No playable adjacent pair for this instrument');
 

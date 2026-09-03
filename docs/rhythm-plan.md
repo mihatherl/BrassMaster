@@ -84,7 +84,16 @@ on time. Hold one fingering through a bar of repeated Ds and every D judges
 correct with perfect timing, whatever the player's rhythm was.
 
 So the play bars alternate **two adjacent scale notes** (the player's example:
-D and E), placed in a comfortable register for the instrument. Each note then
+D and E), placed in a comfortable register for the instrument — and
+**neither of them open** (ruled 2026-09-03, on playing it: *"G is open, so
+doesn't actually require the user to do anything… something that requires
+definite action"*). The open-note rule is this section's own argument
+taken one step further: an open note has no state to change TO, so the
+player stops pressing or never started, and half the alternation asks for
+nothing. Seven of the eleven instrument-and-clef pairs picked an open note
+before the rule — the picker asked only for adjacent white notes near the
+middle, never what they cost the fingers. A test now walks every
+instrument and clef and refuses a zero mask. Each note then
 requires a fresh change of state, and the *time of the change* is what the
 judge's window measures — which is the rhythm. Pitch load is deliberately
 minimal; it exists only to make the timing honest.

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { generateExercise, type GenerateOptions } from './generate';
 import { difficultyById } from './difficulty';
-import { instrumentById } from '../domain/instruments';
+import {
+  availableClefs,
+  INSTRUMENTS,
+  instrumentById,
+  soundingFromWritten,
+} from '../domain/instruments';
+import { primaryFingering } from '../domain/fingering';
 import { metreFor } from '../domain/metre';
 import { isUnplayable } from './types';
 import { patternEvents, rhythmPatternById, syllablesFor } from './rhythm';
@@ -55,6 +61,33 @@ describe('the rhythm exercise', () => {
         (note) => note.startBeat >= statement * 4 && note.startBeat < (statement + 1) * 4,
       );
       expect(bar.map((note) => note.writtenMidi)).toEqual([pair[0], pair[1], pair[0], pair[1]]);
+    }
+  });
+
+  it('never alternates onto an open note, on any instrument or clef', () => {
+    /*
+     * The player's catch, 2026-09-03: *"G is open, so doesn't actually
+     * require the user to do anything."* The pair exists because the
+     * judge measures WHEN a fingering changes — an open note has no
+     * state to change to, so half the alternation would ask for nothing
+     * and the timing it exists to expose would go unmeasured. Seven of
+     * these eleven picked an open note before the rule.
+     */
+    for (const instrument of INSTRUMENTS) {
+      for (const clef of availableClefs(instrument)) {
+        const exercise = generateExercise(
+          options({ instrument, clef, rhythmPatternId: 'four-crotchets' }),
+        );
+        const written = [...new Set(exercise.notes.map((note) => note.writtenMidi))];
+        expect(written, `${instrument.id}/${clef}`).toHaveLength(2);
+        for (const midi of written) {
+          const mask = primaryFingering(
+            soundingFromWritten(midi, instrument, clef),
+            instrument,
+          )?.mask;
+          expect(mask, `${instrument.id}/${clef} written ${midi}`).toBeGreaterThan(0);
+        }
+      }
     }
   });
 
