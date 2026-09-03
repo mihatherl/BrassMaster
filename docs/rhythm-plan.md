@@ -485,6 +485,18 @@ the notation of a figure being read, and belong in the bars the player
 is reading; a bar where nothing is played says its nothing once, as a
 printed part does.
 
+**Amended 2026-09-04, with the count band**: the demonstration bar's
+PRINTED count no longer shows the whole figure — a bar rest engraves
+as one narrow column, and the figure's count crammed into it was mush
+("1e&a2e&a3 &" in bold through silence, the player's report). A bar in
+which nothing is played prints only its beat numbers, all dimmed
+(`bandCells`' sounded-bar rule). The "eye reads while the ear hears"
+teaching this supersedes was written for the count above the stave on
+a full-width bar; it survives where it belongs — the EMISSION is
+untouched, so the voice still speaks the whole figure through the
+demonstration, and the play bars beside it print the figure's count in
+full.
+
 Paged, never scrolling: one bar (or one pattern) large on the screen, the
 syllables printed above each note — derived, like the fingering hints below
 are — and the repetitions written out so what is judged is what is shown.

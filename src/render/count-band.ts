@@ -66,9 +66,22 @@ export interface BandCell {
  * emitted whether or not the exercise carries a count, because the beat
  * shading is its own aid (a run option in every mode); the entries are
  * empty where there is no count to print.
+ *
+ * **A bar where nothing is played prints only its numbers, dimmed**
+ * (the player, 2026-09-04, on a demonstration bar reading "1e&a2e&a3 &"
+ * in bold through a bar rest). The demonstration bar carries the whole
+ * figure in the EMISSION — that is what the counting voice will speak,
+ * and it is untouched here — but a bar-rest's engraving is one narrow
+ * column, and the figure's count crammed into it was mush; the print
+ * says just where the beats fall. This amends the 2026-09-03 ruling
+ * that the demo's count shows the whole figure, which was written for
+ * the count above the stave on a full-width bar; the teaching survives
+ * in the voice and in the play bars alongside.
  */
 export function bandCells(
-  exercise: Pick<Exercise, 'metres' | 'totalBeats' | 'syllables'>,
+  exercise: Pick<Exercise, 'metres' | 'totalBeats' | 'syllables'> & {
+    notes: ReadonlyArray<{ startBeat: number }>;
+  },
   firstBeat: number,
   lastBeat: number,
 ): BandCell[] {
@@ -81,6 +94,9 @@ export function bandCells(
     const metre = metreAt(exercise.metres, barFrom);
     const barTo = Math.min(barFrom + metre.barBeats, exercise.totalBeats);
     const pulses = Math.max(1, Math.round((barTo - barFrom) / metre.pulseBeats));
+    const sounded = exercise.notes.some(
+      (note) => note.startBeat >= barFrom - 1e-9 && note.startBeat < barTo - 1e-9,
+    );
     for (let index = 0; index < pulses; index++, pulse++) {
       const from = barFrom + index * metre.pulseBeats;
       const to = Math.min(from + metre.pulseBeats, barTo);
@@ -88,6 +104,9 @@ export function bandCells(
       const inCell = syllables.filter(
         (entry) => entry.atBeat >= from - 1e-9 && entry.atBeat < to - 1e-9,
       );
+      const kept = sounded
+        ? inCell
+        : inCell.filter((entry) => Math.abs(entry.atBeat - from) < 1e-9);
       cells.push({
         fromBeat: from,
         toBeat: to,
@@ -103,12 +122,12 @@ export function bandCells(
          * less" in the player's spec: cells are even, and a busy beat's
          * marks are narrower than a quiet beat's one.
          */
-        entries: inCell.map((entry, slot) => ({
+        entries: kept.map((entry, slot) => ({
           text: entry.text,
-          rest: entry.rest === true,
+          rest: sounded ? entry.rest === true : true,
           atBeat: entry.atBeat,
           fraction:
-            index / pulses + ((slot + 0.5) / inCell.length) * (1 / pulses),
+            index / pulses + ((slot + 0.5) / kept.length) * (1 / pulses),
         })),
       });
     }

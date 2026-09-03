@@ -9,15 +9,20 @@ import { metreFor } from '../domain/metre';
  * sits between two like tints.
  */
 
-const fourFour = (totalBeats: number, syllables?: Array<{ atBeat: number; text: string; rest?: true }>) => ({
+const fourFour = (
+  totalBeats: number,
+  syllables?: Array<{ atBeat: number; text: string; rest?: true }>,
+  notes: Array<{ startBeat: number }> = [{ startBeat: 0 }],
+) => ({
   metres: [{ fromBeat: 0, metre: metreFor(4, 4) }],
   totalBeats,
   syllables,
+  notes,
 });
 
 describe('the band’s cells', () => {
   it('cuts one cell per pulse, evenly across each bar', () => {
-    const cells = bandCells(fourFour(8), 0, 8);
+    const cells = bandCells(fourFour(8, undefined, [{ startBeat: 0 }, { startBeat: 4 }]), 0, 8);
     expect(cells).toHaveLength(8);
     expect(cells.map((cell) => cell.fromBeat)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     // Even quarters of the bar, restarting at the bar line.
@@ -31,7 +36,7 @@ describe('the band’s cells', () => {
     // Three pulses a bar: parity per-bar would put like tints either side
     // of every bar line, which is exactly where a boundary must show.
     const cells = bandCells(
-      { metres: [{ fromBeat: 0, metre: metreFor(3, 4) }], totalBeats: 6 },
+      { metres: [{ fromBeat: 0, metre: metreFor(3, 4) }], totalBeats: 6, notes: [] },
       0,
       6,
     );
@@ -41,7 +46,7 @@ describe('the band’s cells', () => {
   it('segments compound time by the felt beat', () => {
     // 6/8 is two dotted-crotchet pulses, not six quavers.
     const cells = bandCells(
-      { metres: [{ fromBeat: 0, metre: metreFor(6, 8) }], totalBeats: 3 },
+      { metres: [{ fromBeat: 0, metre: metreFor(6, 8) }], totalBeats: 3, notes: [] },
       0,
       3,
     );
@@ -52,11 +57,15 @@ describe('the band’s cells', () => {
 
   it('gives a cell’s entries even slots within the cell', () => {
     const cells = bandCells(
-      fourFour(4, [
-        { atBeat: 0, text: '1' },
-        { atBeat: 0.5, text: '&' },
-        { atBeat: 1, text: '2', rest: true },
-      ]),
+      fourFour(
+        4,
+        [
+          { atBeat: 0, text: '1' },
+          { atBeat: 0.5, text: '&' },
+          { atBeat: 1, text: '2', rest: true },
+        ],
+        [{ startBeat: 0 }, { startBeat: 0.5 }],
+      ),
       0,
       4,
     );
@@ -70,12 +79,43 @@ describe('the band’s cells', () => {
   });
 
   it('clips to the system’s beats without splitting a cell', () => {
-    const cells = bandCells(fourFour(8), 4, 8);
+    const cells = bandCells(fourFour(8, undefined, [{ startBeat: 0 }, { startBeat: 4 }]), 4, 8);
     expect(cells).toHaveLength(4);
     expect(cells[0].barFromBeat).toBe(4);
     // The pulse count stays global: the second line's tints line up with
     // where the first line left off.
     expect(cells[0].pulse).toBe(4);
+  });
+});
+
+describe('a bar where nothing is played', () => {
+  it('prints only its numbers, dimmed, whatever the emission carries', () => {
+    /*
+     * The player, 2026-09-04: a demonstration bar (one bar rest) read
+     * "1e&a2e&a3 &" in bold through silence. The EMISSION keeps the
+     * whole figure — the counting voice will speak it — but the print
+     * in a note-less bar says just where the beats fall, and quietly.
+     */
+    const cells = bandCells(
+      fourFour(
+        4,
+        [
+          { atBeat: 0, text: '1' },
+          { atBeat: 0.5, text: '&' },
+          { atBeat: 1, text: '2', rest: true },
+          { atBeat: 2, text: '3', rest: true },
+          { atBeat: 3, text: '4', rest: true },
+        ],
+        [],
+      ),
+      0,
+      4,
+    );
+    expect(
+      cells.map((cell) => cell.entries.map((e) => `${e.text}${e.rest ? '·' : ''}`).join(' ')),
+    ).toEqual(['1·', '2·', '3·', '4·']);
+    // Centred in its own cell, not left in the figure's old slot.
+    expect(cells[0].entries[0].fraction).toBeCloseTo(0.125);
   });
 });
 
