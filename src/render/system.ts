@@ -517,6 +517,15 @@ export function drawSystem(ctx: CanvasRenderingContext2D, options: SystemOptions
   const { beatsPerBar, beatUnit } = metreAt(exercise.metres, firstBeat);
   const rightEdge = xForBeat(lastBeat) - BAR_LINE_SETBACK * staveSpace;
 
+  /* The answer bars, painted first so the stave and notes sit on top. */
+  for (const [from, to] of exercise.playSpans ?? []) {
+    if (to <= firstBeat + 1e-9 || from >= lastBeat - 1e-9) continue;
+    const left = xForBeat(Math.max(from, firstBeat));
+    const right = xForBeat(Math.min(to, lastBeat));
+    ctx.fillStyle = theme.answer;
+    ctx.fillRect(left, metrics.topLineY - staveSpace * 1.5, right - left, staveSpace * 7);
+  }
+
   ctx.strokeStyle = theme.stave;
   ctx.fillStyle = theme.stave;
   drawStaveLines(ctx, metrics, 0, rightEdge);

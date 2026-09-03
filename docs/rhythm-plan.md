@@ -463,6 +463,19 @@ It costs nothing now beyond this sentence.
 
 ## Presentation
 
+**The demonstration is written as rests, and the answer bars are
+highlighted** (ruled 2026-09-03, on playing it: greyed demonstration
+notes *"can be confusing for a user who is used to seeing the grey zone
+as meaning a bit they can optionally play in"*). The grey already means
+the horizon — optional, play on if you like — so borrowing it for
+"listen, do not play" said the opposite of what it meant. Rests are not a
+display trick but the truth: through the demonstration the player IS
+silent. The count still prints the whole figure above them, so the eye
+reads the rhythm while the ear hears it, which is the teaching. And the
+marking is **positive** — the app says which bar is yours rather than
+dimming the ones that are not — a soft wash behind the stave
+(`theme.answer`, defined in both themes) over `Exercise.playSpans`.
+
 Paged, never scrolling: one bar (or one pattern) large on the screen, the
 syllables printed above each note — derived, like the fingering hints below
 are — and the repetitions written out so what is judged is what is shown.

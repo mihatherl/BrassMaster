@@ -483,6 +483,8 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   const pitches: number[] = [];
   /** Beat spans of the demonstration statements, for blanking after assembly. */
   const demoSpans: Array<[number, number]> = [];
+  /** The bars the player answers in — highlighted, so the ask is unmistakable. */
+  const playSpans: Array<[number, number]> = [];
   const syllables: Array<LabelEvent & { rest?: true }> = [];
   let at = 0;
   let side = 0;
@@ -503,7 +505,17 @@ function rhythmExercise(options: GenerateOptions): Exercise {
         for (const event of bar) {
           const duration = durationFromBeats(event.beats);
           if (!duration) throw new Error(`unwritable duration in ${pattern.id}`);
-          if (event.rest) {
+          /*
+           * A demonstration bar is written as RESTS (ruled 2026-09-03,
+           * the player: greyed notes read as the horizon, which means
+           * "optional, play on if you like" — the opposite of "listen,
+           * do not play"). Rests are not a display trick: through the
+           * demonstration the player IS silent, and the page should say
+           * what it means. The count above still shows the whole figure,
+           * so the eye reads the rhythm while the ear hears it — which
+           * is the teaching this mode exists for.
+           */
+          if (event.rest || demo) {
             slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
           } else {
             const tiedFromPrevious = continuation.has(event);
@@ -515,6 +527,7 @@ function rhythmExercise(options: GenerateOptions): Exercise {
           }
           barBeat += event.beats;
         }
+        if (!demo) playSpans.push([at, at + barBeats]);
         at += barBeats;
       }
     }
@@ -535,16 +548,13 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   exercise.syllables = syllables;
 
   /*
-   * The demonstration is unjudged BY DATA, not by a mode the judge must
-   * know: an empty `acceptedMasks` is `isUnplayable`, which the session
-   * already skips, the reveal already discounts and the totals already
-   * exclude. Demo bars yield no verdicts at all.
+   * The demonstration holds no notes at all now, so there is nothing to
+   * blank — `demoSpans` survives as the record of what the voice will
+   * speak over, and the play bars carry the highlight that says "this
+   * one is yours". Both are ranges of beats rather than a flag on each
+   * event, because a span is what a background is painted over.
    */
-  for (const note of exercise.notes) {
-    if (demoSpans.some(([from, to]) => note.startBeat >= from - 1e-9 && note.startBeat < to - 1e-9)) {
-      note.acceptedMasks = [];
-    }
-  }
+  exercise.playSpans = playSpans;
   return exercise;
 }
 

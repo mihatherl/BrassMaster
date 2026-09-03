@@ -226,6 +226,15 @@ export interface Exercise {
    * unmarked entries, keeping the plan's rule that a rest is not spoken.
    */
   syllables?: Array<LabelEvent & { rest?: true }>;
+  /**
+   * Beat ranges the player is asked to play — rhythm mode's answer bars,
+   * painted with a soft highlight behind the stave (ruled 2026-09-03).
+   * A range rather than a flag per note, because a background is painted
+   * over a span; and positive rather than negative — the app says which
+   * bar is yours, instead of dimming the ones that are not, after greyed
+   * demonstration notes were read as the optional horizon.
+   */
+  playSpans?: Array<[number, number]>;
   /** Length of the exercise in crotchets. */
   totalBeats: number;
   /**

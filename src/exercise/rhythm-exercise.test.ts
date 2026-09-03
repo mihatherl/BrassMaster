@@ -43,9 +43,23 @@ describe('the rhythm exercise', () => {
     const exercise = generateExercise(options());
     expect(exercise.totalBeats).toBe(24);
     expect(exercise.kind).toBe('rhythm');
-    // Demo statements are bars 1 and 4; their notes are unjudgeable by data.
-    const demo = exercise.notes.filter(isUnplayable).map((note) => note.startBeat);
-    expect(demo).toEqual([0, 1, 2, 3, 12, 13, 14, 15]);
+    /*
+     * A demonstration is WRITTEN AS RESTS (2026-09-03): through it the
+     * player is silent, so the page says so — greyed notes had read as
+     * the horizon, which means the opposite. Bars 1 and 4 hold no notes.
+     */
+    const inDemo = (beat: number) => (beat >= 0 && beat < 4) || (beat >= 12 && beat < 16);
+    expect(exercise.notes.some((note) => inDemo(note.startBeat))).toBe(false);
+    expect(exercise.rests.filter((rest) => inDemo(rest.startBeat)).length).toBeGreaterThan(0);
+    // Nothing is unplayable any more: there are no demo notes to blank.
+    expect(exercise.notes.some(isUnplayable)).toBe(false);
+    // And the four answer bars are marked for the highlight.
+    expect(exercise.playSpans).toEqual([
+      [4, 8],
+      [8, 12],
+      [16, 20],
+      [20, 24],
+    ]);
   });
 
   it('alternates two adjacent written notes, restarting each statement', () => {
@@ -55,8 +69,9 @@ describe('the rhythm exercise', () => {
     expect(pair).toHaveLength(2);
     // Adjacent scale letters: a tone or a semitone apart.
     expect(pair[1] - pair[0]).toBeLessThanOrEqual(2);
-    // Strict alternation, restarting from the low note at each statement.
-    for (let statement = 0; statement < 6; statement++) {
+    // Strict alternation, restarting from the low note at each ANSWER
+    // statement — the demonstrations hold rests and no notes at all.
+    for (const statement of [1, 2, 4, 5]) {
       const bar = exercise.notes.filter(
         (note) => note.startBeat >= statement * 4 && note.startBeat < (statement + 1) * 4,
       );
@@ -150,14 +165,19 @@ describe('the rhythm exercise', () => {
      * numbers are exactly what the off-beat quavers are read against.
      */
     const exercise = generateExercise(options({ rhythmPatternId: 'off-beats', cycles: 1 }));
-    const noteOnsets = new Set(exercise.notes.map((note) => note.startBeat));
-    const restOnsets = new Set(exercise.rests.map((rest) => rest.startBeat));
     const spoken = exercise.syllables!.filter((entry) => !entry.rest);
     const silent = exercise.syllables!.filter((entry) => entry.rest);
     expect(spoken.length).toBeGreaterThan(0);
     expect(silent.length).toBeGreaterThan(0);
-    for (const entry of spoken) expect(noteOnsets.has(entry.atBeat)).toBe(true);
-    for (const entry of silent) expect(restOnsets.has(entry.atBeat)).toBe(true);
+    /* The count describes the PATTERN, so it is identical over every
+       statement — the demonstration prints the same figure it will be
+       played against, which is the teaching. */
+    const answerOnsets = new Set(
+      exercise.notes.filter((note) => note.startBeat >= 4).map((note) => note.startBeat),
+    );
+    for (const entry of spoken.filter((e) => e.atBeat >= 4 && e.atBeat < 8)) {
+      expect(answerOnsets.has(entry.atBeat)).toBe(true);
+    }
     // The off-beat bar reads "1 & 2 & …": numbers silent, ands spoken.
     const first = exercise.syllables!.filter((entry) => entry.atBeat < 4);
     expect(first.map((entry) => `${entry.text}${entry.rest ? '·' : ''}`)).toEqual([

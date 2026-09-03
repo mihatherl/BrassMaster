@@ -195,6 +195,9 @@ export interface StaveTheme {
    * rather than as notes that failed to draw.
    */
   horizon: string;
+  /** Behind the bars rhythm mode asks the player to answer. Soft: it must
+      read as "this one is yours", never as a verdict. */
+  answer: string;
   /**
    * A bar chosen to practise: a wash behind the notation, not a change to it.
    *
@@ -220,6 +223,7 @@ export const LIGHT_THEME: StaveTheme = {
   countIn: 'rgba(22, 21, 15, 0.35)',
   hint: '#6b6960',
   horizon: '#b6b2a8',
+  answer: '#2f6fd022',
   selection: 'rgba(47, 111, 208, 0.16)',
   selectionPending: 'rgba(47, 111, 208, 0.07)',
 };
@@ -237,6 +241,7 @@ export const DARK_THEME: StaveTheme = {
   countIn: 'rgba(242, 241, 236, 0.35)',
   hint: '#9a9ba3',
   horizon: '#565962',
+  answer: '#5a8fd733',
   selection: 'rgba(99, 161, 255, 0.22)',
   selectionPending: 'rgba(99, 161, 255, 0.10)',
 };
@@ -515,9 +520,10 @@ export class StaveRenderer {
      * An unplayable note wears the horizon grey for the horizon's own
      * reason: nothing here is asked of the player. Before 2026-08-30 it
      * drew as an ordinary upcoming note and could never resolve — an
-     * imported note beyond the instrument's reach looked forever pending,
-     * and rhythm mode's demonstration bars (unjudged by data, see
-     * `isUnplayable`) were indistinguishable from the bars to be played.
+     * imported note beyond the instrument's reach looked forever pending.
+     * Rhythm's demonstration bars used to rely on this too, until greyed
+     * notes proved to read as the horizon — "optional, play on" — and
+     * became rests with the answer bars highlighted instead (2026-09-03).
      */
     if (isUnplayable(exercise.notes[index])) return theme.horizon;
     const white = this.options.whiteUntil?.();
@@ -1053,6 +1059,21 @@ export class StaveRenderer {
     ctx.beginPath();
     ctx.rect(this.headerWidth, 0, this.width - this.headerWidth, this.height);
     ctx.clip();
+
+    /* The answer bars, painted first so the stave and notes sit on top. */
+    for (const [from, to] of exercise.playSpans ?? []) {
+      const left = xForBeat(from);
+      const right = xForBeat(to);
+      if (right < this.headerWidth || left > this.width) continue;
+      ctx.fillStyle = theme.answer;
+      const top = this.metrics.topLineY - this.metrics.staveSpace * 1.5;
+      ctx.fillRect(
+        Math.max(left, this.headerWidth),
+        top,
+        Math.min(right, this.width) - Math.max(left, this.headerWidth),
+        this.metrics.staveSpace * 7,
+      );
+    }
 
     ctx.strokeStyle = theme.stave;
     drawStaveLines(ctx, this.metrics, this.headerWidth, this.width);
