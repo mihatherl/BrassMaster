@@ -29,7 +29,44 @@ export interface Voice {
 }
 
 const ATTACK = 0.006;
+
+/**
+ * The release tail, for a note with room for one.
+ *
+ * A fixed 120ms was a fine shape for a crotchet and ruinous for anything
+ * short: at 120bpm a semiquaver lasts 115ms, so the tail began before
+ * the attack finished and the note was a fade with no note in it — which
+ * is what the player heard as short notes failing to sound, worst on the
+ * tuba, whose samples speak slowest of all (2026-09-03).
+ */
 const RELEASE = 0.12;
+
+/**
+ * How much of a short note the tail may eat: never more than a third, so
+ * every note keeps a majority at full volume however fast it goes by.
+ * The tail is a courtesy against clicks, and a courtesy that swallows
+ * the note is not one.
+ */
+const MAX_RELEASE_SHARE = 1 / 3;
+
+/**
+ * The release tail for a note of this length. Long notes keep the full
+ * `RELEASE`; short ones give up no more than `MAX_RELEASE_SHARE` of
+ * themselves, with 20ms the floor that still prevents a click.
+ */
+export function releaseFor(lengthSeconds: number): number {
+  return Math.min(RELEASE, Math.max(0.02, lengthSeconds * MAX_RELEASE_SHARE));
+}
+
+/**
+ * Whether a note of this length should join its recording at the bloom
+ * rather than at the top — true when the note cannot contain twice its
+ * instrument's own speaking time, so the attack it would play is longer
+ * than the note that would play it.
+ */
+export function joinsAtBloom(durationSeconds: number, spokenSeconds: number): boolean {
+  return durationSeconds < spokenSeconds * 2;
+}
 
 /**
  * Where a looped sustain starts within the sample, in seconds.
@@ -260,7 +297,24 @@ export class Sampler implements Voice {
     const sample = this.samples.get(source);
     if (!sample) return;
     const { buffer } = sample;
-    const offset = spoken ? sample.spoken : 0;
+    /*
+     * A SHORT note joins the recording where it has already spoken —
+     * the same door `spoken` opens for a late re-attack, opened here for
+     * a different reason (2026-09-03, the player: short notes not
+     * sounding, "especially the tuba").
+     *
+     * Measured: the low recordings take 115–245ms to reach full volume,
+     * and a semiquaver at 120bpm lasts 115ms in total. Played from the
+     * top, such a note is over before the instrument has spoken — the
+     * listener hears breath and no pitch, worst on the tuba, whose bloom
+     * is longest. Entering at the bloom costs the attack's colour, which
+     * is a poor trade for a long note and the only honest one for a
+     * note shorter than the colour takes to arrive.
+     *
+     * The threshold is the sample's own bloom rather than a figure: a
+     * note that cannot contain its instrument's attack does not get it.
+     */
+    const offset = spoken || joinsAtBloom(durationSeconds, sample.spoken) ? sample.spoken : 0;
 
     const ctx = this.context;
     const node = ctx.createBufferSource();
@@ -271,11 +325,19 @@ export class Sampler implements Voice {
     const end = startTime + Math.max(durationSeconds, ATTACK + 0.03);
     const floor = 0.0001;
 
+    /*
+     * The tail scales with the note. A short note keeps a majority of
+     * itself at full volume rather than being handed to the fade — see
+     * `MAX_RELEASE_SHARE`. Long notes are untouched: anything over about
+     * half a second still gets the full 120ms.
+     */
+    const release = releaseFor(end - startTime);
+
     // The recording carries its own attack, so this envelope only removes the
     // click at each edge and stops the note when it is over.
     gain.gain.setValueAtTime(floor, startTime);
     gain.gain.linearRampToValueAtTime(1, startTime + ATTACK);
-    gain.gain.setValueAtTime(1, Math.max(startTime + ATTACK, end - RELEASE));
+    gain.gain.setValueAtTime(1, Math.max(startTime + ATTACK, end - release));
     gain.gain.exponentialRampToValueAtTime(floor, end);
 
     /*

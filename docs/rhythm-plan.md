@@ -583,6 +583,34 @@ not offer it where it would change nothing. One honest limit: feel is timing
 plus weight, and the buttons judge only timing — accent and note length are
 inaudible to a valve press, so that half of feel waits for the microphone.
 
+## Short notes and the instrument's own speech (2026-09-03)
+
+The player wrote a rhythm and it *"[didn't] come out as expected… the
+notes being too quick/short for (especially the tuba) to be able to
+sound them"*, and asked whether that was a limit of the samples. It was
+not; it was two faults in the sampler, both measured:
+
+- **The release tail did not scale.** A fixed 120ms fade is a fine shape
+  for a crotchet and ruinous for anything short: at 120bpm a semiquaver
+  lasts 115ms, so the fade began before the attack finished and the note
+  had *zero* milliseconds at full volume. The tail now takes at most a
+  third of a note (`releaseFor`), so every note keeps a majority of
+  itself, and long notes are untouched.
+- **Short notes played the instrument's bloom instead of its pitch.**
+  The shipped recordings reach full volume 115–245ms in — low brass
+  slowest, the tuba worst — so a note shorter than its own attack was
+  over before the instrument spoke: breath, no pitch. A short note now
+  joins the recording where it has already bloomed (`joinsAtBloom`), the
+  same door `spokenAt` opens for a late re-attack, opened here for a
+  different reason. The threshold is the sample's own bloom rather than a
+  figure: a note that cannot contain its instrument's attack does not
+  get it.
+
+**What is genuinely a limit**, and is not being papered over: the colour
+of a real attack cannot be heard in a note shorter than the attack. What
+the fix buys is the *pitch* arriving — the player hearing which note it
+was and when — which is what the mode is for.
+
 ## Open, and named so they are not forgotten
 
 - **The clip recordings**: who records them is settled (the player); when is
