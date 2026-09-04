@@ -146,8 +146,11 @@ export function RhythmStavePreview({
   const [anchor, setAnchor] = useState<{ x: number; y: number; mid: number } | null>(null);
   const anchorFor = (attack: number | null): { x: number; y: number; mid: number } | null => {
     const map = layout.current;
-    if (attack === null || !map) return null;
-    const noteIndex = attackIndexByNote(bars).findIndex((a) => a === attack);
+    if (!map) return null;
+    /* No selection still anchors the ✓ — it lives at the first note's
+       system, waiting to start the walk. */
+    const noteIndex =
+      attack === null ? 0 : attackIndexByNote(bars).findIndex((a) => a === attack);
     const drawn = map.notes.find((note) => note.index === noteIndex);
     /* Above the note's own STAVE, not above the notehead: floated at the
        head's height the pair covered the next note along — and the hand
@@ -422,28 +425,58 @@ export function RhythmStavePreview({
       {/* The step buttons at the stave's right margin (the player,
           2026-09-04): coarse, fixed, thumb-sized — they do not chase the
           note they move, which is the whole point of a button over a
-          drag. On the note's own system, for a multi-line piece. */}
-      {onNotes && notes && selected != null && notes[selected] && anchor && (
+          drag. On the note's own system, for a multi-line piece. The
+          ←/→ beneath them walk the selection itself (revised from a ✓
+          within the hour): settle a note, step to its neighbour — from
+          nothing, → starts at the first and ← at the last — and
+          walking off either end lays the selection down, done. */}
+      {onNotes && notes && notes.length > 0 && anchor && (
         <div className="rhythm-editor__steps" style={{ top: `${anchor.mid}px` }}>
+          {selected != null && notes[selected] && (
+            <>
+              <button
+                type="button"
+                className="rhythm-editor__float"
+                aria-label={t('rhythm.up')}
+                onClick={() =>
+                  onNotes(notes.map((n, i) => (i === selected ? movedNote(n, 1) : n)))
+                }
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="rhythm-editor__float"
+                aria-label={t('rhythm.down')}
+                onClick={() =>
+                  onNotes(notes.map((n, i) => (i === selected ? movedNote(n, -1) : n)))
+                }
+              >
+                ↓
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="rhythm-editor__float"
-            aria-label={t('rhythm.up')}
-            onClick={() =>
-              onNotes(notes.map((n, i) => (i === selected ? movedNote(n, 1) : n)))
-            }
+            aria-label={t('rhythm.previous')}
+            onClick={() => {
+              const previous = selected == null ? notes.length - 1 : selected - 1;
+              onSelect?.(previous >= 0 ? previous : null);
+            }}
           >
-            ↑
+            ←
           </button>
           <button
             type="button"
             className="rhythm-editor__float"
-            aria-label={t('rhythm.down')}
-            onClick={() =>
-              onNotes(notes.map((n, i) => (i === selected ? movedNote(n, -1) : n)))
-            }
+            aria-label={t('rhythm.next')}
+            onClick={() => {
+              const next = selected == null ? 0 : selected + 1;
+              onSelect?.(next < notes.length ? next : null);
+            }}
           >
-            ↓
+            →
           </button>
         </div>
       )}

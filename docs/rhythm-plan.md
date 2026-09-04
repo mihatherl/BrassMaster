@@ -709,6 +709,16 @@ on real music** (eight bars for the eisteddfod, which did not fit):
   plays in any key; `fifths` is kept on the cell as the authoring lens,
   so re-editing shows what was written rather than a C-major
   translation. A bare rhythm still prints no signature at all.
+  **And the lens re-keys the PAGE, not the notes** (the player,
+  2026-09-04, after forgetting the signature until the notes were
+  placed): changing "written in" keeps every note on its stave line,
+  reinterpreted under the new signature — his example, C to F:
+  middle-line B becomes B flat — because the transcriber's page does
+  not move (`rewrittenIn`: a stave-step shift by the tonics'
+  difference; the degrees change so the picture cannot). One honest
+  boundary, found by the invariance test: an alteration carried into
+  double-accidental territory cannot keep its line, since the app
+  never prints a double; that note alone respells.
 
 **The drag's frame of reference was the bug.** It re-read the pointer
 against the renderer's layout after every move, and the layout MOVES:
@@ -886,7 +896,13 @@ bars in. Three faults from that hand, three rules:
 - **Step buttons at the stave's right margin, and a calmer drag** (his
   third pass, same day). Select a note and ↑/↓ ride the right edge of
   its own system: coarse, fixed, thumb-sized — they do not chase the
-  note they move, which is a button's whole advantage over a drag. And
+  note they move, which is a button's whole advantage over a drag.
+  Beneath them, **←/→ walk the selection itself** (his fourth pass;
+  revised from a ✓ within the hour): settle a note, step to its
+  neighbour — from nothing, → starts at the first note and ← at the
+  last — and walking off either end lays the selection down. All the
+  floats sized up the same pass ("often miss them"): thumb targets,
+  not mouse ones. And
   the drag itself asks less of the fingertip on touch: lower gain
   (`TOUCH_DRAG_GAIN`, more travel per step) and **hysteresis instead of
   rounding** (`walkSteps`, commit 0.65 on touch) — the note steps only
