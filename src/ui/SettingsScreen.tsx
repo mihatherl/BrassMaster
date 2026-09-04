@@ -727,6 +727,27 @@ export function SettingsScreen({
         </div>
       </div>
 
+      {/*
+        The key the pattern PLAYS in — the plan's own ruling made real
+        (2026-09-04, the player: "how can I select the key to play in?"):
+        key is a CHOICE, not a filter, because a cell is degrees and
+        plays anywhere its instrument can hold it. This grid was ruled
+        with the Pattern tab (2026-09-03) and never wired: the run
+        silently inherited whatever key another tab last chose. One key,
+        not a set — a rhythm run holds one signature — remembered per
+        material like every keySet. A bare rhythm stays keyless by the
+        standing ruling and simply ignores it.
+      */}
+      <div className="field">
+        <span className="field__label">{t('rhythm.playIn')}</span>
+        <KeyGrid
+          keyName={(fifths, short) => keyName(fifths, short)}
+          isSelected={(fifths) => fifths === settings.fifths}
+          onPick={(fifths) => onChange(sanitise({ ...settings, keySet: [fifths] }))}
+        />
+        <p className="field__note muted">{t('rhythm.playInNote')}</p>
+      </div>
+
       <div className="field">
         <span className="field__label">{t('rhythm.pattern')}</span>
         <div className="pattern-grid">

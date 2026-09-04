@@ -652,7 +652,14 @@ bar engraved — and a card **expands in place** (ruled over a popup) to
 offer the ways of playing it: the rhythm alone, notes made up on the
 spot, or one of the cells written on it.
 
-- **The key selector is a CHOICE, not a filter.** A cell is degrees, so
+- **The key selector is a CHOICE, not a filter** — and it was ruled
+  here but never WIRED until 2026-09-04, when the player asked "how can
+  I select the key to play in?": the run silently inherited whatever
+  key another tab last chose. The tab now carries a "Play in" grid —
+  one key, not a set, since a rhythm run holds one signature —
+  remembered per material like every keySet; a bare rhythm stays
+  keyless and ignores it.
+  **As originally ruled:** A cell is degrees, so
   it plays in any key — which is the whole reason the format is
   degree-based. What key *can* do is disqualify: a cell that will not
   fit the instrument's compass in a given key is shown disabled with the
