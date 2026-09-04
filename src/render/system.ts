@@ -26,6 +26,7 @@ import {
   drawRest,
   drawTie,
   noteheadWidth,
+  roundedRect,
   type LayoutNote,
 } from './notes';
 import { drawGlyph, glyphWidth } from './glyphs';
@@ -41,7 +42,7 @@ import {
   yForPitch,
   type StaveMetrics,
 } from './stave';
-import { bandCells, cellEdgeX, BAND_GAP, BAND_HEIGHT, BAND_MARGIN } from './count-band';
+import { bandCells, cellEdgeX, soundingSpans, BAND_GAP, BAND_HEIGHT, BAND_MARGIN } from './count-band';
 import type { StaveTheme } from './surface';
 
 /**
@@ -617,26 +618,77 @@ export function drawCountBand(
   }
 
   if (counted) {
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `600 ${Math.round(staveSpace * 1.05)}px system-ui, sans-serif`;
     const middle = bandTop + (BAND_HEIGHT / 2) * staveSpace;
+    /* Every mark's place, gathered once: the sustain loops span cells
+       and bar lines, so they are drawn against the flat list, and the
+       text goes on over them. */
+    const marks: Array<{ x: number; atBeat: number; rest: boolean; text: string }> = [];
     for (const cell of cells) {
       const barLeft = edgeFor(cell.barFromBeat, true);
       const barRight = edgeFor(cell.barToBeat, true);
       for (const entry of cell.entries) {
-        // A count over silence or sustain wears the horizon grey: the
-        // count continues, and quietly.
-        const index = entry.rest
-          ? -1
-          : exercise.notes.findIndex((note) => Math.abs(note.startBeat - entry.atBeat) < 1e-9);
-        ctx.fillStyle = entry.rest
-          ? theme.horizon
-          : index >= 0
-            ? options.colourFor(index)
-            : theme.note;
-        ctx.fillText(entry.text, barLeft + entry.fraction * (barRight - barLeft), middle);
+        marks.push({
+          x: barLeft + entry.fraction * (barRight - barLeft),
+          atBeat: entry.atBeat,
+          rest: entry.rest,
+          text: entry.text,
+        });
       }
+    }
+
+    /*
+     * The sustain loops (the player, 2026-09-04): a quaver on 'e' and a
+     * semiquaver on 'e' printed the same — one bright mark, dim
+     * neighbours — because dim deliberately conflates sustain with
+     * silence for the VOICE, which says nothing either way. The eye
+     * needs the difference, so each sound long enough to cross a count
+     * position wears a loop: a soft capsule grouping its attack's mark
+     * with every mark it sounds through, stopping where silence begins,
+     * crossing beat and bar lines for as long as the sound holds (tied
+     * chains are one loop — `soundingSpans`). A sound too short to
+     * reach the next mark gets none, which IS the semiquaver's signal.
+     * Silence gets nothing, so a demonstration bar stays clean.
+     */
+    ctx.strokeStyle = theme.horizon;
+    ctx.lineWidth = Math.max(1, staveSpace * 0.08);
+    const halfHeight = 0.8 * staveSpace;
+    const pad = 0.75 * staveSpace;
+    for (const span of soundingSpans(exercise.notes)) {
+      if (span.to <= firstBeat + 1e-6 || span.from >= lastBeat - 1e-6) continue;
+      const inSpan = marks.filter(
+        (mark) => mark.atBeat >= span.from - 1e-6 && mark.atBeat < span.to - 1e-6,
+      );
+      /* One mark is a sound with nothing to group — unless the sound
+         began on an earlier line, where the lone continuation mark
+         still deserves its loop. */
+      if (inSpan.length < 2 && !(inSpan.length === 1 && span.from < firstBeat - 1e-6)) continue;
+      ctx.beginPath();
+      roundedRect(
+        ctx,
+        inSpan[0].x - pad,
+        middle - halfHeight,
+        inSpan[inSpan.length - 1].x + pad - (inSpan[0].x - pad),
+        2 * halfHeight,
+        halfHeight,
+      );
+      ctx.stroke();
+    }
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `600 ${Math.round(staveSpace * 1.05)}px system-ui, sans-serif`;
+    for (const mark of marks) {
+      // A count over silence or sustain wears the horizon grey: the
+      // count continues, and quietly.
+      const index = mark.rest
+        ? -1
+        : exercise.notes.findIndex((note) => Math.abs(note.startBeat - mark.atBeat) < 1e-9);
+      ctx.fillStyle = mark.rest
+        ? theme.horizon
+        : index >= 0
+          ? options.colourFor(index)
+          : theme.note;
+      ctx.fillText(mark.text, mark.x, middle);
     }
   }
 

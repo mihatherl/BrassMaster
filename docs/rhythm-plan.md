@@ -830,6 +830,25 @@ family: a gesture must share one coordinate space with the picture it
 touches, and a factor that is 1 on the development machine is a fault
 that ships.
 
+**The sustain loops (the player, 2026-09-04, and his own shape: "a
+loop/oval/elliptical shape around sustained beats, grouping them with
+articulated beats").** The band's bright/dim rule deliberately serves
+the VOICE, which says nothing on a dim mark whether the sound holds or
+stops — so a quaver on 'e' and a semiquaver on 'e' printed identically,
+one bright mark and dim neighbours, with *"no indication that the note
+continues to play on '&'"*. Dim now splits for the eye without touching
+the emission: each sound long enough to cross a count position wears a
+soft capsule (horizon grey, stroked) grouping its attack's mark with
+every mark it sounds through — a quaver on 'e' rings e-&, a minim rings
+its two beats, a dotted crotchet rings 1-e-&. The loop crosses beat and
+bar lines for as long as the sound holds, and a tied chain is ONE loop
+(`soundingSpans`) — the tie being exactly the thing a learner
+mis-counts. A sound too short to reach the next mark gets no loop,
+which IS the semiquaver's signal; silence gets nothing, so
+demonstration bars stay clean by construction. A duration line was the
+first proposal; the player's loop was preferred for grouping the
+attack WITH its continuations, the way a tie's arc does.
+
 **The preview sizes itself from the width alone (the player,
 2026-09-04: the fifth bar "glitching in an uncertain state of whether
 it wants to give me a new line or not").** The editor's canvas grows to

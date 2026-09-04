@@ -32,6 +32,7 @@
  */
 
 import { beatOfBar, metreAt } from '../domain/metre';
+import { durationBeats, type Duration } from '../domain/rhythm';
 import type { Exercise } from '../exercise/types';
 
 export interface BandEntry {
@@ -135,6 +136,33 @@ export function bandCells(
     barFrom = beatOfBar(exercise.metres, bar);
   }
   return cells;
+}
+
+/**
+ * Where each SOUND begins and ends, tied chains merged into one span —
+ * what the count band's sustain loops are drawn from (the player,
+ * 2026-09-04: a quaver on 'e' and a semiquaver on 'e' printed the same,
+ * one bright mark and dim neighbours, *"no indication that the note
+ * continues to play on '&'"*). A tie's far end is not a new sound, so a
+ * chain is one span and its loop crosses the bar line, which is
+ * precisely the thing a learner mis-counts.
+ */
+export function soundingSpans(
+  notes: ReadonlyArray<{ startBeat: number; duration: Duration; tiedToNext?: boolean }>,
+): Array<{ from: number; to: number }> {
+  const spans: Array<{ from: number; to: number }> = [];
+  let joining = false;
+  for (const note of notes) {
+    const to = note.startBeat + durationBeats(note.duration);
+    const current = spans[spans.length - 1];
+    if (joining && current && Math.abs(current.to - note.startBeat) < 1e-6) {
+      current.to = to;
+    } else {
+      spans.push({ from: note.startBeat, to });
+    }
+    joining = note.tiedToNext === true;
+  }
+  return spans;
 }
 
 /**

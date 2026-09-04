@@ -647,7 +647,7 @@ export function drawFingeringHint(
  * the one part of the app that runs every frame and the one whose failure
  * looks like a bug in the music rather than a bug in the browser.
  */
-function roundedRect(
+export function roundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,

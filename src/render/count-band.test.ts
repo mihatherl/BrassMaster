@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandCells, cellEdgeX, spacesBelowFor } from './count-band';
+import { bandCells, cellEdgeX, soundingSpans, spacesBelowFor } from './count-band';
 import { metreFor } from '../domain/metre';
 
 /**
@@ -116,6 +116,51 @@ describe('a bar where nothing is played', () => {
     ).toEqual(['1·', '2·', '3·', '4·']);
     // Centred in its own cell, not left in the figure's old slot.
     expect(cells[0].entries[0].fraction).toBeCloseTo(0.125);
+  });
+});
+
+describe('sounding spans — one loop per sound', () => {
+  /*
+   * The player, 2026-09-04: a quaver on 'e' and a semiquaver on 'e'
+   * printed the same. The sustain loop groups a sound's marks, and a
+   * sound is a note OR a tied chain — the far end of a tie is not a
+   * new sound, so its loop crosses the bar line.
+   */
+  const q = { value: 'quarter', dotted: false } as const;
+  const e = { value: 'eighth', dotted: false } as const;
+
+  it('spans each sound by its own length', () => {
+    expect(
+      soundingSpans([
+        { startBeat: 0, duration: e },
+        { startBeat: 1, duration: q },
+      ]),
+    ).toEqual([
+      { from: 0, to: 0.5 },
+      { from: 1, to: 2 },
+    ]);
+  });
+
+  it('merges a tied chain into one span', () => {
+    expect(
+      soundingSpans([
+        { startBeat: 0, duration: q, tiedToNext: true },
+        { startBeat: 1, duration: q, tiedToNext: true },
+        { startBeat: 2, duration: e },
+      ]),
+    ).toEqual([{ from: 0, to: 2.5 }]);
+  });
+
+  it('never merges across a gap, whatever a stray tie flag claims', () => {
+    expect(
+      soundingSpans([
+        { startBeat: 0, duration: e, tiedToNext: true },
+        { startBeat: 1, duration: e },
+      ]),
+    ).toEqual([
+      { from: 0, to: 0.5 },
+      { from: 1, to: 1.5 },
+    ]);
   });
 });
 
