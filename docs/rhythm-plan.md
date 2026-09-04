@@ -667,6 +667,15 @@ spot, or one of the cells written on it.
   key, and picking a concrete key on the grid turns it off until the
   chip is chosen again (`rhythmAsWritten`). A cell with no stored
   lens, and random notes, fall back to the chosen key either way.
+  **And the run plays the page at its own register** (the same day, the
+  player's repro: a note authored at A3 came out an octave lower in the
+  player): the editor anchored the page at written C per clef, the run
+  placed the line near the alternating pair's register, and the greying
+  asked `realiseTheme`, which floats — three placements for one page.
+  One rule now (`cellWrittenMidi`/`cellSlotPitch`): the preview draws
+  it, the run plays it, and `cellFitsKeys` greys against it — a
+  floating yes over a pinned no had been a card offering a run whose
+  low notes had no fingering. Pinned by a run-equals-editor pitch test.
   **As originally ruled:** A cell is degrees, so
   it plays in any key — which is the whole reason the format is
   degree-based. What key *can* do is disqualify: a cell that will not

@@ -20,7 +20,6 @@ import {
   scalePitchClasses,
   spellInKey,
   spellWithLetter,
-  MAJOR_SCALE,
   tonicPitchClass,
   tourKey,
   type KeyChange,
@@ -44,6 +43,7 @@ import type { Theme } from './theme';
 import { planTempo } from './tempo-plan';
 import type { Exercise, ExerciseKind, LabelEvent } from './types';
 import {
+  cellSlotPitch,
   patternEvents,
   rhythmPatternById,
   syllablesForBars,
@@ -396,20 +396,14 @@ function restsFilling(from: number, beats: number, metre: Metre): Slot[] {
  * absence of one: no signature, every eye on the rhythm. The pair sits at
  * the comfortable middle of the instrument's compass.
  */
-/**
- * A cell's degree as a written pitch, near the register the rhythm pair
- * sits in. Degrees are of the major scale of the key in force — the same
- * reading `ThemeNote` has — so a cell plays in any key, which is what
- * makes the Pattern tab's key selector a choice rather than a filter.
+/*
+ * A cell's pitches come from `cellSlotPitch` — the SAME placement and
+ * spelling the editor's preview draws, anchored at written C per clef —
+ * because the authored page's register is part of what was authored: the
+ * first cut placed the line near the alternating pair's register instead,
+ * and an authored A3 played back an octave adrift (the player's repro,
+ * 2026-09-04).
  */
-function degreePitch(note: CellNote, near: number, fifths: number): number {
-  const tonic = tonicPitchClass(fifths);
-  const semitones = MAJOR_SCALE[(note.degree - 1) % 7] + (note.alter ?? 0);
-  const wanted = (((tonic + semitones) % 12) + 12) % 12;
-  // The nearest octave to the pair's own, so the line sits where the eye is.
-  const base = near - ((((near % 12) - wanted) % 12) + 12) % 12;
-  return base + 12 * (note.octave ?? 0);
-}
 
 function rhythmExercise(options: GenerateOptions): Exercise {
   const pattern = options.rhythmPattern ?? rhythmPatternById(options.rhythmPatternId ?? '');
@@ -520,7 +514,7 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   }
 
   const slots: Slot[] = [];
-  const pitches: number[] = [];
+  const pitches: SlotPitch[] = [];
   /** Beat spans of the demonstration statements, for blanking after assembly. */
   const demoSpans: Array<[number, number]> = [];
   /** The bars the player answers in — highlighted, so the ask is unmistakable. */
@@ -572,7 +566,7 @@ function rhythmExercise(options: GenerateOptions): Exercise {
                */
               const cellNote = options.cellNotes?.[attack];
               pitches.push(
-                cellNote ? degreePitch(cellNote, pair[0], options.fifths) : pair[side],
+                cellNote ? cellSlotPitch(cellNote, options.fifths, options.clef) : pair[side],
               );
               attack++;
               side = 1 - side;

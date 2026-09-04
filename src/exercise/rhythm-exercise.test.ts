@@ -10,7 +10,7 @@ import {
 import { primaryFingering } from '../domain/fingering';
 import { metreFor } from '../domain/metre';
 import { isUnplayable } from './types';
-import { patternEvents, rhythmPatternById, syllablesFor } from './rhythm';
+import { patternEvents, previewExerciseFromBars, rhythmPatternById, syllablesFor } from './rhythm';
 
 /**
  * The rhythm exercise: rounds of demonstration-then-play, per
@@ -98,6 +98,30 @@ describe('the rhythm exercise', () => {
     expect(at(5)).toEqual([4, 8]);
     expect(at(9)).toEqual([8, 12]);
     expect(at(14)).toEqual([12, 16]);
+  });
+
+  it('plays a written cell at the page’s own register — the editor’s exact pitches', () => {
+    /*
+     * The player's repro (2026-09-04): a note authored at A3 came out an
+     * octave lower in the player. The run placed the line near the
+     * alternating pair's register while the editor anchored the page at
+     * written C — two placements for one page. Both read
+     * `cellWrittenMidi` now, so the run IS the page.
+     */
+    const cellNotes = [
+      { degree: 6, octave: -2 },
+      { degree: 1 },
+      { degree: 3 },
+      { degree: 5, octave: 1 },
+    ];
+    const exercise = generateExercise(options({ cellNotes, cycles: 1, fifths: 0 }));
+    const preview = previewExerciseFromBars(
+      ['0q 0q 0q 0q'], [4, 4], instrumentById('eb-bass'), 'treble', cellNotes, 0,
+    );
+    const statement = exercise.notes.slice(0, 4).map((note) => note.writtenMidi);
+    expect(statement).toEqual(preview.notes.map((note) => note.writtenMidi));
+    // His A3 itself: degree 6, two octaves under the written-C anchor.
+    expect(statement[0]).toBe(57);
   });
 
   it('never alternates onto an open note, on any instrument or clef', () => {

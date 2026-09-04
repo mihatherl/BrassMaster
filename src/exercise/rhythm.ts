@@ -21,14 +21,15 @@
  */
 
 import { parseCell, type CellEvent } from './cells';
-import { realiseTheme, type Theme, type ThemeEvent } from './theme';
+import type { Theme, ThemeEvent } from './theme';
 import { MAJOR_SCALE, spellWithLetter, tonicPitchClass } from '../domain/keys';
 import { diatonicStep, LETTERS } from '../domain/pitch';
 import { createRng } from './rng';
 import { assembleExercise, type Slot, type SlotPitch } from './assemble';
 import { durationFromBeats } from '../domain/rhythm';
 import { metreFor } from '../domain/metre';
-import type { Clef, Instrument } from '../domain/instruments';
+import { soundingFromWritten, writtenRange, type Clef, type Instrument } from '../domain/instruments';
+import { isPlayable } from '../domain/fingering';
 import type { Exercise, LabelEvent } from './types';
 
 /* ------------------------------------------------------------------ */
@@ -646,6 +647,35 @@ export function syllablesForBars(
  * the play screen prints. This is also the bridge the cell designer will
  * cross: the same stave, with the vertical axis unlocked.
  */
+/**
+ * Where a cell's note sits as WRITTEN pitch — the one placement rule,
+ * shared by the editor's preview, the run, and the fit test, because on
+ * 2026-09-04 they were three: the editor anchored the page at written C
+ * (C5 treble, C3 bass), the run placed the line near the alternating
+ * pair's register, and the greying asked `realiseTheme`, which floats.
+ * An authored A3 played back an octave adrift (the player's repro). The
+ * authored page IS the practice intent — its register included — so
+ * everyone reads this.
+ */
+export function cellWrittenMidi(note: CellNote, fifths: number, clef: Clef): number {
+  const anchor = clef === 'treble' ? 72 : 48;
+  const wanted = ((tonicPitchClass(fifths) % 12) + 12) % 12;
+  const home = anchor - ((((anchor % 12) - wanted) % 12) + 12) % 12;
+  return home + MAJOR_SCALE[(note.degree - 1) % 7] + (note.alter ?? 0) + 12 * (note.octave ?? 0);
+}
+
+/**
+ * The note as a settled spelling where one is printable — the author's
+ * letter under the lens key (2026-09-03's accidental ruling) — else the
+ * bare number, which `assembleExercise` spells in the key.
+ */
+export function cellSlotPitch(note: CellNote, fifths: number, clef: Clef): SlotPitch {
+  const midi = cellWrittenMidi(note, fifths, clef);
+  const tonicLetter = (((fifths * 4) % 7) + 7) % 7;
+  const spelled = spellWithLetter(midi, LETTERS[(tonicLetter + note.degree - 1) % 7]);
+  return spelled ?? midi;
+}
+
 export function previewExerciseFromBars(
   bars: readonly string[],
   metrePair: readonly [number, number],
@@ -670,9 +700,6 @@ export function previewExerciseFromBars(
   const home = anchor - ((((anchor % 12) - wanted) % 12) + 12) % 12;
   const slots: Slot[] = [];
   const pitches: SlotPitch[] = [];
-  /* The lens key's scale letters ascend from its tonic letter — a fifth
-     up the circle is four letters up the scale. */
-  const tonicLetter = (((fifths * 4) % 7) + 7) % 7;
   let at = 0;
   let attack = 0;
   let tiedInto = false;
@@ -688,25 +715,13 @@ export function previewExerciseFromBars(
         slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious: tiedInto });
         if (!tiedInto) {
           const note = notes?.[attack];
-          const midi = note
-            ? home +
-              MAJOR_SCALE[(note.degree - 1) % 7] +
-              (note.alter ?? 0) +
-              12 * (note.octave ?? 0)
-            : home;
-          /* The author's spelling, settled here rather than left to
-             `spellInKey`: the degree names the LETTER (the lens key's
-             own scale letters) and the alter names the accidental, so a
-             raised fifth prints as the sharp the copied page showed and
-             is never respelled as the flat above it (ruled 2026-09-03,
-             with the accidental buttons). A spelling that would need a
-             double accidental falls back to the bare number, which
-             `assembleExercise` spells in the key — the house rule that
-             no double accidental is ever printed. */
-          const spelled = note
-            ? spellWithLetter(midi, LETTERS[(tonicLetter + note.degree - 1) % 7])
-            : null;
-          pitches.push(spelled ?? midi);
+          /* The one placement-and-spelling rule (`cellSlotPitch`): the
+             degree names the LETTER under the lens key, the alter the
+             accidental — settled here so a raised fifth prints as the
+             sharp the copied page showed (2026-09-03) — and the run
+             reads the same rule, so the page plays back at its own
+             register (2026-09-04). */
+          pitches.push(note ? cellSlotPitch(note, fifths, clef) : home);
           attack++;
         }
         tiedInto = event.tied === true;
@@ -868,10 +883,19 @@ export function cellFitsKeys(
   clef: Clef,
   keys: readonly number[],
 ): number[] {
-  const theme = cellAsTheme(cell);
-  const metre = metreFor(cell.metre[0], cell.metre[1]);
-  return keys.filter(
-    (fifths) => realiseTheme(theme, { instrument, clef, fifths, metre }) !== null,
+  /* Asked of the PINNED page — `cellWrittenMidi`, the same placement
+     the run plays and the editor draws — not of `realiseTheme`, which
+     floats a theme to whatever register fits. A floating yes over a
+     pinned no was a card offering a run whose low notes had no
+     fingering (2026-09-04, with the register fault). */
+  const [low, high] = writtenRange(instrument, clef);
+  return keys.filter((fifths) =>
+    cell.notes.every((note) => {
+      const midi = cellWrittenMidi(note, fifths, clef);
+      return (
+        midi >= low && midi <= high && isPlayable(soundingFromWritten(midi, instrument, clef), instrument)
+      );
+    }),
   );
 }
 
