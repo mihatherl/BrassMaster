@@ -120,6 +120,9 @@ export function RhythmStavePreview({
       theme: currentTheme(),
       scrollSpeed: 0,
       readingMode: 'paged',
+      // Width decides the stave, the plan decides the height, and the
+      // canvas grows to hold it — never the reverse (see `fitContent`).
+      fitContent: true,
       verdictFor: () => undefined,
       // The tool always shows the full picture: the count band shaded,
       // whatever the player's run option says (that option is the run's).

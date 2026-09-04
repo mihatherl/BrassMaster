@@ -830,6 +830,22 @@ family: a gesture must share one coordinate space with the picture it
 touches, and a factor that is 1 on the development machine is a fault
 that ships.
 
+**The preview sizes itself from the width alone (the player,
+2026-09-04: the fifth bar "glitching in an uncertain state of whether
+it wants to give me a new line or not").** The editor's canvas grows to
+hold the lines the piece plans — but the renderer's fitted layout takes
+HEIGHT into the stave size, so the grown canvas fed the layout its own
+consequence: height → stave size → line plan → height. At most widths
+the loop settles; at the boundary widths it flip-flopped between one
+line and two forever, measured by probe at width 1020 (312px ↔ 576px,
+indefinitely). The renderer now has a `fitContent` mode, the preview's
+own: the stave is sized by the width alone, every planned line is
+shown, and the height the layout implies is a pure function of the
+width — one correction converges, which is what the original comment
+claimed and the fitted arithmetic quietly broke. The play screen keeps
+the fitted layout: a run must fit the screen it is on; only the tool
+grows to fit its music.
+
 **The edges follow the engraver (the player's eye, 2026-09-04: "the
 shading is out of alignment").** The first cut drew cell edges at
 `xForBeat`, which names a beat's COLUMN CENTRE — so every edge sliced

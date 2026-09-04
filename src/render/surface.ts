@@ -403,6 +403,13 @@ export interface StaveRendererOptions {
    */
   beatTint?: boolean;
   /**
+   * Size the stave by width alone and plan every line the music wants,
+   * for a canvas that grows to hold the plan (the editor's preview).
+   * Without this, height feeds the stave size, and a growing canvas
+   * feeds the layout its own consequence — see `layout()`.
+   */
+  fitContent?: boolean;
+  /**
    * Reports the stave-space ceiling whenever the layout settles, so the rest
    * of the play screen can size itself in the same unit as the notation.
    *
@@ -785,13 +792,27 @@ export class StaveRenderer {
     }
     const systemSpaces = 8.5 + spacesBelowFor(counted, depthBelow);
 
-    this.systemsShown = paged
+    /*
+     * Fit-content sizing (the editor's preview): the stave is sized by the
+     * WIDTH alone and every planned line is shown, so the height this
+     * layout implies is a pure function of the width. The fitted paths
+     * take height into the stave size, and a canvas that then GROWS to
+     * hold the plan feeds that height straight back into the size that
+     * made the plan — at most widths the loop settles, and at the
+     * boundary widths it flip-flopped between one line and two forever
+     * (the player, 2026-09-04: the fifth bar "glitching in an uncertain
+     * state of whether it wants to give me a new line or not").
+     */
+    const fit = paged && this.options.fitContent === true;
+    this.systemsShown = paged && !fit
       ? Math.max(1, Math.round(this.height / (systemSpaces * widthAllows)))
       : 1;
-    const staveSpace = Math.max(
-      6,
-      Math.min(widthAllows, this.height / (systemSpaces * this.systemsShown)),
-    );
+    const staveSpace = fit
+      ? Math.max(6, widthAllows)
+      : Math.max(
+          6,
+          Math.min(widthAllows, this.height / (systemSpaces * this.systemsShown)),
+        );
     this.systemHeight = systemSpaces * staveSpace;
     this.metrics = staveMetrics(
       this.options.exercise.clef,
@@ -855,6 +876,10 @@ export class StaveRenderer {
       this.pixelsPerBeat = this.spacing.averagePixelsPerBeat;
       this.systemStarts = this.planSystems();
       this.lastPageStartBar = this.findLastPageStart();
+      // Fit-content shows the whole plan: as many systems as the music
+      // wants, and the canvas grows to hold them rather than the stave
+      // shrinking to fit the canvas.
+      if (fit) this.systemsShown = Math.max(1, this.systemStarts.length);
       return;
     }
 
