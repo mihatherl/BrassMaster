@@ -24,6 +24,7 @@ import {
   inflectedNote,
   loadCells,
   movedNote,
+  rewrittenIn,
   walkSteps,
   randomNotesFor,
   reconcileNotes,
@@ -41,6 +42,7 @@ import {
 import { parseCell } from './cells';
 import { metreFor } from '../domain/metre';
 import { instrumentById } from '../domain/instruments';
+import { diatonicStep } from '../domain/pitch';
 
 /**
  * The rhythm mode's pure core, tested the way `cells.ts` is: the library
@@ -576,6 +578,54 @@ describe('moving a note by scale steps', () => {
     // means the scale's own note; sharpen it again if the page says so.
     expect(movedNote({ degree: 4, alter: -1 }, 7)).toEqual({ degree: 4, octave: 1 });
     expect(movedNote({ degree: 5, alter: 1, octave: -1 }, 1)).toEqual({ degree: 6, octave: -1 });
+  });
+});
+
+describe('the lens re-keyed: the page holds still (2026-09-04)', () => {
+  /*
+   * The player forgot the signature and set the notes first: changing
+   * "written in" must keep every note on its stave line, reinterpreted
+   * under the new key — his example, C to F: B on the middle line
+   * becomes B flat. The degrees change so the picture cannot.
+   */
+  it('re-reads his example: middle-line B becomes B flat when C turns to F', () => {
+    // Degree 7 of C (a written B) is degree 4 of F an octave up — the
+    // same stave line, now flattened by the signature.
+    expect(rewrittenIn([{ degree: 7 }], 0, -1)).toEqual([{ degree: 4, octave: 1 }]);
+  });
+
+  it('keeps every note on its stave step, any key to any key', () => {
+    /*
+     * The one honest boundary, found by this test's first run: an
+     * alteration carried into DOUBLE-accidental territory (G sharp of C
+     * arriving as A major's raised seventh) cannot keep its line,
+     * because this app never prints a double — the spelling falls back
+     * and that note alone respells. Everywhere a printable spelling
+     * exists, the page holds still.
+     */
+    const bars = ['0q 0q 0q 0q'];
+    const instrument = instrumentById('eb-bass');
+    const notes = [{ degree: 1 }, { degree: 3 }, { degree: 3, alter: -1 as const }, { degree: 7, octave: -1 }];
+    for (const [from, to] of [[0, -1], [0, 3], [-3, 2], [2, -3]] as const) {
+      const before = previewExerciseFromBars(bars, [4, 4], instrument, 'treble', notes, from);
+      const after = previewExerciseFromBars(
+        bars, [4, 4], instrument, 'treble', rewrittenIn(notes, from, to), to,
+      );
+      expect(
+        after.notes.map((note) => diatonicStep(note.pitch)),
+        `${from} -> ${to}`,
+      ).toEqual(before.notes.map((note) => diatonicStep(note.pitch)));
+    }
+  });
+
+  it('carries an explicit alteration on its line', () => {
+    const [rekeyed] = rewrittenIn([{ degree: 5, alter: -1 }], 0, -1);
+    expect(rekeyed.alter).toBe(-1);
+  });
+
+  it('is exactly undone by the journey back', () => {
+    const notes = [{ degree: 2 }, { degree: 6, octave: 1 }, { degree: 4, alter: 1 as const }];
+    expect(rewrittenIn(rewrittenIn(notes, -3, 4), 4, -3)).toEqual(notes);
   });
 });
 

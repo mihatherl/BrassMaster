@@ -41,6 +41,7 @@ import {
   randomNotesFor,
   rebuildGrid,
   reconcileNotes,
+  rewrittenIn,
   saveCell,
   saveCustomRhythm,
   type CellNote,
@@ -420,7 +421,13 @@ export function RhythmPatternEditor({
               <span className="field__label">{t('rhythm.cellKey')}</span>
               <select
                 value={String(cellFifths)}
-                onChange={(e) => setCellFifths(Number(e.target.value))}
+                onChange={(e) => {
+                  /* The lens keeps the PAGE — see `rewrittenIn`: notes
+                     hold their stave lines under the new signature. */
+                  const next = Number(e.target.value);
+                  if (line) setLine(rewrittenIn(line, cellFifths, next));
+                  setCellFifths(next);
+                }}
               >
                 {MAJOR_KEYS.map((key) => (
                   <option key={key.fifths} value={key.fifths}>

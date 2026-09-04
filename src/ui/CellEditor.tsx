@@ -28,6 +28,7 @@ import {
   inflectedNote,
   loadCells,
   movedNote,
+  rewrittenIn,
   saveCell,
   type AuthoredCell,
   type CellNote,
@@ -120,7 +121,18 @@ export function CellEditor({
           </label>
           <label className="field">
             <span className="field__label">{t('rhythm.cellKey')}</span>
-            <select value={String(fifths)} onChange={(e) => setFifths(Number(e.target.value))}>
+            <select
+              value={String(fifths)}
+              onChange={(e) => {
+                /* The lens keeps the PAGE: every note stays on its stave
+                   line, reinterpreted under the new signature — set the
+                   key late and nothing you placed moves (the player,
+                   2026-09-04). */
+                const next = Number(e.target.value);
+                setNotes(rewrittenIn(notes, fifths, next));
+                setFifths(next);
+              }}
+            >
               {MAJOR_KEYS.map((key) => (
                 <option key={key.fifths} value={key.fifths}>
                   {key.name}

@@ -23,7 +23,7 @@
 import { parseCell, type CellEvent } from './cells';
 import { realiseTheme, type Theme, type ThemeEvent } from './theme';
 import { MAJOR_SCALE, spellWithLetter, tonicPitchClass } from '../domain/keys';
-import { LETTERS } from '../domain/pitch';
+import { diatonicStep, LETTERS } from '../domain/pitch';
 import { createRng } from './rng';
 import { assembleExercise, type Slot, type SlotPitch } from './assemble';
 import { durationFromBeats } from '../domain/rhythm';
@@ -977,6 +977,48 @@ export function movedNote(note: CellNote, steps: number): CellNote {
   const moved: CellNote = { degree: (((flat % 7) + 7) % 7) + 1 };
   if (octave) moved.octave = octave;
   return moved;
+}
+
+/**
+ * The tonic's stave step under the preview's own anchoring — where the
+ * lens key puts its home tonic on the page. The anchor is written C
+ * (the preview's rule), and the arithmetic is anchor-cancelling in
+ * differences, so treble serves both clefs.
+ */
+function tonicStaveStep(fifths: number): number {
+  const anchor = 72;
+  const wanted = ((tonicPitchClass(fifths) % 12) + 12) % 12;
+  const home = anchor - ((((anchor % 12) - wanted) % 12) + 12) % 12;
+  const letter = LETTERS[((((fifths * 4) % 7) + 7) % 7)];
+  const spelled = spellWithLetter(home, letter);
+  return spelled ? diatonicStep(spelled) : 0;
+}
+
+/**
+ * The same PAGE, written in another key (the player, 2026-09-04, after
+ * forgetting to set the signature before spending time on the notes):
+ * changing the "written in" key keeps every note on its stave line and
+ * reinterprets it under the new signature — B on the middle line
+ * becomes B flat the moment the key becomes F, exactly as the printed
+ * page he is copying would read. The alternative (degrees held,
+ * picture transposed) is what the lens must NOT do: the cell already
+ * plays in every key, and the lens is the transcriber's, whose page
+ * does not move. An explicit alteration rides its line unchanged.
+ */
+export function rewrittenIn(
+  notes: readonly CellNote[],
+  fromFifths: number,
+  toFifths: number,
+): CellNote[] {
+  const shift = tonicStaveStep(fromFifths) - tonicStaveStep(toFifths);
+  return notes.map((note) => {
+    const flat = note.degree - 1 + (note.octave ?? 0) * 7 + shift;
+    const moved: CellNote = { degree: (((flat % 7) + 7) % 7) + 1 };
+    if (note.alter) moved.alter = note.alter;
+    const octave = Math.floor(flat / 7);
+    if (octave) moved.octave = octave;
+    return moved;
+  });
 }
 
 /**
