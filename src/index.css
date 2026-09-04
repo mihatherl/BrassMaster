@@ -2746,6 +2746,31 @@ input[type='checkbox'] {
 .rhythm-editor__staveWrap { position: relative; }
 /* The keyboard-style preview over a touch drag: the note's name, above
    the fingertip where the finger cannot hide it. */
+/* The accidental pair beside the note in hand: thumb-sized, floated
+   just above and to the right of the selected notehead. */
+.rhythm-editor__floats {
+  position: absolute;
+  display: flex;
+  gap: 0.3rem;
+  transform: translate(0.9rem, -100%);
+  pointer-events: auto;
+}
+.rhythm-editor__float {
+  min-width: 2.1rem;
+  min-height: 2.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+.rhythm-editor__float.is-selected {
+  background: var(--accent, #4a6a9a);
+  color: #fff;
+}
+
 .rhythm-editor__callout {
   position: absolute;
   transform: translate(-50%, -260%);

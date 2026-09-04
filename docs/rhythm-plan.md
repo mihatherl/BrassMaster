@@ -883,6 +883,11 @@ bars in. Three faults from that hand, three rules:
 - **The beat shading darkened** (both themes), so the beats read at a
   glance on a small bright screen; still light enough to read music
   straight through. His eye tunes the constants.
+- **The accidental pair floats beside the note in hand** (his ask, the
+  same day): select a note and ♯/♭ appear just above it, the same
+  toggles as the nudge row's — which remain — within thumb's reach of
+  the note they inflect. Hidden while a touch drag is in flight, so
+  nothing jitters under the moving finger.
 
 All three await verification on the E32 — the device-testing rule: a
 picture can disagree with a phone, and the phone is right.

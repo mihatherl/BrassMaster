@@ -8,10 +8,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   attackIndexByNote,
+  inflectedNote,
   movedNote,
   previewExerciseFromBars,
   type CellNote,
 } from '../exercise/rhythm';
+import { t } from '../i18n';
 import { formatPitch } from '../domain/pitch';
 import { instrumentById, type Clef } from '../domain/instruments';
 import { currentTheme, StaveRenderer } from '../render/surface';
@@ -113,10 +115,28 @@ export function RhythmStavePreview({
   const [callout, setCallout] = useState<{ x: number; y: number; attack: number } | null>(null);
   /** The engraved exercise behind the picture, for the callout's name. */
   const exerciseRef = useRef<Exercise | null>(null);
+  /**
+   * Where the selected note sits on the page, for the accidental pair
+   * that floats beside it (the player, 2026-09-04: *"two little buttons
+   * nearby to make it a sharp or a flat"* — on a phone the nudge row is
+   * a reach away from the note in hand). Held as state because the
+   * layout lives in a ref the render cannot watch: both effects set it
+   * from the freshly drawn layout.
+   */
+  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+  const anchorFor = (attack: number | null): { x: number; y: number } | null => {
+    const map = layout.current;
+    if (attack === null || !map) return null;
+    const noteIndex = attackIndexByNote(bars).findIndex((a) => a === attack);
+    const drawn = map.notes.find((note) => note.index === noteIndex);
+    return drawn ? { x: drawn.x, y: drawn.y } : null;
+  };
 
   useEffect(() => {
     selectedRef.current = selected ?? null;
     renderer.current?.draw();
+    setAnchor(anchorFor(selected ?? null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
   useEffect(() => {
@@ -165,6 +185,7 @@ export function RhythmStavePreview({
     renderer.current = drawn;
     layout.current = drawn.noteLayout();
     exerciseRef.current = exercise;
+    setAnchor(anchorFor(selectedRef.current));
     /* Grow to hold every line the piece wants, with headroom above the
        first and below the last. Shrink only when a bar leaves. */
     const wantRem = Math.max(
@@ -337,6 +358,36 @@ export function RhythmStavePreview({
           aria-hidden="true"
         >
           {calloutText}
+        </div>
+      )}
+      {/* The accidental pair, floated beside the note in hand (the
+          player, 2026-09-04) — hidden while a touch drag is in flight,
+          so it never jitters under the moving finger. The nudge row's
+          own ♯/♭ remain; this pair is the same toggles within thumb's
+          reach of the note they inflect. */}
+      {onNotes && notes && selected != null && notes[selected] && anchor && !callout && (
+        <div
+          className="rhythm-editor__floats"
+          style={{ left: `${anchor.x}px`, top: `${Math.max(30, anchor.y - 14)}px` }}
+        >
+          <button
+            type="button"
+            className={`rhythm-editor__float ${notes[selected].alter === 1 ? 'is-selected' : ''}`}
+            aria-label={t('rhythm.sharp')}
+            aria-pressed={notes[selected].alter === 1}
+            onClick={() => onNotes(notes.map((n, i) => (i === selected ? inflectedNote(n, 1) : n)))}
+          >
+            ♯
+          </button>
+          <button
+            type="button"
+            className={`rhythm-editor__float ${notes[selected].alter === -1 ? 'is-selected' : ''}`}
+            aria-label={t('rhythm.flat')}
+            aria-pressed={notes[selected].alter === -1}
+            onClick={() => onNotes(notes.map((n, i) => (i === selected ? inflectedNote(n, -1) : n)))}
+          >
+            ♭
+          </button>
         </div>
       )}
     </div>
