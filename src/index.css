@@ -2752,7 +2752,10 @@ input[type='checkbox'] {
   position: absolute;
   display: flex;
   gap: 0.3rem;
-  transform: translate(0.9rem, -100%);
+  /* Fully left of the note's x and fully above its stave: the hand
+     works left to right, so the pair may cover only ground already
+     written (the player, 2026-09-04, after it covered the NEXT note). */
+  transform: translate(calc(-100% - 0.4rem), -100%);
   pointer-events: auto;
 }
 .rhythm-editor__float {

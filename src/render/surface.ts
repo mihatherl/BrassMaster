@@ -604,7 +604,9 @@ export class StaveRenderer {
    * A one-system preview only; the editor draws no more than that.
    */
   noteLayout(): {
-    notes: Array<{ index: number; x: number; y: number; step: number }>;
+    /** `topY` is the note's own system's top stave line — where "above
+        the stave" begins for anything floated beside that note. */
+    notes: Array<{ index: number; x: number; y: number; step: number; topY: number }>;
     staveSpace: number;
     /** Lines the whole piece wants, and the height one takes — so the
         editor can size its canvas to hold every bar. */
@@ -626,7 +628,7 @@ export class StaveRenderer {
       const totalBars = barCount(metres, totalBeats);
       const stackHeight = Math.min(this.systemsShown, systems) * this.systemHeight;
       const padTop = Math.max(0, (this.height - stackHeight) / 2);
-      const notes: Array<{ index: number; x: number; y: number; step: number }> = [];
+      const notes: Array<{ index: number; x: number; y: number; step: number; topY: number }> = [];
       const spacing = this.spacing;
       if (spacing) {
         this.systemStarts.forEach((firstBar, systemIndex) => {
@@ -652,7 +654,13 @@ export class StaveRenderer {
           exercise.notes.forEach((note, index) => {
             if (note.startBeat < firstBeat - 1e-9 || note.startBeat >= lastBeat - 1e-9) return;
             const step = diatonicStep(note.pitch);
-            notes.push({ index, x: xForBeat(note.startBeat), y: yForStep(metrics, step), step });
+            notes.push({
+              index,
+              x: xForBeat(note.startBeat),
+              y: yForStep(metrics, step),
+              step,
+              topY: metrics.topLineY,
+            });
           });
         });
       }
@@ -664,7 +672,7 @@ export class StaveRenderer {
     return {
       notes: exercise.notes.map((note, index) => {
         const step = diatonicStep(note.pitch);
-        return { index, x: xForBeat(note.startBeat), y: yForStep(m, step), step };
+        return { index, x: xForBeat(note.startBeat), y: yForStep(m, step), step, topY: m.topLineY };
       }),
       staveSpace: m.staveSpace,
       systems,

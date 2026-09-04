@@ -884,10 +884,14 @@ bars in. Three faults from that hand, three rules:
   glance on a small bright screen; still light enough to read music
   straight through. His eye tunes the constants.
 - **The accidental pair floats beside the note in hand** (his ask, the
-  same day): select a note and ♯/♭ appear just above it, the same
-  toggles as the nudge row's — which remain — within thumb's reach of
-  the note they inflect. Hidden while a touch drag is in flight, so
-  nothing jitters under the moving finger.
+  same day): select a note and ♯/♭ appear, the same toggles as the
+  nudge row's — which remain — within thumb's reach of the note they
+  inflect. Hidden while a touch drag is in flight, so nothing jitters
+  under the moving finger. Repositioned on his second pass: floated at
+  the notehead it covered the NEXT note, and the hand works left to
+  right — so the pair sits ABOVE THE STAVE and fully LEFT of the
+  selected note's x, over ground already written, never over what is
+  about to be.
 
 All three await verification on the E32 — the device-testing rule: a
 picture can disagree with a phone, and the phone is right.

@@ -129,7 +129,11 @@ export function RhythmStavePreview({
     if (attack === null || !map) return null;
     const noteIndex = attackIndexByNote(bars).findIndex((a) => a === attack);
     const drawn = map.notes.find((note) => note.index === noteIndex);
-    return drawn ? { x: drawn.x, y: drawn.y } : null;
+    /* Above the note's own STAVE, not above the notehead: floated at the
+       head's height the pair covered the next note along — and the hand
+       works left to right, so what must stay visible is always to the
+       right (the player, 2026-09-04, second pass). */
+    return drawn ? { x: drawn.x, y: drawn.topY } : null;
   };
 
   useEffect(() => {
@@ -368,7 +372,7 @@ export function RhythmStavePreview({
       {onNotes && notes && selected != null && notes[selected] && anchor && !callout && (
         <div
           className="rhythm-editor__floats"
-          style={{ left: `${anchor.x}px`, top: `${Math.max(30, anchor.y - 14)}px` }}
+          style={{ left: `${Math.max(88, anchor.x)}px`, top: `${Math.max(42, anchor.y - 4)}px` }}
         >
           <button
             type="button"
