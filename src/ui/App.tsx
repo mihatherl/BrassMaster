@@ -105,7 +105,7 @@ interface Finished {
 function cellNotesFor(
   settings: Settings,
   seed: number,
-): { cellNotes?: readonly CellNote[] } {
+): { cellNotes?: readonly CellNote[]; fifths?: number } {
   const pattern = resolveRhythmPattern(settings.rhythmPatternId);
   if (settings.cellId === RANDOM_CELL) {
     return { cellNotes: randomNotesFor(pattern.bars, seed) };
@@ -113,7 +113,14 @@ function cellNotesFor(
   const cell = settings.cellId
     ? loadCells().find((entry) => entry.id === settings.cellId)
     : undefined;
-  return cell ? { cellNotes: cell.notes } : {};
+  if (!cell) return {};
+  /* As written (the player, 2026-09-04): a cell authored in a key plays
+     in that key by default — the authored lens IS the practice intent.
+     Returned here so it overrides the tab's chosen fifths in the
+     options spread, which sits after them. */
+  return settings.rhythmAsWritten && cell.fifths !== undefined
+    ? { cellNotes: cell.notes, fifths: cell.fifths }
+    : { cellNotes: cell.notes };
 }
 
 export function App() {

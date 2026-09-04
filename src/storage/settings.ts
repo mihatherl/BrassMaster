@@ -244,6 +244,16 @@ export interface Settings {
    */
   beatBands: boolean;
   beatBandsRhythm: boolean;
+  /**
+   * Whether a rhythm run plays a written cell in the key it was AUTHORED
+   * in (the player, 2026-09-04: notes written down to practise a passage
+   * should probably never be seen in another key). True is the default —
+   * the authored key IS the practice intent — and picking a concrete key
+   * on the Play in grid turns it off until "As written" is chosen again.
+   * A cell without a stored lens, and random notes, fall back to the
+   * chosen key either way.
+   */
+  rhythmAsWritten: boolean;
   playbackMode: PlaybackMode;
   /**
    * Multiplies the window either side of the beat within which a fingering
@@ -571,6 +581,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // everything else waits to be asked.
   beatBands: false,
   beatBandsRhythm: true,
+  rhythmAsWritten: true,
   playbackMode: 'reference',
   timingTolerance: 1.5,
   weakNoteDrilling: true,

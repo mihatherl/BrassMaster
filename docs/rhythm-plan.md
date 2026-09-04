@@ -658,7 +658,15 @@ spot, or one of the cells written on it.
   key another tab last chose. The tab now carries a "Play in" grid —
   one key, not a set, since a rhythm run holds one signature —
   remembered per material like every keySet; a bare rhythm stays
-  keyless and ignores it.
+  keyless and ignores it. **"As written" leads the grid and is the
+  default** (the player, same day, thinking the use case through: a
+  cell authored in a key is a passage being practised, and *"i
+  probably don't want to ever see those in a different key"*): under
+  it a cell plays in its own authored lens (`AuthoredCell.fifths`,
+  kept since 2026-09-03 for exactly this), the cards grey against that
+  key, and picking a concrete key on the grid turns it off until the
+  chip is chosen again (`rhythmAsWritten`). A cell with no stored
+  lens, and random notes, fall back to the chosen key either way.
   **As originally ruled:** A cell is degrees, so
   it plays in any key — which is the whole reason the format is
   degree-based. What key *can* do is disqualify: a cell that will not

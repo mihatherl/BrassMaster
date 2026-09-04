@@ -740,10 +740,26 @@ export function SettingsScreen({
       */}
       <div className="field">
         <span className="field__label">{t('rhythm.playIn')}</span>
+        {/* As written first (the player, 2026-09-04): a cell authored in
+            a key is a passage being practised, and probably never wants
+            another key. The chip is the default; picking a concrete key
+            turns it off until it is chosen again. */}
+        <div className="row">
+          <button
+            type="button"
+            className={`segmented__option ${settings.rhythmAsWritten ? 'is-selected' : ''}`}
+            aria-pressed={settings.rhythmAsWritten}
+            onClick={() => onChange(sanitise({ ...settings, rhythmAsWritten: true }))}
+          >
+            {t('rhythm.asWritten')}
+          </button>
+        </div>
         <KeyGrid
           keyName={(fifths, short) => keyName(fifths, short)}
-          isSelected={(fifths) => fifths === settings.fifths}
-          onPick={(fifths) => onChange(sanitise({ ...settings, keySet: [fifths] }))}
+          isSelected={(fifths) => !settings.rhythmAsWritten && fifths === settings.fifths}
+          onPick={(fifths) =>
+            onChange(sanitise({ ...settings, keySet: [fifths], rhythmAsWritten: false }))
+          }
         />
         <p className="field__note muted">{t('rhythm.playInNote')}</p>
       </div>
@@ -814,7 +830,12 @@ export function SettingsScreen({
                         cell,
                         instrument,
                         settings.clef,
-                        settings.keySet.length > 0 ? settings.keySet : [settings.fifths],
+                        /* Greyed against the key the cell will ACTUALLY
+                           play in: its own authored lens under As
+                           written, the chosen key otherwise. */
+                        settings.rhythmAsWritten
+                          ? [cell.fifths ?? 0]
+                          : [settings.fifths],
                       );
                       const unfit = fits.length === 0;
                       return (
