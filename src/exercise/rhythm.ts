@@ -980,6 +980,23 @@ export function movedNote(note: CellNote, steps: number): CellNote {
 }
 
 /**
+ * The drag's step count, walked with hysteresis: the raw travel (in
+ * steps) must COMMIT past a boundary before the note moves, rather than
+ * rounding — on a phone the finger rolls a few pixels as it lifts, and
+ * plain rounding shifted the note at exactly the moment the player let
+ * go of it (2026-09-04: *"accidentally shifting it when lifting your
+ * finger off"*). From `from`, the count steps only while the raw value
+ * stands more than `commit` beyond it, in either direction; `commit` of
+ * 0.5 is plain rounding, and touch asks more.
+ */
+export function walkSteps(raw: number, from: number, commit: number): number {
+  let steps = from;
+  while (raw > steps + commit) steps++;
+  while (raw < steps - commit) steps--;
+  return steps;
+}
+
+/**
  * A note inflected by the ♯ or ♭ button: set the alteration, or clear it
  * where it already holds — the buttons are toggles, and the natural is
  * the absence both this format and the stave already mean by it.

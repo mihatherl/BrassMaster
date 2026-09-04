@@ -11,6 +11,7 @@ import {
   inflectedNote,
   movedNote,
   previewExerciseFromBars,
+  walkSteps,
   type CellNote,
 } from '../exercise/rhythm';
 import { t } from '../i18n';
@@ -40,6 +41,19 @@ const EDIT_HOVER = '#e8c98a';
  */
 const TOUCH_RADIUS = 2;
 const MOUSE_RADIUS = 3;
+
+/**
+ * The drag's feel per pointer (the player, 2026-09-04: *"it takes a lot
+ * of fine motor control as it is"*). Gain under 1 asks MORE finger
+ * travel per step on touch — the callout names the note, so the finger
+ * need not sit exactly on it — and the commit threshold is the
+ * hysteresis `walkSteps` applies: a mouse rounds plainly, a finger must
+ * push well past a boundary before the note moves, so the roll of a
+ * lifting fingertip changes nothing.
+ */
+const TOUCH_DRAG_GAIN = 0.6;
+const TOUCH_COMMIT = 0.65;
+const MOUSE_COMMIT = 0.5;
 
 /**
  * The drawing, engraved — a static stave on one written C, ties and all,
@@ -95,9 +109,15 @@ export function RhythmStavePreview({
    * stave rescales as notes climb into ledger lines, so a hit test read
    * mid-gesture moves under the hand (the fault of 2026-09-03).
    */
-  const dragging = useRef<{ index: number; startY: number; startDegree: number; space: number } | null>(
-    null,
-  );
+  const dragging = useRef<{
+    index: number;
+    startY: number;
+    startDegree: number;
+    space: number;
+    gain: number;
+    commit: number;
+    steps: number;
+  } | null>(null);
   /**
    * The canvas's height, in rems — grown to hold every system the piece
    * wants (the player, 2026-09-03: eight bars did not fit). The renderer
@@ -123,8 +143,8 @@ export function RhythmStavePreview({
    * layout lives in a ref the render cannot watch: both effects set it
    * from the freshly drawn layout.
    */
-  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
-  const anchorFor = (attack: number | null): { x: number; y: number } | null => {
+  const [anchor, setAnchor] = useState<{ x: number; y: number; mid: number } | null>(null);
+  const anchorFor = (attack: number | null): { x: number; y: number; mid: number } | null => {
     const map = layout.current;
     if (attack === null || !map) return null;
     const noteIndex = attackIndexByNote(bars).findIndex((a) => a === attack);
@@ -132,8 +152,9 @@ export function RhythmStavePreview({
     /* Above the note's own STAVE, not above the notehead: floated at the
        head's height the pair covered the next note along — and the hand
        works left to right, so what must stay visible is always to the
-       right (the player, 2026-09-04, second pass). */
-    return drawn ? { x: drawn.x, y: drawn.topY } : null;
+       right (the player, 2026-09-04, second pass). `mid` is the system's
+       vertical middle, where the step buttons ride the right margin. */
+    return drawn ? { x: drawn.x, y: drawn.topY, mid: drawn.topY + 2 * map.staveSpace } : null;
   };
 
   useEffect(() => {
@@ -300,6 +321,9 @@ export function RhythmStavePreview({
             // Already CSS pixels — the renderer draws under a ratio
             // transform — so the pointer's travel divides it directly.
             space: layout.current.staveSpace,
+            gain: event.pointerType === 'touch' ? TOUCH_DRAG_GAIN : 1,
+            commit: event.pointerType === 'touch' ? TOUCH_COMMIT : MOUSE_COMMIT,
+            steps: 0,
           };
           if (event.pointerType === 'touch') {
             setCallout({
@@ -332,9 +356,10 @@ export function RhythmStavePreview({
             });
           }
           const travelled = drag.startY - (event.clientY - rect.top);
-          const steps = Math.round(travelled / (drag.space / 2));
+          const raw = (travelled * drag.gain) / (drag.space / 2);
+          drag.steps = walkSteps(raw, drag.steps, drag.commit);
           const current = notes[drag.index].degree - 1 + (notes[drag.index].octave ?? 0) * 7;
-          const wanted = drag.startDegree + steps;
+          const wanted = drag.startDegree + drag.steps;
           if (wanted === current) return;
           moveTo(drag.index, wanted - current);
         }}
@@ -391,6 +416,34 @@ export function RhythmStavePreview({
             onClick={() => onNotes(notes.map((n, i) => (i === selected ? inflectedNote(n, -1) : n)))}
           >
             ♭
+          </button>
+        </div>
+      )}
+      {/* The step buttons at the stave's right margin (the player,
+          2026-09-04): coarse, fixed, thumb-sized — they do not chase the
+          note they move, which is the whole point of a button over a
+          drag. On the note's own system, for a multi-line piece. */}
+      {onNotes && notes && selected != null && notes[selected] && anchor && (
+        <div className="rhythm-editor__steps" style={{ top: `${anchor.mid}px` }}>
+          <button
+            type="button"
+            className="rhythm-editor__float"
+            aria-label={t('rhythm.up')}
+            onClick={() =>
+              onNotes(notes.map((n, i) => (i === selected ? movedNote(n, 1) : n)))
+            }
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className="rhythm-editor__float"
+            aria-label={t('rhythm.down')}
+            onClick={() =>
+              onNotes(notes.map((n, i) => (i === selected ? movedNote(n, -1) : n)))
+            }
+          >
+            ↓
           </button>
         </div>
       )}

@@ -24,6 +24,7 @@ import {
   inflectedNote,
   loadCells,
   movedNote,
+  walkSteps,
   randomNotesFor,
   reconcileNotes,
   saveCell,
@@ -575,6 +576,35 @@ describe('moving a note by scale steps', () => {
     // means the scale's own note; sharpen it again if the page says so.
     expect(movedNote({ degree: 4, alter: -1 }, 7)).toEqual({ degree: 4, octave: 1 });
     expect(movedNote({ degree: 5, alter: 1, octave: -1 }, 1)).toEqual({ degree: 6, octave: -1 });
+  });
+});
+
+describe('the drag’s step walk', () => {
+  /*
+   * Hysteresis, not rounding (the player, 2026-09-04, on the phone: the
+   * note shifted "when lifting your finger off"): from where the count
+   * stands, the raw travel must COMMIT past a boundary before a step is
+   * taken, so a fingertip's roll on lift-off moves nothing.
+   */
+  it('holds until the travel commits past a boundary', () => {
+    expect(walkSteps(0.6, 0, 0.65)).toBe(0);
+    expect(walkSteps(0.7, 0, 0.65)).toBe(1);
+    // And having stepped, it holds the new ground the same way: drifting
+    // back to 0.5 is not a return to zero.
+    expect(walkSteps(0.5, 1, 0.65)).toBe(1);
+    expect(walkSteps(0.3, 1, 0.65)).toBe(0);
+  });
+
+  it('walks any distance in one move, both directions', () => {
+    // Each step commits from the ground just taken: 4.9 clears 4.65.
+    expect(walkSteps(4.9, 0, 0.65)).toBe(5);
+    expect(walkSteps(-3.7, 0, 0.65)).toBe(-4);
+    expect(walkSteps(-3.7, 2, 0.65)).toBe(-4);
+  });
+
+  it('is plain rounding at a commit of a half', () => {
+    expect(walkSteps(0.51, 0, 0.5)).toBe(1);
+    expect(walkSteps(0.49, 0, 0.5)).toBe(0);
   });
 });
 

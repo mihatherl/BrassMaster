@@ -2774,6 +2774,17 @@ input[type='checkbox'] {
   color: #fff;
 }
 
+/* The step buttons at the stave's right margin: a fixed coarse hand
+   beside the fine one the drag is. */
+.rhythm-editor__steps {
+  position: absolute;
+  right: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  transform: translateY(-50%);
+}
+
 .rhythm-editor__callout {
   position: absolute;
   transform: translate(-50%, -260%);

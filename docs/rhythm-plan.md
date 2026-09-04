@@ -883,6 +883,15 @@ bars in. Three faults from that hand, three rules:
 - **The beat shading darkened** (both themes), so the beats read at a
   glance on a small bright screen; still light enough to read music
   straight through. His eye tunes the constants.
+- **Step buttons at the stave's right margin, and a calmer drag** (his
+  third pass, same day). Select a note and ↑/↓ ride the right edge of
+  its own system: coarse, fixed, thumb-sized — they do not chase the
+  note they move, which is a button's whole advantage over a drag. And
+  the drag itself asks less of the fingertip on touch: lower gain
+  (`TOUCH_DRAG_GAIN`, more travel per step) and **hysteresis instead of
+  rounding** (`walkSteps`, commit 0.65 on touch) — the note steps only
+  when the finger commits past a boundary, so the roll of a lifting
+  fingertip moves nothing, which was his exact complaint.
 - **The accidental pair floats beside the note in hand** (his ask, the
   same day): select a note and ♯/♭ appear, the same toggles as the
   nudge row's — which remain — within thumb's reach of the note they
