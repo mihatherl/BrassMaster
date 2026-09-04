@@ -237,8 +237,10 @@ export const LIGHT_THEME: StaveTheme = {
   hint: '#6b6960',
   horizon: '#b6b2a8',
   answer: '#2f6fd022',
-  beatBand: 'rgba(59, 58, 54, 0.075)',
-  beatBandAlt: 'rgba(59, 58, 54, 0.025)',
+  // Darkened 2026-09-04 (the player, on the phone: the beats should
+  // read at a glance): still light enough to read music straight through.
+  beatBand: 'rgba(59, 58, 54, 0.12)',
+  beatBandAlt: 'rgba(59, 58, 54, 0.045)',
   selection: 'rgba(47, 111, 208, 0.16)',
   selectionPending: 'rgba(47, 111, 208, 0.07)',
 };
@@ -257,8 +259,8 @@ export const DARK_THEME: StaveTheme = {
   hint: '#9a9ba3',
   horizon: '#565962',
   answer: '#5a8fd733',
-  beatBand: 'rgba(242, 241, 236, 0.085)',
-  beatBandAlt: 'rgba(242, 241, 236, 0.03)',
+  beatBand: 'rgba(242, 241, 236, 0.135)',
+  beatBandAlt: 'rgba(242, 241, 236, 0.05)',
   selection: 'rgba(99, 161, 255, 0.22)',
   selectionPending: 'rgba(99, 161, 255, 0.10)',
 };

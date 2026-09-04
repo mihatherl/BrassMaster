@@ -485,6 +485,19 @@ the notation of a figure being read, and belong in the bars the player
 is reading; a bar where nothing is played says its nothing once, as a
 printed part does.
 
+**Amended again 2026-09-04, from the phone: the demonstration
+statement is SKIPPED while the counting voice is unbuilt.** The
+player's 8-bar 3/4 pattern opened with eight bars of metronome clicks,
+a bar-rest stave and dimmed numbers before the first thing he was
+asked to play — the demonstration exists to be HEARD, and with no
+recorded clips it is only waiting, scaled by the pattern's own length.
+Runs are rounds of plays alone (`DEMONSTRATION_STATEMENTS = 0` in
+`generate.ts`, the machinery kept whole); the printed count rides the
+play bars as ever. The constant returns to 1 the day the clips exist
+and the demonstration has something to say — and when it does, its
+length against long AUTHORED patterns needs its own look: the design
+was ratified against one-bar spine cells.
+
 **Amended 2026-09-04, with the count band**: the demonstration bar's
 PRINTED count no longer shows the whole figure — a bar rest engraves
 as one narrow column, and the figure's count crammed into it was mush
@@ -848,6 +861,31 @@ which IS the semiquaver's signal; silence gets nothing, so
 demonstration bars stay clean by construction. A duration line was the
 first proposal; the player's loop was preferred for grouping the
 attack WITH its continuations, the way a tie's arc does.
+
+**The band-hall pass (the player, 2026-09-04, on the Android): the
+note editor meets the phone.** His use case, stated in his words: in
+the band hall, a difficult passage — whip the phone out, program those
+bars in. Three faults from that hand, three rules:
+
+- **The sheet scrolls again.** The stave carried `touch-action: none`
+  and a mouse-sized hit radius, so on a phone every finger anywhere
+  grabbed a note (*"50 ledger lines"*) and four of his eight bars were
+  unreachable. Touch now claims a note only within a TIGHT radius
+  (`TOUCH_RADIUS`, 2 stave spaces against the mouse's 3), through a
+  non-passive touchstart; every other finger is the browser's and the
+  page pans (`touch-action: pan-y`). A pan that wins cancels the drag
+  cleanly (`pointercancel`).
+- **The callout** — his ask, the phone keyboard's key preview: during
+  a touch drag the note's written name (spelled under the lens key,
+  read from the engraved exercise itself so bubble and page cannot
+  disagree) floats above the fingertip where the finger cannot hide
+  the notehead. Touch only; a mouse cursor hides nothing.
+- **The beat shading darkened** (both themes), so the beats read at a
+  glance on a small bright screen; still light enough to read music
+  straight through. His eye tunes the constants.
+
+All three await verification on the E32 — the device-testing rule: a
+picture can disagree with a phone, and the phone is right.
 
 **The preview sizes itself from the width alone (the player,
 2026-09-04: the fifth bar "glitching in an uncertain state of whether

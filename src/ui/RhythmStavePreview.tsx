@@ -12,8 +12,10 @@ import {
   previewExerciseFromBars,
   type CellNote,
 } from '../exercise/rhythm';
+import { formatPitch } from '../domain/pitch';
 import { instrumentById, type Clef } from '../domain/instruments';
 import { currentTheme, StaveRenderer } from '../render/surface';
+import type { Exercise } from '../exercise/types';
 import { Transport } from '../engine/clock';
 
 /**
@@ -24,6 +26,18 @@ import { Transport } from '../engine/clock';
  */
 const EDIT_SELECTED = '#e8a33d';
 const EDIT_HOVER = '#e8c98a';
+
+/**
+ * How near a touch must land to claim a note, in stave spaces — against
+ * 3 for a mouse. On a phone EVERYTHING is near a note, and the wide
+ * radius meant every touch anywhere on the sheet grabbed one and hauled
+ * it through fifty ledger lines while the page refused to scroll (the
+ * player, 2026-09-04, in the band hall). Tight for touch: a finger on a
+ * note drags it; a finger anywhere else pans the sheet, which
+ * `touch-action: pan-y` now permits.
+ */
+const TOUCH_RADIUS = 2;
+const MOUSE_RADIUS = 3;
 
 /**
  * The drawing, engraved — a static stave on one written C, ties and all,
@@ -89,6 +103,16 @@ export function RhythmStavePreview({
    * the line plan depends on width alone.
    */
   const [heightRem, setHeightRem] = useState(11);
+  /**
+   * The keyboard-style callout over a touch drag (the player,
+   * 2026-09-04: *"it's really difficult to see when I'm dragging the
+   * note to, under my finger"*): the note's written name, floated above
+   * the fingertip like a phone keyboard's key preview. Touch only — a
+   * mouse cursor hides nothing.
+   */
+  const [callout, setCallout] = useState<{ x: number; y: number; attack: number } | null>(null);
+  /** The engraved exercise behind the picture, for the callout's name. */
+  const exerciseRef = useRef<Exercise | null>(null);
 
   useEffect(() => {
     selectedRef.current = selected ?? null;
@@ -140,6 +164,7 @@ export function RhythmStavePreview({
     drawn.draw();
     renderer.current = drawn;
     layout.current = drawn.noteLayout();
+    exerciseRef.current = exercise;
     /* Grow to hold every line the piece wants, with headroom above the
        first and below the last. Shrink only when a bar leaves. */
     const wantRem = Math.max(
@@ -155,8 +180,8 @@ export function RhythmStavePreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bars, metre, instrumentId, clef, notes, fifths, heightRem]);
 
-  /** The ATTACK nearest the pointer, by distance on the page, or null. */
-  const noteAt = (event: React.PointerEvent<HTMLCanvasElement>) => {
+  /** The ATTACK nearest a page point, by distance, or null. */
+  const hitAt = (clientX: number, clientY: number, radiusSpaces: number) => {
     const canvas = ref.current;
     const map = layout.current;
     if (!canvas || !notes) return null;
@@ -176,73 +201,144 @@ export function RhythmStavePreview({
      * *"I have to click some way to the left of the note"*).
      */
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
     const nearest = map.notes.reduce((best, note) =>
       Math.hypot(note.x - x, note.y - y) < Math.hypot(best.x - x, best.y - y) ? note : best,
     );
-    if (Math.hypot(nearest.x - x, nearest.y - y) > map.staveSpace * 3) return null;
+    if (Math.hypot(nearest.x - x, nearest.y - y) > map.staveSpace * radiusSpaces) return null;
     const attack = attackOf[nearest.index];
     return attack === undefined || attack >= notes.length ? null : { ...nearest, index: attack };
   };
+  const radiusFor = (pointerType: string) =>
+    pointerType === 'touch' ? TOUCH_RADIUS : MOUSE_RADIUS;
+  const noteAt = (event: React.PointerEvent<HTMLCanvasElement>) =>
+    hitAt(event.clientX, event.clientY, radiusFor(event.pointerType));
+
+  /*
+   * The claim: `touch-action: pan-y` lets a finger anywhere on the sheet
+   * scroll it, and the browser would take a NOTE drag the same way —
+   * cancelling our pointer events the moment the pan starts. So a touch
+   * that lands ON a note is claimed here, in a non-passive listener
+   * (React's synthetic events cannot preventDefault a scroll), and the
+   * pointer events then drive the drag; a touch anywhere else is the
+   * browser's, and the page moves under the finger as a page should.
+   */
+  const hitRef = useRef(hitAt);
+  hitRef.current = hitAt;
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas || !onNotes) return;
+    const claim = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (touch && hitRef.current(touch.clientX, touch.clientY, TOUCH_RADIUS)) {
+        event.preventDefault();
+      }
+    };
+    canvas.addEventListener('touchstart', claim, { passive: false });
+    return () => canvas.removeEventListener('touchstart', claim);
+  }, [onNotes]);
 
   const moveTo = (index: number, steps: number) => {
     if (!onNotes || !notes || !notes[index]) return;
     onNotes(notes.map((note, i) => (i === index ? movedNote(note, steps) : note)));
   };
 
+  /* What the callout names: the dragged attack's first notehead, spelled
+     under the lens key — read from the engraved exercise itself, so the
+     bubble and the page cannot disagree about a name. */
+  const calloutText = (() => {
+    if (!callout) return null;
+    const exercise = exerciseRef.current;
+    const noteIndex = attackOf.findIndex((attack) => attack === callout.attack);
+    const pitch = exercise?.notes[noteIndex]?.pitch;
+    return pitch ? formatPitch(pitch) : null;
+  })();
+
   return (
-    <canvas
-      ref={ref}
-      className={`rhythm-editor__stave ${onNotes ? 'is-editable' : ''}`}
-      style={{ height: `${heightRem}rem` }}
-      onPointerDown={(event) => {
-        if (!onNotes || !notes) return;
-        const hit = noteAt(event);
-        onSelect?.(hit ? hit.index : null);
-        if (!hit || !layout.current) return;
-        event.currentTarget.setPointerCapture(event.pointerId);
-        const rect = event.currentTarget.getBoundingClientRect();
-        dragging.current = {
-          index: hit.index,
-          startY: event.clientY - rect.top,
-          startDegree: notes[hit.index].degree - 1 + (notes[hit.index].octave ?? 0) * 7,
-          // Already CSS pixels — the renderer draws under a ratio
-          // transform — so the pointer's travel divides it directly.
-          space: layout.current.staveSpace,
-        };
-      }}
-      onPointerMove={(event) => {
-        const drag = dragging.current;
-        if (!drag) {
-          if (!onNotes) return;
-          // Hover, so the stave says which note the hand is over.
+    <div className="rhythm-editor__staveWrap">
+      <canvas
+        ref={ref}
+        className={`rhythm-editor__stave ${onNotes ? 'is-editable' : ''}`}
+        style={{ height: `${heightRem}rem` }}
+        onPointerDown={(event) => {
+          if (!onNotes || !notes) return;
           const hit = noteAt(event);
-          const index = hit ? hit.index : null;
-          if (hovered.current !== index) {
-            hovered.current = index;
+          onSelect?.(hit ? hit.index : null);
+          if (!hit || !layout.current) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          const rect = event.currentTarget.getBoundingClientRect();
+          dragging.current = {
+            index: hit.index,
+            startY: event.clientY - rect.top,
+            startDegree: notes[hit.index].degree - 1 + (notes[hit.index].octave ?? 0) * 7,
+            // Already CSS pixels — the renderer draws under a ratio
+            // transform — so the pointer's travel divides it directly.
+            space: layout.current.staveSpace,
+          };
+          if (event.pointerType === 'touch') {
+            setCallout({
+              x: event.clientX - rect.left,
+              y: event.clientY - rect.top,
+              attack: hit.index,
+            });
+          }
+        }}
+        onPointerMove={(event) => {
+          const drag = dragging.current;
+          if (!drag) {
+            if (!onNotes) return;
+            // Hover, so the stave says which note the hand is over.
+            const hit = noteAt(event);
+            const index = hit ? hit.index : null;
+            if (hovered.current !== index) {
+              hovered.current = index;
+              renderer.current?.draw();
+            }
+            return;
+          }
+          if (!onNotes || !notes || !notes[drag.index]) return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (event.pointerType === 'touch') {
+            setCallout({
+              x: event.clientX - rect.left,
+              y: event.clientY - rect.top,
+              attack: drag.index,
+            });
+          }
+          const travelled = drag.startY - (event.clientY - rect.top);
+          const steps = Math.round(travelled / (drag.space / 2));
+          const current = notes[drag.index].degree - 1 + (notes[drag.index].octave ?? 0) * 7;
+          const wanted = drag.startDegree + steps;
+          if (wanted === current) return;
+          moveTo(drag.index, wanted - current);
+        }}
+        onPointerUp={() => {
+          dragging.current = null;
+          setCallout(null);
+        }}
+        onPointerCancel={() => {
+          // The browser took the gesture (a pan won): the drag ends where
+          // the note stands, cleanly.
+          dragging.current = null;
+          setCallout(null);
+        }}
+        onPointerLeave={() => {
+          if (hovered.current !== null) {
+            hovered.current = null;
             renderer.current?.draw();
           }
-          return;
-        }
-        if (!onNotes || !notes || !notes[drag.index]) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const travelled = drag.startY - (event.clientY - rect.top);
-        const steps = Math.round(travelled / (drag.space / 2));
-        const current = notes[drag.index].degree - 1 + (notes[drag.index].octave ?? 0) * 7;
-        const wanted = drag.startDegree + steps;
-        if (wanted === current) return;
-        moveTo(drag.index, wanted - current);
-      }}
-      onPointerUp={() => {
-        dragging.current = null;
-      }}
-      onPointerLeave={() => {
-        if (hovered.current !== null) {
-          hovered.current = null;
-          renderer.current?.draw();
-        }
-      }}
-    />
+        }}
+      />
+      {callout && calloutText && (
+        <div
+          className="rhythm-editor__callout"
+          style={{ left: `${callout.x}px`, top: `${callout.y}px` }}
+          aria-hidden="true"
+        >
+          {calloutText}
+        </div>
+      )}
+    </div>
   );
 }

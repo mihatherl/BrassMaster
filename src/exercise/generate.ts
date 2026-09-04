@@ -492,7 +492,19 @@ function rhythmExercise(options: GenerateOptions): Exercise {
 
   const rounds = Math.max(1, options.cycles);
   const PLAYS_PER_ROUND = 2;
-  const statements = 1 + PLAYS_PER_ROUND;
+  /*
+   * The demonstration statement is SKIPPED while the counting voice is
+   * unbuilt (ruled 2026-09-04, from the player's phone: his 8-bar 3/4
+   * pattern opened with eight bars of metronome clicks, a bar-rest
+   * stave and dimmed numbers before the first thing he was asked to
+   * play). The demonstration exists to be HEARD — eye on the notation,
+   * ear on the count — and with no clips it is only waiting, scaled by
+   * the pattern's own length. The machinery below stays whole: set this
+   * to 1 the day the voice's clips exist and rounds regain their
+   * demonstration with something to say.
+   */
+  const DEMONSTRATION_STATEMENTS = 0;
+  const statements = DEMONSTRATION_STATEMENTS + PLAYS_PER_ROUND;
 
   /*
    * Which events are tie continuations, decided once from the pattern in
@@ -520,7 +532,7 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   let attack = 0;
   for (let round = 0; round < rounds; round++) {
     for (let statement = 0; statement < statements; statement++) {
-      const demo = statement === 0;
+      const demo = statement < DEMONSTRATION_STATEMENTS;
       if (demo) demoSpans.push([at, at + patternBeats]);
       /* The printed count, per position at each beat's own level — the one
          emission the preview also uses, offset to this statement. */

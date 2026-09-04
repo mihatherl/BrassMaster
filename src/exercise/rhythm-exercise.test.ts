@@ -38,36 +38,28 @@ function options(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
 }
 
 describe('the rhythm exercise', () => {
-  it('builds rounds of one demonstration and two plays', () => {
-    // One-bar pattern, two rounds: 2 × (1 demo + 2 play) = 6 bars of 4/4.
+  it('builds rounds of plays alone while the counting voice is unbuilt', () => {
+    /*
+     * The demonstration statement is SKIPPED (ruled 2026-09-04, from the
+     * player's phone: his 8-bar pattern opened with eight bars of
+     * metronome and dimmed numbers). The demonstration exists to be
+     * HEARD, and with no recorded clips it is only waiting, scaled by
+     * the pattern's own length — so a run opens on the first ask. One-bar
+     * pattern, two rounds: 2 × 2 plays = 4 bars of 4/4, every bar the
+     * player's.
+     */
     const exercise = generateExercise(options());
-    expect(exercise.totalBeats).toBe(24);
+    expect(exercise.totalBeats).toBe(16);
     expect(exercise.kind).toBe('rhythm');
-    /*
-     * A demonstration is WRITTEN AS RESTS (2026-09-03): through it the
-     * player is silent, so the page says so — greyed notes had read as
-     * the horizon, which means the opposite. Bars 1 and 4 hold no notes.
-     */
-    const inDemo = (beat: number) => (beat >= 0 && beat < 4) || (beat >= 12 && beat < 16);
-    expect(exercise.notes.some((note) => inDemo(note.startBeat))).toBe(false);
-    /*
-     * ONE bar rest per demonstration bar, not the figure's own rests one
-     * for one (2026-09-03): the small rests are the notation of a figure
-     * being read, and a bar where nothing is played says its nothing
-     * once, as a printed part does.
-     */
-    const demoRests = exercise.rests.filter((rest) => inDemo(rest.startBeat));
-    expect(demoRests).toHaveLength(2);
-    expect(demoRests.map((rest) => rest.startBeat)).toEqual([0, 12]);
-    expect(demoRests.every((rest) => rest.duration.value === 'whole')).toBe(true);
-    // Nothing is unplayable any more: there are no demo notes to blank.
+    // No demonstration: every bar holds notes, from the very first beat.
+    expect(exercise.notes.some((note) => note.startBeat < 1)).toBe(true);
     expect(exercise.notes.some(isUnplayable)).toBe(false);
-    // And the four answer bars are marked for the highlight.
+    // And every bar is an answer bar, marked for the highlight.
     expect(exercise.playSpans).toEqual([
+      [0, 4],
       [4, 8],
       [8, 12],
-      [16, 20],
-      [20, 24],
+      [12, 16],
     ]);
   });
 
@@ -78,9 +70,8 @@ describe('the rhythm exercise', () => {
     expect(pair).toHaveLength(2);
     // Adjacent scale letters: a tone or a semitone apart.
     expect(pair[1] - pair[0]).toBeLessThanOrEqual(2);
-    // Strict alternation, restarting from the low note at each ANSWER
-    // statement — the demonstrations hold rests and no notes at all.
-    for (const statement of [1, 2, 4, 5]) {
+    // Strict alternation, restarting from the low note at each statement.
+    for (const statement of [0, 1, 2, 3]) {
       const bar = exercise.notes.filter(
         (note) => note.startBeat >= statement * 4 && note.startBeat < (statement + 1) * 4,
       );
@@ -101,12 +92,12 @@ describe('the rhythm exercise', () => {
       const inside = spans.find(([from, to]) => beat >= from - 1e-9 && beat < to - 1e-9);
       return inside ?? (beat < spans[0][0] ? spans[0] : null);
     };
-    expect(at(-1)).toEqual([4, 8]);
-    expect(at(2)).toEqual([4, 8]);
+    // Before the run it names the first ask; then it follows the playhead.
+    expect(at(-1)).toEqual([0, 4]);
+    expect(at(2)).toEqual([0, 4]);
     expect(at(5)).toEqual([4, 8]);
     expect(at(9)).toEqual([8, 12]);
-    expect(at(13)).toBeNull();
-    expect(at(17)).toEqual([16, 20]);
+    expect(at(14)).toEqual([12, 16]);
   });
 
   it('never alternates onto an open note, on any instrument or clef', () => {
@@ -167,21 +158,21 @@ describe('the rhythm exercise', () => {
       options({ rhythmPatternId: 'waltz-crotchets', metre: metreFor(4, 4) }),
     );
     expect(exercise.metres[0].metre.beatsPerBar).toBe(3);
-    expect(exercise.totalBeats).toBe(2 * 3 * 3);
+    expect(exercise.totalBeats).toBe(2 * 2 * 3);
   });
 
   it('prints the count on its own channel, in the printed forms', () => {
     const exercise = generateExercise(options({ rhythmPatternId: 'dotted-pair', cycles: 1 }));
     const pattern = rhythmPatternById('dotted-pair');
     const spokenWords = syllablesFor(patternEvents(pattern)[0]).filter((s) => s !== null);
-    // Three statements, each counted PER POSITION at its beats' own level:
+    // Two statements, each counted PER POSITION at its beats' own level:
     // the dotted pair reads "1 · 2 & · 3 · 4 &" — bright where an attack
     // speaks, dimmed where the count continues — and "and" prints as "&".
     const first = exercise.syllables!.filter((entry) => entry.atBeat < 4);
     expect(first.map((entry) => `${entry.text}${entry.rest ? '·' : ''}`)).toEqual([
       '1', '2·', '&', '3', '4·', '&',
     ]);
-    expect(exercise.syllables).toHaveLength(first.length * 3);
+    expect(exercise.syllables).toHaveLength(first.length * 2);
     // The voice's share is the unmarked half, and it is the old spoken list.
     const spoken = exercise.syllables!.filter((entry) => !entry.rest).slice(0, spokenWords.length);
     expect(spoken.map((entry) => entry.text)).toEqual(
@@ -216,8 +207,7 @@ describe('the rhythm exercise', () => {
     expect(spoken.length).toBeGreaterThan(0);
     expect(silent.length).toBeGreaterThan(0);
     /* The count describes the PATTERN, so it is identical over every
-       statement — the demonstration prints the same figure it will be
-       played against, which is the teaching. */
+       statement. */
     const answerOnsets = new Set(
       exercise.notes.filter((note) => note.startBeat >= 4).map((note) => note.startBeat),
     );
