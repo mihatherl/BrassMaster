@@ -163,6 +163,56 @@ describe('the rhythm exercise', () => {
     }
   });
 
+  it('rounds through a playlist: every step heard, signatures changing where they must', () => {
+    /*
+     * The multi-select phase (2026-09-04): a run draws its rounds from
+     * steps. Two steps — a bare 4/4 pattern (keyless) and a 3/4 line
+     * written in E flat — must produce a metre change AND a signature
+     * change at the seam, on the renderer's standing apparatus.
+     */
+    const steps = [
+      { pattern: rhythmPatternById('four-crotchets') },
+      {
+        pattern: rhythmPatternById('waltz-crotchets'),
+        cellNotes: [{ degree: 1 }, { degree: 2 }, { degree: 3 }],
+        fifths: -3,
+      },
+    ];
+    const exercise = generateExercise(options({ rhythmSteps: steps, cycles: 2 }));
+    // Two rounds of two plays: 2×4 beats of the first, then 2×3 of the second.
+    expect(exercise.totalBeats).toBe(8 + 6);
+    expect(exercise.metres.map((m) => [m.fromBeat, m.metre.beatsPerBar])).toEqual([
+      [0, 4],
+      [8, 3],
+    ]);
+    expect(exercise.keys).toEqual([
+      { fromBeat: 0, fifths: 0 },
+      { fromBeat: 8, fifths: -3 },
+    ]);
+    // A short length setting cannot silently truncate a playlist.
+    const all = generateExercise(options({ rhythmSteps: steps, cycles: 1 }));
+    expect(all.totalBeats).toBe(8 + 6);
+  });
+
+  it('a medley reorders by seed, the same seed the same way', () => {
+    const steps = [
+      { pattern: rhythmPatternById('four-crotchets') },
+      { pattern: rhythmPatternById('waltz-crotchets') },
+      { pattern: rhythmPatternById('minims') },
+    ];
+    const fingerprint = (seed: number) =>
+      generateExercise(options({ rhythmSteps: steps, rhythmMedley: true, cycles: 3, seed }))
+        .metres.map((m) => `${m.fromBeat}:${m.metre.beatsPerBar}`)
+        .join(' ');
+    expect(fingerprint(1)).toBe(fingerprint(1));
+    // Some seed departs from the listed order (4/4 then 3/4 then 4/4).
+    const listed = generateExercise(options({ rhythmSteps: steps, cycles: 3 }))
+      .metres.map((m) => `${m.fromBeat}:${m.metre.beatsPerBar}`)
+      .join(' ');
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    expect(seeds.some((seed) => fingerprint(seed) !== listed)).toBe(true);
+  });
+
   it('never alternates onto an open note, on any instrument or clef', () => {
     /*
      * The player's catch, 2026-09-03: *"G is open, so doesn't actually

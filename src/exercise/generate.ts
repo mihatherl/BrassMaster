@@ -281,6 +281,21 @@ export interface GenerateOptions {
    * later round plays a shape-preserving variation (`variedLine`).
    */
   varyLine?: boolean;
+  /**
+   * The playlist (the multi-select phase, 2026-09-04): each step a
+   * pattern plus a way of playing it — bare, varied, or a written line
+   * in its own key. Resolved by the caller, because storage is the
+   * app's business; present and non-empty, it replaces the single
+   * selection above.
+   */
+  rhythmSteps?: ReadonlyArray<{
+    pattern: RhythmPattern;
+    cellNotes?: readonly CellNote[];
+    fifths?: number;
+    vary?: boolean;
+  }>;
+  /** Steps in one seeded order per run, rather than as listed. */
+  rhythmMedley?: boolean;
 }
 
 interface Candidate {
@@ -414,12 +429,6 @@ function restsFilling(from: number, beats: number, metre: Metre): Slot[] {
  */
 
 function rhythmExercise(options: GenerateOptions): Exercise {
-  const pattern = options.rhythmPattern ?? rhythmPatternById(options.rhythmPatternId ?? '');
-  const metre = metreFor(pattern.metre[0], pattern.metre[1]);
-  const bars = patternEvents(pattern);
-  const barBeats = metre.barBeats;
-  const patternBeats = bars.length * barBeats;
-
   /*
    * The comfortable pair: two ADJACENT white notes nearest the middle of
    * the written compass, both playable — and **neither of them open**.
@@ -491,8 +500,107 @@ function rhythmExercise(options: GenerateOptions): Exercise {
     }
   }
   if (!pair) throw new Error('No playable adjacent pair for this instrument');
+  const chosenPair = pair;
 
-  const rounds = Math.max(1, options.cycles);
+  const anchorFlat = (midi: number): number => {
+    const letter = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][((midi % 12) + 12) % 12];
+    return Math.floor(midi / 12) * 7 + letter - (options.clef === 'treble' ? 42 : 28);
+  };
+
+  /*
+   * The STEPS the run rounds through (the multi-select phase, ratified
+   * 2026-09-04): each is a pattern plus a way of playing it — bare,
+   * varied, or a written line in its own key. A run with no playlist is
+   * a one-step run of the single selection, which is every run there
+   * was before the playlist existed; nothing else changes shape.
+   */
+  const specs =
+    options.rhythmSteps && options.rhythmSteps.length > 0
+      ? options.rhythmSteps
+      : [
+          {
+            pattern: options.rhythmPattern ?? rhythmPatternById(options.rhythmPatternId ?? ''),
+            cellNotes: options.cellNotes,
+            fifths: options.fifths,
+            vary: options.varyLine,
+          },
+        ];
+
+  const prepared = specs.map((spec) => {
+    const bars = patternEvents(spec.pattern);
+    const metre = metreFor(spec.pattern.metre[0], spec.pattern.metre[1]);
+    /*
+     * Which events are tie continuations, decided once per step in play
+     * order: a tie's far end directly follows its head. The same event
+     * objects recur every statement, so identity is a stable key.
+     */
+    const flatEvents = bars.flat();
+    const continuation = new Set<CellEvent>();
+    for (let i = 1; i < flatEvents.length; i++) {
+      if (
+        flatEvents[i - 1].tied === true &&
+        flatEvents[i - 1].rest !== true &&
+        flatEvents[i].rest !== true
+      ) {
+        continuation.add(flatEvents[i]);
+      }
+    }
+    /* A pattern with a LINE is in a key and prints its signature; a
+       bare rhythm has no key at all — the plan's own constraint — and
+       a varied bare line stays in C, so it prints none either. */
+    const lineFifths = spec.cellNotes ? (spec.fifths ?? 0) : 0;
+    const fitsLine = (line: readonly CellNote[]): boolean =>
+      line.every((note) => {
+        const midi = cellWrittenMidi(note, lineFifths, options.clef);
+        if (midi < low || midi > high) return false;
+        return spec.cellNotes
+          ? isPlayable(soundingFromWritten(midi, options.instrument, options.clef), options.instrument)
+          : valved(midi);
+      });
+    const attackCount = flatEvents.filter(
+      (event) => !event.rest && !continuation.has(event),
+    ).length;
+    /*
+     * The line each round plays, where variation was asked (the player,
+     * 2026-09-04). The seed line is the cell as written, or — for a
+     * bare pattern — the alternating pair itself read back as degrees
+     * of the written-C anchor (both pair notes are white, so the
+     * reading is exact and a step's first hearing plays the very
+     * pitches the plain run would). `variedLine` then varies per USE of
+     * the step, refused by `fits`: compass and fingering always, and
+     * for the bare pair the valved rule too — a variation may not
+     * wander onto an open note the ruling of 2026-09-03 keeps the
+     * default pair off.
+     */
+    const seedLine: readonly CellNote[] | undefined = !spec.vary
+      ? undefined
+      : spec.cellNotes ??
+        Array.from({ length: attackCount }, (_, index) => {
+          const flatDegree = anchorFlat(chosenPair[index % 2]);
+          const note: CellNote = { degree: ((flatDegree % 7) + 7) % 7 + 1 };
+          const octave = Math.floor(flatDegree / 7);
+          if (octave) note.octave = octave;
+          return note;
+        });
+    return {
+      pattern: spec.pattern,
+      cellNotes: spec.cellNotes,
+      bars,
+      metre,
+      barBeats: metre.barBeats,
+      continuation,
+      lineFifths,
+      fitsLine,
+      seedLine,
+    };
+  });
+
+  /*
+   * Every step is heard at least once, however short the run's length
+   * setting: a playlist a player wrote out must not silently truncate,
+   * which is the themes machinery's own lesson restated.
+   */
+  const rounds = Math.max(1, options.cycles, prepared.length);
   const PLAYS_PER_ROUND = 2;
   /*
    * The demonstration statement is SKIPPED while the counting voice is
@@ -509,15 +617,16 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   const statements = DEMONSTRATION_STATEMENTS + PLAYS_PER_ROUND;
 
   /*
-   * Which events are tie continuations, decided once from the pattern in
-   * play order: a tie's far end directly follows its head. The same event
-   * objects recur every statement, so identity is a stable key.
+   * The pass order: as listed, or one seeded permutation reused every
+   * pass (medley) — deterministic, so a run can be regenerated from its
+   * seed exactly.
    */
-  const flat = bars.flat();
-  const continuation = new Set<CellEvent>();
-  for (let i = 1; i < flat.length; i++) {
-    if (flat[i - 1].tied === true && flat[i - 1].rest !== true && flat[i].rest !== true) {
-      continuation.add(flat[i]);
+  const order = prepared.map((_, index) => index);
+  if (options.rhythmMedley && order.length > 1) {
+    const shuffle = createRng(options.seed ^ 0x517c);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = shuffle.int(0, i);
+      [order[i], order[j]] = [order[j], order[i]];
     }
   }
 
@@ -528,92 +637,73 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   /** The bars the player answers in — highlighted, so the ask is unmistakable. */
   const playSpans: Array<[number, number]> = [];
   const syllables: Array<LabelEvent & { rest?: true }> = [];
+  const keys: Array<{ fromBeat: number; fifths: number }> = [];
+  const metreChanges: Array<{ fromBeat: number; metre: ReturnType<typeof metreFor> }> = [];
+  const uses = prepared.map(() => 0);
   let at = 0;
   let side = 0;
   /** Attacks so far, which is how a cell's notes are addressed. */
   let attack = 0;
 
-  /*
-   * The line each round plays, where variation was asked (the player,
-   * 2026-09-04). The seed line is the cell as written, or — for a bare
-   * pattern — the alternating pair itself read back as degrees of the
-   * written-C anchor (both pair notes are white, so the reading is
-   * exact and round 0 plays the very pitches the plain run would).
-   * `variedLine` then varies per round, refused by `fits`: compass and
-   * fingering always, and for the bare pair the valved rule too — a
-   * variation may not wander onto an open note the ruling of 2026-09-03
-   * keeps the default pair off.
-   */
-  const anchorFlat = (midi: number): number => {
-    const letter = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][((midi % 12) + 12) % 12];
-    return Math.floor(midi / 12) * 7 + letter - (options.clef === 'treble' ? 42 : 28);
-  };
-  const [rangeLow, rangeHigh] = writtenRange(options.instrument, options.clef);
-  const lineFifths = options.cellNotes ? options.fifths : 0;
-  const fitsLine = (line: readonly CellNote[]): boolean =>
-    line.every((note) => {
-      const midi = cellWrittenMidi(note, lineFifths, options.clef);
-      if (midi < rangeLow || midi > rangeHigh) return false;
-      return options.cellNotes ? isPlayable(soundingFromWritten(midi, options.instrument, options.clef), options.instrument) : valved(midi);
-    });
-  const attackCount = flat.filter((event) => !event.rest && !continuation.has(event)).length;
-  const seedLine: readonly CellNote[] | undefined = !options.varyLine
-    ? undefined
-    : options.cellNotes ??
-      Array.from({ length: attackCount }, (_, index) => {
-        const flatDegree = anchorFlat(pair[index % 2]);
-        const note: CellNote = { degree: ((flatDegree % 7) + 7) % 7 + 1 };
-        const octave = Math.floor(flatDegree / 7);
-        if (octave) note.octave = octave;
-        return note;
-      });
-
   for (let round = 0; round < rounds; round++) {
-    const roundLine = seedLine
-      ? variedLine(seedLine, round, options.seed, fitsLine)
-      : options.cellNotes;
+    const stepIndex = order[round % order.length];
+    const step = prepared[stepIndex];
+    const use = uses[stepIndex]++;
+    const roundLine = step.seedLine
+      ? variedLine(step.seedLine, use, options.seed + stepIndex * 101, step.fitsLine)
+      : step.cellNotes;
+
+    /* The signature and metre in force, stated where they change — the
+       page apparatus (double bar, restated signatures) is the
+       renderer's standing machinery for exactly this. */
+    if (keys.length === 0 || keys[keys.length - 1].fifths !== step.lineFifths) {
+      keys.push({ fromBeat: at, fifths: step.lineFifths });
+    }
+    const lastMetre = metreChanges[metreChanges.length - 1]?.metre;
+    if (
+      !lastMetre ||
+      lastMetre.beatsPerBar !== step.metre.beatsPerBar ||
+      lastMetre.beatUnit !== step.metre.beatUnit
+    ) {
+      metreChanges.push({ fromBeat: at, metre: step.metre });
+    }
+
     for (let statement = 0; statement < statements; statement++) {
       const demo = statement < DEMONSTRATION_STATEMENTS;
-      if (demo) demoSpans.push([at, at + patternBeats]);
+      if (demo) demoSpans.push([at, at + step.bars.length * step.barBeats]);
       /* The printed count, per position at each beat's own level — the one
          emission the preview also uses, offset to this statement. */
-      for (const entry of syllablesForBars(pattern.bars, pattern.metre)) {
+      for (const entry of syllablesForBars(step.pattern.bars, step.pattern.metre)) {
         syllables.push({ ...entry, atBeat: at + entry.atBeat });
       }
       /* The alternation restarts each statement, so every play answers the
          demonstration it just heard, note for note. */
       side = 0;
       attack = 0;
-      for (const bar of bars) {
+      for (const bar of step.bars) {
         let barBeat = 0;
         for (const event of bar) {
           const duration = durationFromBeats(event.beats);
-          if (!duration) throw new Error(`unwritable duration in ${pattern.id}`);
+          if (!duration) throw new Error(`unwritable duration in ${step.pattern.id}`);
           /*
            * A demonstration bar is written as RESTS (ruled 2026-09-03,
            * the player: greyed notes read as the horizon, which means
            * "optional, play on if you like" — the opposite of "listen,
            * do not play"). Rests are not a display trick: through the
            * demonstration the player IS silent, and the page should say
-           * what it means. The count above still shows the whole figure,
-           * so the eye reads the rhythm while the ear hears it — which
-           * is the teaching this mode exists for.
+           * what it means.
            */
           if (event.rest && !demo) {
             slots.push({ startBeat: at + barBeat, duration, isRest: true, tiedFromPrevious: false });
           } else if (!demo) {
-            const tiedFromPrevious = continuation.has(event);
+            const tiedFromPrevious = step.continuation.has(event);
             slots.push({ startBeat: at + barBeat, duration, isRest: false, tiedFromPrevious });
             if (!tiedFromPrevious) {
-              /*
-               * A cell's own line where one was chosen, else the
-               * alternating pair. The line is degrees of the key in
-               * force, placed near the register the pair sits in, so a
-               * pattern reads where the eye already is.
-               */
               const cellNote = roundLine?.[attack];
               pitches.push(
-                cellNote ? cellSlotPitch(cellNote, lineFifths, options.clef) : pair[side],
+                cellNote
+                  ? cellSlotPitch(cellNote, step.lineFifths, options.clef)
+                  : chosenPair[side],
               );
               attack++;
               side = 1 - side;
@@ -623,20 +713,18 @@ function rhythmExercise(options: GenerateOptions): Exercise {
         }
         /*
          * A demonstration bar is ONE bar rest, not the pattern's own
-         * rests one for one (the player, 2026-09-03). The small rests
-         * are the figure's own notation and belong in the bars he is
-         * reading; in a bar where nothing is to be played they are eight
-         * marks saying the same nothing, and a bar rest says it once —
-         * which is how a part prints a silent bar.
+         * rests one for one (the player, 2026-09-03): a bar where
+         * nothing is to be played says its nothing once, as a printed
+         * part does.
          */
         if (demo) {
-          const barRest = durationFromBeats(barBeats);
-          if (!barRest) throw new Error(`unwritable bar length ${barBeats}`);
+          const barRest = durationFromBeats(step.barBeats);
+          if (!barRest) throw new Error(`unwritable bar length ${step.barBeats}`);
           slots.push({ startBeat: at, duration: barRest, isRest: true, tiedFromPrevious: false });
         } else {
-          playSpans.push([at, at + barBeats]);
+          playSpans.push([at, at + step.barBeats]);
         }
-        at += barBeats;
+        at += step.barBeats;
       }
     }
   }
@@ -645,16 +733,8 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   const exercise = assembleExercise(slots, pitches, {
     instrument: options.instrument,
     clef: options.clef,
-    /*
-     * A pattern with a LINE on it is in a key and prints its signature;
-     * a bare rhythm has no key at all and prints none, which is the
-     * plan's own constraint (no key, no key set) and keeps every eye on
-     * the rhythm. Before this, a line was placed for the chosen key and
-     * then spelled against C — so an E flat pattern came out under a
-     * blank signature covered in sharps.
-     */
-    keys: [{ fromBeat: 0, fifths: options.cellNotes ? options.fifths : 0 }],
-    metres: [{ fromBeat: 0, metre }],
+    keys,
+    metres: metreChanges,
     totalBeats,
     chosenBeats: totalBeats,
     seed: options.seed,
