@@ -26,6 +26,8 @@ import {
   movedNote,
   rewrittenIn,
   variedLine,
+  VARIATION_CRITICS,
+  VARIATION_TRANSFORMS,
   walkSteps,
   randomNotesFor,
   reconcileNotes,
@@ -638,35 +640,69 @@ describe('variations — shape held, notes moved (2026-09-04)', () => {
    * tail displacement, all interval-preserving by construction, with
    * tonic anchors held where the original had them.
    */
-  const flat = (note: { degree: number; octave?: number }) =>
-    note.degree - 1 + (note.octave ?? 0) * 7;
-  const intervals = (line: ReadonlyArray<{ degree: number; octave?: number }>) =>
-    line.slice(1).map((note, i) => flat(note) - flat(line[i]));
-
   it('round zero is the original itself: theme first, then variations', () => {
     const line = [{ degree: 3 }, { degree: 4 }, { degree: 5 }];
     expect(variedLine(line, 0, 9, () => true)).toEqual(line);
   });
 
-  it('varies, deterministically, and preserves the interval fabric up to inversion', () => {
+  it('varies, and the same seed varies the same way', () => {
     const line = [{ degree: 3 }, { degree: 4 }, { degree: 5 }, { degree: 2 }];
     const varied = variedLine(line, 1, 9, () => true);
     expect(varied).not.toEqual(line);
     expect(variedLine(line, 1, 9, () => true)).toEqual(varied);
-    /* Steps stay steps and leaps stay leaps at every joint except a
-       displaced tail's seam: each interval matches the original's size,
-       or its size shifted by the octave/fifth a tail-push adds. */
-    const original = intervals(line);
-    const after = intervals(varied);
-    after.forEach((interval, i) => {
-      const size = Math.abs(original[i]);
-      expect(
-        [size, Math.abs(size - 7), size + 7, Math.abs(size - 4), size + 4].includes(
-          Math.abs(interval),
-        ),
-        `interval ${i}: ${interval} from ${original[i]}`,
-      ).toBe(true);
-    });
+  });
+
+  it('every transform respects the shape its name claims', () => {
+    /*
+     * The pluggable registry, each entry pinned by its own invariant —
+     * which is the point of naming them: a transform is testable alone,
+     * and a new rung of the theory ladder is a new entry, not a new
+     * engine.
+     */
+    const theme = [{ flat: 0 }, { flat: 4 }, { flat: 3 }, { flat: 1 }];
+    const gaps = (line: ReadonlyArray<{ flat: number }>) =>
+      line.slice(1).map((note, i) => note.flat - line[i].flat);
+    const rng = () => {
+      let n = 0;
+      const f = (() => (n = (n + 1) % 7, n / 7)) as never as import('./rng').Rng;
+      (f as { int: unknown }).int = (lo: number, hi: number) => lo + ((++n) % (hi - lo + 1));
+      (f as { pick: unknown }).pick = <T,>(items: readonly T[]) => items[(++n) % items.length];
+      return f;
+    };
+    const by = Object.fromEntries(VARIATION_TRANSFORMS.map((t) => [t.id, t]));
+
+    // Transposition: every interval survives exactly.
+    expect(gaps(by.transpose.apply(theme, rng()))).toEqual(gaps(theme));
+    // Inversion: every interval negates, about the opening note.
+    const inverted = by.invert.apply(theme, rng());
+    expect(inverted[0].flat).toBe(theme[0].flat);
+    expect(gaps(inverted)).toEqual(gaps(theme).map((gap) => -gap));
+    // Retrograde: the notes in reverse, alterations riding their notes.
+    const altered = [{ flat: 0 }, { flat: 2, alter: 1 as const }, { flat: 4 }];
+    expect(by.retrograde.apply(altered, rng())).toEqual([...altered].reverse());
+    // Rotation: the same notes, cycled — the isorhythmicists' colour.
+    const rotated = by.rotate.apply(altered, rng());
+    expect([...rotated].sort((a, b) => a.flat - b.flat)).toEqual(altered);
+    expect(rotated).not.toEqual(altered);
+    // Tail shift: exactly one interval changes, by an octave or a fifth.
+    const shifted = by['tail-shift'].apply(theme, rng());
+    const changed = gaps(shifted)
+      .map((gap, i) => gap - gaps(theme)[i])
+      .filter((difference) => difference !== 0);
+    expect(changed).toHaveLength(1);
+    expect([4, 7]).toContain(Math.abs(changed[0]));
+  });
+
+  it('the critics judge relative to the theme, never absolutely', () => {
+    // A tenth-leaping theme is authored music, not a fault: a candidate
+    // no worse than its theme stands, however a purist would scowl.
+    const wild = [{ flat: 0 }, { flat: 9 }, { flat: 1 }];
+    for (const critic of VARIATION_CRITICS) {
+      expect(critic.accepts(wild, wild), critic.id).toBe(true);
+    }
+    // But a candidate that sprawls beyond its theme is refused.
+    const span = VARIATION_CRITICS.find((critic) => critic.id === 'span')!;
+    expect(span.accepts([{ flat: 0 }, { flat: 12 }], [{ flat: 0 }, { flat: 2 }])).toBe(false);
   });
 
   it('keeps a tonic anchor where the original had one', () => {

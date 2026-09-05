@@ -24,7 +24,7 @@ import { parseCell, type CellEvent } from './cells';
 import type { Theme, ThemeEvent } from './theme';
 import { MAJOR_SCALE, spellWithLetter, tonicPitchClass } from '../domain/keys';
 import { diatonicStep, LETTERS } from '../domain/pitch';
-import { createRng } from './rng';
+import { createRng, type Rng } from './rng';
 import { assembleExercise, type Slot, type SlotPitch } from './assemble';
 import { durationFromBeats } from '../domain/rhythm';
 import { metreFor } from '../domain/metre';
@@ -1029,46 +1029,173 @@ export function movedNote(note: CellNote, steps: number): CellNote {
  * valved-pair rule) are passed over in seeded order; a line with no
  * playable variation falls back to the original, which always fit.
  */
+/**
+ * One note as the variation framework carries it: the diatonic FLAT
+ * (degree − 1 + 7·octave) with its alteration RIDING THE NOTE — not the
+ * position — because rotation and retrograde permute the line, and a
+ * sharp belongs to the note it inflects wherever that note lands.
+ */
+export interface VariedNote {
+  flat: number;
+  alter?: -1 | 1;
+}
+
+/**
+ * A variation transform: one named, seeded, shape-respecting move. The
+ * registry below is the engine's whole vocabulary — a new trick (the
+ * theory ladder's structural-skeleton and harmonic-frame rungs, a
+ * contour resampler) is a new entry here, never a new engine.
+ */
+export interface VariationTransform {
+  id: string;
+  /** Whether the transform has anything to say about this theme. */
+  applies?: (theme: readonly VariedNote[]) => boolean;
+  apply: (theme: readonly VariedNote[], rng: Rng) => VariedNote[];
+}
+
+/**
+ * The vocabulary (2026-09-04, from the theory pass the player ratified):
+ * the serial group T/I/R, the isorhythmicists' colour rotation — the
+ * talea held, the colour cycled, which is this mode's true ancestry —
+ * and the tail displacement of his own first three tricks.
+ */
+export const VARIATION_TRANSFORMS: readonly VariationTransform[] = [
+  {
+    id: 'transpose',
+    apply: (theme, rng) => {
+      const offset = rng.int(-4, 4);
+      return theme.map((note) => ({ ...note, flat: note.flat + offset }));
+    },
+  },
+  {
+    id: 'invert',
+    apply: (theme) => theme.map((note) => ({ ...note, flat: theme[0].flat - (note.flat - theme[0].flat) })),
+  },
+  {
+    id: 'retrograde',
+    applies: (theme) => theme.length > 2,
+    apply: (theme) => [...theme].reverse(),
+  },
+  {
+    id: 'rotate',
+    applies: (theme) => theme.length > 2,
+    apply: (theme, rng) => {
+      const by = rng.int(1, theme.length - 1);
+      return theme.map((_, index) => theme[(index + by) % theme.length]);
+    },
+  },
+  {
+    id: 'tail-shift',
+    applies: (theme) => theme.length > 2,
+    apply: (theme, rng) => {
+      const from = rng.int(1, theme.length - 1);
+      const by = rng.pick([7, -7, 4, -4]);
+      return theme.map((note, index) => (index >= from ? { ...note, flat: note.flat + by } : note));
+    },
+  },
+];
+
+/**
+ * A variation critic: may the candidate stand beside its theme? Judged
+ * RELATIVE to the theme, deliberately — authored music may already leap
+ * wildly or sprawl, and a critic that would refuse the theme itself has
+ * no standing against its variations. The counterpoint tradition's
+ * melodic hygiene, as filters: generators propose, critics refuse, the
+ * same architecture the fitness predicate already gave the engine.
+ */
+export interface VariationCritic {
+  id: string;
+  accepts: (candidate: readonly VariedNote[], theme: readonly VariedNote[]) => boolean;
+}
+
+const leapFaults = (line: readonly VariedNote[]): number => {
+  let faults = 0;
+  for (let i = 1; i < line.length; i++) {
+    const leap = line[i].flat - line[i - 1].flat;
+    if (Math.abs(leap) < 3) continue;
+    const next = i + 1 < line.length ? line[i + 1].flat - line[i].flat : undefined;
+    // A leap wants recovering by step the other way.
+    if (next === undefined || Math.abs(next) > 1 || next * leap > 0) faults++;
+  }
+  return faults;
+};
+const lineSpan = (line: readonly VariedNote[]): number =>
+  Math.max(...line.map((n) => n.flat)) - Math.min(...line.map((n) => n.flat));
+const peaks = (line: readonly VariedNote[]): number =>
+  line.filter(
+    (note, i) =>
+      i > 0 && i < line.length - 1 && note.flat > line[i - 1].flat && note.flat > line[i + 1].flat,
+  ).length;
+
+export const VARIATION_CRITICS: readonly VariationCritic[] = [
+  { id: 'leap-recovery', accepts: (c, t) => leapFaults(c) <= leapFaults(t) },
+  { id: 'span', accepts: (c, t) => lineSpan(c) <= lineSpan(t) + 2 },
+  { id: 'one-climax', accepts: (c, t) => peaks(c) <= peaks(t) + 1 },
+];
+
+/** What the engine may be assembled from — every part defaulted, every
+    part replaceable, which is the "big and pluggable" the player asked
+    for (2026-09-04). */
+export interface VariationConfig {
+  transforms?: readonly VariationTransform[];
+  critics?: readonly VariationCritic[];
+  /** Transforms composed per candidate: 1 to `depth`, seeded. */
+  depth?: number;
+}
+
 export function variedLine(
   original: readonly CellNote[],
   round: number,
   seed: number,
   fits: (line: readonly CellNote[]) => boolean,
+  config: VariationConfig = {},
 ): CellNote[] {
   if (round === 0 || original.length === 0) return [...original];
+  const transforms = config.transforms ?? VARIATION_TRANSFORMS;
+  const critics = config.critics ?? VARIATION_CRITICS;
+  const depth = config.depth ?? 2;
   const rng = createRng(seed * 31 + round * 7919);
-  const flats = original.map((note) => note.degree - 1 + (note.octave ?? 0) * 7);
-  const anchoredStart = original[0].degree === 1 && !original[0].alter;
-  const anchoredEnd =
-    original[original.length - 1].degree === 1 && !original[original.length - 1].alter;
 
-  const build = (offset: number, invert: boolean, tailFrom: number, tailBy: number): CellNote[] => {
-    const first = flats[0];
-    const moved = flats.map((flat, index) => {
-      const shaped = invert ? first - (flat - first) : flat;
-      return shaped + offset + (index >= tailFrom ? tailBy : 0);
-    });
-    if (anchoredStart) moved[0] = Math.round(moved[0] / 7) * 7;
-    if (anchoredEnd) moved[moved.length - 1] = Math.round(moved[moved.length - 1] / 7) * 7;
-    return moved.map((flat, index) => {
-      const note: CellNote = { degree: ((flat % 7) + 7) % 7 + 1 };
-      if (original[index].alter) note.alter = original[index].alter;
-      const octave = Math.floor(flat / 7);
+  const theme: VariedNote[] = original.map((note) => ({
+    flat: note.degree - 1 + (note.octave ?? 0) * 7,
+    ...(note.alter ? { alter: note.alter } : {}),
+  }));
+  /* The tonic anchors, held as an engine invariant for now; the
+     structural-skeleton rung generalises this into a pluggable
+     "preserve these notes" constraint when it is built. */
+  const anchoredStart = theme[0].flat % 7 === 0 && !theme[0].alter;
+  const anchoredEnd =
+    theme[theme.length - 1].flat % 7 === 0 && !theme[theme.length - 1].alter;
+
+  const toCells = (line: readonly VariedNote[]): CellNote[] =>
+    line.map((varied) => {
+      const note: CellNote = { degree: ((varied.flat % 7) + 7) % 7 + 1 };
+      if (varied.alter) note.alter = varied.alter;
+      const octave = Math.floor(varied.flat / 7);
       if (octave) note.octave = octave;
       return note;
     });
-  };
 
-  for (let attempt = 0; attempt < 24; attempt++) {
-    const offset = Math.floor(rng() * 9) - 4;
-    const invert = rng() < 0.35;
-    const displace = original.length > 2 && rng() < 0.3;
-    const tailFrom = displace ? 1 + Math.floor(rng() * (original.length - 1)) : original.length;
-    const tailBy = displace ? [7, -7, 4, -4][Math.floor(rng() * 4)] : 0;
-    // The original restated unchanged is not a variation.
-    if (offset === 0 && !invert && !displace) continue;
-    const candidate = build(offset, invert, tailFrom, tailBy);
-    if (fits(candidate)) return candidate;
+  for (let attempt = 0; attempt < 32; attempt++) {
+    let candidate: VariedNote[] = theme;
+    const steps = rng.int(1, depth);
+    for (let step = 0; step < steps; step++) {
+      const usable = transforms.filter((t) => t.applies?.(candidate) ?? true);
+      if (usable.length === 0) break;
+      candidate = rng.pick(usable).apply(candidate, rng);
+    }
+    const anchored = candidate.map((varied, index) => {
+      if (index === 0 && anchoredStart)
+        return { ...varied, flat: Math.round(varied.flat / 7) * 7 };
+      if (index === candidate.length - 1 && anchoredEnd)
+        return { ...varied, flat: Math.round(varied.flat / 7) * 7 };
+      return varied;
+    });
+    // The theme restated unchanged is not a variation.
+    if (anchored.every((varied, index) => varied.flat === theme[index].flat)) continue;
+    if (!critics.every((critic) => critic.accepts(anchored, theme))) continue;
+    const cells = toCells(anchored);
+    if (fits(cells)) return cells;
   }
   return [...original];
 }

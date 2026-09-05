@@ -1017,6 +1017,31 @@ compass, fingering, and for bare lines the valved rule, so no
 variation wanders onto an open note. Pinned by interval-fabric,
 tonic-anchor, determinism and every-instrument valved tests.
 
+**1b. The variation FRAMEWORK (ratified and built 2026-09-04, on his
+word: "designed extensively to allow for future improvements… a big
+and pluggable piece of work").** The engine reduced to a small loop
+over two registries: **transforms** (`VARIATION_TRANSFORMS` — named,
+seeded, individually tested shape-moves) propose, **critics**
+(`VARIATION_CRITICS` — melodic hygiene judged RELATIVE to the theme,
+because authored music may already leap wildly and a critic that would
+refuse the theme has no standing against its variations) refuse, the
+caller's fitness refuses harder, and candidates compose one or two
+transforms deep. Notes travel as (flat, alteration) pairs so a sharp
+rides its note through permutations. Built into the registries from
+the theory pass: the serial group's **retrograde**, and **rotation** —
+the isorhythmicists' colour cycled against the held talea, which is
+this mode's true ancestry — beside his original three. Critics v1:
+leap-recovery, span, one-climax. The future rungs are plugin points,
+not rewrites: the **structural-skeleton** rung (the diminution
+tradition: classify structural vs ornamental, hold the skeleton,
+regenerate the ornament — generalising today's tonic-anchor invariant
+into a pluggable preserve-list), the **harmonic frame** (variations as
+new melodies over the theme's implied harmony, the Goldberg model, the
+serious rung — held until his ear has judged the cheap ones), and a
+**contour resampler** (Dowling/Morris: hold the up/down sign pattern,
+resample interval sizes). Each is a registry entry plus, at most, one
+new config field.
+
 **2. Multi-select, themes-shaped — NEXT.** A pool playable as a
 medley plus a defined playlist, mirroring `themeSteps`; **a step is a
 pattern plus a way of playing it** (bare / varied / a named cell) and
