@@ -16,7 +16,7 @@ import { realiseTheme, type Theme } from '../exercise/theme';
 import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
-import { EXERCISE_KINDS } from '../exercise/types';
+import { EXERCISE_KINDS, READING_KINDS, isReadingKind } from '../exercise/types';
 import {
   type AuthoredCell,
   cellFitsKeys,
@@ -509,6 +509,25 @@ export function SettingsScreen({
 
   // What the chosen tab is, for the blurb line beneath the tabs.
   const material = EXERCISE_KINDS.find((k) => k.id === settings.kind)!;
+  /*
+   * The Reading tab holds every reading material (reading-tab-plan.md,
+   * 2026-09-05); Drills stands alone. Tapping Reading from Drills returns to
+   * whichever reading material was open last — remembered for the life of
+   * this screen, and Phrases before anything was.
+   */
+  const reading = isReadingKind(settings.kind);
+  const lastReading = useRef<ExerciseKind>('phrases');
+  useEffect(() => {
+    if (reading) lastReading.current = settings.kind;
+  }, [reading, settings.kind]);
+  /** A slot that is never absent: the control's place, holding the reason
+      instead when the material has already answered. */
+  const slot = (label: StringKey, why: StringKey) => (
+    <div className="field field--slot">
+      <span className="field__label">{t(label)}</span>
+      <span className="field__note muted">{t(why)}</span>
+    </div>
+  );
   /* The rhythm tool's sheet, and a counter that re-reads the player's own
      shelf after a save — the store is the truth, this only asks again. */
   const [rhythmEditing, setRhythmEditing] = useState<RhythmPattern | null | 'closed'>('closed');
@@ -1470,26 +1489,66 @@ export function SettingsScreen({
           not configured in place — so its tab navigates rather than selects,
           and never shows as the current one.
         */}
-        <div className="mode-tabs">
+        {/*
+          Three tabs since 2026-09-05 (reading-tab-plan.md): Reading holds
+          every material that is music to read, with a What row beneath it
+          naming which; Drills and My Music stand alone. The five tabs had
+          become a row of two-line buttons hiding one hierarchy behind two —
+          the player: "a bamboozlement of modes and selections".
+
+          Sticky is the LOWEST level: the What row under Reading, the tab
+          strip under Drills, where the tab is the lowest level there is.
+        */}
+        <div className={`mode-tabs ${reading ? '' : 'mode-tabs--sticky'}`}>
+          <button
+            type="button"
+            className={`mode-tab ${reading ? 'is-selected' : ''}`}
+            aria-pressed={reading}
+            onClick={() => {
+              if (!reading) onChange(switchMaterial(settings, lastReading.current));
+            }}
+          >
+            <strong>{t('home.reading')}</strong>
+          </button>
+          <button
+            type="button"
+            className={`mode-tab ${settings.kind === 'drills' ? 'is-selected' : ''}`}
+            aria-pressed={settings.kind === 'drills'}
+            // Each material brings its own key and difficulty with it;
+            // see `switchMaterial`.
+            onClick={() => onChange(switchMaterial(settings, 'drills'))}
+          >
+            <strong>{t('kind.drills')}</strong>
+          </button>
           {onImport && (
             <button type="button" className="mode-tab" onClick={onImport}>
               <strong>{t('home.myMusic')}</strong>
             </button>
           )}
-          {EXERCISE_KINDS.map((kind) => (
-            <button
-              key={kind.id}
-              type="button"
-              className={`mode-tab ${settings.kind === kind.id ? 'is-selected' : ''}`}
-              aria-pressed={settings.kind === kind.id}
-              // Each material brings its own key and difficulty with it;
-              // see `switchMaterial`.
-              onClick={() => onChange(switchMaterial(settings, kind.id as ExerciseKind))}
-            >
-              <strong>{t(`kind.${kind.id}` as StringKey)}</strong>
-            </button>
-          ))}
         </div>
+
+        {reading && (
+          <>
+            {/* The label sits above the sticky row on purpose: it reads
+                "What" at rest and scrolls away once the row is pinned. */}
+            <span className="field__label">{t('home.what')}</span>
+            <div className="what-row">
+              <div className="segmented segmented--row">
+                {READING_KINDS.map((kind) => (
+                  <button
+                    key={kind.id}
+                    type="button"
+                    className={`segmented__option ${settings.kind === kind.id ? 'is-selected' : ''}`}
+                    aria-pressed={settings.kind === kind.id}
+                    onClick={() => onChange(switchMaterial(settings, kind.id))}
+                  >
+                    {t(`kind.${kind.id}` as StringKey)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <p className="muted mode-blurb">{t(`kind.${material.id}.blurb` as StringKey)}</p>
 
@@ -1505,24 +1564,36 @@ export function SettingsScreen({
           {/* Where the tunes come from is what this tab *is*, so it sits
               where the drill does and above what qualifies it. */}
           {settings.kind === 'themes' && sourceField}
-          {/* A defined run's keys live on its steps, nominated in the picker
-              tune by tune — the grid here would be a second control saying
-              less than the first. The same statement the missing
-              time-signature control makes for a collection: the material has
-              already answered. */}
-          {!(settings.kind === 'themes' && defined) && settings.kind !== 'rhythm' && keysField}
-          {settings.kind !== 'rhythm' && difficultyField}
+          {/* The playlist, directly under the browse that fills it. */}
+          {settings.kind === 'themes' && selectionField}
+          {/*
+            Below the source box the order is the same for every reading
+            material — Keys, Difficulty, Time signature — and a slot is never
+            absent (reading-tab-plan.md): where the material has already
+            answered, the same place holds one line saying so. A defined
+            run's keys live on its steps, nominated in the picker tune by
+            tune; its difficulty is whatever those tunes are; a collection's
+            tunes each play in their own signature; a rhythm pattern is
+            graded by its stage.
+          */}
+          {settings.kind === 'themes' && defined
+            ? slot('home.keys', 'home.keysByPlaylist')
+            : settings.kind !== 'rhythm' && keysField}
+          {settings.kind === 'rhythm'
+            ? slot('home.difficulty', 'rhythm.levelByStage')
+            : settings.kind === 'themes' && defined
+              ? slot('home.difficulty', 'home.levelByPlaylist')
+              : difficultyField}
           {/* A scale is a shape played against a click rather than a piece
               with a metre, so it is always four-four and asks instead which
-              end of the horn to sit at. A collection asks nothing: each tune
-              plays in its own signature, and the control it gets instead is
-              which tunes. */}
+              end of the horn to sit at. A rhythm pattern's signature is the
+              filter at the head of its box. */}
           {isPattern(settings.kind)
             ? registerField
             : settings.kind === 'rhythm'
               ? null
               : settings.kind === 'themes' && chosenIds.length > 0
-                ? selectionField
+                ? slot('home.timeSignature', 'home.timeFollowsTune')
                 : timeSignatureField}
           {/* The pool free material is drawn from. A pattern is placed by its
               tonic and a theme is written already, so neither has a pool to

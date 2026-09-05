@@ -1418,7 +1418,15 @@ that engages with the reason recorded here.
   progress shared with a tutor. A different product.
 - **A score reader or navigator.** Import unfolds repeats into a straight read;
   scanning is not this app's problem.
-- **A notation editor.** Correction belongs in MuseScore.
+- **A score editor.** Correction of a score belongs in MuseScore. **Amended
+  2026-09-05:** this line used to say "a notation editor", and by then the
+  app had one — the passage editor built inside the rhythm workshop, which
+  the player ruled is exactly what the app is for: *"I'm someone who has
+  always struggled a lot with MuseScore. I think we have come up with a
+  really simple and fit-for-purpose passage editor which really fits the
+  bill for what this app is really all about."* A passage editor, not a
+  score editor: eight bars written on a phone in a band hall, never a part
+  corrected on a laptop. See `reading-tab-plan.md`.
 - **~~Android natively.~~ Moved onto the roadmap 2026-08-22, and it now goes
   *first* — see Phase 4.** The 2026-08-19 reasoning was that the PWA already
   serves Android, that Google closes dormant accounts and that Play does not

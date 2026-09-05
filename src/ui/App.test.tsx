@@ -108,7 +108,8 @@ describe('the app', () => {
     // the material as the open box, and how-the-run-goes on the Ready gate's
     // own lines (asserted with the gate's tests).
     expect(screen.getByRole('button', { name: 'Eb Bass · Treble' })).toBeTruthy();
-    expect(document.querySelector('.mode-tab.is-selected strong')?.textContent).toBe('Sight-reading');
+    expect(document.querySelector('.mode-tab.is-selected strong')?.textContent).toBe('Reading');
+    expect(document.querySelector('.what-row .is-selected')?.textContent).toBe('Phrases');
     // And the pinned strip carries the version, so a stale cached copy
     // announces itself on the first screen.
     expect(screen.getByText(/corpus \d+/)).toBeTruthy();
@@ -214,9 +215,14 @@ describe('the app', () => {
     fireEvent.click(screen.getByRole('button', { name: '2 oct · mixed' }));
     const drillsPair = pair();
 
-    // Themes carries the pair over the first time, and is then given its own.
-    fireEvent.click(screen.getByRole('button', { name: /Themes/ }));
-    expect(pair()).toEqual(drillsPair);
+    // One level down since 2026-09-05: Reading first, which lands on Phrases
+    // (the material open before Drills, with its own pair back); then Tunes,
+    // which carries THAT pair over the first time and is then given its own.
+    fireEvent.click(screen.getByRole('button', { name: /Reading/ }));
+    const phrasesPair = pair();
+    expect(phrasesPair, 'Phrases has its own pair back').not.toEqual(drillsPair);
+    fireEvent.click(screen.getByRole('button', { name: /Tunes/ }));
+    expect(pair()).toEqual(phrasesPair);
     fireEvent.click(screen.getByRole('button', { name: 'Bb major, 2 flats' }));
     fireEvent.click(screen.getByRole('button', { name: 'D major, 2 sharps' }));
     fireEvent.click(screen.getByRole('button', { name: 'Beginner' }));
@@ -226,7 +232,8 @@ describe('the app', () => {
     // Back to Drills: D and two octaves, exactly as left; and Themes keeps its own.
     fireEvent.click(screen.getByRole('button', { name: /Drills/ }));
     expect(pair()).toEqual(drillsPair);
-    fireEvent.click(screen.getByRole('button', { name: /Themes/ }));
+    // Reading remembers Tunes was the material open last.
+    fireEvent.click(screen.getByRole('button', { name: /Reading/ }));
     expect(pair()).toEqual(themesPair);
 
     // And it survives a reload.
@@ -305,6 +312,8 @@ describe('the app', () => {
      * choice, never none, only the fields that apply.
      */
     const chosenTab = () => document.querySelector('.mode-tab.is-selected strong')?.textContent;
+    /* The What row under Reading: which reading material is open. */
+    const chosenWhat = () => document.querySelector('.what-row .is-selected')?.textContent;
     const fieldsShown = () =>
       Array.from(document.querySelectorAll('.mode__body > .field .field__label, .mode__body > label.field .field__label')).map(
         (label) => label.textContent?.trim(),
@@ -317,12 +326,39 @@ describe('the app', () => {
     it('marks exactly one tab, and it is the material chosen', () => {
       renderApp();
 
-      expect(chosenTab(), 'the stored default').toBe('Sight-reading');
+      // Three tabs since 2026-09-05: Reading holds the reading materials and
+      // names the open one on its What row; Drills stands alone.
+      expect(chosenTab(), 'the stored default').toBe('Reading');
+      expect(chosenWhat()).toBe('Phrases');
       expect(document.querySelectorAll('.mode-tab.is-selected')).toHaveLength(1);
 
-      choose(/Themes/);
-      expect(chosenTab()).toBe('Themes');
-      expect(document.querySelectorAll('.mode-tab.is-selected'), 'the last one unmarked').toHaveLength(1);
+      choose(/Tunes/);
+      expect(chosenTab(), 'still the Reading tab').toBe('Reading');
+      expect(chosenWhat()).toBe('Tunes');
+      expect(document.querySelectorAll('.what-row .is-selected'), 'the last one unmarked').toHaveLength(1);
+      expect(document.querySelectorAll('.mode-tab.is-selected')).toHaveLength(1);
+    });
+
+    it('returns from Drills to the reading material that was open last', () => {
+      renderApp();
+
+      choose(/Tunes/);
+      choose(/Drills/);
+      expect(chosenTab()).toBe('Drills');
+      expect(document.querySelector('.what-row'), 'no What row under Drills').toBeNull();
+
+      choose(/Reading/);
+      expect(chosenWhat()).toBe('Tunes');
+    });
+
+    it('pins the lowest level: the What row under Reading, the tabs under Drills', () => {
+      renderApp();
+
+      expect(document.querySelector('.mode-tabs')?.classList.contains('mode-tabs--sticky')).toBe(false);
+      expect(document.querySelector('.what-row')).not.toBeNull();
+
+      choose(/Drills/);
+      expect(document.querySelector('.mode-tabs')?.classList.contains('mode-tabs--sticky')).toBe(true);
     });
 
     it('will not unmark the chosen tab, since an exercise has to be made of something', () => {
@@ -347,25 +383,49 @@ describe('the app', () => {
 
       // Free material is the one thing drawn from a pool, so it is the one
       // thing that asks what the pool is.
-      choose(/Sight-reading/);
+      // From Drills the reading materials are one level down: the Reading
+      // tab first, then the What row.
+      choose(/Reading/);
+      choose(/Phrases/);
       expect(fieldsShown()).toEqual(['Keys', 'Difficulty', 'Time signature']);
       expect(hasRange(), 'and it is the only one that asks').toBe(true);
 
       // A theme is written already: neither a register nor a range to ask
       // about. It does ask where the tunes come from, which is what the tab
       // *is*, so it leads the way the drill does.
-      choose(/Themes/);
+      choose(/Tunes/);
       expect(fieldsShown()).toEqual(['Tunes from', 'Keys', 'Difficulty', 'Time signature']);
       expect(hasRange()).toBe(false);
     });
 
+    it('keeps every slot in its place, saying what decided it, once a library answers', () => {
+      renderApp();
+      choose(/Tunes/);
+
+      // A collection's tunes each play in their own signature, so the time
+      // signature control's place holds the reason rather than going missing
+      // (reading-tab-plan.md: a slot is never absent). The playlist control
+      // arrives directly under the browse that fills it.
+      choose(/Nursery/);
+      expect(fieldsShown()).toEqual(['Tunes from', 'Selection', 'Keys', 'Difficulty', 'Time signature']);
+      const slots = Array.from(document.querySelectorAll('.mode__body > .field--slot')).map((slot) =>
+        slot.textContent?.replace(/\s+/g, ' ').trim(),
+      );
+      expect(slots).toEqual(['Time signatureFollows the tune']);
+    });
+
     it('says which tab is chosen to anyone not looking at it', () => {
       renderApp();
-      choose(/Themes/);
+      choose(/Tunes/);
 
-      const themes = screen.getByRole('button', { name: /Themes/ });
+      // Both levels say so: the Reading tab, and Tunes on its What row.
+      const reading = screen.getByRole('button', { name: /Reading/ });
+      const tunes = screen.getByRole('button', { name: /Tunes/ });
+      const phrases = screen.getByRole('button', { name: /Phrases/ });
       const drills = screen.getByRole('button', { name: /Drills/ });
-      expect(themes.getAttribute('aria-pressed')).toBe('true');
+      expect(reading.getAttribute('aria-pressed')).toBe('true');
+      expect(tunes.getAttribute('aria-pressed')).toBe('true');
+      expect(phrases.getAttribute('aria-pressed')).toBe('false');
       expect(drills.getAttribute('aria-pressed')).toBe('false');
     });
   });
@@ -623,7 +683,7 @@ describe('headphones and speakers', () => {
 describe('choosing tunes', () => {
   const openThemes = () => {
     renderApp();
-    fireEvent.click(screen.getByRole('button', { name: /Themes/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Tunes/ }));
   };
 
   it('composes until a library is chosen, and says so', () => {

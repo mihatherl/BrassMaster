@@ -878,18 +878,66 @@ body {
  * through them as they pass.
  */
 .mode-tabs {
-  position: sticky;
-  /* Below the phone's own bar, not under it: top 0 is the viewport's top,
-     which on an iPhone is the clock and the battery — the tabs slid beneath
-     them once scrolled (the player, 2026-08-23 night). Android's inset is
-     zero, so nothing moves there. */
-  top: var(--safe-top);
-  z-index: 2;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 0.375rem;
   padding: 0.5rem 0;
   background: var(--bg);
+}
+
+/*
+ * What sticks is the LOWEST level of the hierarchy (the player, 2026-09-05,
+ * reading-tab-plan.md): under Reading it is the What row — Phrases, Tunes,
+ * Rhythms — one line; under Drills, where the tab is the lowest level, the
+ * tab strip itself, as it was. The levels above scroll away with the title,
+ * and are found by scrolling back to the top, where they were last seen.
+ *
+ * Below the phone's own bar, not under it: top 0 is the viewport's top,
+ * which on an iPhone is the clock and the battery — the tabs slid beneath
+ * them once scrolled (the player, 2026-08-23 night). Android's inset is
+ * zero, so nothing moves there.
+ */
+.mode-tabs--sticky,
+.what-row {
+  position: sticky;
+  top: var(--safe-top);
+  z-index: 2;
+  background: var(--bg);
+}
+
+/* The label sits ABOVE the sticky row rather than inside it, so it reads
+   "What" at rest and scrolls away once the row is pinned — the pinned line
+   then costs its three chips and nothing else. */
+.what-row {
+  padding: 0.25rem 0 0.5rem;
+}
+
+.what-row .segmented--row .segmented__option {
+  font-size: 0.9rem;
+  padding: 0.5rem 0.25rem;
+}
+
+/*
+ * A slot that is never absent: where a source does not use a control, the
+ * same place holds one line saying what decides it instead (the Ready
+ * gate's own pattern for course-pinned values).
+ */
+.field--slot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  border-top: 1px dashed var(--border);
+}
+
+.field--slot .field__label {
+  margin-bottom: 0;
+}
+
+.field--slot .field__note {
+  margin: 0;
+  text-align: right;
 }
 
 .mode-tab {

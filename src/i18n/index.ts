@@ -74,6 +74,11 @@ export const EN = {
   'home.free': 'Free play',
   'home.start': 'Start',
   'home.myMusic': 'My Music',
+  'home.reading': 'Reading',
+  'home.what': 'What',
+  'home.keysByPlaylist': 'Chosen tune by tune in your playlist',
+  'home.levelByPlaylist': 'Set by your playlist',
+  'home.timeFollowsTune': 'Follows the tune',
   'home.instrument': 'Instrument',
   'home.clef': 'Clef',
   'home.language': 'Language',
@@ -114,8 +119,8 @@ export const EN = {
   // the blurb is pinned to what the generator can play by a test in
   // `generate.test.ts`, which reads the English in the table.
   'kind.drills': 'Drills',
-  'kind.phrases': 'Sight-reading',
-  'kind.themes': 'Themes',
+  'kind.phrases': 'Phrases',
+  'kind.themes': 'Tunes',
   'kind.drills.blurb': 'Scales and arpeggios.',
   'kind.phrases.blurb': 'Musical phrases with contour, leaps and rests.',
   'kind.themes.blurb': 'Musical melodies you know and enjoy.',

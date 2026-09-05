@@ -387,7 +387,8 @@ export const EN_TEACHER = {
  * overpromise.
  */
 export const EN_RHYTHM = {
-  'kind.rhythm': 'Rhythm',
+  'kind.rhythm': 'Rhythms',
+  'rhythm.levelByStage': 'Chosen by the pattern’s stage',
   'kind.rhythm.blurb': 'One rhythm pattern at a time: count it, then play it.',
   'rhythm.pattern': 'Pattern',
   // The annotation tool (RhythmPatternEditor).
@@ -439,7 +440,8 @@ export const EN_RHYTHM = {
 export const PAID_RHYTHM: Record<string, Pack> = {
   en: EN_RHYTHM,
   de: {
-    'kind.rhythm': 'Rhythmus',
+    'kind.rhythm': 'Rhythmen',
+    'rhythm.levelByStage': 'Durch die Stufe des Musters bestimmt',
     'kind.rhythm.blurb': 'Ein Rhythmusmuster nach dem anderen: erst zählen, dann spielen.',
     'rhythm.pattern': 'Muster',
     'rhythm.editor': "Rhythmus-Editor",
@@ -487,7 +489,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
     'rhythm.save': "Speichern"
   },
   nl: {
-    'kind.rhythm': 'Ritme',
+    'kind.rhythm': 'Ritmes',
+    'rhythm.levelByStage': 'Bepaald door de fase van het patroon',
     'kind.rhythm.blurb': 'Eén ritmepatroon tegelijk: eerst tellen, dan spelen.',
     'rhythm.pattern': 'Patroon',
     'rhythm.editor': "Ritme-editor",
@@ -535,7 +538,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
     'rhythm.save': "Opslaan"
   },
   fr: {
-    'kind.rhythm': 'Rythme',
+    'kind.rhythm': 'Rythmes',
+    'rhythm.levelByStage': 'Fixé par l’étape du motif',
     'kind.rhythm.blurb': 'Un motif rythmique à la fois : comptez, puis jouez.',
     'rhythm.pattern': 'Motif',
     'rhythm.editor': "Éditeur de rythme",
@@ -583,7 +587,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
     'rhythm.save': "Enregistrer"
   },
   es: {
-    'kind.rhythm': 'Ritmo',
+    'kind.rhythm': 'Ritmos',
+    'rhythm.levelByStage': 'Lo fija la etapa del patrón',
     'kind.rhythm.blurb': 'Un patrón rítmico a la vez: cuenta y luego toca.',
     'rhythm.pattern': 'Patrón',
     'rhythm.editor': "Editor de ritmo",
@@ -631,7 +636,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
     'rhythm.save': "Guardar"
   },
   it: {
-    'kind.rhythm': 'Ritmo',
+    'kind.rhythm': 'Ritmi',
+    'rhythm.levelByStage': 'Deciso dallo stadio del pattern',
     'kind.rhythm.blurb': 'Un ritmo alla volta: prima conta, poi suona.',
     'rhythm.pattern': 'Schema',
     'rhythm.editor': "Editor del ritmo",
@@ -679,7 +685,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
     'rhythm.save': "Salva"
   },
   'pt-PT': {
-    'kind.rhythm': 'Ritmo',
+    'kind.rhythm': 'Ritmos',
+    'rhythm.levelByStage': 'Definido pela fase do padrão',
     'kind.rhythm.blurb': 'Um padrão rítmico de cada vez: conte e depois toque.',
     'rhythm.pattern': 'Padrão',
     'rhythm.editor': "Editor de ritmo",
@@ -727,7 +734,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
     'rhythm.save': "Guardar"
   },
   'pt-BR': {
-    'kind.rhythm': 'Ritmo',
+    'kind.rhythm': 'Ritmos',
+    'rhythm.levelByStage': 'Definido pela etapa do padrão',
     'kind.rhythm.blurb': 'Um padrão rítmico por vez: conte e depois toque.',
     'rhythm.pattern': 'Padrão',
     'rhythm.editor': "Editor de ritmo",

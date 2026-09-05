@@ -667,6 +667,13 @@ spot, or one of the cells written on it.
   key, and picking a concrete key on the grid turns it off until the
   chip is chosen again (`rhythmAsWritten`). A cell with no stored
   lens, and random notes, fall back to the chosen key either way.
+  **Amended 2026-09-05 (`reading-tab-plan.md`):** the player took his own
+  "a passage being practised" one step further — a cell with notes IS a
+  tune, and holds the notes still where this mode's law varies them. So
+  authored cells move under Tunes as *My tunes* in the next slice, the
+  ways (rhythm only, random notes, variations) apply to any tune, and this
+  mode keeps the pattern library alone. "As written" then dissolves into
+  the authored key leading a passage's key list.
   **And the run plays the page at its own register** (the same day, the
   player's repro: a note authored at A3 came out an octave lower in the
   player): the editor anchored the page at written C per clef, the run

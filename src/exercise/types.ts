@@ -304,10 +304,17 @@ export const EXERCISE_KINDS: ReadonlyArray<{ id: ExerciseKind; name: string; blu
     // saying twice what the buttons say once.
     blurb: 'Scales and arpeggios.',
   },
-  { id: 'phrases', name: 'Sight-reading', blurb: 'Musical phrases with contour, leaps and rests.' },
+  /*
+   * Renamed from "Sight-reading" 2026-09-05 (reading-tab-plan.md): the whole
+   * app is sight-reading, so the tab could not be. "Phrases" is what the
+   * generator has always called them.
+   */
+  { id: 'phrases', name: 'Phrases', blurb: 'Musical phrases with contour, leaps and rests.' },
   {
     id: 'themes',
-    name: 'Themes',
+    // "Tunes" on screen since 2026-09-05, matching "Tunes from" beneath it;
+    // the id stays `themes`, which is what the corpus calls them.
+    name: 'Tunes',
     // The player's own words (2026-08-23), chosen knowing the caveat: some of
     // the corpus is written in-house rather than known, and "we'll be
     // forgiven that". The claim is warmth, not inventory.
@@ -329,9 +336,21 @@ export const EXERCISE_KINDS: ReadonlyArray<{ id: ExerciseKind; name: string; blu
     ? [
         {
           id: 'rhythm' as const,
-          name: 'Rhythm',
+          name: 'Rhythms',
           blurb: 'One rhythm pattern at a time: count it, then play it.',
         },
       ]
     : []),
 ];
+
+/**
+ * The reading materials — everything that is music to read rather than a
+ * shape to run (`drills`). One tab on the settings screen since 2026-09-05
+ * (reading-tab-plan.md), with these as the answers to its "What" row; the
+ * kinds themselves are untouched, so nothing stored has to migrate.
+ */
+export const READING_KINDS = EXERCISE_KINDS.filter((kind) => kind.id !== 'drills');
+
+export function isReadingKind(kind: ExerciseKind): boolean {
+  return READING_KINDS.some((reading) => reading.id === kind);
+}

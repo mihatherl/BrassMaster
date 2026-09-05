@@ -88,13 +88,16 @@ describe('the app speaks the language it was asked for', () => {
      */
     window.history.replaceState({}, '', '/app/?lang=pt-PT');
     renderApp();
+    // The time-signature label is the word that forks; the What row's
+    // "Frases" is the same on both sides of the Atlantic since 2026-09-05,
+    // when Sight-reading became Phrases.
     expect(screen.getByText('Compasso')).toBeTruthy();
-    expect(screen.getByText('Primeira vista')).toBeTruthy();
+    expect(screen.getByText('Frases')).toBeTruthy();
     cleanup();
     window.history.replaceState({}, '', '/app/?lang=pt-BR');
     renderApp();
     expect(screen.getByText('Fórmula de compasso')).toBeTruthy();
-    expect(screen.getByText('Leitura à primeira vista')).toBeTruthy();
+    expect(screen.getByText('Frases')).toBeTruthy();
     window.history.replaceState({}, '', '/');
   });
 
