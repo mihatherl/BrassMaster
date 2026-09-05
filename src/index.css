@@ -922,7 +922,9 @@ body {
  * same place holds one line saying what decides it instead (the Ready
  * gate's own pattern for course-pinned values).
  */
-.field--slot {
+/* Both classes, because `.field { display: block }` is declared later in
+   this file and would otherwise win the tie. */
+.field.field--slot {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
