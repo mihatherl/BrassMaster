@@ -2,7 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { instrumentById } from '../domain/instruments';
 import { difficultyById } from '../exercise/difficulty';
 import { metreFor } from '../domain/metre';
-import { defaultLengthFor, generateExercise, HORIZON_BARS } from '../exercise/generate';
+import {
+  type GenerateOptions, defaultLengthFor, generateExercise, HORIZON_BARS } from '../exercise/generate';
 import { collectionOf } from '../exercise/collections';
 import {
   loadCells,
@@ -121,6 +122,43 @@ function cellNotesFor(
   return settings.rhythmAsWritten && cell.fifths !== undefined
     ? { cellNotes: cell.notes, fifths: cell.fifths }
     : { cellNotes: cell.notes };
+}
+
+/**
+ * The playlist, resolved — ids to patterns and lines — because storage
+ * is the app's business and the generator is pure. A step whose cell
+ * has been deleted is DROPPED, not silently played bare: a playlist
+ * the player wrote out must say what it plays.
+ */
+function rhythmStepsFor(
+  settings: Settings,
+  seed: number,
+): { rhythmSteps?: GenerateOptions['rhythmSteps']; rhythmMedley?: boolean } {
+  if (!Array.isArray(settings.rhythmSteps) || settings.rhythmSteps.length === 0) return {};
+  const cells = loadCells();
+  type Resolved = NonNullable<GenerateOptions['rhythmSteps']>[number];
+  const steps: Resolved[] = [];
+  settings.rhythmSteps.forEach((step, index) => {
+    const pattern = resolveRhythmPattern(step.patternId);
+    if (step.cellId === RANDOM_CELL) {
+      steps.push({ pattern, cellNotes: randomNotesFor(pattern.bars, seed + index * 13) });
+      return;
+    }
+    if (step.cellId) {
+      const cell = cells.find((entry) => entry.id === step.cellId);
+      if (!cell) return;
+      steps.push({
+        pattern,
+        cellNotes: cell.notes,
+        fifths:
+          settings.rhythmAsWritten && cell.fifths !== undefined ? cell.fifths : settings.fifths,
+        vary: step.vary === true,
+      });
+      return;
+    }
+    steps.push({ pattern, vary: step.vary === true });
+  });
+  return steps.length > 0 ? { rhythmSteps: steps, rhythmMedley: settings.rhythmMedley } : {};
 }
 
 export function App() {
@@ -252,6 +290,7 @@ export function App() {
                  for this run, or nothing — which plays the alternating
                  pair rhythm mode defaults to. */
               ...cellNotesFor(settings, seed),
+              ...rhythmStepsFor(settings, seed),
             }
           : {}),
         cycles: shape?.cycles ?? length.cycles,

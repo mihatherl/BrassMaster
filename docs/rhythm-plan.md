@@ -1042,21 +1042,35 @@ serious rung — held until his ear has judged the cheap ones), and a
 resample interval sizes). Each is a registry entry plus, at most, one
 new config field.
 
-**2. Multi-select, themes-shaped — NEXT.** A pool playable as a
+**2. Multi-select, themes-shaped — BUILT (2026-09-04).** A pool playable as a
 medley plus a defined playlist, mirroring `themeSteps`; **a step is a
 pattern plus a way of playing it** (bare / varied / a named cell) and
 carries NO key — As written and the Play in grid already answer that,
 and a key-per-step would reintroduce the control the As-written
-ruling removed. The generator learns to draw rounds from steps.
+ruling removed. The generator draws rounds from steps — metre and
+signature changing at the seams on the renderer's standing apparatus,
+every step heard at least once whatever the length setting (the
+themes machinery's own truncation lesson), variation counted per STEP
+so each step's first hearing states its theme, and medley order one
+seeded shuffle per run. One adaptation to the themes model, asserted
+and to be judged by his hands: the themes SHEET exists because tunes
+needed browsing, and the cards already are the browse — so the chosen
+live in a **strip above the cards** (chips with ✕, Shuffle / In
+order / Clear), and every way on a card wears a small **+** that
+appends it with the vary modifier as it stands. A step whose cell has
+been deleted is DROPPED at resolution, never silently played bare. The
+full sheet remains the fallback if the strip strains.
 
-**3. Collections.** Cards group into **"Built-in"** (named as such,
+**3. Collections — BUILT (2026-09-04).** Cards group into **"Built-in"** (named as such,
 his ask) and **"My rhythms"**; Built-in presents by spine stage,
 closed by default, so the packaged set reads as four rows. On his
 instinct to TRIM the packaged library: argued down to collapsing it
 visually first — the spine is the graded teaching hypothesis and
 serves his second use case ("be presented with a bunch of different
 rhythms and interpret them properly") — with actual cuts his to name
-afterwards, by veto, as data edits.
+afterwards, by veto, as data edits. As built: each stage is a closed
+panel naming its patterns on the summary line, opening where it holds
+the chosen pattern; the player's own rhythms stand open beneath.
 
 Multi-select — a playlist of patterns and cells, as themes already
 has — is what remains of this phase after variations.

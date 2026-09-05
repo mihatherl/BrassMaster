@@ -705,6 +705,42 @@ export function SettingsScreen({
    * instrument can hold — and the ones it cannot are shown disabled with
    * the reason, exactly as the themes picker greys a tune.
    */
+  /* The playlist's helpers (multi-select, 2026-09-04): a step is a
+     pattern plus a way, the vary modifier captured as it stands. */
+  const addStep = (patternId: string, cellId?: string) =>
+    onChange(
+      sanitise({
+        ...settings,
+        rhythmSteps: [
+          ...settings.rhythmSteps,
+          {
+            patternId,
+            ...(cellId ? { cellId } : {}),
+            ...(settings.rhythmVary && cellId !== RANDOM_CELL ? { vary: true } : {}),
+          },
+        ],
+      }),
+    );
+  const removeStep = (index: number) =>
+    onChange(
+      sanitise({
+        ...settings,
+        rhythmSteps: settings.rhythmSteps.filter((_, i) => i !== index),
+      }),
+    );
+  const stepLabel = (step: { patternId: string; cellId?: string; vary?: boolean }) => {
+    const pattern =
+      [...RHYTHM_PATTERNS, ...customRhythms].find((entry) => entry.id === step.patternId) ??
+      RHYTHM_PATTERNS[0];
+    const way =
+      step.cellId === RANDOM_CELL
+        ? t('rhythm.randomNotes')
+        : step.cellId
+          ? patternCells.find((cell) => cell.id === step.cellId)?.name ?? '?'
+          : null;
+    return `${pattern.name}${way ? ` · ${way}` : ''}${step.vary ? ' ≈' : ''}`;
+  };
+
   const patternField = __HAS_RHYTHM__ ? (
     <>
       <div className="field">
@@ -764,10 +800,60 @@ export function SettingsScreen({
         <p className="field__note muted">{t('rhythm.playInNote')}</p>
       </div>
 
+      {/* The playlist (multi-select, 2026-09-04): the themes machinery's
+          shape adapted — the cards ARE the browse, so the chosen live in
+          a strip, ordered as added, medley or in order. A step carries
+          no key: As written and the grid above already answer that. */}
+      {settings.rhythmSteps.length > 0 && (
+        <div className="field">
+          <span className="field__label">{t('rhythm.playlist')}</span>
+          <div className="row">
+            <button
+              type="button"
+              className={`segmented__option ${settings.rhythmMedley ? 'is-selected' : ''}`}
+              aria-pressed={settings.rhythmMedley}
+              onClick={() => onChange(sanitise({ ...settings, rhythmMedley: true }))}
+            >
+              {t('rhythm.medley')}
+            </button>
+            <button
+              type="button"
+              className={`segmented__option ${!settings.rhythmMedley ? 'is-selected' : ''}`}
+              aria-pressed={!settings.rhythmMedley}
+              onClick={() => onChange(sanitise({ ...settings, rhythmMedley: false }))}
+            >
+              {t('rhythm.inOrder')}
+            </button>
+            <button
+              type="button"
+              className="segmented__option"
+              onClick={() => onChange(sanitise({ ...settings, rhythmSteps: [] }))}
+            >
+              {t('rhythm.clear')}
+            </button>
+          </div>
+          <div className="row">
+            {settings.rhythmSteps.map((step, index) => (
+              <span key={`${step.patternId}-${step.cellId ?? ''}-${index}`} className="pattern-card__cell">
+                <span className="segmented__option is-selected">{stepLabel(step)}</span>
+                <button
+                  type="button"
+                  className="segmented__option pattern-card__edit"
+                  aria-label={t('rhythm.removeStep')}
+                  onClick={() => removeStep(index)}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="field">
         <span className="field__label">{t('rhythm.pattern')}</span>
-        <div className="pattern-grid">
-          {shownPatterns.map((option) => {
+        {(() => {
+          const card = (option: RhythmPattern) => {
             const open = openPattern === option.id;
             const cells = patternCells.filter((cell) => cell.patternId === option.id);
             return (
@@ -808,6 +894,14 @@ export function SettingsScreen({
                     </button>
                     <button
                       type="button"
+                      className="segmented__option pattern-card__edit"
+                      aria-label={t('rhythm.addStep')}
+                      onClick={() => addStep(option.id)}
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
                       className={`segmented__option ${
                         settings.rhythmPatternId === option.id && settings.cellId === RANDOM_CELL
                           ? 'is-selected'
@@ -824,6 +918,14 @@ export function SettingsScreen({
                       }
                     >
                       {t('rhythm.randomNotes')}
+                    </button>
+                    <button
+                      type="button"
+                      className="segmented__option pattern-card__edit"
+                      aria-label={t('rhythm.addStep')}
+                      onClick={() => addStep(option.id, RANDOM_CELL)}
+                    >
+                      +
                     </button>
                     {/* Vary — a MODIFIER of whichever line is active
                         (the player, 2026-09-04): on the bare rhythm it
@@ -891,6 +993,14 @@ export function SettingsScreen({
                           >
                             ✎
                           </button>
+                          <button
+                            type="button"
+                            className="segmented__option pattern-card__edit"
+                            aria-label={t('rhythm.addStep')}
+                            onClick={() => addStep(option.id, cell.id)}
+                          >
+                            +
+                          </button>
                         </span>
                       );
                     })}
@@ -921,8 +1031,52 @@ export function SettingsScreen({
                 )}
               </div>
             );
-          })}
-        </div>
+          };
+          /* Built-in named as such, presented by spine stage — the
+             stage IS its structure, closed unless it holds the chosen
+             pattern, so the packaged set reads as a few rows (ratified
+             2026-09-04 over trimming it: the spine is the graded
+             teaching hypothesis, and cuts are the player's to name as
+             data). The player's own rhythms stand open beneath. */
+          const builtIn = shownPatterns.filter((p) =>
+            RHYTHM_PATTERNS.some((packaged) => packaged.id === p.id),
+          );
+          const mine = shownPatterns.filter(
+            (p) => !RHYTHM_PATTERNS.some((packaged) => packaged.id === p.id),
+          );
+          const stages = [...new Set(builtIn.map((p) => p.stage))].sort((a, b) => a - b);
+          return (
+            <>
+              {builtIn.length > 0 && (
+                <p className="picker__group">{t('rhythm.builtIn')}</p>
+              )}
+              {stages.map((stage) => {
+                const inStage = builtIn.filter((p) => p.stage === stage);
+                return (
+                  <details
+                    key={stage}
+                    className="panel"
+                    open={inStage.some((p) => p.id === settings.rhythmPatternId)}
+                  >
+                    <summary className="panel__summary">
+                      <span className="panel__heading">
+                        <span className="panel__title">
+                          {t('rhythm.stage', { n: String(stage) })}
+                        </span>
+                        <span className="panel__values">
+                          {inStage.map((p) => p.name).join(' · ')}
+                        </span>
+                      </span>
+                    </summary>
+                    <div className="pattern-grid">{inStage.map(card)}</div>
+                  </details>
+                );
+              })}
+              {mine.length > 0 && <p className="picker__group">{t('rhythm.mine')}</p>}
+              {mine.length > 0 && <div className="pattern-grid">{mine.map(card)}</div>}
+            </>
+          );
+        })()}
         <div className="row">
           <button
             type="button"

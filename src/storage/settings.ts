@@ -263,6 +263,19 @@ export interface Settings {
    * Meaningless under Random notes, which is already fresh every run.
    */
   rhythmVary: boolean;
+  /**
+   * The Pattern tab's playlist (the multi-select phase, 2026-09-04):
+   * each step a pattern plus a way of playing it — a cell by id,
+   * RANDOM_CELL's sentinel for made-up notes, or neither for the bare
+   * rhythm — with the vary modifier captured per step. Ids only, so
+   * this file needs nothing from the pattern library (the free-bundle
+   * leak rule); stale ids are dropped at USE, in the app, the same
+   * grace every rhythm id gets. Empty means no playlist: the single
+   * selection plays, as it always did.
+   */
+  rhythmSteps: Array<{ patternId: string; cellId?: string; vary?: boolean }>;
+  /** Playlist order: one seeded shuffle per run, or exactly as listed. */
+  rhythmMedley: boolean;
   playbackMode: PlaybackMode;
   /**
    * Multiplies the window either side of the beat within which a fingering
@@ -592,6 +605,8 @@ export const DEFAULT_SETTINGS: Settings = {
   beatBandsRhythm: true,
   rhythmAsWritten: true,
   rhythmVary: false,
+  rhythmSteps: [],
+  rhythmMedley: true,
   playbackMode: 'reference',
   timingTolerance: 1.5,
   weakNoteDrilling: true,
