@@ -254,6 +254,15 @@ export interface Settings {
    * chosen key either way.
    */
   rhythmAsWritten: boolean;
+  /**
+   * Whether the rhythm run VARIES its line per round (the player,
+   * 2026-09-04): round one states the line as given — the cell as
+   * written, or the bare pattern's alternating pair — and each later
+   * round plays a shape-preserving variation (`variedLine`: diatonic
+   * transposition, inversion, tail displacement, tonic anchors held).
+   * Meaningless under Random notes, which is already fresh every run.
+   */
+  rhythmVary: boolean;
   playbackMode: PlaybackMode;
   /**
    * Multiplies the window either side of the beat within which a fingering
@@ -582,6 +591,7 @@ export const DEFAULT_SETTINGS: Settings = {
   beatBands: false,
   beatBandsRhythm: true,
   rhythmAsWritten: true,
+  rhythmVary: false,
   playbackMode: 'reference',
   timingTolerance: 1.5,
   weakNoteDrilling: true,

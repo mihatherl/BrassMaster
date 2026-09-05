@@ -44,7 +44,9 @@ import { planTempo } from './tempo-plan';
 import type { Exercise, ExerciseKind, LabelEvent } from './types';
 import {
   cellSlotPitch,
+  cellWrittenMidi,
   patternEvents,
+  variedLine,
   rhythmPatternById,
   syllablesForBars,
   type CellNote,
@@ -273,6 +275,12 @@ export interface GenerateOptions {
    * the only shape that makes timing observable on buttons.
    */
   cellNotes?: readonly CellNote[];
+  /**
+   * Vary the line per round (the player, 2026-09-04): round 0 states it
+   * as given — the cell as written, or the alternating pair — and each
+   * later round plays a shape-preserving variation (`variedLine`).
+   */
+  varyLine?: boolean;
 }
 
 interface Candidate {
@@ -524,7 +532,46 @@ function rhythmExercise(options: GenerateOptions): Exercise {
   let side = 0;
   /** Attacks so far, which is how a cell's notes are addressed. */
   let attack = 0;
+
+  /*
+   * The line each round plays, where variation was asked (the player,
+   * 2026-09-04). The seed line is the cell as written, or — for a bare
+   * pattern — the alternating pair itself read back as degrees of the
+   * written-C anchor (both pair notes are white, so the reading is
+   * exact and round 0 plays the very pitches the plain run would).
+   * `variedLine` then varies per round, refused by `fits`: compass and
+   * fingering always, and for the bare pair the valved rule too — a
+   * variation may not wander onto an open note the ruling of 2026-09-03
+   * keeps the default pair off.
+   */
+  const anchorFlat = (midi: number): number => {
+    const letter = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][((midi % 12) + 12) % 12];
+    return Math.floor(midi / 12) * 7 + letter - (options.clef === 'treble' ? 42 : 28);
+  };
+  const [rangeLow, rangeHigh] = writtenRange(options.instrument, options.clef);
+  const lineFifths = options.cellNotes ? options.fifths : 0;
+  const fitsLine = (line: readonly CellNote[]): boolean =>
+    line.every((note) => {
+      const midi = cellWrittenMidi(note, lineFifths, options.clef);
+      if (midi < rangeLow || midi > rangeHigh) return false;
+      return options.cellNotes ? isPlayable(soundingFromWritten(midi, options.instrument, options.clef), options.instrument) : valved(midi);
+    });
+  const attackCount = flat.filter((event) => !event.rest && !continuation.has(event)).length;
+  const seedLine: readonly CellNote[] | undefined = !options.varyLine
+    ? undefined
+    : options.cellNotes ??
+      Array.from({ length: attackCount }, (_, index) => {
+        const flatDegree = anchorFlat(pair[index % 2]);
+        const note: CellNote = { degree: ((flatDegree % 7) + 7) % 7 + 1 };
+        const octave = Math.floor(flatDegree / 7);
+        if (octave) note.octave = octave;
+        return note;
+      });
+
   for (let round = 0; round < rounds; round++) {
+    const roundLine = seedLine
+      ? variedLine(seedLine, round, options.seed, fitsLine)
+      : options.cellNotes;
     for (let statement = 0; statement < statements; statement++) {
       const demo = statement < DEMONSTRATION_STATEMENTS;
       if (demo) demoSpans.push([at, at + patternBeats]);
@@ -564,9 +611,9 @@ function rhythmExercise(options: GenerateOptions): Exercise {
                * force, placed near the register the pair sits in, so a
                * pattern reads where the eye already is.
                */
-              const cellNote = options.cellNotes?.[attack];
+              const cellNote = roundLine?.[attack];
               pitches.push(
-                cellNote ? cellSlotPitch(cellNote, options.fifths, options.clef) : pair[side],
+                cellNote ? cellSlotPitch(cellNote, lineFifths, options.clef) : pair[side],
               );
               attack++;
               side = 1 - side;

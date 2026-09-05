@@ -825,6 +825,24 @@ export function SettingsScreen({
                     >
                       {t('rhythm.randomNotes')}
                     </button>
+                    {/* Vary — a MODIFIER of whichever line is active
+                        (the player, 2026-09-04): on the bare rhythm it
+                        varies the alternating pair per round, on a cell
+                        it varies that cell; random notes are already
+                        fresh and ignore it. */}
+                    <button
+                      type="button"
+                      className={`segmented__option ${
+                        settings.rhythmVary && settings.cellId !== RANDOM_CELL ? 'is-selected' : ''
+                      }`}
+                      disabled={settings.cellId === RANDOM_CELL}
+                      aria-pressed={settings.rhythmVary && settings.cellId !== RANDOM_CELL}
+                      onClick={() =>
+                        onChange(sanitise({ ...settings, rhythmVary: !settings.rhythmVary }))
+                      }
+                    >
+                      ≈ {t('rhythm.vary')}
+                    </button>
                     {cells.map((cell) => {
                       const fits = cellFitsKeys(
                         cell,

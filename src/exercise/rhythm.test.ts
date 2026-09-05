@@ -25,6 +25,7 @@ import {
   loadCells,
   movedNote,
   rewrittenIn,
+  variedLine,
   walkSteps,
   randomNotesFor,
   reconcileNotes,
@@ -626,6 +627,61 @@ describe('the lens re-keyed: the page holds still (2026-09-04)', () => {
   it('is exactly undone by the journey back', () => {
     const notes = [{ degree: 2 }, { degree: 6, octave: 1 }, { degree: 4, alter: 1 as const }];
     expect(rewrittenIn(rewrittenIn(notes, -3, 4), 4, -3)).toEqual(notes);
+  });
+});
+
+describe('variations — shape held, notes moved (2026-09-04)', () => {
+  /*
+   * The player's spec: a variation "should look like" the original —
+   * ABAB becomes DEDE, a run up a fifth becomes a run down one, the
+   * larger leaps survive. The engine is transposition, inversion and
+   * tail displacement, all interval-preserving by construction, with
+   * tonic anchors held where the original had them.
+   */
+  const flat = (note: { degree: number; octave?: number }) =>
+    note.degree - 1 + (note.octave ?? 0) * 7;
+  const intervals = (line: ReadonlyArray<{ degree: number; octave?: number }>) =>
+    line.slice(1).map((note, i) => flat(note) - flat(line[i]));
+
+  it('round zero is the original itself: theme first, then variations', () => {
+    const line = [{ degree: 3 }, { degree: 4 }, { degree: 5 }];
+    expect(variedLine(line, 0, 9, () => true)).toEqual(line);
+  });
+
+  it('varies, deterministically, and preserves the interval fabric up to inversion', () => {
+    const line = [{ degree: 3 }, { degree: 4 }, { degree: 5 }, { degree: 2 }];
+    const varied = variedLine(line, 1, 9, () => true);
+    expect(varied).not.toEqual(line);
+    expect(variedLine(line, 1, 9, () => true)).toEqual(varied);
+    /* Steps stay steps and leaps stay leaps at every joint except a
+       displaced tail's seam: each interval matches the original's size,
+       or its size shifted by the octave/fifth a tail-push adds. */
+    const original = intervals(line);
+    const after = intervals(varied);
+    after.forEach((interval, i) => {
+      const size = Math.abs(original[i]);
+      expect(
+        [size, Math.abs(size - 7), size + 7, Math.abs(size - 4), size + 4].includes(
+          Math.abs(interval),
+        ),
+        `interval ${i}: ${interval} from ${original[i]}`,
+      ).toBe(true);
+    });
+  });
+
+  it('keeps a tonic anchor where the original had one', () => {
+    // Opens and closes on the tonic: every variation does too, in some octave.
+    const line = [{ degree: 1 }, { degree: 5 }, { degree: 3 }, { degree: 1 }];
+    for (let round = 1; round <= 6; round++) {
+      const varied = variedLine(line, round, 4, () => true);
+      expect(varied[0].degree, `round ${round} opening`).toBe(1);
+      expect(varied[varied.length - 1].degree, `round ${round} closing`).toBe(1);
+    }
+  });
+
+  it('falls back to the original when nothing playable exists', () => {
+    const line = [{ degree: 2 }, { degree: 3 }];
+    expect(variedLine(line, 3, 11, () => false)).toEqual(line);
   });
 });
 

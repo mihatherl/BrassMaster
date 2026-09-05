@@ -992,8 +992,49 @@ changed (the snapshot IS the cell), and **its id survives a rename**
 sheet, the first way to remove a cell the app has had; a deleted
 selection falls back to the bare rhythm by the standing grace.
 
+## The selection phase (ratified 2026-09-04; variations built the same day)
+
+The player closed his band-hall pass and opened the next seam: *"we
+need to look at the settings menu and how people interact with and
+make selections with the patterns mode."* Ratified, in build order:
+
+**1. Variations — BUILT.** His spec: a variation *"should look like"*
+the original — ABAB becomes DEDE, a run of quavers up a fifth becomes
+a run down one, and the larger leaps survive. The engine
+(`variedLine`) is therefore shape-preserving operators, not chance:
+diatonic transposition, inversion about the opening note, and tail
+displacement by an octave or a fifth (his "pushing groups or
+sequences"); tonic anchors held where the original opens or closes on
+the tonic (his "where did the original root itself to the tonic"). In
+the UI, **Vary is a modifier, not a fourth way** (the ≈ chip): on the
+bare rhythm it varies the alternating pair, on a cell it varies that
+cell; Random notes is already fresh and ignores it — and **Random
+notes stays** for now, at his word: he may find it redundant against
+sight-reading mode, and will say so from playing. A varied run gives
+each ROUND a fresh line, opening with the original — theme first,
+then variations — and every candidate passes the run's own fitness:
+compass, fingering, and for bare lines the valved rule, so no
+variation wanders onto an open note. Pinned by interval-fabric,
+tonic-anchor, determinism and every-instrument valved tests.
+
+**2. Multi-select, themes-shaped — NEXT.** A pool playable as a
+medley plus a defined playlist, mirroring `themeSteps`; **a step is a
+pattern plus a way of playing it** (bare / varied / a named cell) and
+carries NO key — As written and the Play in grid already answer that,
+and a key-per-step would reintroduce the control the As-written
+ruling removed. The generator learns to draw rounds from steps.
+
+**3. Collections.** Cards group into **"Built-in"** (named as such,
+his ask) and **"My rhythms"**; Built-in presents by spine stage,
+closed by default, so the packaged set reads as four rows. On his
+instinct to TRIM the packaged library: argued down to collapsing it
+visually first — the spine is the graded teaching hypothesis and
+serves his second use case ("be presented with a bunch of different
+rhythms and interpret them properly") — with actual cuts his to name
+afterwards, by veto, as data edits.
+
 Multi-select — a playlist of patterns and cells, as themes already
-has — is what remains.
+has — is what remains of this phase after variations.
 
 ## Open, and named so they are not forgotten
 

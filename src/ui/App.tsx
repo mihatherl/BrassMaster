@@ -245,6 +245,9 @@ export function App() {
         ...(typeof __HAS_RHYTHM__ !== 'undefined' && __HAS_RHYTHM__ && settings.kind === 'rhythm'
           ? {
               rhythmPattern: resolveRhythmPattern(settings.rhythmPatternId),
+              /* Vary is a modifier of whichever line is active; random
+                 notes are already fresh per run and ignore it. */
+              varyLine: settings.rhythmVary && settings.cellId !== RANDOM_CELL,
               /* The line over the pattern: a written cell, notes made up
                  for this run, or nothing — which plays the alternating
                  pair rhythm mode defaults to. */

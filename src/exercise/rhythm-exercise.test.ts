@@ -124,6 +124,45 @@ describe('the rhythm exercise', () => {
     expect(statement[0]).toBe(57);
   });
 
+  it('varies the line per round — theme first, fresh shapes after', () => {
+    /*
+     * Vary (the player, 2026-09-04): round one plays the line as given,
+     * later rounds play shape-preserving variations. Four rounds of a
+     * one-bar cell: statements 0-1 are round one and state the cell as
+     * written; some later round differs.
+     */
+    const cellNotes = [{ degree: 1 }, { degree: 2 }, { degree: 3 }, { degree: 1 }];
+    const exercise = generateExercise(
+      options({ cellNotes, varyLine: true, cycles: 4, fifths: 0 }),
+    );
+    const statementMidis = (index: number) =>
+      exercise.notes
+        .filter((note) => note.startBeat >= index * 4 && note.startBeat < (index + 1) * 4)
+        .map((note) => note.writtenMidi);
+    const asWritten = generateExercise(options({ cellNotes, cycles: 1, fifths: 0 }));
+    expect(statementMidis(0)).toEqual(asWritten.notes.slice(0, 4).map((n) => n.writtenMidi));
+    // Both plays of a round share its line…
+    expect(statementMidis(2)).toEqual(statementMidis(3));
+    // …and at least one later round moved off the theme.
+    const later = [2, 4, 6].map((index) => statementMidis(index).join(','));
+    expect(later.some((line) => line !== statementMidis(0).join(','))).toBe(true);
+  });
+
+  it('a varied bare pattern still asks something of the fingers', () => {
+    // The valved-pair rule survives variation: no round may wander onto
+    // an open note, on any instrument or clef.
+    for (const instrument of INSTRUMENTS) {
+      for (const clef of availableClefs(instrument)) {
+        const exercise = generateExercise(
+          options({ instrument, clef, varyLine: true, cycles: 4 }),
+        );
+        for (const note of exercise.notes) {
+          expect(note.primaryMask, `${instrument.id}/${clef}`).not.toBe(0);
+        }
+      }
+    }
+  });
+
   it('never alternates onto an open note, on any instrument or clef', () => {
     /*
      * The player's catch, 2026-09-03: *"G is open, so doesn't actually

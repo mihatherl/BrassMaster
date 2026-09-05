@@ -1004,6 +1004,76 @@ export function movedNote(note: CellNote, steps: number): CellNote {
 }
 
 /**
+ * A variation on a line — the player's design (2026-09-04): variations
+ * *"should look like"* the original, so the engine is built from
+ * shape-preserving operators rather than from chance. Per round, a
+ * seeded choice of:
+ *
+ *   - **diatonic transposition** (his ABAB → DEDE),
+ *   - **inversion** about the opening note (a run up a fifth becomes a
+ *     run down one),
+ *   - **tail displacement** by an octave or a fifth (his "pushing
+ *     groups or sequences of notes up/down an octave or a fifth"),
+ *
+ * every one of which preserves the interval fabric — steps stay steps
+ * and the larger leaps survive, which was his third requirement, by
+ * construction rather than by testing for it. **Tonic anchors are
+ * preserved**: where the original OPENS or CLOSES on the tonic, the
+ * variation re-anchors that note to the nearest tonic and leaves the
+ * interior shape alone — his "where did the original root itself to
+ * the tonic" made a rule.
+ *
+ * Round 0 is the original itself: theme first, then variations, which
+ * grounds the ear. Candidates that the run cannot play (the `fits`
+ * predicate: compass, fingering, and for bare-pattern lines the
+ * valved-pair rule) are passed over in seeded order; a line with no
+ * playable variation falls back to the original, which always fit.
+ */
+export function variedLine(
+  original: readonly CellNote[],
+  round: number,
+  seed: number,
+  fits: (line: readonly CellNote[]) => boolean,
+): CellNote[] {
+  if (round === 0 || original.length === 0) return [...original];
+  const rng = createRng(seed * 31 + round * 7919);
+  const flats = original.map((note) => note.degree - 1 + (note.octave ?? 0) * 7);
+  const anchoredStart = original[0].degree === 1 && !original[0].alter;
+  const anchoredEnd =
+    original[original.length - 1].degree === 1 && !original[original.length - 1].alter;
+
+  const build = (offset: number, invert: boolean, tailFrom: number, tailBy: number): CellNote[] => {
+    const first = flats[0];
+    const moved = flats.map((flat, index) => {
+      const shaped = invert ? first - (flat - first) : flat;
+      return shaped + offset + (index >= tailFrom ? tailBy : 0);
+    });
+    if (anchoredStart) moved[0] = Math.round(moved[0] / 7) * 7;
+    if (anchoredEnd) moved[moved.length - 1] = Math.round(moved[moved.length - 1] / 7) * 7;
+    return moved.map((flat, index) => {
+      const note: CellNote = { degree: ((flat % 7) + 7) % 7 + 1 };
+      if (original[index].alter) note.alter = original[index].alter;
+      const octave = Math.floor(flat / 7);
+      if (octave) note.octave = octave;
+      return note;
+    });
+  };
+
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const offset = Math.floor(rng() * 9) - 4;
+    const invert = rng() < 0.35;
+    const displace = original.length > 2 && rng() < 0.3;
+    const tailFrom = displace ? 1 + Math.floor(rng() * (original.length - 1)) : original.length;
+    const tailBy = displace ? [7, -7, 4, -4][Math.floor(rng() * 4)] : 0;
+    // The original restated unchanged is not a variation.
+    if (offset === 0 && !invert && !displace) continue;
+    const candidate = build(offset, invert, tailFrom, tailBy);
+    if (fits(candidate)) return candidate;
+  }
+  return [...original];
+}
+
+/**
  * The tonic's stave step under the preview's own anchoring — where the
  * lens key puts its home tonic on the page. The anchor is written C
  * (the preview's rule), and the arithmetic is anchor-cancelling in
