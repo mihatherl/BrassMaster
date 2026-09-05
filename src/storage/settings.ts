@@ -10,7 +10,8 @@
 import { INSTRUMENTS, availableClefs, writtenRange, type Clef, type Instrument } from '../domain/instruments';
 import type { ReadingMode } from '../render/surface';
 import type { PlaybackMode } from '../engine/session';
-import { COLLECTIONS, themesOf } from '../exercise/collections';
+import { COLLECTIONS, themesOf, type Collection } from '../exercise/collections';
+import { myTunes } from '../exercise/rhythm';
 import { realiseTheme } from '../exercise/theme';
 import { metreFor, OFFERED_METRES } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
@@ -813,9 +814,20 @@ export function sanitise(settings: Settings): Settings {
    * chosen have the same medley, and a stored order cannot outlive a
    * collection being renamed or moved.
    */
-  const collectionIds = COLLECTIONS.filter((collection) =>
-    (Array.isArray(settings.collectionIds) ? settings.collectionIds : []).includes(collection.id),
-  ).map((collection) => collection.id);
+  /* The player's own passages are a collection too (reading-tab-plan.md,
+     ruling 5), read here because this IS the storage layer. Behind the
+     literal so the free build never references the cell store — Rollup
+     drops the import whose only use sits in a dead branch, and `check:web`
+     checks that it did. */
+  const extra: readonly Collection[] =
+    typeof __HAS_RHYTHM__ !== 'undefined' && __HAS_RHYTHM__
+      ? [myTunes()].filter((c): c is Collection => c !== null)
+      : [];
+  const collectionIds = [...COLLECTIONS, ...extra]
+    .filter((collection) =>
+      (Array.isArray(settings.collectionIds) ? settings.collectionIds : []).includes(collection.id),
+    )
+    .map((collection) => collection.id);
 
   /*
    * The set decides, and the starting key follows it.
@@ -870,7 +882,7 @@ export function sanitise(settings: Settings): Settings {
       : Array.isArray(legacy.themeIds)
         ? legacy.themeIds.map((id) => ({ id, fifths }))
         : [];
-  const holds = new Map(themesOf(collectionIds).map((theme) => [theme.id, theme]));
+  const holds = new Map(themesOf(collectionIds, extra).map((theme) => [theme.id, theme]));
   const themeSteps = stored
     .filter(
       (step): step is ThemeStep =>
@@ -879,7 +891,15 @@ export function sanitise(settings: Settings): Settings {
         typeof (step as ThemeStep).id === 'string' &&
         typeof (step as ThemeStep).fifths === 'number',
     )
-    .filter((step) => holds.has(step.id) && keySet.includes(step.fifths))
+    /* A written passage's step carries its own key, which need not be one
+       the grid nominates — as written is the whole point of it. */
+    .filter(
+      (step) =>
+        holds.has(step.id) &&
+        (holds.get(step.id)!.written
+          ? holds.get(step.id)!.written!.fifths === step.fifths
+          : keySet.includes(step.fifths)),
+    )
     .filter((step) => {
       const theme = holds.get(step.id)!;
       const [n, d] = theme.metres[0];

@@ -5,13 +5,7 @@ import { metreFor } from '../domain/metre';
 import {
   type GenerateOptions, defaultLengthFor, generateExercise, HORIZON_BARS } from '../exercise/generate';
 import { collectionOf } from '../exercise/collections';
-import {
-  loadCells,
-  randomNotesFor,
-  RANDOM_CELL,
-  resolveRhythmPattern,
-  type CellNote,
-} from '../exercise/rhythm';
+import { loadCells, randomNotesFor, RANDOM_CELL, resolveRhythmPattern, type CellNote, myTunes } from '../exercise/rhythm';
 import { canRekeyKind } from '../exercise/rekey';
 import { randomSeed } from '../exercise/rng';
 import type { Exercise } from '../exercise/types';
@@ -268,6 +262,12 @@ export function App() {
          * depend on the player's unrelated setting.
          */
         collectionIds: courseCollections ?? settings.collectionIds,
+        /* The player's own passages, for Tunes from; storage is the app's
+           business. Behind the literal so the free build never references
+           the cell store. */
+        ...(typeof __HAS_RHYTHM__ !== 'undefined' && __HAS_RHYTHM__ && settings.kind === 'themes'
+          ? { extraCollections: [myTunes()].filter((c) => c !== null) }
+          : {}),
         /*
          * A course's named tune beats the player's own playlist (2026-08-30).
          * The author chose this tune in this key for this segment; the

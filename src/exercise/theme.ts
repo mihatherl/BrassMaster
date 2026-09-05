@@ -230,6 +230,21 @@ export interface Theme {
    * so before a player chooses it.
    */
   allowWideRange?: boolean;
+  /**
+   * A passage copied from a page: it plays **as written**, in this key and
+   * at the register the page anchors, whatever key the run is touring and
+   * wherever the compass would otherwise centre it.
+   *
+   * Set by `cellAsTheme` from the author's lens (reading-tab-plan.md, ruling
+   * 5, 2026-09-05: a passage you wrote is a tune — and the player, the day
+   * before: *"I probably don't want to ever see those in a different key"*).
+   * The register rule is `cellWrittenMidi`'s, so the editor's preview, the
+   * rhythm run and this realisation place one page the same way; a floating
+   * placement was exactly the 2026-09-04 fault. Where the pinned register
+   * does not fit the instrument the theme does not fit, full stop — a
+   * floating yes over a pinned no was a card offering an unplayable run.
+   */
+  written?: { fifths: number };
   events: readonly ThemeEvent[];
   keyChanges?: readonly ThemeKeyChange[];
 }
@@ -662,7 +677,10 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
   const fromBeat = options.fromBeat ?? 0;
   const [lowest, highest] = writtenRange(instrument, clef);
 
-  const keys: KeyChange[] = [{ fromBeat, fifths: readableKey(options.fifths) }];
+  /* As written beats the run's key: see `Theme.written`. */
+  const keys: KeyChange[] = [
+    { fromBeat, fifths: readableKey(theme.written?.fifths ?? options.fifths) },
+  ];
   for (const change of theme.keyChanges ?? []) {
     const previous = keys[keys.length - 1].fifths;
     keys.push({
@@ -787,8 +805,19 @@ export function realiseTheme(theme: Theme, options: RealiseOptions): RealisedThe
     return low >= lowest && high <= highest;
   };
 
-  const base =
-    bases.find((c) => c >= windowLow && c <= windowHigh && holds(c)) ?? bases.find(holds);
+  /*
+   * The page's own register for a written passage — the tonic at or below
+   * the clef's anchor, which is `cellWrittenMidi`'s rule restated so the two
+   * cannot drift — and the nearest fitting octave for everything else.
+   */
+  const pinnedBase = (): number | undefined => {
+    const anchor = clef === 'treble' ? 72 : 48;
+    const pinned = anchor - ((((anchor % 12) - tonicClass) % 12) + 12) % 12;
+    return holds(pinned) ? pinned : undefined;
+  };
+  const base = theme.written
+    ? pinnedBase()
+    : (bases.find((c) => c >= windowLow && c <= windowHigh && holds(c)) ?? bases.find(holds));
   if (base === undefined) return null;
 
   const tonics = tonicsFrom(base);

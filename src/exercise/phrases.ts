@@ -137,7 +137,11 @@ function ownMetre(theme: Theme): Metre {
 /** Themes this instrument, difficulty and metre can actually take. */
 export function themesFor(options: Omit<StitchOptions, 'rng' | 'count' | 'keys'>): Theme[] {
   return options.corpus.filter((theme) => {
-    if (options.difficulty !== undefined && theme.difficulty !== options.difficulty) return false;
+    /* A passage the player wrote is the level it is: asking for My tunes
+       has already answered the question the level exists to answer, the
+       same reasoning as naming the tunes by hand (`steps`). */
+    if (options.difficulty !== undefined && !theme.written && theme.difficulty !== options.difficulty)
+      return false;
     if (options.metre) {
       const { beatsPerBar, beatUnit } = options.metre;
       if (!theme.metres.some(([n, d]) => n === beatsPerBar && d === beatUnit)) return false;

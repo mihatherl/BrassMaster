@@ -36,7 +36,7 @@ import { metreFor, type Metre } from '../domain/metre';
 import { createRng, type Rng } from './rng';
 import { assembleExercise, type Slot, type SlotPitch } from './assemble';
 import { tonicWindow } from './theme';
-import { themeById, themesOf } from './collections';
+import { themeById, themesOf, type Collection } from './collections';
 import { stitchThemes } from './phrases';
 import { composeTune, TUNE_BARS } from './compose';
 import type { Theme } from './theme';
@@ -175,6 +175,12 @@ export interface GenerateOptions {
    * this module's business.
    */
   collectionIds?: readonly string[];
+  /**
+   * Collections that live outside the static list — the player's own
+   * passages (`myTunes`), read from storage by the caller. The generator
+   * stays pure: it is handed the music, never the shelf.
+   */
+  extraCollections?: readonly Collection[];
   /**
    * A named playlist, in order, with duplicates honoured — each step a tune
    * *in a key*, because the two are chosen together: the picker offers only
@@ -829,7 +835,7 @@ export function generateExercise(options: GenerateOptions): Exercise {
      * the instrument's compass. A collection with nothing at this level is the
      * same situation as a metre no cell is written in.
      */
-    const fromCollections = themesOf(options.collectionIds ?? []);
+    const fromCollections = themesOf(options.collectionIds ?? [], options.extraCollections ?? []);
     const playing = fromCollections.length > 0;
     /*
      * A defined run is a playlist of steps: the tunes in the order given,
@@ -846,7 +852,7 @@ export function generateExercise(options: GenerateOptions): Exercise {
     const playlist =
       playing && options.selection === 'defined' && options.themeSteps?.length
         ? options.themeSteps
-            .map(({ id, fifths }) => ({ theme: themeById(id), fifths }))
+            .map(({ id, fifths }) => ({ theme: themeById(id, options.extraCollections ?? []), fifths }))
             .filter(
               (step): step is { theme: Theme; fifths: number } =>
                 step.theme !== undefined && fromCollections.includes(step.theme),

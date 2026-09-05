@@ -389,6 +389,8 @@ export const EN_TEACHER = {
 export const EN_RHYTHM = {
   'kind.rhythm': 'Rhythms',
   'rhythm.levelByStage': 'Chosen by the pattern’s stage',
+  'rhythm.myTunes': 'My tunes',
+  'rhythm.myTunesNote': 'Passages you wrote play as written: their own key and register.',
   'kind.rhythm.blurb': 'One rhythm pattern at a time: count it, then play it.',
   'rhythm.pattern': 'Pattern',
   // The annotation tool (RhythmPatternEditor).
@@ -442,6 +444,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
   de: {
     'kind.rhythm': 'Rhythmen',
     'rhythm.levelByStage': 'Durch die Stufe des Musters bestimmt',
+    'rhythm.myTunes': 'Meine Melodien',
+    'rhythm.myTunesNote': 'Eigene Passagen spielen wie geschrieben: in ihrer Tonart und Lage.',
     'kind.rhythm.blurb': 'Ein Rhythmusmuster nach dem anderen: erst zählen, dann spielen.',
     'rhythm.pattern': 'Muster',
     'rhythm.editor': "Rhythmus-Editor",
@@ -491,6 +495,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
   nl: {
     'kind.rhythm': 'Ritmes',
     'rhythm.levelByStage': 'Bepaald door de fase van het patroon',
+    'rhythm.myTunes': 'Mijn melodieën',
+    'rhythm.myTunesNote': 'Eigen passages spelen zoals geschreven: in hun eigen toonsoort en ligging.',
     'kind.rhythm.blurb': 'Eén ritmepatroon tegelijk: eerst tellen, dan spelen.',
     'rhythm.pattern': 'Patroon',
     'rhythm.editor': "Ritme-editor",
@@ -540,6 +546,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
   fr: {
     'kind.rhythm': 'Rythmes',
     'rhythm.levelByStage': 'Fixé par l’étape du motif',
+    'rhythm.myTunes': 'Mes mélodies',
+    'rhythm.myTunesNote': 'Vos passages se jouent tels qu’écrits : dans leur tonalité et leur registre.',
     'kind.rhythm.blurb': 'Un motif rythmique à la fois : comptez, puis jouez.',
     'rhythm.pattern': 'Motif',
     'rhythm.editor': "Éditeur de rythme",
@@ -589,6 +597,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
   es: {
     'kind.rhythm': 'Ritmos',
     'rhythm.levelByStage': 'Lo fija la etapa del patrón',
+    'rhythm.myTunes': 'Mis melodías',
+    'rhythm.myTunesNote': 'Tus pasajes suenan tal como están escritos: en su tonalidad y registro.',
     'kind.rhythm.blurb': 'Un patrón rítmico a la vez: cuenta y luego toca.',
     'rhythm.pattern': 'Patrón',
     'rhythm.editor': "Editor de ritmo",
@@ -638,6 +648,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
   it: {
     'kind.rhythm': 'Ritmi',
     'rhythm.levelByStage': 'Deciso dallo stadio del pattern',
+    'rhythm.myTunes': 'Le mie melodie',
+    'rhythm.myTunesNote': 'I tuoi passaggi si suonano come scritti: nella loro tonalità e nel loro registro.',
     'kind.rhythm.blurb': 'Un ritmo alla volta: prima conta, poi suona.',
     'rhythm.pattern': 'Schema',
     'rhythm.editor': "Editor del ritmo",
@@ -687,6 +699,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
   'pt-PT': {
     'kind.rhythm': 'Ritmos',
     'rhythm.levelByStage': 'Definido pela fase do padrão',
+    'rhythm.myTunes': 'As minhas melodias',
+    'rhythm.myTunesNote': 'As tuas passagens tocam-se como escritas: na sua tonalidade e registo.',
     'kind.rhythm.blurb': 'Um padrão rítmico de cada vez: conte e depois toque.',
     'rhythm.pattern': 'Padrão',
     'rhythm.editor': "Editor de ritmo",
@@ -736,6 +750,8 @@ export const PAID_RHYTHM: Record<string, Pack> = {
   'pt-BR': {
     'kind.rhythm': 'Ritmos',
     'rhythm.levelByStage': 'Definido pela etapa do padrão',
+    'rhythm.myTunes': 'Minhas melodias',
+    'rhythm.myTunesNote': 'Suas passagens tocam como escritas: na sua tonalidade e registro.',
     'kind.rhythm.blurb': 'Um padrão rítmico por vez: conte e depois toque.',
     'rhythm.pattern': 'Padrão',
     'rhythm.editor': "Editor de ritmo",

@@ -9,7 +9,7 @@ import {
 import { keyNameFor, orderByCloseness } from '../domain/keys';
 import { formatPitch } from '../domain/pitch';
 import { spellInKey } from '../domain/keys';
-import { COLLECTIONS, themeById, themesOf } from '../exercise/collections';
+import { COLLECTIONS, themeById, themesOf, type Collection } from '../exercise/collections';
 import { corpusSummary } from '../exercise/corpus';
 import { themesFor } from '../exercise/phrases';
 import { realiseTheme, type Theme } from '../exercise/theme';
@@ -17,16 +17,7 @@ import { metreFor } from '../domain/metre';
 import { DIFFICULTIES } from '../exercise/difficulty';
 import { DRILLS, drillById, isPattern, patternSpanFor } from '../exercise/generate';
 import { EXERCISE_KINDS, READING_KINDS, isReadingKind } from '../exercise/types';
-import {
-  type AuthoredCell,
-  cellFitsKeys,
-  loadCells,
-  loadCustomRhythms,
-  previewExerciseFromBars,
-  RANDOM_CELL,
-  RHYTHM_PATTERNS,
-  type RhythmPattern,
-} from '../exercise/rhythm';
+import { type AuthoredCell, cellFitsKeys, loadCells, loadCustomRhythms, previewExerciseFromBars, RANDOM_CELL, RHYTHM_PATTERNS, type RhythmPattern, myTunes, MY_TUNES_ID } from '../exercise/rhythm';
 import { currentTheme, StaveRenderer } from '../render/surface';
 import { Transport } from '../engine/clock';
 import { RhythmPatternEditor } from './RhythmPatternEditor';
@@ -206,17 +197,20 @@ function KeysGrid({
 function DefinedPicker({
   settings,
   keyName,
+  collections,
   onChange,
   onClose,
 }: {
   settings: Settings;
   keyName: (fifths: number, short?: boolean) => string;
+  /** The static collections plus the player's own, when there are any. */
+  collections: readonly Collection[];
   onChange: (settings: Settings) => void;
   onClose: () => void;
 }) {
   const instrument = instrumentById(settings.instrumentId);
   const steps = settings.themeSteps;
-  const groups = COLLECTIONS.filter((collection) =>
+  const groups = collections.filter((collection) =>
     settings.collectionIds.includes(collection.id),
   ).map((collection) => ({
     collection,
@@ -243,14 +237,17 @@ function DefinedPicker({
     return () => window.scrollTo(0, 0);
   }, []);
 
+  /* A written passage has no level to show; it says what it is instead. */
   const detail = (theme: Theme) =>
-    `${theme.bars} bars · ${theme.difficulty} · ${theme.metres.map(([n, d]) => `${n}/${d}`).join(', ')}`;
+    `${theme.bars} bars · ${theme.written ? t('rhythm.asWritten') : theme.difficulty} · ${theme.metres.map(([n, d]) => `${n}/${d}`).join(', ')}`;
 
   /* Which of the nominated keys hold this tune, asked of the real placement —
      the same question `sanitise` asks of every stored step, so a chip offered
      here is a step that survives being stored. */
   const fitsFor = (theme: Theme) =>
-    settings.keySet.filter((fifths) => {
+    /* A written passage offers its own key and no other — as written is
+       the point of it — whatever the grid above nominates. */
+    (theme.written ? [theme.written.fifths] : settings.keySet).filter((fifths) => {
       const [n, d] = theme.metres[0];
       return (
         realiseTheme(theme, {
@@ -505,7 +502,6 @@ export function SettingsScreen({
       difficulty: level,
       corpus,
     }).length;
-  const playable = defined ? steps.length : fitsOf(themesOf(chosenIds), settings.difficultyId);
 
   // What the chosen tab is, for the blurb line beneath the tabs.
   const material = EXERCISE_KINDS.find((k) => k.id === settings.kind)!;
@@ -536,6 +532,17 @@ export function SettingsScreen({
     { pattern: RhythmPattern; cell: AuthoredCell | null } | 'closed'
   >('closed');
   const [rhythmShelf, setRhythmShelf] = useState(0);
+  /* The player's passages as a collection under Tunes from (reading-tab-
+     plan.md, ruling 5). Re-read when the shelf changes, as the cells are. */
+  const ownTunes = useMemo(
+    () => (__HAS_RHYTHM__ ? myTunes(t('rhythm.myTunes')) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rhythmShelf, settings.locale],
+  );
+  const collections: readonly Collection[] = ownTunes ? [...COLLECTIONS, ownTunes] : COLLECTIONS;
+  const playable = defined
+    ? steps.length
+    : fitsOf(themesOf(chosenIds, ownTunes ? [ownTunes] : []), settings.difficultyId);
   /** Which pattern card is expanded, showing its ways of being played. */
   const [openPattern, setOpenPattern] = useState<string | null>(null);
   const customRhythms = useMemo(
@@ -1162,7 +1169,7 @@ export function SettingsScreen({
         >
           {t('home.composed')}
         </button>
-        {COLLECTIONS.map((collection) => {
+        {collections.map((collection) => {
           const on = chosenIds.includes(collection.id);
           return (
             <button
@@ -1178,6 +1185,9 @@ export function SettingsScreen({
           );
         })}
       </div>
+      {chosenIds.includes(MY_TUNES_ID) && (
+        <p className="field__note muted">{t('rhythm.myTunesNote')}</p>
+      )}
       {chosenIds.length === 0 ? (
         <p className="field__note muted">{t('home.composedNote')}</p>
       ) : (
@@ -1323,6 +1333,7 @@ export function SettingsScreen({
         <DefinedPicker
           settings={settings}
           keyName={keyName}
+          collections={collections}
           onChange={onChange}
           onClose={() => {
             setPicking(false);

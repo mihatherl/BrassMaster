@@ -95,12 +95,25 @@ from Drills, returns to the reading material open last during that visit
 to the screen, and to Phrases otherwise — a remembered `readingKind` in
 settings is the obvious upgrade if his hands want it.
 
-**Slice 2 — the model.** My tunes under Tunes (authored cells become a
-collection of the player's own; the note editor opens from there); ways on
-tune steps; one playlist component and one step type serving Tunes and
-Rhythms; the themes sheet retired in favour of cards that open. Engine work:
-`stitchThemes` learns the ways (`rhythm only` is the alternating pair over
-the tune's rhythm, `random notes` the walk over it, `variations` the
+**Slice 2a — built 2026-09-05, the same evening, when the player asked
+where his notes had gone.** My tunes under Tunes: the player's cells are a
+collection (`myTunes` in rhythm.ts, read from storage by the callers and
+handed to `themesOf` and its kin as `extra`, so the static list and the
+corpus digest are untouched). A passage plays **as written**: `Theme.written`
+carries the author's key, `realiseTheme` opens in it whatever key the run
+is touring and pins the register to `cellWrittenMidi`'s rule rather than
+floating it — one placement for the editor, the rhythm run and the tunes
+run. The level filter lets a written passage through at every level (you
+asked for it; that answers the question the level asks), the picker offers
+a passage its own key and no other, and `sanitise` keeps such a step though
+its key is not on the grid. The editor still opens from the Rhythms cards;
+moving it is slice 2b.
+
+**Slice 2b — the rest of the model.** The note editor opens from My tunes;
+ways on tune steps; one playlist component and one step type serving Tunes
+and Rhythms; the themes sheet retired in favour of cards that open. Engine
+work: `stitchThemes` learns the ways (`rhythm only` is the alternating pair
+over the tune's rhythm, `random notes` the walk over it, `variations` the
 existing registry against a theme), and the rhythm step gains an optional
 key.
 

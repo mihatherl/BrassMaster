@@ -22,6 +22,7 @@
 
 import { parseCell, type CellEvent } from './cells';
 import type { Theme, ThemeEvent } from './theme';
+import type { Collection } from './collections';
 import { MAJOR_SCALE, spellWithLetter, tonicPitchClass } from '../domain/keys';
 import { diatonicStep, LETTERS } from '../domain/pitch';
 import { createRng, type Rng } from './rng';
@@ -866,7 +867,36 @@ export function cellAsTheme(cell: AuthoredCell): Theme {
     difficulty: 'easy',
     metres: [[cell.metre[0], cell.metre[1]]],
     bars: cell.bars.length,
+    /* The author's lens is the practice intent, key and register both —
+       `Theme.written` carries it into the tunes machinery. */
+    ...(cell.fifths !== undefined ? { written: { fifths: cell.fifths } } : {}),
     events,
+  };
+}
+
+/** The collection id the player's own passages appear under, in Tunes from. */
+export const MY_TUNES_ID = 'my-tunes';
+
+/**
+ * The player's passages as a collection of tunes — reading-tab-plan.md's
+ * ruling 5: an authored cell IS a tune, and lives under Tunes as *My tunes*.
+ * Read from storage here because storage is the app's business and the
+ * generator is pure: callers pass what this returns to `themesOf` and its
+ * kin as the `extra` collections. `null` when there is nothing written, so
+ * no chip appears for an empty shelf. The name is the caller's, because
+ * this module has no `t()` and the chip must speak the player's language.
+ */
+export function myTunes(name = 'My tunes'): Collection | null {
+  const themes = loadCells().map(cellAsTheme);
+  if (themes.length === 0) return null;
+  return {
+    id: MY_TUNES_ID,
+    name,
+    blurb: 'Passages you wrote yourself. They play as written: their own key and register.',
+    provenance: 'original',
+    status: 'candidate',
+    revision: 0,
+    themes,
   };
 }
 

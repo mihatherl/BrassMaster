@@ -133,8 +133,14 @@ export const COLLECTIONS: readonly Collection[] = [
   },
 ];
 
-export function collectionById(id: string): Collection | undefined {
-  return COLLECTIONS.find((collection) => collection.id === id);
+/*
+ * `extra`, on the four lookups below: collections that live outside this
+ * static list — the player's own passages (`myTunes` in rhythm.ts), read
+ * from storage by the caller and passed in, so this module stays pure and
+ * the corpus digest keeps counting only what ships.
+ */
+export function collectionById(id: string, extra: readonly Collection[] = []): Collection | undefined {
+  return [...COLLECTIONS, ...extra].find((collection) => collection.id === id);
 }
 
 /**
@@ -149,10 +155,13 @@ export function collectionById(id: string): Collection | undefined {
  * beside the others invited the question of how many tunes it held, which it
  * has no answer to.
  */
-export function themesOf(collectionIds: readonly string[]): readonly Theme[] {
-  return COLLECTIONS.filter((collection) => collectionIds.includes(collection.id)).flatMap(
-    (collection) => playableThemes(collection),
-  );
+export function themesOf(
+  collectionIds: readonly string[],
+  extra: readonly Collection[] = [],
+): readonly Theme[] {
+  return [...COLLECTIONS, ...extra]
+    .filter((collection) => collectionIds.includes(collection.id))
+    .flatMap((collection) => playableThemes(collection));
 }
 
 /**
@@ -177,15 +186,15 @@ export function playableThemes(collection: Collection): readonly Theme[] {
 }
 
 /** Which collection holds a theme, for grouping a list of them by their source. */
-export function collectionOf(themeId: string): Collection | undefined {
-  return COLLECTIONS.find((collection) =>
+export function collectionOf(themeId: string, extra: readonly Collection[] = []): Collection | undefined {
+  return [...COLLECTIONS, ...extra].find((collection) =>
     collection.themes.some((theme) => theme.id === themeId),
   );
 }
 
 /** A theme by id, from anywhere in the corpus. */
-export function themeById(themeId: string): Theme | undefined {
-  return collectionOf(themeId)?.themes.find((theme) => theme.id === themeId);
+export function themeById(themeId: string, extra: readonly Collection[] = []): Theme | undefined {
+  return collectionOf(themeId, extra)?.themes.find((theme) => theme.id === themeId);
 }
 
 /**
